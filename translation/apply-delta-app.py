@@ -1,0 +1,153 @@
+# -*- coding: utf-8 -*-
+"""Merge this round's hand translations into translation/memory.json, then update.py re-sweeps."""
+import json
+
+items = json.load(open("translation/delta-cjk-app.json", encoding="utf-8"))
+
+TRANS = {
+    0: '<span class="feedcoverstate" data-feed-cover-state="${state}"><span class="nopic">${COVER_STATE_TITLE[state]}</span>${\n    reason ? `<span class="feedcoverreason" title="${esc(reason)}">${esc(reason)}</span>` : \'\'}<button type="button" class="geist-button" data-feed-action="prioritise" data-code="${esc(item.code!)}" aria-label="${coverStateAction(state)} ${esc(item.code!)} cover">${coverStateAction(state)}</button></span>',
+    2: '<span class="feedcoverstate" data-feed-cover-state="fetching">${gaugeHtml(\'Fetching covers\', 0, 1, { indeterminate: true })}<span class="nopic">Fetching</span></span>',
+    3: '<a class="feednewall" href="${esc(allHref)}" style="--card-ratio:${COVER_FRONT_RATIO}"><span>View all new releases</span>${icon(\'chevron-right\')}</a>',
+    4: 'Scan the code with the camera; in Safari, allow the profile to download, install it under Settings - General - VPN & Device Management, then turn on full trust for this certificate under Settings - General - About - Certificate Trust Settings.',
+    6: '${workLabel(row)} ${row.field}: ${shown(row.current)} restored to ${shown(row.previous)}',
+    7: 'Once Watchtower runs with the compose watchtower profile, you can update from here in one click; read the Docker deployment notes before enabling it.',
+    8: 'Withdrew ${result.decisions} auto-writes${parts.length ? `: ${parts.join(\', \')}` : \'\'}',
+    9: 'Phones, tablets, and other computers warn the first time they open the HTTPS address. Install and trust the CA certificate of this machine on the device and the warning goes away. The certificate holds public parts only, never the private key.',
+    10: 'Watchtower will pull the Peach ${data.latest_version || \'\'} image and recreate the container; the /data volume is kept.',
+    11: 'Fetching covers · ${progress.done} / ${progress.total} done. Leaving this page pauses at the current one; the rest keep queuing in the background',
+    12: 'Was ${item.previous.length ? item.previous.map(shown).join(\', \') : \'empty\'}',
+    13: '\n              Takes effect immediately, no restart needed. It stops showing once you leave this page; afterwards run peach token in a terminal to see it.\n            ',
+    14: 'Titles, release dates, and tags that metadata processing wrote in by fixed rules, one per row. Withdrawing restores the overwritten value to what was there before and removes added tags; works edited after the write keep their current values.',
+    15: 'The QR code is valid for 10 minutes and refreshes while the page stays open. If an Android device cannot open the .local address, open this page on this computer via the LAN IP instead and scan that.',
+    16: 'Click Download certificate. On Windows double-click the file and install it into Trusted Root Certification Authorities; on macOS set it to Always Trust in Keychain Access.',
+    17: 'Will withdraw ${preview.decisions} auto-writes: ${parts.join(\', \') || \'nothing to change\'}.',
+    18: 'Checks each source page and the DMM image servers, up to four sources at a time; cooling sources are not requested. Reachable only means the address answers, not that the login works.',
+    19: '${data.kept.toLocaleString()} more groups are marked keep-both and stay unlisted; they reappear when the files in a group change.',
+    20: 'No new version started within 15 minutes. Check the Watchtower and Peach logs next to compose.yaml:',
+    21: 'After scanning the code to download, open Settings - Security - Encryption & credentials - Install a certificate - CA certificate and pick the downloaded file. Menu names vary by maker.',
+    22: '${scope} ${codes.length} new-release covers are still queued; fetch them now instead of waiting for the background queue.',
+    23: 'Watchtower is pulling the new image and recreating the container. Peach disconnects briefly; this page prompts you to refresh once the new version is up.',
+    24: 'Peach disconnects during the rebuild; running tasks resume after startup. When database migrations are pending, the database is backed up before they run.',
+    25: 'Will stop${batches}every follow-up task already dispatched, including running and queued items. Saved data and results are kept.',
+    26: 'Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.${scripts}',
+    27: '${receipt.changed.length} entries were edited after the write or the work is gone, untouched:',
+    28: '${preview.changed.length} entries were edited after the write or the work is gone; leaving them as they are.',
+    29: 'The database entry "${direct.name}" already has a JavDB or DMM code and can be followed directly.',
+    30: 'Scripts and API calls carry the access token in the X-Token header. The token stays on this machine and is never shown on the page.',
+    31: '${workLabel(row)} ${row.field}: the work is no longer in the ledger, skipping',
+    32: '${workLabel(row)} ${row.field}: edited since, keeping the current value',
+    33: '${sentence}another computer needs the same token file for the two to keep exchanging review results.',
+    34: 'Fetched ${got} / ${total} covers; the misses have their reasons on the card',
+    35: 'Access token rotated; ${next.signed_out} devices must sign in again',
+    36: '${workLabel(row)} removed tag "${row.tag}"',
+    37: 'Removed ${preview.tags.length} auto-added tags',
+    38: 'The ledger is backed up automatically before a withdrawal. The next metadata pass applies the same rules and may write again.',
+    39: '\n                Copy token\n              ',
+    40: 'After installing, compare the SHA-256 fingerprint in the certificate details on the device; it must match the one above.',
+    41: 'Restored ${preview.restores.length} entries',
+    42: 'Took ${job.elapsed_s.toFixed(1)} s',
+    43: '${check.elapsed_s.toFixed(2)} s',
+    44: 'The database entry "${direct.name}" is already followed for new releases.',
+    45: 'The ledger was backed up to ${receipt.backup} before the withdrawal.',
+    46: 'Removed ${result.removed_tags} tags',
+    47: 'Browsers signed in with the access password are unaffected.${scripts}',
+    48: 'Restored ${result.restored} entries',
+    49: 'Check finished, ${state.failed} failed',
+    50: '${group.code} marked keep-both as a group; no longer listed',
+    51: 'Browsers without sign-in are unaffected.${scripts}',
+    52: 'Open ${workLabel(item)}',
+    53: '${passed.length} reachable',
+    54: 'These follow-up tasks cannot resume once cancelled; start them again if needed.',
+    55: '${fresh.length} works landed in the library',
+    56: 'Withdraw selected (${chosen.length})',
+    57: 'Followed new releases for "${known.name}"',
+    58: '#${row.asset_id} (deleted)',
+    59: 'Scripts and API calls using the old token stop working immediately.',
+    60: '${report.label} images',
+    61: 'Watchtower pull and rebuild history',
+    62: 'These ${runs.length} batches',
+    63: 'Follow "${direct.name}"',
+    64: '${item.assets} files',
+    65: '"${name}" landed in the library and finished processing',
+    66: 'Peach startup and database migration history',
+    67: 'Fetched ${total} covers',
+    68: 'New file landed in the library: "${name}"',
+    69: 'Last check ${finished}',
+    70: 'Other devices trusting the HTTPS certificate',
+    71: 'You can install it on the configuration page under App and maintenance.',
+    72: 'Scan the code with a phone to download the CA certificate of this machine',
+    73: 'JavDB did not return a result this time',
+    74: 'No usable official cover found',
+    75: 'No performer card came back this time.',
+    76: 'Failed to read the auto-written metadata',
+    77: 'Copy failed; select the token and copy it manually.',
+    78: 'Check finished, all reachable',
+    79: 'Refresh the page and sign in with the new token.',
+    80: 'SHA-256 fingerprint',
+    81: 'The new token is shown only once',
+    82: 'Updated to Peach ',
+    83: 'The work is no longer in the ledger',
+    84: 'This machine must sign in again',
+    85: 'Takes effect immediately.',
+    86: ', refresh the page to use it.',
+    87: 'Auto-written metadata',
+    88: 'nothing to change',
+    89: 'Access token rotated',
+    90: 'Copy the new access token',
+    91: 'Update on the host',
+    92: 'Withdraw auto-writes',
+    93: 'Connectivity check progress',
+    94: 'Rotate the access token',
+    95: 'View the update changelog',
+    96: 'Fetching covers',
+    97: 'Undo keep-both',
+    98: 'Mark keep-both',
+    99: 'Rules and timing',
+    100: 'New access token',
+    101: 'Token copied',
+    102: 'Update unfinished',
+    103: 'Prioritise all',
+    104: 'Time unknown',
+    105: 'Unknown work',
+    106: 'Connectivity check',
+    107: 'Access token',
+    108: 'Valid until',
+    109: 'Update in one click',
+    110: 'Start the update',
+    111: 'Updating',
+    112: 'this row',
+    113: 'This round',
+    114: 'This page',
+    115: 'Withdraw',
+    116: 'Write',
+    117: 'Checked ',
+    118: ' sources',
+    119: 'All checks',
+    120: 'Rotate token',
+    121: 'This computer',
+    122: 'Download certificate',
+    123: 'Update in one click',
+    124: 'Keep-both',
+    125: 'Install',
+}
+
+out = {}
+for i, u in enumerate(items):
+    if i not in TRANS:
+        continue
+    raw = u["u"]
+    delim = raw[0] if len(raw) >= 2 and raw[0] in "`'\"" and raw[-1] == raw[0] else None
+    inner = raw[1:-1] if delim else raw
+    t = TRANS[i]
+    if delim and delim in t and delim not in inner:
+        raise SystemExit(f"{i}: translation introduces the delimiter {delim!r}")
+    if delim == "'" and "'" in t:
+        raise SystemExit(f"{i}: bare apostrophe in a '-quoted value")
+    if inner.count("${") != t.count("${"):
+        raise SystemExit(f"{i}: dollar-brace count mismatch")
+    out[raw] = delim + t + delim if delim else t
+
+memory = json.load(open("translation/memory.json", encoding="utf-8"))
+memory.update(out)
+json.dump(memory, open("translation/memory.json", "w", encoding="utf-8"), ensure_ascii=False)
+print("memory updated with", len(out), "pairs; skipped (data keys):", sorted(set(range(len(items))) - set(TRANS)))
