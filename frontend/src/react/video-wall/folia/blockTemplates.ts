@@ -15,7 +15,7 @@ export const SLOTS_PER_BLOCK = 12;
 export const EXPANSION_SPAN = { cols: 6, rows: 6 };
 
 const TEMPLATES: BlockSlot[][] = [
-    // 变体 0
+    // Variant 0
     [
         { x: 0, y: 0, cols: 3, rows: 2 },
         { x: 3, y: 0, cols: 6, rows: 4 },
@@ -30,7 +30,7 @@ const TEMPLATES: BlockSlot[][] = [
         { x: 8, y: 6, cols: 2, rows: 2 },
         { x: 10, y: 6, cols: 2, rows: 2 },
     ],
-    // 变体 1
+    // Variant 1
     [
         { x: 0, y: 0, cols: 2, rows: 3 },
         { x: 2, y: 0, cols: 2, rows: 3 },
@@ -45,7 +45,7 @@ const TEMPLATES: BlockSlot[][] = [
         { x: 4, y: 5, cols: 2, rows: 3 },
         { x: 10, y: 6, cols: 2, rows: 2 },
     ],
-    // 变体 2
+    // Variant 2
     [
         { x: 0, y: 0, cols: 6, rows: 4 },
         { x: 6, y: 0, cols: 6, rows: 3 },
@@ -60,7 +60,7 @@ const TEMPLATES: BlockSlot[][] = [
         { x: 6, y: 6, cols: 2, rows: 2 },
         { x: 8, y: 6, cols: 2, rows: 2 },
     ],
-    // 变体 3
+    // Variant 3
     [
         { x: 0, y: 0, cols: 2, rows: 2 },
         { x: 2, y: 0, cols: 2, rows: 2 },

@@ -4,12 +4,12 @@ import { Skeleton, SkulletProvider } from 'skullet/react';
 import { cardClass } from '../components/card';
 
 const FIELDS = {
-  creators: ['关注创作者', '位'],
-  enabled: ['启用来源', ''],
-  failed: ['检查失败', '个来源'],
-  updates: ['未看更新', '条'],
-  subscriptions: ['JAV 订阅', '位'],
-  releases: ['未看新作', '条'],
+  creators: ['Follow creator', 'people'],
+  enabled: ['Enable the source', ''],
+  failed: ['Check failed', 'sources'],
+  updates: ['Unwatched updates', 'items'],
+  subscriptions: ['JAV subscriptions', 'people'],
+  releases: ['Unwatched new releases', 'items'],
 } as const;
 
 // 只测量六个只读读数：隐藏样本没有请求、Portal、媒体或操作控件。
@@ -65,7 +65,7 @@ export function MeasuredReading({ field, figure, total, failed = false }: {
     {figure === undefined && failed
       ? <b data-follow-reading="" className="text-title-1-medium text-text-primary">未取得</b>
       : <SkulletProvider reveal={REVEAL}>
-        <Skeleton id={`peach:follow-reading:v1:${field}`} data={figure} sample={12345} label={`正在读取${term}`}>
+        <Skeleton id={`peach:follow-reading:v1:${field}`} data={figure} sample={12345} label={`Reading ${term}`}>
           {value => <Value figure={value} unit={field === 'enabled' ? `/ ${total ?? 0}` : unit} />}
         </Skeleton>
       </SkulletProvider>}

@@ -1,5 +1,5 @@
-/* `/api/configuration` 一次给齐的几组分区，画好时的结构从这份数据算出，记进本机，下次整页骨架照它排。
- * 只记结构（有没有这一块、几行、哪种表单），不记高度，也不记任何值。 */
+/* The section groups `/api/configuration` delivers in one shot; the rendered structure is computed from this data, stored locally, and the next full-page skeleton lays out by it.
+ * Only structure is stored (whether a block exists, how many rows, what kind of form), never heights, never values. */
 import type { ConfigurationData } from '../bundle';
 import { CLOUD_LOCATIONS } from '../../core/media-sources';
 import type { DownloadsShape, MaintenanceShape, NetworkShape } from '../../configuration-skeleton';

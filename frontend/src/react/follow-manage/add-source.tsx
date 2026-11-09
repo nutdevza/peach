@@ -1,10 +1,11 @@
-/* 添加关注：把一条链接、一个名字或一个 id 变成已关注的来源。
+/* Add follow: turn a link, a name or an id into a followed source.
  *
- * 查找只是列出候选、不写任何东西：发现要联网，结果也可能不止一个，替用户决定「就是
- * 这个」是错的。真正登记仍然要在候选里点。
+ * The search only lists candidates and writes nothing: discovery needs the network, results may be more than one, and
+ * deciding "this one" for the user would be wrong. The actual registration still happens as a click among the candidates.
  *
- * 查找那一趟在后台跑，页面关掉也还在跑。首屏读到的旧终态不冒充新结果：只有本次点过
- * 查找、或者本次亲眼见过它在跑，结果才摆出来（ADR-0031）。 */
+ * The search run goes in the background and keeps running after the page closes. An old terminal state read on first screen
+ * does not masquerade as a new result: only when you clicked search this time, or personally saw it running this time, are
+ * results laid out (ADR-0031). */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
 import { RiFilter3Line, RiSearchLine } from '@remixicon/react';
@@ -37,12 +38,12 @@ import { SourceIcon } from './source-view';
 import { composingKey } from '../components/ime';
 
 const MENU_ROW = cx(MENU_ITEM, MENU_ITEM_INTERACTIVE, 'text-body-2-medium');
-const PLACEHOLDER = '粘贴来源链接，或输入创作者名、id…';
-const TITLE = '添加创作者关注';
-// 索引下载的提醒只在真按名字查时出现；常驻成一句说明就是噪音。
-const BY_NAME_HINT = '查找中（首次按名字查要下载创作者索引，可能几十秒）';
-const BY_LINK_HINT = '识别中';
-const NO_CANDIDATE = '站内没有查到来源';
+const PLACEHOLDER = 'Paste a source link, or type a creator name or id…';
+const TITLE = 'Add a creator follow';
+// The index download notice appears only when actually searching by name; a permanent explanation line would just be noise.
+const BY_NAME_HINT = 'Searching (the first name lookup downloads the creator index and may take tens of seconds)';
+const BY_LINK_HINT = 'Identifying';
+const NO_CANDIDATE = 'The in-site lookup found no source';
 
 export interface AddSourceProps {
   data: FollowData;
@@ -51,25 +52,27 @@ export interface AddSourceProps {
   toast(message: string): void;
 }
 
-/** 凭据配在「来源与订阅」设置里；候选行的凭据链接指到那里。 */
+/** Credentials are configured in the 'Sources and subscriptions' settings; the credential link on candidate rows points there. */
 const CREDENTIALS_PATH = '/settings/subscriptions';
 
-/** 候选的身份是它的地址：同一次查找里同一个地址只会出现一次。 */
+/** A candidate's identity is its address: within one search the same address appears only once. */
 const candidateKey = (row: number, candidate: ResolveCandidate) => `${row}:${candidate.url}`;
 
 interface SuggestOption { value: string; matched: string; n: number; group: string }
 
-/** 敲字建议的下拉。只在输入框有焦点时开着，键盘上下键在里面走。
+/** The typeahead dropdown. Only open while the input has focus, with arrow keys walking inside.
  *
- * 每组一个组名，行里先是名字本身，再是在哪儿见到的（归档站名、站方分类）和作品数：
- * 名字才是选中后要去查的东西，另外两样只帮人认出是不是他。
+ * One group name per group; a row carries the name itself first, then where it was seen (archived site name, site category)
+ * and the video count: the name is what gets queried on selection, the other two only help recognize the right one.
  *
- * 站上那一路要先问补全再问分类，实测一秒上下，这段时间得看得出在做事：空着像是敲了没反应。
- * 忙的那一行不是候选，上下键和回车这时不该选中一个「正在查找建议」。
+ * The site-side path must ask completion first and category second, measured at about a second, and that time must look like
+ * work: blank would read as typing with no response. The busy row is not a candidate; arrow keys and Enter must not select a
+ * "looking up suggestions" state.
  *
- * 定位和来源筛选同一个 react-aria `Popover`：它把高度压到字段下方真正剩下的空间，
- * 装不下就在菜单里滚。不翻到上方：每敲一个字建议条数都在变，翻来翻去读不成一张表。
- * 非模态是为了焦点留在输入框；页面一滚走字段它就收起，菜单自己的滚动不收。 */
+ * Positioning shares the source filter's react-aria `Popover`: it compresses height into the space actually left under the
+ * field and scrolls inside the menu when it does not fit. It never flips above: every keystroke changes the suggestion count,
+ * and flipping up and down would make it unreadable as a table. Non-modal keeps focus in the input; scrolling the field off
+ * the page collapses it, while the menu's own scrolling does not. */
 function SuggestMenu(
   { field, menu, options, active, busy, onPick, onClose }:
   {
@@ -78,17 +81,17 @@ function SuggestMenu(
     onPick(value: string): void; onClose(): void;
   },
 ) {
-  // 上下键走到菜单可见区外的那一行，把它滚进来；菜单外的页面不动。
+  // Arrow keys reaching a row outside the menu's visible area scroll it in; the page outside the menu does not move.
   useEffect(() => {
     menu.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [menu, active]);
   return (
     <Popover ref={menu} triggerRef={field} isOpen isNonModal shouldFlip={false}
       onOpenChange={(open) => { if (!open) onClose() }}
-      placement="bottom start" offset={4} aria-label="来源建议"
+      placement="bottom start" offset={4} aria-label="Source suggestions"
       className={cx(MENU_POPOVER_SURFACE, 'flex w-(--trigger-width) flex-col gap-1 overscroll-contain')}>
       {busy && !options.length
-        ? <div className="px-2 py-1.5"><LoadingDots label="正在查找建议" /></div>
+        ? <div className="px-2 py-1.5"><LoadingDots label="Searching suggestions" /></div>
         : null}
       {options.map((option, at) => (
         <Fragment key={`${option.group}-${option.value}`}>
@@ -98,7 +101,7 @@ function SuggestMenu(
           <button type="button"
             aria-current={at === active ? 'true' : undefined}
             className={at === active ? cx(MENU_ROW, 'bg-background-secondary-default') : MENU_ROW}
-            // 按下就 preventDefault：让下拉把焦点从输入框抢走的话，敲到一半的词就断在那里。
+            // preventDefault on press: if the dropdown stole focus from the input, the half-typed word would be cut off there.
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => onPick(option.value)}>
             <span className="min-w-0 grow truncate text-left">{option.value}</span>
@@ -117,8 +120,8 @@ function SuggestMenu(
   );
 }
 
-/** 来源筛选：列出全部可关注的站，默认全选。取消勾选的站，其查找结果行不显示、也不进
- *  「添加选中」。 */
+/** Source filter: lists every followable site, all ticked by default. An unticked site's lookup rows are not shown and do not enter
+ *  "Add selected". */
 function SourceFilter(
   { credentials, hidden, onHidden }:
   {
@@ -128,25 +131,25 @@ function SourceFilter(
 ) {
   const rows = (credentials.providers || []).filter((row) => row.followable);
   const shown = rows.filter((row) => !hidden.has(row.provider_label)).length;
-  const label = shown === rows.length ? '全部来源' : `${shown}/${rows.length} 个来源`;
+  const label = shown === rows.length ? 'All sources' : `${shown}/${rows.length} sources`;
   const toggle = (provider: string, on: boolean) => {
     const next = new Set(hidden);
     if (on) next.delete(provider); else next.add(provider);
     onHidden(next);
   };
-  return <SelectionPopover label="来源筛选" triggerLabel={label} leadingIcon={RiFilter3Line}
-    empty="暂无可用来源"
+  return <SelectionPopover label="Source filter" triggerLabel={label} leadingIcon={RiFilter3Line}
+    empty="'No sources available yet'"
     items={rows.map(row => ({ id: row.provider_label, selected: !hidden.has(row.provider_label),
       label: <span className="flex min-w-0 items-center gap-1.5"><SourceIcon provider={row.provider} />{row.provider_label}</span> }))}
     onChange={toggle}
     actions={[
-      { label: '全选', disabled: !rows.length, onPress: () => onHidden(new Set()) },
-      { label: '全不选', disabled: !rows.length, onPress: () => onHidden(new Set(rows.map(row => row.provider_label))) },
-      { label: '凭据设置', href: CREDENTIALS_PATH },
+      { label: 'Select all', disabled: !rows.length, onPress: () => onHidden(new Set()) },
+      { label: 'Deselect all', disabled: !rows.length, onPress: () => onHidden(new Set(rows.map(row => row.provider_label))) },
+      { label: 'Credential setup', href: CREDENTIALS_PATH },
     ]} />;
 }
 
-/** 一条查找结果。候选逐条列，已经关注的列出来但不许再勾——否则人以为没查到。 */
+/** One lookup result. Candidates are listed one by one; already-followed ones are shown but cannot be checked again, otherwise people think the search found nothing. */
 function PickRow(
   { row, at, hidden, unpicked, onPick }:
   {
@@ -155,7 +158,7 @@ function PickRow(
   },
 ) {
   if (row.kind === 'error') {
-    return <Note tone="error" title={row.line}>{row.error || '查找失败'}</Note>;
+    return <Note tone="error" title={row.line}>{row.error || 'Lookup failed'}</Note>;
   }
   const candidates = (row.candidates || []).filter(
     (candidate) => !hidden.has(candidate.provider_label || ''));
@@ -173,7 +176,7 @@ function PickRow(
               <b className="text-body-medium">{candidate.provider_label}</b>
               <span className="min-w-0 break-words">{candidate.label}</span>
               <small className="text-caption-1-regular text-text-secondary">
-                {candidate.known ? '已经关注' : candidate.evidence}
+                {candidate.known ? 'Already followed' : candidate.evidence}
               </small>
             </span>
           </Checkbox>
@@ -182,12 +185,12 @@ function PickRow(
       {(row.external_searches || []).map((search) => (
         <div key={search.url} className="flex flex-wrap items-center gap-2">
           <small className="text-caption-1-regular text-text-secondary">{search.evidence}</small>
-          {/* 这一条会离开 Peach，所以带外链标；标由共用的 `ExternalLink` 给，全站一个写法。 */}
-          <ExternalLink href={search.url}>{`${search.label}：${search.query}`}</ExternalLink>
+          {/* This entry leaves Peach, so it carries the external link mark; the mark comes from the shared `ExternalLink`, one implementation site-wide. */}
+          <ExternalLink href={search.url}>{`${search.label}: ${search.query}`}</ExternalLink>
         </div>
       ))}
       {failures.length ? (
-        <Help>{failures.map(([name, reason]) => `${name}：${reason}`).join('；')}</Help>
+        <Help>{failures.map(([name, reason]) => `${name}: ${reason}`).join('; ')}</Help>
       ) : null}
     </div>
   );
@@ -196,11 +199,11 @@ function PickRow(
 export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps) {
   const [line, setLine] = useState('');
   const [composing, setComposing] = useState(false);
-  /** 这一趟查的是什么。等待提示使用已提交的词，输入框可继续编辑并保留重试内容。 */
+  /** What this search round is about. The pending hint uses the submitted term, and the input stays editable and keeps the retry content. */
   const [asked, setAsked] = useState('');
   const [term, setTerm] = useState('');
   const [focused, setFocused] = useState(false);
-  /** 在这段输入上收起过下拉（Escape、页面滚走）。再敲一个字或按上下键就重新打开。 */
+  /** The dropdown was dismissed on this input (Escape, page scrolled away). One more keystroke or an arrow key reopens it. */
   const [closedAt, setClosedAt] = useState<string | null>(null);
   const [active, setActive] = useState(-1);
   const field = useRef<HTMLDivElement>(null);
@@ -210,8 +213,8 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
   const [problem, setProblem] = useState('');
   const [added, setAdded] = useState(0);
 
-  /* 每一下输入都排一次建议，但只发一次请求：250ms 内继续敲就换掉上一次的排期。
-     地址不进这条路——服务端认得出里面的 `/`，那时该做的是解析链接。 */
+  /* Every keystroke schedules a suggestion, but only one request goes out: typing again within 250ms replaces the previous schedule.
+     URLs do not enter this path; the server recognizes the `/` inside them, and the right move then is to parse the link. */
   useEffect(() => {
     const text = line.trim();
     if (composing || !text || text.includes('/')) { setTerm(''); return }
@@ -238,7 +241,7 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
     onStarted: () => setUnpicked(new Set()),
     onError: (cause) => setProblem(errorMessage(cause)),
     onFinish: (state) => {
-      if (state.status === 'failed') setProblem(state.error || '查找失败');
+      if (state.status === 'failed') setProblem(state.error || 'Lookup failed');
     },
   });
 
@@ -256,7 +259,7 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
 
   const suggesting = suggest.isFetching;
   const menuOpen = focused && !composing && closedAt !== line && (options.length > 0 || suggesting);
-  // 收起的同时放掉选中：看不见的那一行不该被回车选去查。
+  // Collapsing releases the selection too: a row you cannot see should not be picked by Enter and searched.
   const closeMenu = () => { setActive(-1); setClosedAt(line) };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -276,8 +279,8 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
     }
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    /* 选中一条建议再回车，等于把那个名字填进来再查找。查找只是列出候选、不写任何
-       东西，所以选中即查找是安全的。 */
+    /* Selecting a suggestion and pressing Enter amounts to filling that name in and searching. Search only lists candidates and writes nothing,
+       so select-to-search is safe. */
     search(options[active]?.value || line);
   };
 
@@ -297,12 +300,12 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
           const done = await addSource(item.candidate);
           sources.push(done.source);
         } catch (cause) {
-          // 一条失败不该把其余的一起丢掉，逐条报。
-          failures.push(`${item.candidate.label}：${errorMessage(cause)}`);
+          // One failure should not discard the rest; report item by item.
+          failures.push(`${item.candidate.label}: ${errorMessage(cause)}`);
         }
         setAdded((now) => now + 1);
       }
-      // 新来源登记时按 `defer_check` 跳过了检查，登记完一次性起一趟。
+      // A source registered with `defer_check` skipped its check, so one pass kicks off right after registration.
       if (sources.length) {
         try { await startCheck(sources) } catch (cause) { failures.push(errorMessage(cause)) }
       }
@@ -310,10 +313,10 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
     },
     onSuccess: (result) => {
       void reloadFollowManage();
-      if (result.failures.length) { setProblem(result.failures.join('；')); return }
+      if (result.failures.length) { setProblem(result.failures.join('; ')); return }
       setProblem('');
       dismiss();
-      toast(`已添加 ${result.sources.length} 个关注来源`);
+      toast(`Added ${result.sources.length} follow sources`);
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
@@ -322,20 +325,20 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
   const byName = !asked.includes('/');
 
   return (
-    /* 旧 `.followmanage .fmain>.fsec`：一块分区就是一张填充卡，标题在卡里。 */
+    /* Old `.followmanage .fmain>.fsec`: one section was one filled card with the title inside it. */
     <section aria-label={TITLE} className={cardClass({ padding: 'none', className: 'flex flex-col gap-4 px-6 py-5 max-sm:px-4' })}>
       <h3 className="text-title-2-medium text-text-primary">{TITLE}</h3>
 
       <div className="flex flex-wrap items-end gap-2">
-        {/* 焦点离开的是字段和下拉两处才收，不是离开输入框就收：下拉里的每一条都是真的按钮，
-            焦点落进去的那一下收掉的话，正好把要点的东西撤走。下拉挂在浮层容器里，不在
-            字段的 DOM 下面，所以两处分开认。 */}
+        {/* Collapse only when focus leaves both the field and the dropdown, not on leaving the input: every dropdown entry is a real button,
+            and collapsing when focus lands inside would remove exactly the thing being clicked. The dropdown hangs in the overlay container, not
+            under the field's DOM, so the two are recognized separately. */}
         <div ref={field} className="min-w-64 grow" onFocus={() => setFocused(true)}
           onBlur={(event) => {
             const next = event.relatedTarget;
             if (!event.currentTarget.contains(next) && !menu.current?.contains(next)) setFocused(false);
           }}>
-          <Input aria-label="来源链接、名字或 id" placeholder={PLACEHOLDER} value={line}
+          <Input aria-label="Source link, name, or id" placeholder={PLACEHOLDER} value={line}
             leadingIcon={RiSearchLine} enterKeyHint="search" isDisabled={readOnly} onChange={setLine}
             onCompositionStart={() => { setComposing(true); setActive(-1) }}
             onCompositionEnd={(event) => { setComposing(false); setLine(event.currentTarget.value) }}
@@ -347,19 +350,19 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
         </div>
         <SourceFilter credentials={credentials} hidden={hidden} onHidden={setHidden} />
         <Button variant="primary" disabled={readOnly || !line.trim()}
-          {...busyProps(running || resolve.isPending)} onClick={() => search(line)}>查找</Button>
+          {...busyProps(running || resolve.isPending)} onClick={() => search(line)}>Find</Button>
       </div>
 
       <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
         {running || resolve.isPending ? <TaskProgress embedded
-          label={job?.message || (job?.total ? `查找中：${job.checked || 0}/${job.total}` : byName ? BY_NAME_HINT : BY_LINK_HINT)}
+          label={job?.message || (job?.total ? `Searching: ${job.checked || 0}/${job.total}` : byName ? BY_NAME_HINT : BY_LINK_HINT)}
           value={job?.checked} total={job?.total} /> : null}
-        {problem ? <Note tone="error" title="这一次没有完成">{problem}</Note> : null}
+        {problem ? <Note tone="error" title="This run did not finish">{problem}</Note> : null}
       </div>
 
       {rows.length ? (
         <div className="flex flex-col gap-3">
-          <FieldLabel>查找结果</FieldLabel>
+          <FieldLabel>Lookup results</FieldLabel>
           {rows.map((row, at) => (
             <PickRow key={`${row.line}-${at}`} row={row} at={at} hidden={hidden} unpicked={unpicked}
               onPick={(key, on) => {
@@ -370,13 +373,13 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
           ))}
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="small"
-              onClick={() => dismiss()}>关闭</Button>
+              onClick={() => dismiss()}>Off</Button>
             <Button variant="primary" size="small" disabled={readOnly || !picked.length}
               {...busyProps(register.isPending)}
-              onClick={() => register.mutate(picked)}>{`添加选中（${picked.length}）`}</Button>
+              onClick={() => register.mutate(picked)}>{`Add selected (${picked.length})`}</Button>
             {register.isPending ? (
               <span role="status" className="text-body-2-regular text-text-secondary">
-                {`添加中… ${added}/${picked.length}`}
+                {`Adding… ${added}/${picked.length}`}
               </span>
             ) : null}
           </div>
@@ -385,10 +388,10 @@ export function AddSource({ data, credentials, readOnly, toast }: AddSourceProps
 
       {guesses.length ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-body-2-regular text-text-secondary">猜你喜欢</span>
+          <span className="text-body-2-regular text-text-secondary">Guess you like</span>
           {guesses.map((guess) => (
             <Button key={guess.name} variant="secondary" size="small" disabled={readOnly}
-              title={`浏览历史里出现 ${guess.visits} 次${guess.origin ? ` · ${guess.origin}` : ''}`}
+              title={`Appeared ${guess.visits} times in browsing history${guess.origin ? ` · ${guess.origin}` : ''}`}
               onClick={() => search(guess.name)}>{guess.name}</Button>
           ))}
         </div>

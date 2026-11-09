@@ -1,24 +1,24 @@
-/* 用户可改的单个快捷键（目前只有 SFW 开关）：录制、存储、匹配与显示。
+/* The single user-editable shortcut (currently only the SFW toggle): record, store, match, and display.
  *
- * 主键按物理键位 `KeyboardEvent.code` 记，不用 `key`：Mac 上 Option+S 的 `key` 是「ß」，
- * Shift 下字母变大写，换成别的键盘布局字符也跟着变；`code` 恒为 `KeyS`。存成
- * `Ctrl+Alt+Shift+Meta+KeyS` 这样的文本，修饰键次序固定，比较时只看 `code` 和四个修饰位。
+ * The main key is recorded by physical key position `KeyboardEvent.code`, not `key`: on Mac the `key` for Option+S is "ß",
+ * and under Shift letters uppercase, and switching keyboard layouts changes the characters along with it; `code` is always `KeyS`. Stored as
+ * text like `Ctrl+Alt+Shift+Meta+KeyS`, with a fixed modifier order; comparison only looks at `code` and the four modifier bits.
  *
- * 只管一个绑定，不引 tinykeys、hotkeys-js 这类库：它们能替掉的只有匹配那几行，录制与按平台
- * 显示仍要自己写；全局监听又在遗留的 `application/search.js` 里，React 专用的录制钩子接不上。
- * 取舍记在 `docs/REUSE.md`「快捷键」。 */
+ * Only one binding is handled, so no libraries like tinykeys or hotkeys-js are pulled in: all they could replace is the matching lines; recording and per-platform
+ * display still have to be written by hand; and the global listener lives in the legacy `application/search.js`, so the React-only recording hook can't hook in.
+ * The trade-off is recorded in `docs/REUSE.md` "Shortcuts". */
 
 export interface Shortcut { code: string; ctrl: boolean; alt: boolean; shift: boolean; meta: boolean }
 
-/** 存在本机，不随设置同步：⌘ 在 Windows 上是 Win 键，同一个绑定换台设备就不成立。 */
+/** Stored locally, not synced with settings: ⌘ is the Win key on Windows, so the same binding doesn't hold on another device. */
 export const SFW_SHORTCUT_KEY = 'peach.sfw-shortcut';
 export const DEFAULT_SFW_SHORTCUT = 'Shift+KeyS';
 
-/** 可作主键的键：字母、数字与 F1–F12。方向键、空格、回车留给播放器与表单。 */
+/** Keys that can act as the main key: letters, digits, and F1–F12. Arrow keys, Space, and Enter are reserved for the player and forms. */
 const MAIN_KEY = /^(?:Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
-/** 修饰键本身按下时还在等主键，不算一次录制。 */
+/** While the modifier key itself is down and still waiting for the main key, it does not count as a recording. */
 const MODIFIER_CODES = /^(?:Shift|Control|Alt|Meta|OS)(?:Left|Right)?$/;
-/** Ctrl（Mac 上是 ⌘）加这几个键是浏览器自己的新建、关闭、退出窗口，页面收不到这次按键。 */
+/** Ctrl (⌘ on Mac) plus these keys are the browser's own new/close/quit window; the page doesn't receive this keypress. */
 const BROWSER_RESERVED = new Set(['KeyW', 'KeyT', 'KeyN', 'KeyQ']);
 
 export function parseShortcut(text: string | null | undefined): Shortcut | null {
@@ -35,12 +35,12 @@ export function serializeShortcut(shortcut: Shortcut): string {
     .filter(Boolean).join('+');
 }
 
-/** 不能用的绑定说明原因；能用返回空串。 */
+/** Explain why a binding is unavailable; if it works, return an empty string. */
 function problemWith(shortcut: Shortcut): string {
   if (!shortcut.ctrl && !shortcut.alt && !shortcut.shift && !shortcut.meta) {
-    return '至少要带一个修饰键，单独的字母会和播放器快捷键冲突';
+    return 'Include at least one modifier key; a lone letter would clash with player shortcuts';
   }
-  if ((shortcut.ctrl || shortcut.meta) && BROWSER_RESERVED.has(shortcut.code)) return '这个组合被浏览器占用，页面收不到';
+  if ((shortcut.ctrl || shortcut.meta) && BROWSER_RESERVED.has(shortcut.code)) return 'This combo is taken by the browser; the page never receives it';
   return '';
 }
 
@@ -50,10 +50,10 @@ export function isModifierCode(code: string): boolean {
 
 export type Recorded = { state: 'waiting' } | { state: 'invalid'; problem: string } | { state: 'done'; shortcut: Shortcut };
 
-/** 录制时的一次按键：只按了修饰键还在等，主键不支持或组合不能用给出原因。 */
+/** A single keypress during recording: if only a modifier was pressed, still waiting; if the main key is unsupported or the combo can't be used, give the reason. */
 export function recordShortcut(event: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey'>): Recorded {
   if (isModifierCode(event.code)) return { state: 'waiting' };
-  if (!MAIN_KEY.test(event.code)) return { state: 'invalid', problem: '只支持字母、数字和 F1–F12 作主键' };
+  if (!MAIN_KEY.test(event.code)) return { state: 'invalid', problem: 'Only letters, digits, and F1–F12 work as the main key' };
   const shortcut = { code: event.code, ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, meta: event.metaKey };
   const problem = problemWith(shortcut);
   return problem ? { state: 'invalid', problem } : { state: 'done', shortcut };
@@ -65,7 +65,7 @@ export function matchesShortcut(event: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 
     && event.shiftKey === shortcut.shift && event.metaKey === shortcut.meta;
 }
 
-/** 苹果设备显示 ⌘⌥ 字形。先看 User-Agent Client Hints，再退到 `navigator.platform`（同 `browser-diagnostics.ts`）。 */
+/** Apple devices show the ⌘⌥ glyphs. Check User-Agent Client Hints first, then fall back to `navigator.platform` (same as `browser-diagnostics.ts`). */
 export function isApplePlatform(source: Pick<Navigator, 'platform'> & { userAgentData?: { platform?: string } } = navigator): boolean {
   return /mac|iphone|ipad|ipod/i.test(source.userAgentData?.platform || source.platform || '');
 }
@@ -81,16 +81,16 @@ function keyLabel(code: string): string {
 
 export type Modifiers = Pick<Shortcut, 'ctrl' | 'alt' | 'shift' | 'meta'>;
 
-/** 一个键一枚键帽：修饰键按 Apple 的次序 Control、Option、Shift、Command 排在前，主键在最后。
- *  Mac 上修饰键写 ⌃⌥⇧⌘ 字形，其余平台写名字，Meta 在那边是 Win 键。`code` 为 null 时只有修饰键，
- *  用于录制中还没按主键的那一刻。 */
+/** One key, one keycap: modifier keys go first in Apple's order — Control, Option, Shift, Command — with the main key last.
+ * On Mac, modifiers render as the ⌃⌥⇧⌘ glyphs; other platforms write the name, where Meta is the Win key. When `code` is null there are only modifiers,
+ * for that moment mid-recording before the main key is pressed. */
 export function shortcutKeys(modifiers: Modifiers, code: string | null, apple = isApplePlatform()): string[] {
   const names = apple ? ['⌃', '⌥', '⇧', '⌘'] : ['Ctrl', 'Alt', 'Shift', 'Win'];
   const held = [modifiers.ctrl, modifiers.alt, modifiers.shift, modifiers.meta];
   return [...names.filter((_, index) => held[index]), ...(code ? [keyLabel(code)] : [])];
 }
 
-/** 写成一串给读屏与提示用：Mac 连写（`⇧S`），其余平台用加号连（`Shift+S`）。 */
+/** Written as a single string for screen readers and tooltips: Mac writes it together (⇧S); other platforms join with a plus (Shift+S). */
 export function formatShortcut(shortcut: Shortcut, apple = isApplePlatform()): string {
   return shortcutKeys(shortcut, shortcut.code, apple).join(apple ? '' : '+');
 }

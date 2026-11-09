@@ -1,33 +1,35 @@
-/* 卡片密度：大图为主，密集为辅。值存在自己的键（`density`）上，不在偏好对象里。
+/* Card density: large images first, dense as the alternative. The value lives on its own key (`density`), not in the
+ * preferences object.
  *
- * 写的是 <html> 上的 `--tile`（一格的模块宽度）与 <body> 上的 `data-density`，以及顶栏那颗大小图键
- * （`#density`）的按下态、提示与字形。壳在模块体里同步调 `applyDensity()`，第一帧之前就写好。 */
+ * It writes `--tile` (one cell's module width) on <html> and `data-density` on <body>, plus the top bar's size key's
+ * (`#density`) pressed state, tooltip and glyph. The shell calls `applyDensity()` synchronously in the module body, so it is
+ * written before the first frame. */
 import { iconSwapHtml, setIconSwap } from '@peach/legacy/ui';
 
 import { PHOTO_SIZES } from './layout';
 
 export type Density = 'big' | 'dense';
 const DENSITY_KEY = 'density';
-/** 168px 是模块单位，大图两格。 */
+/** 168px is the module unit; a large image takes two cells. */
 export const TILES: Readonly<Record<Density, string>> = { big: '336px', dense: '168px' };
 
-/** 存的不是认得的那两档时按大图算。 */
+/** When the stored value is not one of the two known tiers, treat it as large images. */
 export const currentDensity = (): Density => (localStorage.getItem(DENSITY_KEY) === 'dense' ? 'dense' : 'big');
 
-/* 顶栏这颗键和筛选框里的版式开关问同一件事「现在是哪种排法」，所以字形也取同一份映射
-   （PHOTO_SIZES 的第三位），按下去跟着换成当前状态的图标。 */
+/* The top bar key and the layout switch in the filter box ask the same question, "which layout is active", so the glyph draws from the same mapping
+   (the third element of PHOTO_SIZES), and pressing swaps in the icon for the current state. */
 function paintSizeGlyph(button: HTMLElement, size: string): void {
   const [big, small] = PHOTO_SIZES;
   if (!button.querySelector('[data-icon-swap]')) {
-    // 顶栏玻璃上漂移的光斑层（`[data-glass-drift]`）是这颗键的子元素，换字形时留着它。
+    // The drifting light patch layer on the top bar glass (`[data-glass-drift]`) is a child of this key; keep it when swapping the glyph.
     const drift = button.querySelector(':scope > [data-glass-drift]');
     button.innerHTML = iconSwapHtml(big[2], small[2], size === small[0] ? 'b' : 'a');
     if (drift) button.append(drift);
   } else setIconSwap(button, size === small[0] ? 'b' : 'a');
-  setAttribute(button, 'aria-label', size === 'big' ? '切换为小图' : '切换为大图');
+  setAttribute(button, 'aria-label', size === 'big' ? 'Switch to small thumbnails' : 'Switch to large thumbnails');
 }
 
-/* 同值不重写：视频墙滚动时这几处每秒被叫十几次，`<body>` 上写一次属性就是整棵树重新匹配样式。 */
+/* Do not rewrite an unchanged value: while the video wall scrolls these run a dozen times a second, and one attribute write on `<body>` re-matches styles across the whole tree. */
 function setAttribute(node: HTMLElement, name: string, value: string): void {
   if (node.getAttribute(name) !== value) node.setAttribute(name, value);
 }
@@ -41,22 +43,22 @@ export function applyDensity(density: Density = currentDensity()): void {
   const button = densityButton();
   if (!button) return;
   setAttribute(button, 'aria-pressed', String(density === 'dense'));
-  setAttribute(button, 'title', '当前：' + (density === 'big' ? '大图' : '密集'));
+  setAttribute(button, 'title', 'Current:' + (density === 'big' ? 'Large images' : 'Dense'));
   paintSizeGlyph(button, density === 'big' ? 'big' : 'small');
 }
 
-/** 换一档密度、落盘、当场写上。 */
+/** Switch density step, persist it, and apply it on the spot. */
 export function toggleDensity(): void {
   const next: Density = currentDensity() === 'big' ? 'dense' : 'big';
   localStorage.setItem(DENSITY_KEY, next);
   applyDensity(next);
 }
 
-/** 停在照片墙上时，同一颗键报的是照片的大小。 */
+/** While parked on the photo wall, the same key reports the photo's dimensions. */
 export function paintPhotoSizeButton(size: string): void {
   const button = densityButton();
   if (!button) return;
   setAttribute(button, 'aria-pressed', String(size === 'small'));
-  setAttribute(button, 'title', '当前：' + (size === 'big' ? '大图' : '小图'));
+  setAttribute(button, 'title', 'Current:' + (size === 'big' ? 'Large images' : 'Small images'));
   paintSizeGlyph(button, size);
 }

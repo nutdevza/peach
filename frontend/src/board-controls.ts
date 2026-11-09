@@ -1,7 +1,7 @@
 import { moveGlidePane } from '@peach/legacy/ui';
 import { initBoardTooltip } from './board-tooltip';
 
-/** Board 控件的共享展示层；范围输入保留浏览器原生键盘语义。 */
+/** The shared presentation layer for Board controls; range inputs keep the browser's native keyboard semantics. */
 export function syncBoardRange(input: HTMLInputElement) {
   const min=Number(input.min)||0,max=Number(input.max)||100,value=Number(input.value);
   const percent=max>min?Math.max(0,Math.min(100,(value-min)/(max-min)*100)):0;
@@ -20,7 +20,7 @@ export function initBoardControls() {
   initBoardTooltip();
 }
 
-/** 页面导航只同步可见位置，选中态由共享样式绘制。 */
+/** Page navigation only syncs the visible position; the selected state is painted by the shared style. */
 export function wireBoardTabs(root:ParentNode){
   const selector='.ui-board-local-nav:not([data-section-nav])';
   const groups=[...root.querySelectorAll<HTMLElement>(selector)];
@@ -35,9 +35,9 @@ export function wireBoardTabs(root:ParentNode){
 }
 
 const segmentPositions=new Map<string,{x:number;y:number;w:number;h:number}>();
-/** 原生 radio 保留方向键语义，选中底板按实际尺寸滑动。
-    面板切换那几组是 `role=tablist`：滑块换成按 `aria-selected` 找当前项，ARIA 仍然是 Tabs
-    控制 tabpanel，不为了长得像分段控件就把它写成 radiogroup。 */
+/** Native radios keep arrow-key semantics, and the selected backing slides by actual dimensions.
+    The panel-switching groups are `role=tablist`: the slider finds the current item by `aria-selected` instead, keeping ARIA as Tabs
+    controlling tabpanel, not rewritten as radiogroup just to look like a segmented control. */
 export function wireBoardSegments(root:ParentNode) {
   const selector='.iconswitch,.insightswitch,.follow-workspace-switch';
   const groups=[...root.querySelectorAll<HTMLElement>(selector)];
@@ -46,11 +46,13 @@ export function wireBoardSegments(root:ParentNode) {
     if(group.hasAttribute('data-board-segments')||group.closest('[data-skeleton]'))return;
     group.dataset.boardSegments='true';
     const thumb=document.createElement('span');thumb.className='board-segment-thumb';thumb.setAttribute('aria-hidden','true');group.prepend(thumb);
-    /* 底板换位跟筛选条上那块玻璃是同一件事——「当前是这一个」从一处挪到另一处——所以
-       走同一段动作：滑过去、冲过落点、荡回来。
-       上一次停在哪儿按这一组的身份记，不按节点记：点一下往往把整块重画一遍，拿节点
-       记等于每次都是一块新出现的底板，只落位不动画，一路点下来它一次都没动过。
-       真正头一次出现时没有上一次，那一下不动画——新出现的底板不该从别处飞进来。 */
+    /* The panel swapping places is the same thing as the glass on the filter bar: "the current one" moving from one spot to
+       another, so it takes the same motion: slide over, overshoot the landing, settle back.
+       Where it last stopped is remembered by this group's identity, not by the node: a click often re-renders the whole
+       block, and remembering by node would make every click a brand-new panel that places without animating, as if it had
+       never moved.
+       On a genuine first appearance there is no previous stop, so that one does not animate: a newly appearing panel should
+       not fly in from somewhere else. */
     const key=group.className+(group.getAttribute('aria-label')??'');
     let from=segmentPositions.get(key)??null;
     const measure=()=>{

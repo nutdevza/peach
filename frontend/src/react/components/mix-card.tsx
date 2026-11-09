@@ -1,12 +1,13 @@
-/* 一叠视频的卡片：播放列表页的每一份列表，和首页那张 Mix 卡是同一件东西。
+/* A stack of videos' card: each list on the playlists page, the same thing as the home Mix card.
  *
- * 封面后面压着两层纸边，说明它是一叠；悬停时逐张翻过这一叠里的画面（`use-stack-flip.ts`）。
- * 封面右下角是条数徽标，下面一行是这一叠里出镜最多的那几位的头像，标题与一行来源，
- * 最右边留一格给次要动作（点点点菜单）。整块封面是「打开」的点击区，头像各自通往资料页。
+ * Two layers of paper edges press behind the cover, saying it is a stack; on hover the images in the stack flip one by one
+ * (`use-stack-flip.ts`). The cover's bottom-right holds a count badge, below it a row of the members who appear most in the
+ * stack, then title and one line of sources, with a cell left at the far right for the secondary action (kebab menu). The
+ * whole cover is the "open" click area, and each avatar leads to its profile page.
  *
- * 卡是媒体卡，不是 Board 的填充卡：透明底、无内边距，面只在封面那一块。纸边、翻页、
- * 徽标底色与叠放头像的让位几何写在 `../styles.css` 的 `[data-mix-*]` 那一组规则里：
- * 伪元素、`color-mix` 与相邻兄弟选择器在工具类里写不出来。 */
+ * The card is a media card, not a Board filled card: transparent base, no padding, the face exists only on the cover. Paper
+ * edges, flipping, badge base and the yield geometry of stacked avatars live in `../styles.css`'s `[data-mix-*]` rule group:
+ * pseudo-elements, `color-mix` and adjacent-sibling selectors cannot be written in utility classes. */
 import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { avatarInner, representativeOf } from '@peach/card-art';
 import { firstGrapheme } from '@peach/legacy/core';
@@ -19,7 +20,7 @@ export { MIX_FLIP_FACES, MIX_FLIP_LEAD_MS, MIX_FLIP_MS } from './use-stack-flip'
 
 const PLAY = spriteGlyph('play');
 
-/** 署名行的一位。`kind` 是 `performer`／`creator`。 */
+/** One entry in the byline row. `kind` is `performer`/`creator`. */
 export interface MixCardFace {
   kind: string;
   id: number;
@@ -30,48 +31,48 @@ export interface MixCardFace {
 }
 
 export interface MixCardProps {
-  /** 标题，同时是点击区与菜单的无障碍名称里那个名字。 */
+  /** The title, which is also the name inside the click target's and the menu's accessible names. */
   name: string;
-  /** 标题下那一行：这一叠从哪儿来。 */
+  /** The line under the title: where this stack came from. */
   caption: ReactNode;
-  /** 徽标上的条数。 */
+  /** The count on the badge. */
   count: number;
-  /** 静止封面的地址。没有就写「无预览」。 */
+  /** The still cover's URL. When there is none, "No preview" is written. */
   poster: string | null;
-  /** 悬停时翻过的那几张图的地址，按顺序；最多取前 `MIX_FLIP_FACES` 张。 */
+  /** The addresses of the images cycled through on hover, in order; at most the first `MIX_FLIP_FACES`. */
   flipImages(): Promise<readonly string[]>;
-  /** 此刻能不能翻（壳的多选、遮挡、减少动效、滚动中）。 */
+  /** Whether flipping is allowed right now (shell multi-select, occlusion, reduced motion, mid-scroll). */
   canFlip(): boolean;
-  /** 署名行的人，最多画五位；一位都没有时画标题首字。 */
+  /** People on the byline row, at most five; when there are none, render the title's first character. */
   faces: readonly MixCardFace[];
-  /** 点头像：去这个人的资料页。 */
+  /** Click the avatar: go to this person's profile page. */
   onOpenEntity(kind: string, name: string): void;
-  /** 点封面。不给就是这一叠没有去处（空列表），点击区不可点。参数是这张卡本身，壳拿它当
-   *  打开动画的起点。 */
+  /** Clicks the cover. Leave it out when this stack has nowhere to go (empty list) and the click area is inert. The argument is the card itself; the shell uses
+   *  it as the origin of the open animation. */
   onOpen?: (card: HTMLElement) => void;
-  /** 封面点击区的无障碍名称，例如「打开播放列表 周末慢看」。 */
+  /** The cover click area's accessible name, for example 'Open playlist Weekend Slow Watch'. */
   openLabel: string;
-  /** 署名行最右那一格：次要动作的菜单。 */
+  /** The rightmost cell on the byline row: the secondary actions menu. */
   menu?: ReactNode;
-  /** 封面格的宽高比。不给就是 16:9；首页那张跟着这一屏卡片的版式走。 */
+  /** The cover cell's aspect ratio. Defaults to 16:9; the home page's one follows this screen's card layout. */
   ratio?: number;
-  /** 静止封面改用遗留层拼的那段图片 HTML（番号作品的取景链要接管它），封面格同时带上作品卡
-   *  的封面格钩子（`data-media-pic`），模糊衬底与取景和作品卡同一条路。 */
+  /** The static cover switches to the image HTML the legacy layer assembles (the crop pipeline for code titles needs to take it over), and the cover cell also carries the video card's
+   *  cover cell hook (`data-media-pic`), so blurred backing and cropping follow the same path as video cards. */
   artwork?: { kind: string; html: string };
-  /** 静止封面去掉版式后的身份与原地换版式，见 `./art-slot.tsx`。 */
+  /** The still cover's identity once the layout is stripped, and swapping the layout in place; see `./art-slot.tsx`. */
   artworkIdentity?: string;
   relayoutArt?(root: HTMLElement): void;
-  /** 翻页的每一张也用 HTML 画，和静止封面长得一样；参数是 `flipImages` 给的那个地址。 */
+  /** Each paging frame is also drawn in HTML, looking the same as the still cover; the argument is the URL handed over by `flipImages`. */
   faceHtml?(src: string): string;
-  /** 徽标上的字。不给就是「N 个视频」。 */
+  /** The text on the badge. When not given, "N videos". */
   badge?: string;
-  /** 署名行换成一枚播放字形，不画头像：首页那张 Mix 说的是「以它为种子的相似作品」。 */
+  /** The byline row becomes a play glyph and no avatar is drawn: the home Mix card means "similar videos seeded by it". */
   glyph?: boolean;
-  /** 整张卡都是点击区（首页那张）。不给就只有封面可点，署名行的头像各自通往资料页。 */
+  /** The whole card is the click target (the home page one). Without it only the cover is clickable, and each byline avatar leads to its own profile page. */
   wholeCard?: boolean;
 }
 
-/** 静止封面。取不到时把图撤掉，只剩黑底，同遗留层 `data-drop="self"`。 */
+/** The still cover. When unavailable, remove the image leaving only the black base, same as the legacy layer's `data-drop="self"`. */
 function Poster({ src }: { src: string }) {
   const [broken, setBroken] = useState(false);
   if (broken) return null;
@@ -81,12 +82,12 @@ function Poster({ src }: { src: string }) {
   );
 }
 
-/** 圆框共用的那一副：38px 正圆，图铺满，首字母居中。 */
+/** The round frame set shared everywhere: a 38px perfect circle, image covering, initial centered. */
 const RING = 'relative inline-grid size-9.5 flex-none place-items-center overflow-hidden rounded-full'
   + ' bg-background-secondary-default text-body-2-regular text-text-secondary'
   + ' [&_img]:absolute [&_img]:inset-0 [&_img]:block [&_img]:size-full [&_img]:object-cover';
 
-/** 圆框里那段 HTML 由 `avatarInner` 拼：有图走图，没图退首字母，代表作头像查同一张代表作表。 */
+/** The HTML inside the round frame is assembled by `avatarInner`: image when there is one, initials otherwise, and top-work avatars look up the same top-works table. */
 function Avatars({ faces, fallback, onOpenEntity }: {
   faces: readonly MixCardFace[]; fallback: string; onOpenEntity: MixCardProps['onOpenEntity'];
 }) {
@@ -96,8 +97,8 @@ function Avatars({ faces, fallback, onOpenEntity }: {
   return (
     <div data-mix-avatars="">
       {faces.slice(0, 5).map((face) => (
-        <button key={`${face.kind}:${face.id}`} type="button" title={`打开资料页：${face.name}`}
-          aria-label={`打开资料页：${face.name}`} onClick={() => onOpenEntity(face.kind, face.name)}
+        <button key={`${face.kind}:${face.id}`} type="button" title={`Open profile: ${face.name}`}
+          aria-label={`Open profile: ${face.name}`} onClick={() => onOpenEntity(face.kind, face.name)}
           className={`${RING} cursor-pointer outline-none`}
           dangerouslySetInnerHTML={{ __html: avatarInner(face.name, face, representativeOf(face.name), face.kind) }} />
       ))}
@@ -111,7 +112,7 @@ export function MixCard({
   ...data
 }: MixCardProps & Record<`data-${string}`, string>) {
   const flip = useStackFlip({ load: flipImages, canFlip });
-  /* 壳在滚动、换页和开多选时按 `_stopHover` 收掉一切悬停动效，这张卡的翻页也在其中。 */
+  /* On scroll, page change, and opening multi-select the shell kills all hover effects via `_stopHover`, and this card's page flip is among them. */
   const stop = useRef(flip.onPointerLeave);
   stop.current = flip.onPointerLeave;
   const card = useRef<HTMLElement | null>(null);
@@ -133,7 +134,7 @@ export function MixCard({
             ? <ArtSlot artwork={artwork} identity={artworkIdentity} relayout={relayoutArt} />
             : poster
               ? <Poster key={poster} src={poster} />
-              : <span className="text-caption-1-regular tracking-caps text-text-secondary uppercase">无预览</span>}
+              : <span className="text-caption-1-regular tracking-caps text-text-secondary uppercase">No preview</span>}
           <div data-mix-faces="" hidden={!flip.faces.length}>
             {flip.faces.map((src, index) => (
               <div key={src} data-mix-face={index === flip.current ? 'on' : index === flip.leaving ? 'off' : ''}>
@@ -148,7 +149,7 @@ export function MixCard({
           <span data-mix-badge=""
             className="absolute right-2.25 bottom-2.25 z-6 flex min-h-7 items-center gap-1.5 rounded-2lg px-2.25 py-1 text-caption-1-semibold text-text-white">
             <PLAY aria-hidden className="size-(--icon-inline)" />
-            {badge ?? `${count.toLocaleString()} 个视频`}
+            {badge ?? `${count.toLocaleString()} videos`}
           </span>
         </div>
       </div>

@@ -12,14 +12,14 @@ import type { ManageHeaderProps } from '../../manage-header';
 export type { ManageEntry, ManageHeaderProps, TrashCount } from '../../manage-header';
 
 export interface ManageHeaderHost {
-  /** 岛画进去的那一层（`[data-manage-header]`，本身 `display: contents`）。 */
+  /** The layer the island renders into (`[data-manage-header]`, itself `display: contents`). */
   root: HTMLElement;
   store: SettingsStore<{ manageOrder: string[] }>;
-  /** 管理条上的一项。 */
+  /** One item on the management bar. */
   openManage(section: string): void;
-  /** 面包屑的上一级。带修饰键或中键的点击不经这里，照链接自己的 href 走（新标签页、右键菜单）。 */
+  /** The breadcrumb's parent level. Clicks with modifier keys or the middle button do not pass through here and follow the link's own href (new tab, context menu). */
   openPath(path: string): void;
-  /** 回收站说明行右端那颗键：确认弹层、写接口与回执都在壳里，确认之后整页读数重取。 */
+  /** The key at the right end of the trash description row: confirm popover, write endpoint and receipt all live in the shell, and the page's readouts refetch after confirmation. */
   emptyTrash(): void;
 }
 

@@ -1,8 +1,8 @@
-/* 配置页的首屏数据。
+/* The configuration page's first-screen data.
  *
- * 整页与各分区读同一个 `queryKey`：挂载状态那一块按下「刷新」重取回来的也是整份配置，
- * 换进这一个键，屏幕上就只有一份真相。端点字符串在 `frontend/src` 里只声明一次，
- * 在 `../../configuration-endpoints`（`tests/test_frontend_build.py` 盯着）。 */
+ * The whole page and every section read the same `queryKey`: the mount-status block's "Refresh" also refetches the whole
+ * configuration, written back into this one key, so there is only one truth on screen. Endpoint strings are declared once in
+ * `frontend/src`, in `../../configuration-endpoints` (`tests/test_frontend_build.py` watches this). */
 import { apiGet } from '../../api';
 import { CONFIGURATION_URL } from '../../configuration-endpoints';
 import type { ConfigurationData } from '../bundle';
@@ -13,7 +13,7 @@ export const CONFIGURATION_KEY = ['configuration'] as const;
 export const fetchConfiguration = (signal?: AbortSignal) =>
   apiGet<ConfigurationData>(CONFIGURATION_URL, signal);
 
-/** 首屏：取回来才画。中止时 `fetchQuery` 把 `AbortError` 抛回给挂载方，它据此放弃这一次。 */
+/** First screen: renders only once the fetch is back. On abort, `fetchQuery` throws `AbortError` back to the caller, which gives up on this attempt. */
 export async function prefetchConfiguration(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({
     queryKey: CONFIGURATION_KEY, queryFn: () => fetchConfiguration(signal),

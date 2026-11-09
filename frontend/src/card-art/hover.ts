@@ -1,24 +1,25 @@
-/* 卡片悬停预览：只有本地文件拉真视频。115 / PikPak 等远端源只扫本地接触印相，避免页面移除后
- * 继续下载或填满缓存。
+/* Card hover preview: only local files pull real video. Remote sources like 115 and PikPak only sweep the local contact
+ * sheets, avoiding continued downloads or a filled cache after the page goes away.
  *
- * 卡片有两种：壳拼的 `.card`，和 React 网格里的 `[data-media-card]`／`[data-mix-card]`。
- * 悬停态写在卡上的 `data-previewing`／`data-longhover`：卡的类名归 React 管，壳不往上加。
+ * Cards come in two kinds: the shell-assembled `.card`, and `[data-media-card]`/`[data-mix-card]` in the React grid.
+ * Hover state is written on the card as `data-previewing`/`data-longhover`: class names belong to React, so the shell adds
+ * none.
  *
- * 要不要起预览，判据在壳里（多选、遮挡、悬停延时设置），由 `configureHoverPreview` 以取值函数
- * 交进来：延时在计时器里还要再读一次，设置中途改了，下一拍读到的就是新值，所以不能抄一份
- * 快照。没配置时按「不拦、不延时」处理。 */
+ * Whether to start a preview is decided in the shell (multi-select, occlusion, hover delay setting) and handed in via
+ * `configureHoverPreview` as getter functions: the delay is read again inside the timer, so a mid-run setting change is read
+ * on the next tick; a snapshot copy would go stale. Unconfigured is treated as "no blocking, no delay". */
 
-/** 起预览前要问壳的三件事。都是取值函数，每次用时现读。 */
+/** The three things to ask the shell before starting a preview. All are getters, read fresh at each use. */
 export interface HoverPreviewConfig {
-  /** 多选模式开着：这时不起预览。 */
+  /** Multi-select mode is on: no preview in this state. */
   selecting(): boolean;
-  /** 遮挡开着：这时不起预览，已经排上的那一段到点也不放。 */
+  /** Occlusion is on: no preview starts, and the already scheduled segment does not play when its time comes. */
   censored(): boolean;
-  /** 停够多少秒进入「长悬停」（倒计时走完、三颗快退快进出现）；0 是关掉。 */
+  /** How many seconds of dwell trigger 'long hover' (the countdown completes and the three skip buttons appear); 0 disables it. */
   delaySeconds(): number;
 }
 
-/** 卡片上那几个要用到的字段。 */
+/** The fields used on the card. */
 export interface HoverItem { id: number; location?: string; has_thumb?: boolean }
 
 type HoverCard = HTMLElement & { _stopHover?: () => void; _hoverEvents?: AbortController };
@@ -34,7 +35,7 @@ export function configureHoverPreview(next: HoverPreviewConfig): void {
 
 const scrolling = () => !!(window as Window & { __scrolling?: unknown }).__scrolling;
 
-/** 收掉 `root` 下所有悬停预览，`except` 那张卡留着。 */
+/** Closes every hover preview under `root`, leaving out the `except` card. */
 export function releaseHoverPreviews(root: ParentNode | null = document, except: Element | null = null): void {
   if (!root || !root.querySelectorAll) return;
   root.querySelectorAll<HoverCard>(HOVER_CARDS).forEach(card => {
@@ -44,15 +45,15 @@ export function releaseHoverPreviews(root: ParentNode | null = document, except:
     if (v.closest(HOVER_CARDS) === except) return;
     if (v._hop) clearInterval(v._hop); v.pause(); v.removeAttribute('src'); v.load(); v.remove();
   });
-  // 远端源那一层和视频同样要兜一遍：卡片被重画过的话，旧元素上的 `_stopHover`
-  // 已经跟着旧 DOM 走了，只靠上面那轮回调收不到它留在画面上的扫视图。
+  // The remote-source layer needs the same pass as the video: if the card was repainted, `_stopHover` on the old element
+  // It has already gone with the old DOM; the earlier callback alone cannot receive the scan view it left on screen.
   root.querySelectorAll('img.ui-hvframes').forEach(im => {
     if (im.closest(HOVER_CARDS) === except) return;
     im.removeAttribute('src'); im.remove();
   });
 }
 
-/** 一张卡要拆下来之前：它自己正在放的那一段和它里面所有预览一起收掉。 */
+/** Before a card is torn down: its own playing stream and every preview inside it close together. */
 export function releaseHover(card: HTMLElement): void {
   (card as HoverCard)._stopHover?.();
   releaseHoverPreviews(card);
@@ -62,7 +63,7 @@ export function setHoverState(el: HTMLElement, name: 'previewing' | 'longhover',
   if (on) el.dataset[name] = ''; else delete el.dataset[name];
 }
 
-/** 给一张卡挂上悬停预览。画面格是卡里的 `[data-media-pic]`，没有就不挂。 */
+/** Attach a hover preview to a card. The picture cell is the card's `[data-media-pic]`; skip when it is absent. */
 export function wireHover(el: HTMLElement, it: HoverItem): void {
   const card = el as HoverCard;
   card._hoverEvents?.abort(); card._stopHover?.(); delete card._stopHover;
@@ -75,14 +76,15 @@ export function wireHover(el: HTMLElement, it: HoverItem): void {
     longTimer = setTimeout(() => { if (config.delaySeconds()) setHoverState(el, 'longhover', true); }, config.delaySeconds() * 1000);
   };
   const clearLong = () => { clearTimeout(longTimer); setHoverState(el, 'previewing', false); setHoverState(el, 'longhover', false); };
-  if (it.location !== 'local') {        // 远端源：只在接触印相的格子间扫视，零网络流量
-    /* 扫视图是叠在画面之上新建的一层，不改任何已有 `<img>` 的 src。JAV 大图和小图
-       版式里画面就是封面本身（`.poster.cover`），改它的 src 等于把封面当场换掉；
-       按类名把封面排掉又等于这两种版式整个没有悬停预览，连 `data-longhover` 都不进，
-       快退快进那三颗也跟着永远不出现。叠一层对三种版式是同一条路。
-       这一层用 contain 加黑底：大图版式的容器是 0.75 的竖比例，16:9 的接触印相格子
-       在里面居中、上下留黑，和本地视频的 `.hv` 同一个口径。 */
-    if (!it.has_thumb) return;        // 没有接触印相就没有可扫的格子
+  if (it.location !== 'local') {        // Remote source: pan only between contact sheet cells, zero network traffic
+    /* The scan view is a new layer stacked over the picture, never rewriting any existing `<img>`'s src. In the JAV large-image
+       and small-image layouts the picture is the cover itself (`.poster.cover`), and changing its src would swap the cover on
+       the spot; excluding the cover by class name would leave these two layouts without hover preview entirely, not even
+       entering `data-longhover`, and the rewind and fast-forward three would never appear. An added layer is one path for all
+       three layouts.
+       The layer uses contain over a black base: the large-image layout's container is a 0.75 portrait ratio, so the 16:9
+       contact-sheet cell centers inside with black above and below, the same basis as local videos' `.hv`. */
+    if (!it.has_thumb) return;        // No contact sheet means no cells to scan
     let t: ReturnType<typeof setInterval> | undefined, i = 4, layer: HTMLImageElement | null = null, loading = false;
     el.addEventListener('mouseenter', () => {
       if (config.selecting() || config.censored()) return;
@@ -117,17 +119,17 @@ export function wireHover(el: HTMLElement, it: HoverItem): void {
   }
   let timer: ReturnType<typeof setTimeout> | undefined, v: HoverVideo | null = null;
   el.addEventListener('mouseenter', () => {
-    if (config.selecting() || config.censored() || scrolling()) return;   // 多选、遮挡或滚动中不启动预览
+    if (config.selecting() || config.censored() || scrolling()) return;   // No preview while multi-selecting, occluded, or scrolling
     timer = setTimeout(() => {
       if (scrolling() || config.censored()) return;
-      releaseHoverPreviews(document, el);   // 同一时间只保留一个本地视频预览
+      releaseHoverPreviews(document, el);   // Keep only one local video preview at a time
       const video = document.createElement('video') as HoverVideo;
       v = video;
       video.className = 'hv'; video.muted = true; video.playsInline = true; video.loop = true; video.preload = 'metadata';
       video.src = '/stream?id=' + it.id;
-      // 分段跳跃：每段放 1.4 秒就跳到下一段，扫完全片，而不是从一个点连续播
+      // Segmented skipping: play each segment for 1.4 seconds then jump to the next, sweeping the whole video instead of playing continuously from one point
       const SEG = [0.08, 0.22, 0.36, 0.50, 0.64, 0.78, 0.90]; let si = 0;
-      const seek = () => { try { video.currentTime = (video.duration || 0) * (SEG[si] ?? 0); } catch { /* 元数据还没到 */ } };
+      const seek = () => { try { video.currentTime = (video.duration || 0) * (SEG[si] ?? 0); } catch { /* Metadata has not arrived yet */ } };
       video.addEventListener('loadedmetadata', () => {
         seek();
       }, { once: true });
@@ -142,7 +144,7 @@ export function wireHover(el: HTMLElement, it: HoverItem): void {
         video._hop = setInterval(() => { si = (si + 1) % SEG.length; seek(); }, 1400);
       }, { once: true });
       pic.appendChild(video); video.play().catch(() => {});
-    }, 340);                         // 340ms 防抖，鼠标划过不触发
+    }, 340);                         // 340ms debounce so hovering does not trigger it
   }, { signal: events.signal });
   const stop = () => {
     clearLong();

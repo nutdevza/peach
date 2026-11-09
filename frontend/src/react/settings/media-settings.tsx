@@ -1,9 +1,9 @@
-/* 「媒体库与入库」分组：媒体目录与自动入库，每个文件夹标着挂载状态。
+/* The "Media library and import" group: media folders and automatic import, each folder labeled with its mount status.
  *
- * 服务端检查管理权限后用 `editable` 控制表单；没有权限时只说明原因。
- * 保存成功后显示持久提示和访问地址，等待服务就绪后跳转。
+ * The server checks admin rights and controls the form with `editable`; without rights it only explains why.
+ * After a successful save it shows a persistent notice and the access URL, then waits for the service to be ready before redirecting.
  *
- * 校验原因由服务端按字段给（400 的 `errors`），页面写回原位，不在前端复制一份路径与端口的判定。 */
+ * Validation reasons come per field from the server (the 400's `errors`) and are written back in place; the frontend does not duplicate the path and port checks. */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/base/buttons/button';
@@ -46,20 +46,20 @@ import { busyProps, useAction } from './use-action';
 import { confirmModal } from '@peach/legacy/ui';
 import { fetchLibraryProcessing, processingActive, restartEffectText } from '../library-processing/library-processing';
 
-/** 保存会重启 Peach。扫描与采集在跑时先确认；读不到任务状态就照常保存，不让旁路读数挡住保存。 */
+/** Saving restarts Peach. When a scan and collection are running, confirm first; if the task status can't be read, save as usual — don't let a side reading block saving. */
 async function confirmRestartDuringProcessing(scanAfterSave: boolean): Promise<boolean> {
   let state;
   try { state = await fetchLibraryProcessing() } catch { return true }
   if (!processingActive(state)) return true;
   const { confirmed } = await confirmModal({
-    title: '扫描与采集正在进行', body: restartEffectText(state, scanAfterSave), confirmLabel: '仍然保存',
+    title: 'Scanning and collecting in progress', body: restartEffectText(state, scanAfterSave), confirmLabel: 'Still kept',
   });
   return confirmed;
 }
 
 const sourceName = (location: string) => MEDIA_SOURCES.find(([kind]) => kind === location)?.[1] ?? location;
-const sourceOptions = [...MEDIA_SOURCES, ['smb', 'SMB 共享'] as const];
-/** 媒体库在下拉里的图标：选过就用选的，否则按来源自动识别，和标题行的图标键一致。 */
+const sourceOptions = [...MEDIA_SOURCES, ['smb', 'SMB share'] as const];
+/** The media library's icon in the dropdown: the chosen one when one was picked, otherwise auto-detected from the source, matching the title row's icon key. */
 const libraryMark = (row: { library_icon: string; location: string; transport?: string }) => row.library_icon || libraryAutoChoice(row.transport === 'smb' ? 'smb' : row.location)[0];
 const pickFolder = async (initial: string) =>
   (await apiSend<{ path: string | null }>(PICK_FOLDER_URL, { initial })).path;
@@ -70,7 +70,7 @@ interface MediaRow {
   path: string; location: string; root: string; root_id?: string; library_id: string; library: string; library_icon: string;
   library_color: string; library_policy: Preset; library_stages: string; cost: SourceCost | ''; change_mode?: string;
 }
-/** 媒体库这一级的字段：同一媒体库的各行一起改、一起跟随。 */
+/** Fields at the library level: rows of the same library change together and follow together. */
 const libraryFields = (row: MediaRow) => ({
   library_id: row.library_id, library: row.library, library_icon: row.library_icon,
   library_color: row.library_color, library_policy: row.library_policy, library_stages: row.library_stages,
@@ -106,10 +106,10 @@ const fieldErrorsOf = (cause: unknown): FieldErrors | null => {
   return (cause.body as { errors?: FieldErrors } | null)?.errors ?? null;
 };
 
-/* 能编辑时挂载状态标在每个文件夹行上；只读时没有那张表，单列一块。 */
+/* When editable, mount status is marked on each folder row; when read-only there is no such table, just a single block. */
 export function MediaSettings({ data, receipt, panel }: ConfigurationGroupProps) {
   const cloud = !!data.media_sources?.some(row => isCloudSource(row.location));
-  // 首屏骨架照这一屏的结构排：每个媒体库几个文件夹、有没有 CloudDrive 代理，自动发现开了哪几项、几条前缀。
+  // The first-screen skeleton is laid out after this screen's structure: folders per library, whether a CloudDrive proxy exists, which auto-discovery options are on, and how many prefixes.
   useEffect(() => {
     if (data.editable) {
       const counts = new Map<string, number>();
@@ -124,7 +124,7 @@ export function MediaSettings({ data, receipt, panel }: ConfigurationGroupProps)
   }, [data, cloud]);
   return (
     <div {...groupRoot(panel)}>
-      {data.editable ? <MediaForm data={data} receipt={receipt} /> : <Note tone="neutral" title="只读">{data.notice}</Note>}
+      {data.editable ? <MediaForm data={data} receipt={receipt} /> : <Note tone="neutral" title="Read-only">{data.notice}</Note>}
       {data.editable ? null : <MountStatus data={data} />}
       {cloud ? <CloudProxySettings receipt={receipt} /> : null}
       {data.push_discovery
@@ -146,15 +146,15 @@ function MediaForm({ data, receipt }: ConfigurationGroupProps) {
   const revision = useRef(data.revision);
   const confirming = useRef(false);
   const action = useAction();
-  // 订阅来源色样式表：改色时卡片当场试色，保存后服务端的颜色接替。
+  // Subscription source color stylesheet: a color change previews on the card immediately, and the server's color takes over after saving.
   useLibraryTints();
   const editLibrary = (index: number, patch: Partial<MediaRow>) => {
     rows.forEach((row, i) => { if (row.library_id === rows[index]!.library_id) edit(i, patch); });
   };
-  // 每个媒体库取它的第一行作代表：新加的空文件夹排在后面，不改动这一库的图标与来源。
+  // Each library takes its first row as its representative: newly added empty folders sort last and do not change that library's icon or source.
   const libraries = useOrderedLibraries([...rows.reduce((found, row) => found.has(row.library_id) ? found : found.set(row.library_id, row),
     new Map<string, MediaRow>()).values()], row => row.library_id);
-  // 「新建媒体库」把这个文件夹拆成新的一组，焦点交给新组的名称框，接着就能起名。
+  // 'New library' splits this folder into a new group, hands focus to the new group's name box, and naming can begin right away.
   const [named, setNamed] = useState<string | null>(null);
   useEffect(() => {
     if (!named) return;
@@ -208,7 +208,7 @@ function MediaForm({ data, receipt }: ConfigurationGroupProps) {
     }, 'POST', signal), (result) => {
       revision.current = result.revision;
       setRowErrors([]);
-      receipt('已保存配置');
+      receipt('Configuration saved');
       setSaved(result);
     }, (cause) => {
       const fields = fieldErrorsOf(cause);
@@ -219,46 +219,46 @@ function MediaForm({ data, receipt }: ConfigurationGroupProps) {
 
   if (saved) {
     return (
-      <Section guide="media" title="媒体库与目录">
+      <Section guide="media" title="Libraries and folders">
         <Stack>
-          <Note tone="success" title="配置已保存">
-            Peach 正在重新启动。稍后自动跳转，或点击<LinkButton href={saved.url} size="small">进入馆藏</LinkButton>。
+          <Note tone="success" title="Configuration saved">
+            Peach is restarting. It will redirect shortly, or click<LinkButton href={saved.url} size="small">Enter the library</LinkButton>。
           </Note>
         </Stack>
       </Section>
     );
   }
 
-  // 挂载状态是已保存的那份配置的读数，只标在路径没改过的行上。
+  // The mounted state is a reading of the saved config, shown only on rows whose path is unchanged.
   const mountOf = (row: MediaRow) => data.media_sources?.find(source => source.root_id === row.root_id && source.path === row.path);
   const cloud = rows.some((row) => isCloudSource(row.location));
   const missing = cloud ? (data.mount_dependencies ?? []).filter((dependency) => !dependency.available) : [];
   return (
-    <Section guide="media" title="媒体库与目录" onSubmit={submit}>
+    <Section guide="media" title="Libraries and folders" onSubmit={submit}>
       <Stack>
-        {/* 按媒体库分组：名称、图标、来源色、处理方式属于媒体库，每组只写一次；
-            下面列这个媒体库的文件夹，文件夹只管路径、来源与读取策略。 */}
+        {/* Grouped by library: name, icon, source color, and handling belong to the library and are written once per group;
+            the folders of this library are listed below, and folders only carry path, source, and read policy. */}
         <PolicyLegend />
-        <div role="group" aria-label="媒体库与目录" className="flex flex-col gap-4">
+        <div role="group" aria-label="Libraries and folders" className="flex flex-col gap-4">
           {libraries.map((library) => {
             const first = rows.findIndex(row => row.library_id === library.library_id);
             const members = rows.map((row, index) => ({ row, index })).filter(({ row }) => row.library_id === library.library_id);
             const preset = library.library_policy;
-            const name = library.library || '未命名媒体库';
+            const name = library.library || 'Unnamed library';
             return (
-              /* 一个媒体库一张卡，照关注页「作者 → 来源」的结构：标题行在上、下面一道分隔线，
-                 文件夹一行一行用通栏细线分开。 */
+              /* One card per library, following the follows page's "author → source" structure: title row on top, a divider below,
+                 folders separated line by line with full-width hairlines. */
               <div key={library.library_id} data-library-block="" data-library-key={library.library_id}
                 className={cardClass({ variant: 'raised', padding: 'none', className: 'flex flex-col p-2' })}
                 data-library={library.library_color ? library.library_id : undefined}>
                 <div data-library-head="">
-                  <LibraryIconPicker label={`${name} 图标`} value={library.library_icon} kind={library.transport === 'smb' ? 'smb' : library.location}
+                  <LibraryIconPicker label={`${name} icon`} value={library.library_icon} kind={library.transport === 'smb' ? 'smb' : library.location}
                     onChange={(library_icon) => editLibrary(first, { library_icon })} />
-                  <Input className="w-full" aria-label={`${name} 名称`} maxLength={80} placeholder="媒体库名称"
+                  <Input className="w-full" aria-label={`${name} name`} maxLength={80} placeholder="Library name"
                     value={library.library} onChange={(value) => editLibrary(first, { library: value })} />
                   <LibraryColorPicker id={library.library_id} name={library.library} value={library.library_color}
                     onChange={(library_color) => editLibrary(first, { library_color })} />
-                  {/* 第一次切到自定义时先勾上全部步骤，用户再去掉不要的。 */}
+                  {/* Switching to custom the first time checks every step; the user then unchecks the unwanted ones. */}
                   <PresetSelect name={name} value={preset}
                     onChange={(value) => editLibrary(first, {
                       library_policy: value,
@@ -269,9 +269,9 @@ function MediaForm({ data, receipt }: ConfigurationGroupProps) {
                   ? <StageChooser name={name} value={stagesOf(library)}
                     onChange={(value) => editLibrary(first, { library_stages: AUTO_STAGES.filter(stage => value.includes(stage)).join(',') })} />
                   : null}
-                <div data-library-folders="" role="group" aria-label={`${name} 的文件夹`}>
+                <div data-library-folders="" role="group" aria-label={`${name} folders`}>
                 {members.map(({ row, index }) => (
-                  <FolderRow key={index} label={`媒体目录 ${index + 1}`} path={row.path}
+                  <FolderRow key={index} label={`Media folder ${index + 1}`} path={row.path}
                     onPath={(path) => edit(index, { path, transport: path.startsWith('smb://') ? 'smb' : row.transport })} error={rowErrors[index]} inputRef={inputRef(index)}
                     picking={picking === index} onPick={() => void pick(index)}
                     onRemove={rows.length > 1 ? () => remove(index) : undefined}
@@ -286,91 +286,91 @@ function MediaForm({ data, receipt }: ConfigurationGroupProps) {
                         setSmbResults(current => { const next = { ...current }; delete next[index]; return next; });
                       }} />
                       <MediaReadPolicy index={index} cost={row.cost} onChange={(cost) => edit(index, { cost })}
-                        error={requireReadPolicy && !row.cost ? '请选择媒体读取策略' : undefined} />
-                      {row.root_id && !mountOf(row) ? <FolderField label="变更方式" className="w-full @lg:w-auto @lg:flex-1">
-                        <Select className="w-full" aria-label={`目录变更方式 ${index + 1}`}
-                          placeholder="选择目录变更方式" selectedKey={row.change_mode || null}
+                        error={requireReadPolicy && !row.cost ? 'Select a media reading strategy' : undefined} />
+                      {row.root_id && !mountOf(row) ? <FolderField label="Change method" className="w-full @lg:w-auto @lg:flex-1">
+                        <Select className="w-full" aria-label={`Folder change method ${index + 1}`}
+                          placeholder="Choose the folder change method" selectedKey={row.change_mode || null}
                           onSelectionChange={key => {
                             if (key === 'add') edit(index, { root_id: undefined, root: '', change_mode: '' });
                             else edit(index, { change_mode: 'relocate' });
                           }}>
-                          <SelectItem id="relocate">重定位此目录，保留文件记录</SelectItem>
-                          <SelectItem id="add">添加另一目录</SelectItem>
+                          <SelectItem id="relocate">Relocate this folder, keeping file records</SelectItem>
+                          <SelectItem id="add">Add another folder</SelectItem>
                         </Select>
                       </FolderField> : null}
-                      {libraries.length > 1 ? <FolderField label="移到媒体库" className="w-full @lg:w-48">
-                        <Select className="w-full" aria-label={`目录所属媒体库 ${index + 1}`} selectedKey={row.library_id}
+                      {libraries.length > 1 ? <FolderField label="Move to library" className="w-full @lg:w-48">
+                        <Select className="w-full" aria-label={`Media library owning directory ${index + 1}`} selectedKey={row.library_id}
                           renderValue={<span className="flex min-w-0 items-center gap-2"><SourceMark mark={libraryMark(library)} /><span className="truncate">{name}</span></span>}
                           onSelectionChange={key => { if (key) chooseLibrary(index, String(key)); }}>
-                          {libraries.map(other => <SelectItem key={other.library_id} id={other.library_id} textValue={other.library || '未命名媒体库'}>
-                            <span className="flex min-w-0 items-center gap-2"><SourceMark mark={libraryMark(other)} /><span className="truncate">{other.library || '未命名媒体库'}</span></span>
+                          {libraries.map(other => <SelectItem key={other.library_id} id={other.library_id} textValue={other.library || 'Unnamed library'}>
+                            <span className="flex min-w-0 items-center gap-2"><SourceMark mark={libraryMark(other)} /><span className="truncate">{other.library || 'Unnamed library'}</span></span>
                           </SelectItem>)}
-                          {/* 库里只有这一个文件夹时，拆出去等于原库改名，不给这一项。 */}
-                          {members.length > 1 ? <SelectItem id="new" textValue="新建媒体库">
-                            <span className="flex min-w-0 items-center gap-2"><SourceMark mark="plus" /><span>新建媒体库</span></span>
+                          {/* When the library has only this one folder, splitting it out is just renaming the original library, so the option is not offered. */}
+                          {members.length > 1 ? <SelectItem id="new" textValue="New library">
+                            <span className="flex min-w-0 items-center gap-2"><SourceMark mark="plus" /><span>New media library</span></span>
                           </SelectItem> : null}
                         </Select>
                       </FolderField> : null}
                     </FolderFieldLine>
                     {row.transport === 'smb' ? <div className="flex w-full flex-col gap-2">
                       <FolderFieldLine>
-                        <FolderField label="SMB 账号" className="w-full @lg:flex-1">
-                          <Input aria-label={`SMB 账号 ${index + 1}`} value={row.smb_username || ''}
+                        <FolderField label="SMB account" className="w-full @lg:flex-1">
+                          <Input aria-label={`SMB account ${index + 1}`} value={row.smb_username || ''}
                             autoComplete="off" onChange={value => edit(index, { smb_username: value })} />
                         </FolderField>
-                        <FolderField label="SMB 密码" className="w-full @lg:flex-1">
-                          <Input aria-label={`SMB 密码 ${index + 1}`} type="password" value={row.smb_password || ''}
-                            autoComplete="new-password" placeholder={row.smb_password_saved ? '留空保留已保存密码' : ''}
+                        <FolderField label="SMB password" className="w-full @lg:flex-1">
+                          <Input aria-label={`SMB password ${index + 1}`} type="password" value={row.smb_password || ''}
+                            autoComplete="new-password" placeholder={row.smb_password_saved ? 'Leave blank to keep the saved password' : ''}
                             onChange={value => edit(index, { smb_password: value })} />
                         </FolderField>
                       </FolderFieldLine>
-                      <Checkbox isSelected={row.smb_encrypt || false} onChange={value => edit(index, { smb_encrypt: value })}>要求 SMB 加密</Checkbox>
-                      <Checkbox isSelected={row.smb_clear || false} onChange={value => edit(index, { smb_clear: value })}>移除已保存的 SMB 账号</Checkbox>
+                      <Checkbox isSelected={row.smb_encrypt || false} onChange={value => edit(index, { smb_encrypt: value })}>Require SMB encryption</Checkbox>
+                      <Checkbox isSelected={row.smb_clear || false} onChange={value => edit(index, { smb_clear: value })}>Remove the saved SMB account</Checkbox>
                       <Button className="self-start" variant="secondary" {...busyProps(action.busy === `smb-${index}`)}
                         onClick={() => void action.run(`smb-${index}`, signal => apiSend<{ readable: boolean; directories: string[] }>(
                           '/api/configuration/smb/test', row, 'POST', signal), result => setSmbResults(current => ({
-                            ...current, [index]: { message: '共享目录可读取', directories: result.directories },
+                            ...current, [index]: { message: 'Shared directory is readable', directories: result.directories },
                           })), cause => setSmbResults(current => ({ ...current,
                             [index]: { message: errorMessage(cause), directories: [] },
-                          })))}>测试连接</Button>
+                          })))}>Test connection</Button>
                       {smbResults[index] ? <Help>{smbResults[index].message}</Help> : null}
-                      {smbResults[index]?.directories.length ? <Select aria-label={`SMB 子目录 ${index + 1}`} placeholder="进入子目录"
+                      {smbResults[index]?.directories.length ? <Select aria-label={`SMB subfolder ${index + 1}`} placeholder="Enter subfolder"
                         selectedKey={null} onSelectionChange={key => { if (key) {
                           edit(index, { path: row.path.replace(/\/$/, '') + '/' + encodeURIComponent(String(key)) });
-                          setSmbResults(current => ({ ...current, [index]: { message: '请测试此子目录', directories: [] } }));
+                          setSmbResults(current => ({ ...current, [index]: { message: 'Please test this subdirectory', directories: [] } }));
                         } }}>
                         {smbResults[index].directories.map(name => <SelectItem key={name} id={name}>{name}</SelectItem>)}
                       </Select> : null}
-                      <Help>地址填写 smb://服务器/共享/目录。按共享账号权限读写；整理和删除由对应操作触发，资料和预览保存在 Peach 数据目录。</Help>
+                      <Help>Enter the address as smb://server/share/folder. Reads and writes follow the share account's permissions; organizing and deleting are triggered by the matching actions, and details and previews are stored in the Peach data directory.</Help>
                     </div> : null}
                   </FolderRow>
                 ))}
-                {/* 每个媒体库自己的「添加文件夹」：新文件夹直接挂进这一库，共用它的名称、颜色与处理方式，来源与读取策略先沿用这一库第一个文件夹。 */}
+                {/* Each library's own "Add folder": the new folder mounts straight into this library, sharing its name, color, and handling, with source and read policy initially inherited from the library's first folder. */}
                 <div className="flex">
-                  <Button variant="secondary" aria-label={`给 ${name} 添加文件夹`} onClick={() => {
+                  <Button variant="secondary" aria-label={`Add folders to ${name}`} onClick={() => {
                     add();
                     edit(rows.length, { ...libraryFields(library), location: library.location, cost: library.cost });
-                  }}>添加文件夹</Button>
+                  }}>Add folder</Button>
                 </div>
                 </div>
               </div>
             );
           })}
         </div>
-        {/* 「添加媒体库」新建一组，名称、图标、来源色与处理方式都单独设。 */}
-        <Button variant="secondary" className="self-start" onClick={add}>添加媒体库</Button>
+        {/* "Add media library" creates a new group with its own name, icon, source color, and handling. */}
+        <Button variant="secondary" className="self-start" onClick={add}>Add media library</Button>
         <Help>{LIBRARY_FOLDER_HELP}</Help>
         {cloud ? <><MediaReadPolicyHelp /><CloudDriveGuide /></> : null}
         {missing.map((dependency) => (
           <Help key={dependency.name}>
-            未检测到 {dependency.name}。<ExternalLink href={dependency.download_url}>下载 {dependency.name}</ExternalLink>
+            Not detected: {dependency.name}。<ExternalLink href={dependency.download_url}>Download {dependency.name}</ExternalLink>
           </Help>
         ))}
-        <Checkbox isSelected={scanNow} onChange={setScanNow}>保存后扫描并补全资料</Checkbox>
-        {failure ? <Note tone="error" title="没有保存">{failure}</Note> : null}
+        <Checkbox isSelected={scanNow} onChange={setScanNow}>After saving, scan and complete details</Checkbox>
+        {failure ? <Note tone="error" title="Not saved">{failure}</Note> : null}
       </Stack>
-      <Footer status="保存后 Peach 会重新启动。">
-        <Button type="submit" {...busyProps(action.busy === 'save')}>保存配置</Button>
+      <Footer status="Peach will restart after saving.">
+        <Button type="submit" {...busyProps(action.busy === 'save')}>Save configuration</Button>
       </Footer>
     </Section>
   );
@@ -381,8 +381,8 @@ function MountBadge({ online }: { online: boolean | null | undefined }) {
   return <ConnectionStatus online={online} />;
 }
 
-/* 重取回来的是整份配置，换进整页那一个键：屏幕上只有一份真相，页面上别处读到的
-   也是这一次的结果。另存一份的话，挂载点在这里是新的、在「这台电脑」那张表单里还是旧的。 */
+/* The refetch returns the whole configuration, swapped into the single page-level key: there is one truth on screen, and everything else on the page reads
+   this same result. Keeping a separate copy would make it fresh at this mount point and stale in the "This computer" form. */
 function MountStatus({ data }: { data: ConfigurationData }) {
   const sources = data.media_sources;
   const action = useAction();
@@ -390,17 +390,17 @@ function MountStatus({ data }: { data: ConfigurationData }) {
   const refresh = () => void action.run('refresh', (signal) => fetchConfiguration(signal),
     (result) => queryClient.setQueryData(CONFIGURATION_KEY, result));
   return (
-    <Section guide="mounts" title="挂载状态">
+    <Section guide="mounts" title="Mount state">
       <FactList>
         {sources.map((row, index) => (
           <Fact key={index} term={<><SourceMark mark={sourceMark(row.location)} />{sourceName(row.location)}</>}>
-            {row.path || '未配置挂载点'}<MountBadge online={row.online} />
+            {row.path || 'No mount point configured'}<MountBadge online={row.online} />
           </Fact>
         ))}
       </FactList>
       {action.error ? <Stack divided><ErrorText>{action.error}</ErrorText></Stack> : null}
       <Footer>
-        <Button variant="secondary" onClick={refresh} {...busyProps(action.busy === 'refresh')}>刷新挂载状态</Button>
+        <Button variant="secondary" onClick={refresh} {...busyProps(action.busy === 'refresh')}>Refresh mount state</Button>
       </Footer>
     </Section>
   );

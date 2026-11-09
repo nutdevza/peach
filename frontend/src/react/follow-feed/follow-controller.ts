@@ -8,7 +8,7 @@ export interface FollowSession {
 }
 export type FollowPreferences = Pick<FollowFeedProps, 'selectMode' | 'selected' | 'photoSize' | 'photoLayout' | 'imagesOnly'>;
 
-/** 地址认领、会话存储与宿主操作分别由唯一拥有者提供。 */
+/** Address claiming, session storage and host actions are each provided by a single owner. */
 export interface FollowControllerPorts {
   location(): { pathname: string; search: string };
   view(): FollowView;
@@ -46,7 +46,7 @@ export function createFollowController(ports: FollowControllerPorts, helpers: Fo
     ports.writeSession({ discoverySeed: seed });
     route({ ...ports.view(), seed, sort: FOLLOW_RANDOM_SORT }, { seed: ports.session().discoverySeed });
   };
-  // 动作对象跨 props 推送保持身份，卡片的 memo 不因页内筛选失效。
+  // Action objects keep their identity across props pushes, so the card's memo does not bust on in-page filter changes.
   const actions: FollowFeedActions = { ...delegated, route, shuffle };
   const props = (): FollowFeedProps => {
     const session = ports.session(), preferences = ports.preferences();
@@ -77,7 +77,7 @@ export function createFollowController(ports: FollowControllerPorts, helpers: Fo
   };
 }
 
-/** 资料页在线卡复用详情与偏好动作，页级筛选、抽屉与本地多选各由资料页持有。 */
+/** The profile page's online cards reuse the detail and preference actions; page-level filters, the drawer and local multi-select are each owned by the profile page. */
 export function entityFollowActions(actions: FollowFeedActions): FollowFeedActions {
   return { ...actions, route: () => {}, shuffle: () => {}, loaded: () => {}, toggleSelection: () => {} };
 }

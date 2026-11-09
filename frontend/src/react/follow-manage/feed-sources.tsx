@@ -1,13 +1,16 @@
-/* 关注列表里的 JAV 订阅表：
- * 一行一条源，名字前是她的资料图，列出类型、来源、状态、频率、上次拉取与新增，行尾是启用开关、
- * 拉取键与移除键（ADR-0042）。行尾这三样和关注列表那一行一一对应，两张表看起来是一回事。
+/* The JAV subscription table in the follow list:
+ * one row per source, with her profile image before the name, listing type, source, status, frequency, last pull and new
+ * additions, with the enable switch, pull key and remove key at the row's end (ADR-0042). Those three at the row's end match
+ * the follow list's row one for one, so the two tables read as the same thing.
  *
- * 订阅从人物页的「订阅新作」或「添加关注」按名字进，两条路都不收地址（ADR-0047、ADR-0083）。拉回来的
- * 新作排在首页与人物页筛选栏下面那一行，不在这里列——这里再列一遍就成了第二个入口，两处的
- * 已读状态会各说各话。
- * 服务端是唯一真相：开关与移除之后重取这一份，不在前端按响应拼一份新的本地状态。
+ * Subscriptions enter by name from a person page's "Subscribe to new releases" or "Add follow"; neither path takes an address
+ * (ADR-0047, ADR-0083). Pulled new releases line up in the row under the home and person page filter bars and are not listed
+ * here: listing them here would create a second entry point whose read states would diverge.
+ * The server is the only truth: after toggling or removing, refetch this copy; do not assemble local state from the response
+ * in the frontend.
  *
- * 勾选和关注列表同一套：勾在行首，点一行的空白处也是选这一行，选中了底部浮出批量操作。 */
+ * Selection matches the follow list: the check sits at the row's start, clicking a row's blank also selects it, and with a
+ * selection the batch actions surface at the bottom. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -63,21 +66,21 @@ const feedTableFeatures = tableFeatures({
 });
 
 const COLUMN_LABELS: Record<string, string> = {
-  select: '选择',
-  name: '名称',
-  kind: '类型',
-  origin: '来源',
-  status: '状态',
-  interval: '频率',
-  fetched: '上次拉取',
-  fresh: '上次新增',
-  actions: '操作',
+  select: 'Select',
+  name: 'Name',
+  kind: 'Kind',
+  origin: 'Source',
+  status: 'State',
+  interval: 'Frequency',
+  fetched: 'Last fetch',
+  fresh: 'Last additions',
+  actions: 'Actions',
 };
 
-/** 表头里不占字的列：勾选那一格自己会说「选择 谁」，行尾三个控件也各带自己的名字。 */
+/** Columns that take no header text: the checkbox cell announces "select who" itself, and the three row-end controls each carry their own names. */
 const SILENT_COLUMNS = new Set(['actions']);
 const preferenceColumns = Object.entries(COLUMN_LABELS).map(([id, label]) => ({ id, label,
-  /* 来源那一格要放下站标、`video.dmm.co.jp` 与外链图标，160 会把站名压到图标底下。 */
+  /* The source cell needs to fit the site mark, video.dmm.co.jp, and the external-link icon; 160 would push the site name under the icon. */
   width: id === 'select' ? 48 : id === 'name' ? 300 : id === 'actions' ? 208 : id === 'fetched' ? 200
     : id === 'origin' ? 184 : 160,
   min: id === 'select' ? 48 : id === 'actions' ? 200 : id === 'name' ? 300 : 112, max: id === 'select' ? 48 : id === 'name' ? 2000 : 800,
@@ -90,7 +93,7 @@ const reload = () => queryClient.invalidateQueries({ queryKey: FEEDS_KEY, exact:
 const feedName = (source: FeedSource) => source.name || source.url;
 
 
-/** 来源那一格只摆站名：地址整条写出来会把这张表撑到一屏之外，点开就是原页面。 */
+/** The source cell shows only the site name: writing out the whole address would stretch this table past one screen, and clicking opens the original page. */
 function originHost(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -99,16 +102,16 @@ function originHost(url: string): string {
   }
 }
 
-/** 启用状态与已取得的拉取结果共同决定当前标签。 */
+/** The enabled state and the fetched results so far jointly decide the current tab. */
 function StatusChip({ source }: { source: FeedSource }) {
-  if (!source.enabled) return <Chip variant="caption" color="gray">已暂停</Chip>;
-  if (source.last_error) return <Chip variant="caption" color="rose">拉取失败</Chip>;
-  if (!source.last_fetched_at) return <Chip variant="caption" color="gray">未检查</Chip>;
-  return <Chip variant="caption" color="lime">正常</Chip>;
+  if (!source.enabled) return <Chip variant="caption" color="gray">Paused</Chip>;
+  if (source.last_error) return <Chip variant="caption" color="rose">Fetch failed</Chip>;
+  if (!source.last_fetched_at) return <Chip variant="caption" color="gray">Unchecked</Chip>;
+  return <Chip variant="caption" color="lime">Normal</Chip>;
 }
 
-/** 名字前的圆框：和关注列表的创作者圆标同一个尺寸与底色。里面那段由 `card-art` 的 `avatarInner` 拼：
- *  有资料图按人脸取景出图，判据是服务端的 `has_image`；没有就是首字母。整格不进读屏，名字就在旁边。 */
+/** The round frame before the name: same size and background as the follows list's creator roundel. Its inside is assembled by `card-art`'s `avatarInner`:
+ *  with a profile image it frames by face, judged by the server's `has_image`; without, the initial. The whole cell is out of the screen reader; the name is right beside. */
 function FeedAvatar({ source }: { source: FeedSource }) {
   const entity = source.entity_id
     ? {
@@ -123,14 +126,14 @@ function FeedAvatar({ source }: { source: FeedSource }) {
   );
 }
 
-/** 这一页在站上挂的另一个名字。一个人常有两页，本名页和旧艺名页在表里同名，
- *  只有这一段说得出哪一行是哪一页。只在这位不止一行时写：站上的标题栏常把几种写法
- *  连成一串（「涼森玲夢, 涼森れむ」），只有一行的人再摆一遍只是噪音；和统称一样时也不重复。 */
+/** Another name this page goes by on the site. One person often has two pages, and the real-name page and old stage-name page share a name in the table,
+ *  so only this segment can tell which row is which page. Written only when this person has more than one row: the site's title bar often chains the kanji and kana
+ *  spellings together, and for single-row people repeating it is noise; it is also skipped when it equals the collective name. */
 const pageAlias = (source: FeedSource, shared: ReadonlySet<number>) =>
   (source.entity_id !== null && shared.has(source.entity_id)
     && source.page_name && source.page_name !== source.name ? source.page_name : '');
 
-/** 挂着不止一条源的人。 */
+/** A person with more than one source attached. */
 function sharedEntities(sources: FeedSource[]): ReadonlySet<number> {
   const seen = new Set<number>();
   const shared = new Set<number>();
@@ -143,25 +146,25 @@ function sharedEntities(sources: FeedSource[]): ReadonlySet<number> {
 
 interface RowHandlers {
   readOnly: boolean;
-  /** 挂着不止一条源的人，名字旁的页名只给他们写。 */
+  /** The page name next to the name is written only for people carrying more than one source. */
   shared: ReadonlySet<number>;
-  /** 正在跑的那个动作的键（`useAction` 的 `busy`），行尾的拉取键按它挂忙态。 */
+  /** The key of the action currently running (`useAction`'s `busy`); the pull key at the row end shows busy against it. */
   busy: string | null;
   toggle(source: FeedSource, enabled: boolean): void;
   fetch(source: FeedSource): void;
   remove(source: FeedSource): void;
 }
 
-/** 移除前先弹确认，和关注列表那一行同一套：删的是这条源和它的去重记忆，拉回来的新作留着
- *  （`feed_discovery.source_id` 置空）。写入交给弹层，忙态和失败原因都落在弹层里。 */
+/** Confirm before removing, the same pattern as the follows-list row: what is deleted is this source and its dedup memory, while new releases already fetched stay
+ *  (`feed_discovery.source_id` cleared to null). The popover handles the write, and busy state and failure reason both land in the popover. */
 function confirmRemove(sources: FeedSource[], write: () => Promise<unknown>) {
   const one = sources.length === 1 ? sources[0] : null;
   return confirmModal({
-    title: one ? '移除订阅源' : `移除 ${sources.length} 条订阅源`,
+    title: one ? 'Remove feed' : `Remove ${sources.length} follow sources`,
     body: one
-      ? `将移除订阅源「${feedName(one)}」，之后不再拉取它的新作；已经拉到的新作保留。`
-      : '将移除所选订阅源，之后不再拉取它们的新作；已经拉到的新作保留。',
-    confirmLabel: one ? '移除订阅源' : '移除所选订阅源', danger: true,
+      ? `Will remove the feed "${feedName(one)}"; its new releases will no longer be pulled, and new releases already fetched are kept.`
+      : 'The selected sources will be removed and their new releases will no longer be fetched; new releases already fetched are kept.',
+    confirmLabel: one ? 'Remove feed' : 'Remove selected feeds', danger: true,
     onConfirm: write,
   });
 }
@@ -188,7 +191,7 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
   const win = pageWindow(sources.length, pageSize, page);
   useEffect(() => { setPage((current) => Math.min(current, win.pages)) }, [win.pages]);
 
-  /* 删掉的源不该还占着计数：清单换一份就把已经不在里面的 ID 丢掉。 */
+  /* A removed source should not keep holding counts: when the manifest is replaced, drop the IDs no longer in it. */
   useEffect(() => {
     setSelected((now) => {
       const alive = new Set(sources.map((source) => source.id));
@@ -210,16 +213,16 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
       const done = result.ids.length - failed.length;
       setSelected(new Set());
       void reload();
-      if (result.action === 'remove' && done) toast(`已移除 ${done} 条订阅源`);
+      if (result.action === 'remove' && done) toast(`Removed ${done} follow sources`);
       if (failed.length) {
         const first = failed[0]!;
-        action.setError(`${failed.length} 条没有写入：${first.ok ? '' : errorMessage(first.error)}`);
+        action.setError(`${failed.length} not written: ${first.ok ? '' : errorMessage(first.error)}`);
       }
     },
     onError: (cause) => action.setError(errorMessage(cause)),
   });
 
-  /* 列定义只建一次，行里的控件到点击那一刻再从这里取最新的处理器与只读态。 */
+  /* Column definitions are built once; the controls in each row fetch the latest handlers and read-only state from here at click time. */
   const shared = useMemo(() => sharedEntities(sources), [sources]);
   const handlers = useRef<RowHandlers>({
     readOnly, shared, busy: null, toggle: () => {}, fetch: () => {}, remove: () => {},
@@ -230,12 +233,12 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
     busy: action.busy,
     toggle: (source, enabled) => void action.run(`enabled-${source.id}`,
       (signal) => setFeedEnabled(source.id, enabled, signal), () => void reload()),
-    /* 只拉这一条，停着的也拉：点这枚键的人就是想现在看她有没有新作，不必先去开开关。 */
+    /* Pull only this one, paused ones included: whoever taps this wants to know right now whether she has new releases, without first flipping a switch. */
     fetch: (source) => void action.run(`check-${source.id}`,
       (signal) => checkFeeds(signal, [source.id]), () => void reload()),
     remove: (source) => void confirmRemove([source], async () => {
       await removeFeed(source.id);
-      toast(`已移除订阅源「${feedName(source)}」`);
+      toast(`Removed the follow source "${feedName(source)}"`);
       void reload();
     }),
   };
@@ -246,20 +249,20 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
     return column.columns([
       column.display({
         id: 'select',
-        header: context => <TableSelectionHeader table={context.table} label="全选本页订阅源" page />,
-        /* `slot={null}`：表格自带一个叫 selection 的插槽，摆进去的勾不声明归属就会被它
-           拦下报错。这一列的勾归 TanStack Table 那份行选择管，不走 Table 自己的选择。 */
+        header: context => <TableSelectionHeader table={context.table} label="Select all feeds on this page" page />,
+        /* `slot={null}`: the table ships a slot named selection, and a checkbox placed without declaring ownership gets intercepted by it
+           and errors. This column's checkboxes belong to TanStack Table's row selection, not the Table's own selection. */
         cell: (context) => (
           <Checkbox slot={null} isSelected={context.row.getIsSelected()}
             onChange={(on) => context.row.toggleSelected(on)}
-            aria-label={`选择 ${feedName(context.row.original)}`} />
+            aria-label={`Select ${feedName(context.row.original)}`} />
         ),
       }),
       column.accessor(feedName, {
         id: 'name',
         header: label('name'),
-        /* 名字、频率与时间都不换行：窄屏上这张表靠 Table 自带的容器横着滚，让格子换行只会
-           把「三上悠亜」竖着摆成四行，滚动反而没了用处。 */
+        /* Name, frequency and time never wrap: on narrow screens the table scrolls horizontally in Table's own container, and letting cells wrap would
+           just stack a name like Mikami Yua into four vertical lines, defeating the scrolling. */
         cell: (context) => {
           const alias = pageAlias(context.row.original, handlers.current.shared);
           return (
@@ -267,7 +270,7 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
               <FeedAvatar source={context.row.original} />
               {context.getValue()}
               {alias ? (
-                <span className="text-body-2-regular text-text-secondary" title={`站上这一页挂在「${alias}」名下`}>
+                <span className="text-body-2-regular text-text-secondary" title={`On-site this page files under "${alias}"`}>
                   {alias}
                 </span>
               ) : null}
@@ -284,7 +287,7 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
         id: 'origin',
         header: label('origin'),
         cell: (context) => (
-          <a href={context.getValue()} target="_blank" rel="noopener noreferrer" title="打开来源页面"
+          <a href={context.getValue()} target="_blank" rel="noopener noreferrer" title="Open the source page"
             className="max-w-full text-text-primary underline-offset-2 hover:underline">
             <SiteLabel site={context.row.original.kind.startsWith('javdb') ? 'javdb'
               : context.row.original.kind.startsWith('dmm') ? 'dmm' : originHost(context.getValue())}
@@ -293,7 +296,7 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
           </a>
         ),
       }),
-      column.accessor((source) => source.last_error ? '拉取失败' : source.enabled ? '已启用' : '已暂停', {
+      column.accessor((source) => source.last_error ? 'Fetch failed' : source.enabled ? 'Enabled' : 'Paused', {
         id: 'status',
         header: label('status'),
         cell: (context) => <StatusChip source={context.row.original} />,
@@ -306,30 +309,30 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
       column.accessor((row) => row.last_fetched_at ? Date.parse(row.last_fetched_at) || 0 : 0, {
         id: 'fetched',
         header: label('fetched'),
-        cell: (context) => <span className="whitespace-nowrap tabular-nums">{context.row.original.last_fetched_at ? localTime(context.row.original.last_fetched_at) : '还没拉过'}</span>,
+        cell: (context) => <span className="whitespace-nowrap tabular-nums">{context.row.original.last_fetched_at ? localTime(context.row.original.last_fetched_at) : 'Never fetched'}</span>,
       }),
       column.accessor((row) => row.last_new_count, {
         id: 'fresh',
         header: label('fresh'),
-        cell: (context) => <span className="whitespace-nowrap tabular-nums">{`${context.getValue()} 条`}</span>,
+        cell: (context) => <span className="whitespace-nowrap tabular-nums">{`${context.getValue()} items`}</span>,
       }),
       column.display({
         id: 'actions',
         header: label('actions'),
-        /* 行尾和关注列表表格同一个次序：启用开关、拉取键、移除键挨在一起。两枚键次级描边、
-           刷新与垃圾桶字形，xs 那一档和开关一样高。 */
+        /* The row end follows the same order as the follows list table: enable switch, fetch button, and remove button side by side. Both buttons are secondary outline,
+           refresh and trash glyphs, sized xs to match the switch's height. */
         cell: (context) => (
           <span className="flex items-center gap-1">
-            <Switch aria-label={`启用 ${feedName(context.row.original)}`}
+            <Switch aria-label={`Enable ${feedName(context.row.original)}`}
               isSelected={context.row.original.enabled} isDisabled={handlers.current.readOnly}
               onChange={(enabled) => handlers.current.toggle(context.row.original, enabled)} />
             <Button variant="secondary" size="small" iconOnly leadingIcon={RiRefreshLine}
-              aria-label={`拉取 ${feedName(context.row.original)}`}
+              aria-label={`Fetch ${feedName(context.row.original)}`}
               disabled={handlers.current.readOnly}
               {...busyProps(handlers.current.busy === `check-${context.row.original.id}`)}
               onClick={() => handlers.current.fetch(context.row.original)} />
             <Button variant="secondary" size="small" iconOnly leadingIcon={RiDeleteBinLine}
-              aria-label={`移除 ${feedName(context.row.original)}`}
+              aria-label={`Remove ${feedName(context.row.original)}`}
               disabled={handlers.current.readOnly}
               onClick={() => handlers.current.remove(context.row.original)} />
           </span>
@@ -358,8 +361,8 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
 
   if (!data) {
     return feeds.error
-      ? <Note tone="error" title="打不开订阅源">{errorMessage(feeds.error)}</Note>
-      : <Help>正在读订阅源。</Help>;
+      ? <Note tone="error" title="The follow source will not open">{errorMessage(feeds.error)}</Note>
+      : <Help>Reading feed.</Help>;
   }
 
   const check = () => void action.run('check', (signal) => checkFeeds(signal), () => void reload());
@@ -376,55 +379,55 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
 
   return (
     <div className="flex flex-col gap-3">
-      <section aria-label="JAV 订阅列表"
+      <section aria-label="JAV subscription list"
         className={cardClass({ padding: 'none', className: 'flex flex-col gap-4 px-6 py-5 max-sm:px-4' })}>
       <div data-responsive-toolbar="">
         <div data-toolbar-heading="">
-        <h3 className="text-title-2-medium text-text-primary">JAV 订阅源</h3>
-        <span className="text-body-2-regular text-text-secondary">{`${sources.length.toLocaleString()} 个订阅源 · ${(Number(data.unread) || 0).toLocaleString()} 条未看`}</span>
+        <h3 className="text-title-2-medium text-text-primary">JAV feed</h3>
+        <span className="text-body-2-regular text-text-secondary">{`${sources.length.toLocaleString()} feeds - ${(Number(data.unread) || 0).toLocaleString()} unread`}</span>
         </div>
         <div data-toolbar-actions="">
-        <Button onClick={check} disabled={readOnly} {...busyProps(action.busy === 'check')}>立即拉取</Button>
-        <TableColumnControls preferences={preferences} label="JAV 订阅源" />
-        <DataTableSort label="JAV 订阅源" sorting={sorting} onChange={(next) => { setSorting(next); setPage(1); }}
+        <Button onClick={check} disabled={readOnly} {...busyProps(action.busy === 'check')}>Fetch now</Button>
+        <TableColumnControls preferences={preferences} label="JAV feeds" />
+        <DataTableSort label="JAV feeds" sorting={sorting} onChange={(next) => { setSorting(next); setPage(1); }}
           options={['name', 'kind', 'origin', 'status', 'interval', 'fetched', 'fresh'].map((id) => ({ id, label: COLUMN_LABELS[id]! }))} />
         </div>
       </div>
 
       {failing.length || action.error ? (
         <div className="flex flex-col gap-3">
-          {/* 拉不动的源并成一条：每条源一行「源名：报错首行」，几条源同时坏也不把表格推出首屏；
-              表格里那一行的状态徽章同时标着「拉取失败」。 */}
+          {/* Sources that cannot be pulled collapse into one line: one row per source reading "source name: first line of the error", so several failing sources cannot push the table off the first screen;
+              the status badge on the table's row also reads "fetch failed". */}
           {failing.length ? (
-            <Note tone="error" title={`${failing.length.toLocaleString()} 条订阅源拉取失败`}
+            <Note tone="error" title={`${failing.length.toLocaleString()} feeds failed to fetch`}
               extra={<ul className="flex flex-col gap-0.5 text-body-2-regular">
                 {failing.map((source) => (
                   <li key={source.id} className="min-w-0 truncate" title={source.last_error || ''}>
-                    {`${feedName(source)}：${errorHeadline(source.last_error || '') || '未说明原因'}`}
+                    {`${feedName(source)}: ${errorHeadline(source.last_error || '') || 'reason not stated'}`}
                   </li>
                 ))}
               </ul>}>
-              这些订阅源这一轮没有取到新条目。
+              These feeds fetched no new entries this round.
             </Note>
           ) : null}
           {action.error ? <ErrorText>{action.error}</ErrorText> : null}
         </div>
       ) : null}
 
-        <SelectionDock visible={chosen.length > 0} label="订阅源批量操作" count={`已选 ${chosen.length} 条订阅源`}>
+        <SelectionDock visible={chosen.length > 0} label="Feed bulk actions" count={`Selected ${chosen.length} follow sources`}>
           <Button variant="secondary" size="small" disabled={readOnly} {...busyProps(bulk.isPending)}
-            onClick={() => bulk.mutate({ ids: chosen.map((row) => row.id), action: 'enabled' })}>启用</Button>
+            onClick={() => bulk.mutate({ ids: chosen.map((row) => row.id), action: 'enabled' })}>Enabled</Button>
           <Button variant="secondary" size="small" disabled={readOnly} {...busyProps(bulk.isPending)}
-            onClick={() => bulk.mutate({ ids: chosen.map((row) => row.id), action: 'paused' })}>暂停</Button>
+            onClick={() => bulk.mutate({ ids: chosen.map((row) => row.id), action: 'paused' })}>Paused</Button>
           <Button variant="danger" size="small" disabled={readOnly} {...busyProps(bulk.isPending)}
             onClick={() => void confirmRemove(chosen,
-              () => bulk.mutateAsync({ ids: chosen.map((row) => row.id), action: 'remove' }))}>移除</Button>
-          <Button variant="ghost" size="small" onClick={() => setSelected(new Set())}>取消选择</Button>
+              () => bulk.mutateAsync({ ids: chosen.map((row) => row.id), action: 'remove' }))}>Remove</Button>
+          <Button variant="ghost" size="small" onClick={() => setSelected(new Set())}>Clear selection</Button>
         </SelectionDock>
 
       {sources.length ? (
         <DataTableFrame follow preferences={preferences} onRowClick={(key) => toggleRow(Number(key))}>
-          <Table aria-label="JAV 订阅源" size="sm"
+          <Table aria-label="JAV feeds" size="sm"
             sortDescriptor={sorting[0] ? { column: sorting[0].id, direction: sorting[0].desc ? 'descending' : 'ascending' } : undefined}
             onSortChange={(sort) => table.getColumn(String(sort.column))?.toggleSorting(sort.direction === 'descending')}>
             <TableHeader>
@@ -439,7 +442,7 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
                   </TableColumn>
                 );
               })}
-              <TableColumn id="remaining-space" aria-label="行空白区域" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
+              <TableColumn id="remaining-space" aria-label="Row empty space" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows.map((row) => (
@@ -456,19 +459,19 @@ export function FeedSources({ readOnly, toast, onAdd, selection }: {
           </Table>
         </DataTableFrame>
       ) : (
-        <EmptyState icon={RiRssLine} title="还没有订阅源" size="compact"
-          actions={!readOnly ? <Button variant="secondary" onClick={onAdd}>添加订阅</Button> : undefined}>
-          在「添加关注」按女优名添加，或在人物页点「订阅新作」。
+        <EmptyState icon={RiRssLine} title="No follow sources yet" size="compact"
+          actions={!readOnly ? <Button variant="secondary" onClick={onAdd}>Add subscription</Button> : undefined}>
+          Add by performer name under Add follow, or click Subscribe to new releases on a person page.
         </EmptyState>
       )}
       {sources.length ? (
-        <DataTableFooter label="JAV 订阅" total={win.total} unit="个订阅源"
+        <DataTableFooter label="JAV subscriptions" total={win.total} unit=" follow sources"
           pagination={{ pageIndex: win.page - 1, pageSize }}
           onChange={(next) => { setPageSize(next.pageSize); setPage(next.pageIndex + 1); }} />
       ) : null}
       <footer className="-mx-6 -mb-5 flex flex-wrap items-center gap-2 border-t border-separator-border rounded-b-2xl bg-card-footer px-6 py-4 max-sm:-mx-4 max-sm:px-4">
         <span role="status" className="mr-auto text-body-2-regular text-text-secondary">
-          {`未看 ${(Number(data.unread) || 0).toLocaleString()} · 已启用 ${sources.filter((source) => source.enabled).length.toLocaleString()} / ${sources.length.toLocaleString()}`}
+          {`Unwatched ${(Number(data.unread) || 0).toLocaleString()} · Enabled ${sources.filter((source) => source.enabled).length.toLocaleString()} / ${sources.length.toLocaleString()}`}
         </span>
       </footer>
       </section>

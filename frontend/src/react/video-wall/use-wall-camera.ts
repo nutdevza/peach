@@ -5,11 +5,11 @@ import { clampWall, WALL_CULL_PAD, wallExtent, type WallCamera, type WallRect, t
 const INITIAL: WallCamera = { x: 16, y: 16, scale: 1 };
 const MIN_SCALE = .65, MAX_SCALE = 1.6;
 const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
-/** 以视口内一点为不动点换比例，滚轮缩放时指针下的那一格留在指针下。 */
+/** Change the ratio with a point in the viewport as the fixed point; on wheel zoom, the cell under the pointer stays under the pointer. */
 const scaleAt = (from: WallCamera, scale: number, x: number, y: number): WallCamera =>
   ({ scale, x: x - (x - from.x) * scale / from.scale, y: y - (y - from.y) * scale / from.scale });
-/* 裁剪缓冲区（`visibleWallTiles` 每边多铺 `WALL_CULL_PAD` 屏幕像素）用掉三分之二才重新发布：
-   剩下那一截给 React 排程留余量，快拖时边缘不露空。平移与缩放同一把尺。 */
+/* The cull buffer (`visibleWallTiles` pads `WALL_CULL_PAD` screen pixels on each side) is re-published only after two-thirds are consumed:
+   the remaining stretch leaves headroom for React scheduling, so fast drags do not expose an empty edge. Panning and zooming share the same ruler. */
 function stillCovered(next: WallCamera, by: WallCamera, size: WallSize): boolean {
   const reach = WALL_CULL_PAD * 2 / 3 / by.scale;
   const left = -next.x / next.scale, top = -next.y / next.scale;
@@ -19,7 +19,7 @@ function stillCovered(next: WallCamera, by: WallCamera, size: WallSize): boolean
     && top + size.height / next.scale <= fromTop + size.height / by.scale + reach * 2;
 }
 
-/** 镜头每帧只写世界层；视口快走出已渲染的磁贴范围时才发布一次 React 状态。 */
+/** The camera only writes to the world layer each frame; React state is published only once when the viewport is about to leave the rendered tile range. */
 export function useWallCamera(count: number, finite: boolean, initial: WallCamera = INITIAL, focused = false) {
   const viewport = useRef<HTMLDivElement>(null);
   const world = useRef<HTMLDivElement>(null);
@@ -32,7 +32,7 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
   const frame = useRef<number | null>(null);
   const flight = useRef<{ stop():void } | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /* 滚轮与键盘共用的缓动目标：平移余量、目标比例（0 表示不缩放）和缩放不动点（视口坐标）。 */
+  /* The easing target shared by the wheel and keyboard: pan remainder, target scale (0 means no zoom), and the zoom fixed point (viewport coordinates). */
   const glide = useRef({ x: 0, y: 0, scale: 0, anchorX: 0, anchorY: 0, previous: 0 });
   const didDrag = useRef(false);
   const pointer = useRef<{ id: number; x: number; y: number; camera: WallCamera;
@@ -52,8 +52,7 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
     const layer = world.current;
     if (layer) {
       layer.style.transform = `translate3d(${Math.round(actual.x * ratio) / ratio}px, ${Math.round(actual.y * ratio) / ratio}px, 0) scale(${actual.scale})`;
-      /* 移动期间让合成器整块搬动世界层：不挂 `will-change` 时 Chrome 每挪一次都把整面墙重新
-         光栅化，拖动的 GPU 光栅化时间差四倍。停下后摘掉，按最终比例重画一次清晰的。 */
+      /* While moving, let the compositor move the world layer as one block: without `will-change`, Chrome re-rasterizes the whole wall on every nudge, and drag GPU raster time differs fourfold. Once stopped, remove it and redraw once crisply at the final scale. */
       if (actual.x !== before.x || actual.y !== before.y || actual.scale !== before.scale) {
         layer.style.willChange = 'transform';
         if (settle.current !== null) clearTimeout(settle.current);
@@ -84,7 +83,7 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
   useEffect(() => { apply(current.current, true) }, [count, finite, apply]);
 
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /* 每帧把平移余量与缩放目标按同一条指数缓动推进一截；余量耗尽、比例到位就停。 */
+  /* Each frame advances the pan margin and zoom target by a step along the same exponential easing; stop once the margin is exhausted and the ratio is in place. */
   const tick = useCallback((now: number) => {
     const state = glide.current;
     const step = 1 - Math.exp(-Math.min(50, state.previous ? now - state.previous : 16) / 80);
@@ -99,7 +98,7 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
     const last = Math.hypot(state.x, state.y) < .5;
     const moveX = last ? state.x : state.x * step, moveY = last ? state.y : state.y * step;
     apply({ ...next, x: next.x + moveX, y: next.y + moveY });
-    // 有限墙撞到边界时这一轴不再走，余量清零免得一直推。
+    // When a finite wall hits its edge, this axis stops; the remainder is zeroed so it does not keep pushing.
     state.x = moveX && current.current.x === next.x ? 0 : state.x - moveX;
     state.y = moveY && current.current.y === next.y ? 0 : state.y - moveY;
     if (last) { state.x = 0; state.y = 0 }
@@ -173,8 +172,8 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
       if (node.closest('[data-video-wall][data-refreshing]')) return;
       if (pointer.current) return;
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? size.current.height : 1;
-      /* 纵向滚轮缩放，指针下那一格不动；触控板捏合被浏览器报成带 Ctrl 的纵向滚动，刻度更细。
-         横向（触控板左右扫、Shift + 滚轮）仍是平移。 */
+      /* Vertical wheel zoom keeps the tile under the pointer still; a trackpad pinch is reported by the browser as a Ctrl-modified vertical scroll with finer steps.
+         Horizontal (two-finger swipe on the trackpad, Shift + wheel) is still panning. */
       const horizontal = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
       const vertical = event.shiftKey && !event.deltaX ? 0 : event.deltaY;
       if (Math.abs(horizontal) > Math.abs(vertical)) { glideBy({ x: -horizontal * unit, y: 0 }, null); return }
@@ -200,14 +199,14 @@ export function useWallCamera(count: number, finite: boolean, initial: WallCamer
     const target = { scale, x:size.current.width / 2 - (rect.x + rect.width / 2) * scale,
       y:size.current.height / 2 - (rect.y + rect.height / 2) * scale };
     if (!animated || reduced()) { apply(target, true, fit); return }
-    // Folia useWallCameraPan 的 420ms 飞行；世界层每帧变换，磁贴位置由块内弹簧接管。
+    // Folia's useWallCameraPan 420ms flight; the world layer transforms every frame, and tile positions are handed over to in-block springs.
     flight.current = animate(0, 1, { duration:.42, ease:[.22,1,.36,1],
       onUpdate:progress => apply({ x:from.x + (target.x - from.x) * progress,
         y:from.y + (target.y - from.y) * progress, scale:from.scale + (target.scale - from.scale) * progress }, false, fit),
       onComplete:() => { flight.current = null; apply(target, true, fit) },
     });
   };
-  /** 键盘缩放以视口中心为不动点，与滚轮同一条缓动。 */
+  /** Keyboard zoom uses the viewport center as a fixed point, sharing the wheel's easing. */
   const zoom = (factor: number) => glideBy(null, { factor, x: size.current.width / 2, y: size.current.height / 2 });
   return { viewport, world, view, reveal, zoom, snapshot: () => ({ ...current.current }), reset: () => { stop(); apply({ ...INITIAL }, true) },
     pan: (x: number, y: number) => { stop(); apply({ ...current.current, x: current.current.x + x, y: current.current.y + y }, true) },

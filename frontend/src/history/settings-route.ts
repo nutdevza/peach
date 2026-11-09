@@ -1,9 +1,9 @@
 export const PREFERENCE_SECTIONS = {
-  appearance: '外观与导航', playback: '浏览与播放', jav: 'JAV 与新作', search: '搜索与推荐', content: '内容显示',
+  appearance: 'Appearance & navigation', playback: 'Browsing & playback', jav: 'JAV & new releases', search: 'Search & recommendations', content: 'Content display',
 } as const;
 export const CONFIGURATION_SECTIONS = {
-  library: '媒体库与入库', subscriptions: '来源与订阅', downloads: '下载渠道', network: '网络与访问', maintenance: '应用与维护',
-  diagnostics: '系统诊断',
+  library: 'Library and imports', subscriptions: 'Sources and subscriptions', downloads: 'Download channels', network: 'Network & access', maintenance: 'App and maintenance',
+  diagnostics: 'System diagnostics',
 } as const;
 export type ConfigurationPath = `/settings/${keyof typeof CONFIGURATION_SECTIONS}`;
 /** 「应用与维护」之下的子页：升级后的修复与迁移。不进配置分区页签，从「自动修复」进入，页头画面包屑。 */

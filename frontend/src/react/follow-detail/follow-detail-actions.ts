@@ -16,7 +16,7 @@ export interface FollowDetailActionPorts {
   presented(item: { id: number; title: string; author?: string }): void;
 }
 
-/** 舞台的打开、代次与卸载仍由舞台拥有者持有；域只决定筛选与返回地址。 */
+/** The stage's opening, epoch and teardown stay with the stage owner; the domain only decides filters and the return address. */
 export function createFollowDetailActions(ports: FollowDetailActionPorts,
   receipts: Pick<FollowDetailActions, 'toast' | 'failure' | 'canFlip'>): Omit<FollowDetailActions, 'mountPlayer'> {
   return {

@@ -1,12 +1,13 @@
-/* 播放列表页：保存下来的 Mix 与手动建的列表，按最近改动排。
+/* Playlists page: saved Mixes and hand-built lists, sorted by last change.
  *
- * 一份播放列表就是一叠视频，和首页那张 Mix 卡是同一件东西，所以穿同一身
- * （`components/mix-card.tsx`）：封面悬停时逐张翻过列表里的画面，下面一行是列表里出镜最多
- * 的那几位的头像，标题就是列表名。改名和删除收进名字右边那个点点点菜单——它们是这张卡的
- * 次要动作，不该和「打开」并排占着一整行。
+ * A playlist is a stack of videos, the same thing as the home Mix card, so it wears the same clothes
+ * (`components/mix-card.tsx`): the cover flips through the list's images one by one on hover, below it a row of the members
+ * who appear most, and the title is the list's name. Rename and delete fold into the kebab menu right of the name: they are
+ * this card's secondary actions and should not share a whole row with "Open".
  *
- * 新建、改名、删除都写 ledger，只由点击触发；删除先过确认弹层。三者成功后都给一颗撤销键，
- * 写完让列表键重取，不重挂整页。壳在这一页上要求重读时把 `revision` 加一，页面同样只重取。 */
+ * Create, rename and delete all write the ledger, triggered only by clicks; delete passes a confirmation dialog first. All
+ * three surface an undo key on success, then have the list key refetch without remounting the page. When the shell asks this
+ * page for a reread it bumps `revision`, and the page likewise only refetches. */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Heading, Popover } from 'react-aria-components';
@@ -40,11 +41,11 @@ const TRASH = spriteGlyph('trash');
 const PLAYLIST = spriteGlyph('playlist');
 
 const MENU_ROW = cx(MENU_ITEM, MENU_ITEM_INTERACTIVE, 'text-body-2-medium');
-const EMPTY_NAME = '播放列表名称不能为空';
+const EMPTY_NAME = 'The playlist name cannot be empty';
 
 type Toast = PlaylistsProps['toast'];
 
-/** 撤销那一步：做完无论成败都重读列表；抛出的错交给回执，它自己换成「撤销失败」。 */
+/** The undo step: after it runs the list is refetched regardless of outcome; a thrown error goes to the receipt, which rewords itself to "undo failed". */
 const undoing = (task: () => Promise<unknown>) => async () => {
   try {
     await task();
@@ -62,9 +63,9 @@ function CreateForm({ toast }: { toast: Toast }) {
       setName('');
       setProblem('');
       void refreshPlaylists();
-      toast('已新建播放列表', { undo: undoing(() => deletePlaylist(result.playlist.id)) });
+      toast('Playlist created', { undo: undoing(() => deletePlaylist(result.playlist.id)) });
     },
-    onError: (cause) => setProblem(errorMessage(cause) || '新建失败'),
+    onError: (cause) => setProblem(errorMessage(cause) || 'Creating failed'),
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -73,14 +74,14 @@ function CreateForm({ toast }: { toast: Toast }) {
     create.mutate(name);
   };
   return (
-    <form data-playlist-create="" aria-label="新建播放列表" onSubmit={submit}
+    <form data-playlist-create="" aria-label="New playlist" onSubmit={submit}
       className="flex flex-wrap items-end gap-2">
       <div className="min-w-50 max-w-80 flex-1 basis-50 max-board-narrow:min-w-0 max-board-narrow:max-w-none">
-        <Input label="新播放列表" placeholder="输入名称" maxLength={80} value={name}
+        <Input label="New playlist" placeholder="Enter a name" maxLength={80} value={name}
           onChange={(value) => { setName(value); setProblem('') }}
           validationBehavior="aria" isInvalid={Boolean(problem)} hint={problem || undefined} />
       </div>
-      <Button type="submit" {...busyProps(create.isPending)}>新建</Button>
+      <Button type="submit" {...busyProps(create.isPending)}>New</Button>
     </form>
   );
 }
@@ -89,7 +90,7 @@ function RenameDialog({ target, close, toast }: { target: PlaylistRow | null; cl
   const [name, setName] = useState('');
   const [problem, setProblem] = useState('');
   const input = useRef<HTMLInputElement>(null);
-  /* 打开时把原名整段选中：多数时候是整个换掉，少数是在原名上补一截。 */
+  /* On open, select the whole original name: usually it gets replaced entirely, occasionally extended with a bit more. */
   useEffect(() => {
     if (!target) return undefined;
     setName(target.name);
@@ -102,7 +103,7 @@ function RenameDialog({ target, close, toast }: { target: PlaylistRow | null; cl
     onSuccess: (_result, { row }) => {
       close();
       void refreshPlaylists();
-      toast('已重命名播放列表', { undo: undoing(() => renamePlaylist(row.id, row.name)) });
+      toast('Renamed the playlist', { undo: undoing(() => renamePlaylist(row.id, row.name)) });
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
@@ -117,48 +118,48 @@ function RenameDialog({ target, close, toast }: { target: PlaylistRow | null; cl
     <ModalFrame isOpen={Boolean(target)} onOpenChange={(open) => { if (!open) close() }} width="form">
       <form data-playlist-rename="" onSubmit={submit} className="flex min-h-0 flex-col">
         <div className="flex flex-col gap-4 p-5">
-          <Heading slot="title" className="text-title-2-semibold text-text-primary">编辑名称</Heading>
-          <Input ref={input} label="名称" placeholder="输入名称" maxLength={80} value={name}
+          <Heading slot="title" className="text-title-2-semibold text-text-primary">Edit name</Heading>
+          <Input ref={input} label="Name" placeholder="Enter a name" maxLength={80} value={name}
             onChange={(value) => { setName(value); setProblem('') }}
             validationBehavior="aria" isInvalid={Boolean(problem)} hint={problem || undefined} />
         </div>
         <div className="flex justify-between gap-4 p-3">
-          <Button variant="secondary" onClick={close}>取消</Button>
-          <Button type="submit" {...busyProps(rename.isPending)}>保存名称</Button>
+          <Button variant="secondary" onClick={close}>Cancel</Button>
+          <Button type="submit" {...busyProps(rename.isPending)}>Save name</Button>
         </div>
       </form>
     </ModalFrame>
   );
 }
 
-/** 卡片右下那枚点点点：编辑名称、删除播放列表。
+/** The kebab at the card's bottom right: edit name, delete playlist.
  *
- *  触发键静止时是透明的一枚字形，指上或展开才铺一块面，和裁剪封面那枚同一副
- *  （`../cover-crop/cover-crop-page.tsx`）。BoardUI 的图标钮静止态都有面：`ghost` 是一块
- *  浅蓝，`IconButton` 是白底描边，每张卡都顶着一块，署名行就不再只是头像与标题。 */
+ *  The trigger at rest is a transparent glyph, gaining a fill only on hover or expand, the same outfit as the crop-cover key
+ *  (`../cover-crop/cover-crop-page.tsx`). BoardUI's icon buttons all carry a face at rest: `ghost` a pale blue block,
+ *  `IconButton` a white bordered square, so every card would carry a block and the byline row would stop being just avatar
+ *  and title. */
 function PlaylistMenu({ name, onRename, onDelete, onSort }: { name: string; onRename(): void; onDelete(): void; onSort(): void }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const run = (action: () => void) => { setOpen(false); action() };
   return (
     <>
-      <button ref={trigger} type="button" title="更多操作" aria-label={`播放列表操作：${name}`}
+      <button ref={trigger} type="button" title="More actions" aria-label={`Playlist actions: ${name}`}
         aria-haspopup="dialog" aria-expanded={open} data-playlist-menu="" onClick={() => setOpen(true)}
         className="flex size-7.5 flex-none cursor-pointer items-center justify-center rounded-2lg text-foreground-icon-secondary outline-none transition-colors hover:bg-background-primary-hover hover:text-foreground-icon-primary aria-expanded:bg-background-primary-hover aria-expanded:text-foreground-icon-primary focus-visible:ring-2 focus-visible:ring-border-focus-ring">
         <ELLIPSIS aria-hidden className="size-4.5" />
       </button>
       <Popover triggerRef={trigger} isOpen={open} onOpenChange={setOpen}
         placement="bottom end" offset={4} className={MENU_POPOVER_SURFACE}>
-        {/* 面板外宽 172px，同旧卡片菜单：外框再加 10px 内边距与 1px 描边。 */}
-        <Dialog aria-label={`播放列表操作：${name}`} className="flex w-37.5 flex-col gap-0.5 outline-none">
+        {/* The panel is 172px wide outside, same as the old card menu: the frame adds 10px padding and a 1px border. */}
+        <Dialog aria-label={`Playlist actions: ${name}`} className="flex w-37.5 flex-col gap-0.5 outline-none">
           <button type="button" className={MENU_ROW} onClick={() => run(onRename)}>
-            <PENCIL aria-hidden className="size-(--icon-inline) shrink-0" />编辑名称
+            <PENCIL aria-hidden className="size-(--icon-inline) shrink-0" />Edit name
           </button>
           <button type="button" className={MENU_ROW} onClick={() => run(onSort)}>
-            <PLAYLIST aria-hidden className="size-(--icon-inline) shrink-0" />调整播放顺序
-          </button>
+            <PLAYLIST aria-hidden className="size-(--icon-inline) shrink-0" />Reorder playback          </button>
           <button type="button" className={MENU_ROW} onClick={() => run(onDelete)}>
-            <TRASH aria-hidden className="size-(--icon-inline) shrink-0" />删除播放列表
+            <TRASH aria-hidden className="size-(--icon-inline) shrink-0" />Delete playlist
           </button>
         </Dialog>
       </Popover>
@@ -170,7 +171,7 @@ export function PlaylistsPage({ openPlaylist, openEntity, canFlip, toast, revisi
   const playlists = useQuery({ queryKey: PLAYLISTS_KEY, queryFn: ({ signal }) => fetchPlaylists(signal) });
   const [renaming, setRenaming] = useState<PlaylistRow | null>(null);
   const [sorting, setSorting] = useState<PlaylistRow | null>(null);
-  /* 壳要求重读：首帧那一代已经由 `prefetch` 取过，之后每加一次重取一次。 */
+  /* The shell requests a re-read: the first-frame generation was already fetched by `prefetch`, and each increment after that refetches once. */
   const seen = useRef(revision);
   useEffect(() => {
     if (seen.current === revision) return;
@@ -183,12 +184,12 @@ export function PlaylistsPage({ openPlaylist, openEntity, canFlip, toast, revisi
 
   const remove = (row: PlaylistRow) => {
     void confirmModal({
-      title: '删除播放列表', body: '这个播放列表将被删除，视频文件保留。', confirmLabel: '删除播放列表', danger: true,
+      title: 'Delete playlist', body: 'This playlist will be deleted; the video files are kept.', confirmLabel: 'Delete playlist', danger: true,
       onConfirm: async () => {
         const kept = await keepPlaylist(row.id);
         await deletePlaylist(row.id);
         void refreshPlaylists();
-        toast('已删除播放列表', kept ? { undo: undoing(() => recreatePlaylist(kept)) } : undefined);
+        toast('Playlist deleted', kept ? { undo: undoing(() => recreatePlaylist(kept)) } : undefined);
       },
     });
   };
@@ -197,43 +198,43 @@ export function PlaylistsPage({ openPlaylist, openEntity, canFlip, toast, revisi
     <div className="w-full pt-1 pb-10.5">
       <header className="mb-4 flex items-start justify-between gap-4.5 max-board-narrow:flex-col max-board-narrow:items-stretch">
         <div>
-          {/* 遗留样式表那条 `.stats h2` 不在层里，把二级标题定成 24px（窄屏 20px），工具类压不过，
-              字形带 `!`；它给的 4px 底距与这里的 `mb-1` 相同。 */}
-          <h2 className="mb-1 text-display-4-medium! text-text-primary">播放列表</h2>
-          <p className="text-body-2-regular text-text-secondary">保存 Mix，按自己的顺序继续播放。</p>
+          {/* The legacy sheet's `.stats h2` is not in a layer and sets h2s to 24px (20px on narrow screens); utilities cannot beat it,
+              so the type carries `!`; its 4px bottom margin equals this `mb-1`. */}
+          <h2 className="mb-1 text-display-4-medium! text-text-primary">Playlists</h2>
+          <p className="text-body-2-regular text-text-secondary">Save the Mix to keep playing in your own order.</p>
         </div>
         <CreateForm toast={toast} />
       </header>
       <div className="mx-auto w-full max-w-board">
-      {/* 读取失败时页头与新建框照常在，提示与重试键落在列表的位置上。 */}
+      {/* On read failure the page header and the new-entry box stay as usual; the message and retry button land where the list would be. */}
       {!data
         ? (playlists.isError
-          ? <RetryNote message={errorMessage(playlists.error) || '播放列表读取失败'} onRetry={() => void playlists.refetch()} />
+          ? <RetryNote message={errorMessage(playlists.error) || 'Reading the playlist failed'} onRetry={() => void playlists.refetch()} />
           : null)
         : items.length
         ? (
           <div data-playlist-grid="" className="card-grid-cover gap-4.5">
             {items.map((row) => {
               const resume = resumeAssetId(row);
-              const name = row.name.trim() || '未命名播放列表';
+              const name = row.name.trim() || 'Untitled playlist';
               return (
                 <MixCard key={row.id} data-playlist-card={String(row.id)} name={name}
-                  caption={row.source_kind === 'mix' ? '由 Mix 保存' : '手动播放列表'}
+                  caption={row.source_kind === 'mix' ? 'Saved by Mix' : 'Manual playlists'}
                   count={row.item_count}
                   poster={row.preview_asset_id ? posterUrl(row.preview_asset_id) : null}
                   flipImages={async () => (row.preview_ids || []).map(posterUrl)}
                   canFlip={canFlip} faces={row.faces || []} onOpenEntity={openEntity}
                   {...(resume ? { onOpen: () => openPlaylist(row.id, resume) } : {})}
-                  openLabel={`打开播放列表 ${name}`}
+                  openLabel={`Open playlist ${name}`}
                   menu={<PlaylistMenu name={name} onRename={() => setRenaming(row)} onDelete={() => remove(row)} onSort={() => setSorting(row)} />} />
               );
             })}
           </div>
         )
         : (
-          <EmptyState icon={PLAYLIST} title="还没有播放列表"
-            actions={<EmptyFocusButton target='[data-playlist-create] input'>新建播放列表</EmptyFocusButton>}>
-            保存 Mix 或新建列表后，会在这里按自己的顺序继续播放。
+          <EmptyState icon={PLAYLIST} title="No playlists yet"
+            actions={<EmptyFocusButton target='[data-playlist-create] input'>New playlist</EmptyFocusButton>}>
+            After saving a Mix or creating a list, it continues playing here in your own order.
           </EmptyState>
         )}
       </div>
@@ -247,15 +248,15 @@ function PlaylistOrder({ row, close, toast }: { row: PlaylistRow; close(): void;
   const query = useQuery({ queryKey: ['playlist-order', row.id], queryFn: ({ signal }) => fetchPlaylist(row.id, signal),
     staleTime: 0, refetchOnWindowFocus: false, refetchOnReconnect: false });
   const data = query.data;
-  if (!data || query.isFetching) return <ModalFrame isOpen onOpenChange={open => { if (!open) close() }} width="form" label="调整播放顺序">
-    <div className="p-5">{query.isError ? <RetryNote message={errorMessage(query.error)} onRetry={() => void query.refetch()} /> : <p role="status">正在读取播放列表</p>}
-      <Button variant="secondary" onClick={close}>取消</Button></div>
+  if (!data || query.isFetching) return <ModalFrame isOpen onOpenChange={open => { if (!open) close() }} width="form" label="Reorder playback">
+    <div className="p-5">{query.isError ? <RetryNote message={errorMessage(query.error)} onRetry={() => void query.refetch()} /> : <p role="status">Reading playlists</p>}
+      <Button variant="secondary" onClick={close}>Cancel</Button></div>
   </ModalFrame>;
-  return <ObjectOrderDialog title={`调整播放顺序 · ${row.name}`} close={close}
-    items={data.items.map(item => ({ id: String(item.id), name: item.title || item.name || `影片 ${item.id}` }))}
+  return <ObjectOrderDialog title={`Reorder playback · ${row.name}`} close={close}
+    items={data.items.map(item => ({ id: String(item.id), name: item.title || item.name || `Video ${item.id}` }))}
     save={async keys => {
       await reorderPlaylist(row.id, keys.map(Number));
       void refreshPlaylists();
-      toast('播放顺序已保存', { undo: undoing(() => reorderPlaylist(row.id, data.items.map(item => item.id))) });
+      toast('Playback order saved', { undo: undoing(() => reorderPlaylist(row.id, data.items.map(item => item.id))) });
     }} />;
 }

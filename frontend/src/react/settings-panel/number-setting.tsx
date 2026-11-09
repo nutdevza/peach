@@ -1,8 +1,8 @@
-/* 带单位、可选开关与字段错误反馈的数值设置。
+/* Numeric settings with units, optional toggles, and field error feedback.
  *
- * 可选的那几项（悬停放大、相关推荐、搜索记录、关注自动更新）前面有一枚开关：关掉就是 0，
- * 数字框收起来；再打开时填回关掉前的那个数。那个数记在 `peach.number.<id>`，跟着这台浏览器走。
- * 提交时机跟原生数字框的 `change` 一致：失焦或回车，打字途中不提交。 */
+ * The optional ones (hover zoom, related recommendations, search history, follow auto-update) have a toggle in front: off means 0 and
+ * the number box collapses; turning it back on refills the value from before it was turned off. That value is stored in `peach.number.<id>`, kept with this browser.
+ * Commit timing matches a native number box's `change`: blur or Enter, nothing commits while typing. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { boundedPreference } from '../../number-setting';
@@ -10,31 +10,31 @@ import { boundedPreference } from '../../number-setting';
 export interface NumberSpec { min: number; max: number; unit: string; optional?: boolean; fallback: number }
 
 export const NUMBER_SPECS = {
-  batchSizeSetting: { min: 1, max: 200, unit: '个', fallback: 60 },
-  hoverDelaySetting: { min: 1, max: 60, unit: '秒', optional: true, fallback: 5 },
-  seekSecondsSetting: { min: 1, max: 300, unit: '秒', fallback: 10 },
-  relatedLimitSetting: { min: 1, max: 60, unit: '个', optional: true, fallback: 20 },
-  /* 上限跟 `/api/feeds/discoveries` 一致，服务端多于 100 也只回 100 部。 */
-  feedLimitSetting: { min: 1, max: 100, unit: '部', fallback: 12 },
-  searchHistoryLimitSetting: { min: 1, max: 50, unit: '条', optional: true, fallback: 10 },
-  followScheduleSetting: { min: 15, max: 10080, unit: '分钟', optional: true, fallback: 60 },
+  batchSizeSetting: { min: 1, max: 200, unit: 'items', fallback: 60 },
+  hoverDelaySetting: { min: 1, max: 60, unit: 'sec', optional: true, fallback: 5 },
+  seekSecondsSetting: { min: 1, max: 300, unit: 'sec', fallback: 10 },
+  relatedLimitSetting: { min: 1, max: 60, unit: 'items', optional: true, fallback: 20 },
+  /* The cap matches `/api/feeds/discoveries`; even when the server has more than 100, it returns only 100 videos. */
+  feedLimitSetting: { min: 1, max: 100, unit: 'videos', fallback: 12 },
+  searchHistoryLimitSetting: { min: 1, max: 50, unit: 'items', optional: true, fallback: 10 },
+  followScheduleSetting: { min: 15, max: 10080, unit: 'min', optional: true, fallback: 60 },
 } as const satisfies Record<string, NumberSpec>;
 
 export type NumberSettingId = keyof typeof NUMBER_SPECS;
 
 const storageKey = (id: string) => `peach.number.${id}`;
 
-/** 以分钟计的间隔满一天时，单位旁边再说一遍是几天：「10080 分钟」读不出是一周。
- *  不满一天、不是整数或不是分钟的读数返回空串。 */
+/** When a minute-based interval reaches a day, also restate the days next to the unit: "10080 min" does not read as a week.
+ *  Returns an empty string for readings under a day, non-integer, or not in minutes. */
 export function dayReading(value: number, unit: string): string {
-  if (unit !== '分钟' || !Number.isInteger(value) || value < 1440) return '';
+  if (unit !== 'min' || !Number.isInteger(value) || value < 1440) return '';
   const days = value / 1440;
-  return Number.isInteger(days) ? `${days.toLocaleString()} 天` : `约 ${days.toFixed(1)} 天`;
+  return Number.isInteger(days) ? `${days.toLocaleString()} days` : `~${days.toFixed(1)} days`;
 }
 
 export function NumberSetting({ id, label, value, disabled = false, onApply }: {
   id: NumberSettingId; label: string;
-  /** 当前值；null 表示还没取到（关注自动更新那一项），此时整块禁用、不改显示。 */
+  /** Current value; null means not yet fetched (the follow auto-update item), in which case the whole block disables without changing the display. */
   value: number | null;
   disabled?: boolean;
   onApply(value: number): void;
@@ -54,7 +54,7 @@ export function NumberSetting({ id, label, value, disabled = false, onApply }: {
   const apply = useRef(onApply);
   apply.current = onApply;
 
-  /* 外面换了值（数据库对账、另一台设备改过、请求回来）就跟上；null 只禁用，不动显示。 */
+  /* Follows when the value changes from outside (database reconciliation, an edit on another device, a response arriving); null only disables, never changes the display. */
   useLayoutEffect(() => {
     if (value === null) return;
     setShown(value);
@@ -66,7 +66,7 @@ export function NumberSetting({ id, label, value, disabled = false, onApply }: {
     if (!node) return;
     if (!node.value || !node.checkValidity()) {
       node.setAttribute('aria-invalid', 'true');
-      setError(`请输入 ${min}–${max} 的整数（${unit}）`);
+      setError(`Enter a whole number from ${min} to ${max} (${unit})`);
       return;
     }
     node.removeAttribute('aria-invalid');
@@ -77,7 +77,7 @@ export function NumberSetting({ id, label, value, disabled = false, onApply }: {
   };
   const commitRef = useRef(commit);
   commitRef.current = commit;
-  /* 原生 `change`：React 的 onChange 是每一次按键的 `input`。 */
+  /* The native `change`: React's onChange is the `input` event of every keystroke. */
   useEffect(() => {
     const node = input.current;
     if (!node) return undefined;
@@ -107,7 +107,7 @@ export function NumberSetting({ id, label, value, disabled = false, onApply }: {
   return (
     <div data-number-setting="">
       {optional
-        ? <input type="checkbox" data-toggle="" role="switch" aria-label={`启用${label}`}
+        ? <input type="checkbox" data-toggle="" role="switch" aria-label={`Enable ${label}`}
             checked={on} disabled={blocked} onChange={toggle} />
         : null}
       <div data-number-fields="" hidden={optional && !on}>

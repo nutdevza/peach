@@ -1,4 +1,4 @@
-/* 教程入口只管理学习界面，安装状态由聚合只读接口提供。 */
+/* The tutorial entry manages only the learning UI; install state comes from the aggregated read-only API. */
 import { writeShell } from '../shell/index';
 import { peachHistory, shellNavigate } from '../history/index';
 import { openGuide } from '../onboarding/guide-state';
@@ -14,7 +14,7 @@ export function installTutorial8() {
   openGuide({ invitation: true });
   if (fromSetup) clean.searchParams.delete('onboarding');
   const flag = clean.searchParams.get('agentation');
-  try { localStorage.removeItem('peach.agentation') } catch { /* 禁用本地存储时保留页面功能。 */ }
+  try { localStorage.removeItem('peach.agentation') } catch { /* With local storage disabled, keep the page working. */ }
   if (flag !== null) clean.searchParams.delete('agentation');
   if (clean.href !== location.href) shellNavigate(clean, { replace: true, state: peachHistory.navigation.location.state });
   if (flag === 'on') import('/dev/agentation.js').catch(() => {});

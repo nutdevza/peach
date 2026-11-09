@@ -1,4 +1,4 @@
-/* receipts 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* receipts domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { $, esc, icon, newSeed, seededRank } from '../core';
 import { playUiSound } from '../ui-kit/sounds';
 import { mountToaster, showToast } from '../react/application-residents';
@@ -21,23 +21,23 @@ receiptsState.toast = (message,{timeout=6000,warn=false,action=null,sound=null}=
       action:next&&!alert?{label:next.label,run:button=>{setActionBusy(button);next.run()}}:null});
   };
   show(receiptsState.toastBody(message),warn,timeout,action);
-  /* 结果就写在同一条 toast 上（同一个 id）。「关掉回执 + 另发一条已撤销」会让两条在同一个
-     底部对齐的栈里一进一出，看上去就是整块跳了一下。 */
+  /* The result is written on the same toast (same id). "Dismiss the receipt and post another saying it was undone" would push one out as the other enters in the same
+     bottom-aligned stack, which reads as the whole block jumping. */
   return {replaceMessage:(body,{warn:alert=false,timeout:next=4000}={})=>show(receiptsState.toastBody(body),alert,next,null)};
 };
 receiptsState.actionReceipt = (message,{undo=null,timeout=undo?8000:6000}={})=>{
   let item=null;
   item=receiptsState.toast({text:message},{
     timeout,
-    action:undo?{label:'撤销',run:async()=>{
-      try{await undo();item.replaceMessage({text:'已撤销'})}
-      catch(error){item.replaceMessage({text:`撤销失败：${error.message||'请重试'}`},{warn:true})}
+    action:undo?{label:'Undo',run:async()=>{
+      try{await undo();item.replaceMessage({text:'Undone'})}
+      catch(error){item.replaceMessage({text:`Undo failed: ${error.message||'Please retry'}`},{warn:true})}
     }}:null,
   });
   return item;
 };
 receiptsState.actionFailure = (message,error)=>receiptsState.toast(
-  {text:`${message}失败：${error?.message||'请重试'}`},{warn:true});
+  {text:`${message} failed: ${error?.message||'Please retry'}`},{warn:true});
 receiptsState.rollSeed = ()=>newSeed();
 receiptsState.seededSample = (rows,count,seed,key=row=>row.k)=>{
   if(rows.length<=count)return rows;

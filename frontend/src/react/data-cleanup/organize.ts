@@ -1,14 +1,15 @@
-/* 整理（ADR-0039）的数据契约：媒体默认留在原目录，这一块是唯一会动文件名和目录的入口。
- * 两份模板、一次预览、一次执行，外加把上一批原样退回去。
+/* Organize's (ADR-0039) data contract: media stays in its directory by default, and this block is the only entry that
+ * touches file names and directories. Two templates, one preview, one run, plus reverting the last batch as it was.
  *
- * `/api/organize` 一次回整块卡片要的东西：任务快照摊在顶层，旁边是可选来源、存着的模板、
- * 预设与占位符说明。所以后台任务那一格要 `jobOf`／`withJob`：新快照只换任务那几个字段，
- * 来源与模板原样留着。执行与回滚是真实 ledger 写入，调用方必须先过确认弹层。 */
+ * `/api/organize` returns everything the card needs in one response: the job snapshot spread at the top level, beside the
+ * optional sources, stored templates, presets and placeholder docs. So the background-job cell needs `jobOf`/`withJob`: a new
+ * snapshot only swaps the job fields, leaving sources and templates untouched. Run and rollback are real ledger writes, and
+ * the caller must pass a confirmation dialog first. */
 import { apiGet, apiSend } from '../../api';
 import { queryClient } from '../query';
 import { t } from '../../i18n';
 import { PICK_FOLDER_URL } from '../../configuration-endpoints';
-/* 模板跟着数据库走（`SYNCED_SETTING_KEYS` 里的 `organizeTemplates`），写的是设置面板同一个端点。 */
+/* Templates follow the database (`organizeTemplates` in `SYNCED_SETTING_KEYS`) and write through the same endpoint as the settings panel. */
 import { SETTINGS_URL } from '../settings-panel/settings-data';
 
 export const ORGANIZE_URL = '/api/organize';
@@ -32,7 +33,7 @@ export interface OrganizeJob {
   message?: string;
   checked?: number;
   total?: number;
-  /** 执行那一趟落的读数。回滚那一趟没有 `moved`，有 `restored`。 */
+  /** The readouts recorded by the executing run. The rollback run has no `moved`, only `restored`. */
   moved?: number;
   restored?: number;
   failed?: number;
@@ -58,10 +59,10 @@ export interface OrganizePlan {
   plan_csv?: string;
 }
 
-/** 这一次要整理什么：来源与两份模板。 */
+/** What gets organized this time: the source and the two templates. */
 export interface OrganizeRequest { location: string; file_template: string; dir_template: string; path: string }
 
-/** 执行还是回滚。两条都起同一个后台任务，结果落在同一格里。 */
+/** Execute or roll back. Both paths start the same background task, and the result lands in the same cell. */
 export type OrganizeCommand = { kind: 'apply'; request: OrganizeRequest } | { kind: 'rollback' };
 
 export const fetchOrganize = (signal?: AbortSignal) => apiGet<OrganizeData>(ORGANIZE_URL, signal);
@@ -79,25 +80,25 @@ export const startOrganize = (command: OrganizeCommand) => command.kind === 'app
   ? apiSend<OrganizeJob>(ORGANIZE_APPLY_URL, { ...command.request, confirm: true })
   : apiSend<OrganizeJob>(ORGANIZE_ROLLBACK_URL, { confirm: true });
 
-/** 确认执行的那一刻存下模板：下次进这一页看到的是自己上次执行用的那两行，而不是又一次
- *  空框。预览不存，试过又放弃的模板不会顶掉上一次的。存不进去不该挡住已经起跑的整理，所以失败不报。 */
+/** Save the template at the moment of confirming: the next visit to this page shows the two lines used last time, not another
+ *  empty form. Previews are not saved, so a template tried and abandoned does not displace the previous one. A failed save must not block an organize run already under way, so failures are silent. */
 export async function rememberTemplates(templates: Record<string, OrganizeTemplate>): Promise<void> {
   queryClient.setQueryData<OrganizeData>(ORGANIZE_KEY, (data) => (data ? { ...data, templates } : data));
   try {
     await apiSend(SETTINGS_URL, { organizeTemplates: templates });
   } catch {
-    /* 只读端：模板只留在这一次的缓存里。 */
+    /* The read-only side: the template stays only in this run's cache. */
   }
 }
 
-/** 任务快照换进整块卡片：只换任务那几格，来源、模板、上一批原样留着。 */
+/** The task snapshot is swapped into the whole card: only the task cells change; source, template and the previous batch stay as they were. */
 export const withOrganizeJob = (data: OrganizeData | undefined, job: OrganizeJob) =>
   (data ? { ...data, ...job } : data);
 
-/** 模板不合法时错误出在两个框里的一个：除了说原因，还要指出是哪一格。 */
+/** When a template is invalid the error is in one of the two boxes: besides the reason, say which one. */
 export const DIRECTORY_TEMPLATE_ERROR = /目录模板|分隔符|盘符|`\.`/;
 
-/** 路径的最后一段。预览只列文件名，完整路径放在悬停提示里。 */
+/** The last segment of the path. The preview lists file names only; the full path goes in the hover tooltip. */
 export function baseName(path: string): string {
   const text = String(path || '');
   return text.slice(Math.max(text.lastIndexOf('\\'), text.lastIndexOf('/')) + 1);
@@ -105,7 +106,7 @@ export function baseName(path: string): string {
 
 const count = (value: number | undefined) => Number(value || 0).toLocaleString();
 
-/** 预览结果那一句。只列会变的行：库里几万行里改不到的那部分是背景，不是结果。 */
+/** The preview results line. Only rows that will change are listed: the tens of thousands of library rows that will not change are background, not results. */
 export function planSummary(plan: OrganizePlan): string {
   const skipped = Object.entries(plan.reasons || {}).sort((a, b) => b[1] - a[1])
     .map(([reason, value]) => `${reason} ${count(value)}`).join(' · ');
@@ -117,7 +118,7 @@ export function planSummary(plan: OrganizePlan): string {
     + (skipped ? t('cleanup:organize.planChangesSkipped', { reasons: skipped }) : '') + t('cleanup:shared.sentenceEnd');
 }
 
-/** 跑完的那一趟怎么说。回滚那一趟有 `restored`。 */
+/** How the finished run is described. The rollback run has `restored`. */
 export function organizeOutcome(job: OrganizeJob): { text: string; failed: number; rollback: boolean } {
   const rollback = job.restored !== undefined;
   const failed = Number(job.failed || 0);

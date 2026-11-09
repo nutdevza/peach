@@ -1,4 +1,4 @@
-/* loading 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* loading domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { followState } from './follow.js';
 import { managementSkeletonHtml, pageSkeletonHtml, skeletonKeyOf } from './../management-placeholder';
 import { photoSize } from './../appearance/layout';
@@ -20,13 +20,13 @@ import { javTab } from '../react/jav/jav-navigation';
 import { paintWallBootSkeleton } from '../react/video-wall/wall-boot';
 export const loadingState = { setGridCards: undefined, gridCards: undefined, managementPlaceholder: undefined, wantsDiscoveryBars: undefined, entityShapesReady: undefined, ENTITY_SHAPES_WAIT: undefined, syncPageTitle: undefined };
 
-export function renderCatalogLoading(label='正在读取作品'){
+export function renderCatalogLoading(label='Loading videos'){
   if(location.pathname==='/wall'){$('#loadSentinel').hidden=true;return}
   const count=$('#count');
-  /* 垃圾文件那一屏的计数行是自己的：一块摘要面加一条分类切换，没有排序也没有换批。
-     这一版是垃圾队列等数据时那一版的静态副本，队列画上就换掉它；骨架里的
-     分类链接是真的 `<a href>`，React 包没到时点下去照常换页。目录与回收站的读数在筛选条里，
-     这一行留空。 */
+  /* The junk files screen's count row is its own: one summary face plus a category switch, no sorting and no batch change.
+     This version is a static copy of the one shown while the junk queue waits for data, swapped out once the queue paints; the category links in the skeleton
+     are real `<a href>`, so clicking still navigates when React has not wrapped yet. The catalog and trash counts live in the filter bar,
+     so this row stays empty. */
   const junk=decodeURIComponent(location.pathname)==='/junk-files';
   count.classList.toggle('manage-static',junk);
   count.classList.toggle('junkcount',junk);
@@ -38,12 +38,12 @@ export function renderCatalogLoading(label='正在读取作品'){
     count.removeAttribute('aria-busy');count.removeAttribute('aria-label');count.textContent='';
     if(state)paintCatalogFilter({count:null,...catalogHeadProps()});
   }
-  /* 骨架一铺上去就得把底部那颗 Loading Dots 收掉。骨架说的是「等下会出现几张什么
-     形状的卡」，dots 说的是「上面已经有内容，还在往下接」；两段同时在场时一屏里
-     铺着两种等待动画，而实际只有一次请求在跑。哨兵的可见性由数据落地后的
-     `has_more` 重新决定，所以这里只管收，不必记住原值。 */
+  /* As soon as the skeleton goes up, the bottom Loading Dots must come down. The skeleton says "how many cards of what shape will appear next";
+     the dots say "there is already content above, more is being appended"; with both on screen at once there are two waiting animations
+     in one viewport while only one request is actually running. The sentinel's visibility is re-decided by `has_more` after data lands,
+     so this code only removes it, without remembering the original value. */
   $('#loadSentinel').hidden=true;
-  /* 网格已经画着（或首屏在途）时骨架归它自己铺：`#grid` 是它的容器，壳往里写会把页面冲掉。 */
+  /* When the grid is already rendered (or the first screen is in flight), the skeleton belongs to the page itself: `#grid` is its container, and a shell write would wash the page away. */
   if(gridTaken())return;
   const grid=$('#grid'),placeholder=catalogSkeletonHtml(label);
   const skeleton=grid.querySelector('.catalog-skeleton');
@@ -71,35 +71,35 @@ export function waitEntityShapes(){
 
 export function renderInitialSurfaceLoading(){
   const path=decodeURIComponent(location.pathname);
-  /* 骨架画的就是这个表面，所以先把 `data-surface` 写上：深链冷启动时壳开始路由排在这一步后面，
-     等它写的话骨架会先按默认版式铺一遍，数据到货再跳成分栏。 */
+  /* The skeleton draws exactly this surface, so write `data-surface` first: on a deep-link cold start the shell starts routing after this step,
+     and waiting for it would lay the skeleton out once in the default layout, then jump to the split columns when data arrives. */
   document.body.dataset.surface=location.pathname;
   if(path==='/wall'){
     document.body.setAttribute('data-wall-open','');hideDiscoveryBars();paintWallBootSkeleton();return;
   }
   if(/^\/assets\/\d+$/.test(path)){
-    /* 详情的骨架归舞台岛：路由到位后 `openItem` 取回 React 包就画。下面那份列表由路由树的目录元素补发。 */
+    /* The details skeleton belongs to the stage island: once the route lands, `openItem` fetches the React package and paints. The list below is backfilled by the route tree's catalog element. */
     hideDiscoveryBars();return;
   }
   if(path==='/settings'||/^\/settings\/(appearance|playback|jav|search|content)$/.test(path)||path.startsWith('/posts/')||path.startsWith('/works/')){
-    /* 关注详情同样只等舞台浮窗里那份骨架，页面里不先铺一份；列表等关掉详情才画，不补发。 */
+    /* Follow detail likewise waits only for the skeleton inside the stage popover and does not pre-lay one in the page; the list paints after the detail closes, with no re-issue. */
     hideDiscoveryBars();return;
   }
   if(path==='/junk-files'){
-    /* 垃圾文件是一屏同质卡片，等的是内容结构不是后台进度：Loading Dots 说的是
-       「还在跑」，这里要说的是「等下会出现几张什么形状的卡」，所以用目录骨架。 */
-    renderCatalogLoading('正在读取垃圾文件');
+    /* Junk files is a screen of homogeneous cards, waiting for content structure rather than background progress: Loading Dots says
+       "still running", while what needs saying here is "how many cards of what shape are coming", so the catalog skeleton is used. */
+    renderCatalogLoading('Reading junk files');
     return;
   }
   if(path==='/jav'&&javTab(new URLSearchParams(location.search).get('tab'))==='library'){
-    renderCatalogLoading('正在读取馆藏');return;
+    renderCatalogLoading('Loading the library');return;
   }
-  /* 管理区、播放列表页与关注页的占位由各页面接手。 */
+  /* The admin area, playlist page, and follows page placeholders are taken over by each page. */
   if(navigationState.managedPagePath(path)){
     hideDiscoveryBars();
     const stats=$('#stats');stats.hidden=false;clearCatalogGrid();
     stats.innerHTML=path.startsWith('/follow')&&path!=='/subscriptions'
-      ?followState.followSkeletonHtml('正在读取关注内容')
+      ?followState.followSkeletonHtml('Reading followed content')
       :loadingState.managementPlaceholder(path);
     fitSkeleton(stats);
     return;
@@ -121,8 +121,8 @@ export function renderInitialSurfaceLoading(){
     });
     return;
   }
-  /* 未匹配的地址没有随后的读取，不能留一张永远不会被替换的目录骨架。合法的目录、
-     回收站和沉浸模式都有路由，才进入各自真实请求对应的等待态。 */
+  /* An unmatched address has no subsequent read and must not leave a catalog skeleton that will never be replaced. A valid catalog,
+     trash, and immersive mode all have routes, so only then do they enter the waiting state matching their real request. */
   if(!navigationState.routeMeta(path)){
     clearCatalogGrid();$('#count').textContent='';$('#loadSentinel').hidden=true;
     return;
@@ -132,10 +132,10 @@ export function renderInitialSurfaceLoading(){
 
 export function installLoading3() {
 followState.followContentSkeletonHtml = (media=new URLSearchParams(location.search).get('media')==='images'?'images':'videos',
-  label='正在读取关注内容')=>pageSkeletonHtml(label,{cards:true,className:'follow-content-skeleton postercard-skeleton',
+  label='Reading followed content')=>pageSkeletonHtml(label,{cards:true,className:'follow-content-skeleton postercard-skeleton',
   gridClass:media==='images'?'followlist followphotowall':'',gridSize:photoSize()});
-followState.followSkeletonHtml = (label='正在读取关注内容')=>`<div class="peach-react"><div class="follow" data-follow-feed>
-  <div data-follow-head><h2 data-follow-title>关注</h2></div>
+followState.followSkeletonHtml = (label='Reading followed content')=>`<div class="peach-react"><div class="follow" data-follow-feed>
+  <div data-follow-head><h2 data-follow-title>Follows</h2></div>
   <div class="tier followauthors" data-skeleton-tier="av"></div>
   <div class="tier followworks" data-skeleton-tier="brandpill"></div>
   <div class="board-filter-frame" data-filter-frame>

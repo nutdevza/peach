@@ -1,20 +1,20 @@
-/* 高清版目标的数据契约与折算：`/api/quality-goals` 一次请求供整页使用。
+/* The quality upgrade targets' data contract and reductions: `/api/quality-goals` serves the whole page in one request.
  *
- * 端点在 `frontend/src` 里只在这里声明一次（`tests/test_frontend_build.py` 盯着）。
- * 数据管理页那张「高清版」卡片要的是同一个真相的 `total`，它随那一页迁到 React 时读
- * 下面这个 `QUALITY_GOALS_KEY`，而不是另发一次请求——同一个真相取两次，两处显示的数
- * 就可能对不上。 */
+ * The endpoint is declared once in `frontend/src`, here only (`tests/test_frontend_build.py` watches this).
+ * The data management page's quality card wants the same truth's `total`; when that page migrates to React it reads the
+ * `QUALITY_GOALS_KEY` below instead of sending another request: fetching one truth twice is how two displayed numbers drift
+ * apart. */
 import { coverUrl } from '@peach/card-art';
 
 import { apiGet } from '../../api';
 import { queryClient } from '../query';
 
-/** 上限沿用服务端的 200：`limit` 也钉在 200，再大只会被截。 */
+/** The cap follows the server's 200: `limit` is pinned to 200 too, anything larger just gets truncated. */
 export const QUALITY_GOALS_URL = '/api/quality-goals?limit=200';
-/** 整页共用这一个键。 */
+/** The whole page shares this one key. */
 export const QUALITY_GOALS_KEY = ['quality-goals'] as const;
 
-/** `/api/quality-goals` 的单条目。字段与 `web_contract.q_quality_goals` 对齐。 */
+/** A single `/api/quality-goals` entry. Fields align with `web_contract.q_quality_goals`. */
 export interface QualityGoal {
   id: number;
   name: string;
@@ -39,11 +39,11 @@ export interface QualityGoalsData {
 export const fetchQualityGoals = (signal?: AbortSignal) =>
   apiGet<QualityGoalsData>(QUALITY_GOALS_URL, signal);
 
-/** 首屏：取完数才画。
+/** First screen: paint only after data arrives.
  *
- * 不给 `staleTime`，所以每次进这一页都重新取。路由表里 `/quality-goals` 是
- * `refresh:'reopen'`——刷新就是重新进来一次，那时要的是新数据，不是几分钟前的缓存。
- * 中止时 `fetchQuery` 把 `AbortError` 抛回给挂载方，它据此放弃这一次。 */
+ * No `staleTime`, so every entry into this page refetches. In the route table `/quality-goals` is
+ * `refresh:'reopen'`; refreshing means re-entering, and what is wanted then is fresh data, not a cache from minutes ago.
+ * On abort `fetchQuery` throws `AbortError` back to the mounter, which gives up on this attempt. */
 export async function prefetchQualityGoals(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({
     queryKey: QUALITY_GOALS_KEY,
@@ -51,7 +51,7 @@ export async function prefetchQualityGoals(signal: AbortSignal): Promise<void> {
   });
 }
 
-/** 封面优先用番号封面，没有就退回第 4 张海报。两者都取不到时由卡片把 img 摘掉。 */
+/** The cover prefers the code's cover image and falls back to the 4th poster. When neither is available the card drops the img. */
 export const previewUrl = (item: QualityGoal): string => item.has_cover
   ? coverUrl(item)
   : `/poster?id=${item.id}&c=4`;

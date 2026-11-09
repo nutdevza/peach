@@ -1,7 +1,7 @@
-/* 问题清单里的一条：标题一层（13px 中等字重，能打开的就是作品链接），下面是原因与路径等说明。
- * 数据管理的问题清单与任务卡的问题详情共用这一种分层。条间线画在每条自己身上，不用 `divide-y`：
- * 那一族的选择器裹在 `:where()` 里没有特异性，压不过岛内 `@scope` 末尾那条把所有元素边框清零的
- * preflight，线会静默消失。线用 `currentColor` 混色，放进黄色提示或灰色明细框里都跟着所在的字色走。 */
+/* One entry in the issues list: a single-level title (13px medium weight; what's clickable is the work link), with the reason and path and other details below.
+ * The data-management issues list and the task card's issue details share this same hierarchy. The line between entries is drawn on each entry itself, not using `divide-y`:
+ * that family's selectors are wrapped in `:where()` with no specificity, can't override the preflight rule at the end of the in-island `@scope` that zeroes all element borders,
+ * so the line would silently vanish. The line uses a `currentColor` blend, so in a yellow callout or a gray detail box it follows whatever text color is there. */
 import type { ReactNode } from 'react';
 import { NameLink } from './name-link';
 

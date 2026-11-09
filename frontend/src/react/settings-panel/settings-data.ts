@@ -1,15 +1,18 @@
-/* 设置偏好与 Peach 配置的五份服务端数据，各一个 Query 键。
+/* The five server-side datasets of UI preferences and Peach configuration, one Query key each.
  *
- * - `['settings']`：跟数据库走、所有访问端同一份的那几项（`/api/settings`，`src/peach/web_settings.py`）。
- *   面板每次打开都重取一次，取回来交给壳对账（`host.syncRemote`）：界面偏好的真相仍是壳里那一份
- *   `appSettings`，这个键只是数据库那边的快照。写入同样走这个端点，成功后回来的整份写回这个键。
- * - `['follow-schedule']`：这台机器上关注自动更新的档位与上次运行状态。
- * - `['feed-schedule']`：订阅源定时拉取的档位与上次运行状态，形状同上，只读。
- * - `['thumbnail-jobs']`：视频缩略图采集的档位与状态。档位跟着机器走，不存在浏览器里。
- * - `['media-processing']`：这台机器生成预览的开关与抽帧、转码的编解码方式。配置页「视频预览」与
- *   「视频播放」两张卡读写同一份。
+ * - `['settings']`: the items that follow the database and are the same for every client (`/api/settings`,
+ *   `src/peach/web_settings.py`). The panel refetches on every open and hands the result to the shell for reconciliation
+ *   (`host.syncRemote`): the truth for UI preferences is still the shell's `appSettings`; this key is only the database's
+ *   snapshot. Writes also go through this endpoint, and the returned whole payload is written back into this key.
+ * - `['follow-schedule']`: the tier and last-run state of automatic follow updates on this machine.
+ * - `['feed-schedule']`: the tier and last-run state of scheduled feed pulls, same shape as above, read-only.
+ * - `['thumbnail-jobs']`: the tier and state of video thumbnail collection. The tier follows the machine and is not stored in
+ *   the browser.
+ * - `['media-processing']`: this machine's preview generation switch plus the codecs for frame extraction and transcoding.
+ *   The configuration page's "Video preview" and "Video playback" cards read and write the same one.
  *
- * 面板常驻不卸载，每次打开重取设置；Peach 配置在挂载时重取各自的数据。 */
+ * The panel stays resident and unmounted never; it refetches settings on every open; Peach configuration refetches its
+ * datasets on mount. */
 import type { InterfaceLanguageChoice } from '../../i18n';
 import { useMutation, type QueryClient } from '@tanstack/react-query';
 
@@ -29,7 +32,7 @@ export const THUMBNAIL_JOBS_KEY = ['thumbnail-jobs'] as const;
 export const MEDIA_PROCESSING_URL = '/api/media-processing';
 export const MEDIA_PROCESSING_KEY = ['media-processing'] as const;
 
-/** `/api/media-processing` 的整份；写入只送改了的那一项，回来的仍是整份。 */
+/** The full `/api/media-processing` payload; a write sends only the changed entry and the response is still the full payload. */
 export interface MediaProcessingPolicy {
   metadata_only: boolean;
   preview_acceleration?: 'auto' | 'software';
@@ -38,7 +41,7 @@ export interface MediaProcessingPolicy {
 export const fetchMediaProcessing = (signal?: AbortSignal) =>
   apiGet<MediaProcessingPolicy>(MEDIA_PROCESSING_URL, signal);
 
-/** `q_settings` 返回的整份；写入时只送改了的那几个键，回来的仍是整份。 */
+/** The whole payload `q_settings` returns; a write sends only the changed keys, and what comes back is still the whole. */
 export interface SyncedSettings {
   taskSpeedMode?: 'low' | 'standard' | 'high';
   performerNameLanguage?: 'zh-CN' | 'ja';
@@ -53,9 +56,9 @@ export interface SyncedSettings {
   feedHideGroupCompilations?: boolean;
   feedHideSoloCompilations?: boolean;
   feedHideExcerpts?: boolean;
-  /** 数据库里还没存过时是 null：这台设备本地那个数替所有访问端先定下来。 */
+  /** null when nothing is stored in the database yet: this device's local number sets the value for every client that visits. */
   searchHistoryLimit?: number | null;
-  /** 番号识别规则，一条一个正则；配置页「媒体库与入库」里编辑。 */
+  /** Code recognition rules, one regex each; edited in the settings page's "Media library and ingestion". */
   codePatterns?: string[];
 }
 
@@ -68,7 +71,7 @@ export interface FollowScheduleStatus {
   last_finished_at?: string | null;
   last_added?: number | null;
   next_run_at?: string | null;
-  /** 连续失败的轮数；从第二次起下一轮按倍数推后。 */
+  /** The number of consecutive failed rounds; from the second failure on, the next round is pushed back by a multiple. */
   consecutive_failures?: number;
 }
 
@@ -86,14 +89,14 @@ export const fetchFeedSchedule = (signal?: AbortSignal) =>
 export const fetchThumbnailJobs = (signal?: AbortSignal) =>
   apiGet<ThumbnailJobStatus>(THUMBNAIL_JOBS_URL, signal);
 
-/** 打开偏好弹窗时重取共享设置；采集状态由 Peach 配置中的控件读取。 */
+/** Refetch shared settings when the preferences dialog opens; collection status is read by the control in Peach's config. */
 export function refreshPanelData(client: QueryClient = queryClient): Promise<SyncedSettings | null> {
   return client.fetchQuery({
     queryKey: SETTINGS_KEY, queryFn: ({ signal }) => fetchSettings(signal), staleTime: 0,
   }).catch(() => null);
 }
 
-/** 写跟数据库走的那几项。回来的是合并之后的整份，写回 `['settings']`。 */
+/** Writes the items that follow the database. What comes back is the merged whole, written back to `['settings']`. */
 export function useSaveSettings(scope?: string) {
   return useMutation({
     scope: scope ? { id: scope } : undefined,
@@ -110,7 +113,7 @@ export function useSaveFollowSchedule() {
   });
 }
 
-/** 两个调度各自的「立即重跑」：服务端把下一轮提前到此刻，回来的状态已标成运行中。 */
+/** Each scheduler's "rerun now": the server pulls the next round up to now, and the returned status already reads as running. */
 export const SCHEDULE_RUNS = {
   follow: { url: `${FOLLOW_SCHEDULE_URL}/run`, key: FOLLOW_SCHEDULE_KEY },
   feed: { url: `${FEED_SCHEDULE_URL}/run`, key: FEED_SCHEDULE_KEY },
@@ -124,7 +127,7 @@ export function useRunSchedule(kind: keyof typeof SCHEDULE_RUNS) {
   });
 }
 
-/** 调度正在跑时三秒重取一次，跑完就停，失败原因随之出现或消失。 */
+/** While a run is active, refetch every three seconds and stop when it ends; the failure reason appears or clears with it. */
 export const schedulePollInterval = (data: FollowScheduleStatus | undefined) => data?.running ? 3_000 : false;
 
 export function useSaveThumbnailMode() {

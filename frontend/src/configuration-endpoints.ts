@@ -1,5 +1,5 @@
-/* 配置页的端点。首屏取数和挂载状态那一块的刷新读的是同一条，两份产物各打包一份这个模块。 */
+/* The settings page endpoint. The first-screen fetch and the mount-status block's refresh read the same one; each of the two bundles packages its own copy of this module. */
 export const CONFIGURATION_URL = '/api/configuration';
 
-/** 让运行 Peach 的这台电脑弹系统文件夹对话框；浏览器自己拿不到本机绝对路径。 */
+/** Makes the machine running Peach pop the system folder dialog; a browser alone cannot obtain local absolute paths. */
 export const PICK_FOLDER_URL = '/api/pick-folder';

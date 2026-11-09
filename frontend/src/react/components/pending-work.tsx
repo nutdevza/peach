@@ -17,7 +17,7 @@ export function PendingWork({ work }: { work: readonly PendingWorkItem[] | undef
   const labels = [...new Set(work.map((item) => item.label))].join('、');
   return (
     <div data-pending-work="" role="status" className="flex min-w-0 max-w-full overflow-hidden">
-      <StatusLabel tone="progress">{`${running ? '正在补全' : '等待补全'}：${labels}`}</StatusLabel>
+      <StatusLabel tone="progress">{`${running ? 'Completing' : 'Waiting to complete'}: ${labels}`}</StatusLabel>
     </div>
   );
 }

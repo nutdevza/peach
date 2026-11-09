@@ -1,4 +1,4 @@
-/** 常驻媒体、面板与原生宿主适配层；内容由同一棵路由树画。 */
+/** Persistent media, panels and the native host adapter layer; content is drawn by the same route tree. */
 import { configureBatchDock, configureGlowPicker, configureImmerse, configureManageHeader,
   configureSettingsPanel, configureSidebar, configureStage } from '../react/entry';
 import { prefetchManagedRoute } from '../react/router/managed-routes';
@@ -27,7 +27,7 @@ export function loadRouter(actions: ShellActions): Promise<void> {
   return Promise.resolve();
 }
 
-/** 常驻首屏与当前应用代次绑定；卸载后的响应不能再挂宿主或发布句柄。 */
+/** The resident first screen is bound to the current app epoch; responses arriving after unmount must not attach to the host or publish handles. */
 async function openApplicationResident(name: string, container: HTMLElement,
   place: (node: HTMLElement) => HTMLElement = node => node): Promise<void> {
   const epoch = residentEpoch;
@@ -36,7 +36,7 @@ async function openApplicationResident(name: string, container: HTMLElement,
     container, resident: true, isCurrent: () => !!publish && epoch === residentEpoch,
     place: () => place(container),
   });
-  if (!opened || epoch !== residentEpoch || !publish) throw new DOMException('应用已卸载', 'AbortError');
+  if (!opened || epoch !== residentEpoch || !publish) throw new DOMException('App uninstalled', 'AbortError');
 }
 
 export function disposeApplicationResidents(): void {

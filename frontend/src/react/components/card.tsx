@@ -20,32 +20,32 @@
  * 迁移时每页各拼一串 `rounded-2xl border border-separator-border`，同一种卡片在十个文件里
  * 长出二十种描边空心壳，页面整体掉了一层底色——卡面收在这里就是为了不再发生这件事。 */
 
-/** 圆角：读数卡、面板、分区都是 16px；图表卡大一档 20px，和旧 `.board-radial-card` 一致；
- *  描边卡是 Board 那档不浮起的表面 `--surface-radius`（14px），`outlined` 默认取它。 */
+/** Radii: metric cards, panels, and sections are 16px; chart cards one tier larger at 20px, matching the old `.board-radial-card`;
+ *  outlined cards use Board's non-elevated surface tier `--surface-radius` (14px), which `outlined` takes by default. */
 export type CardRadius = 'default' | 'chart' | 'surface' | 'plain';
 
-/** 内边距：`none` 交给卡内自己的头、体、脚各自排；`default` 是旧图表卡与面板体的 20px。 */
+/** Padding: `none` leaves the card's own header, body, and footer to arrange themselves; `default` is the 20px of the legacy chart card and panel body. */
 export type CardPadding = 'none' | 'default';
 
-/** 卡面本身。哪一档由那一页的基线 CSS 说了算，不由「看起来更好」说了算。
+/** The card face itself. Which tier is decided by that page's baseline CSS, not by "looks better".
  *
- *  - `filled`：`--ground` 填充、无描边。Board 管理区的主力卡。
- *  - `outlined`：`--color-background-primary-default` 底加一条 `--line-soft`。复核页的条目卡。
- *  - `raised`：primary 底、无描边。卡上再浮一层（关注管理里按作者分组的那张卡）。 */
+ *  - `filled`: `--ground` fill, no border. Board management's workhorse card.
+ *  - `outlined`: `--color-background-primary-default` base plus one `--line-soft`. The review page's entry cards.
+ *  - `raised`: primary base, no border. A card floating on another (the per-author group card in follow management). */
 export type CardVariant = 'filled' | 'outlined' | 'raised';
 
 export type CardOptions = {
   variant?: CardVariant;
   radius?: CardRadius;
   padding?: CardPadding;
-  /** 卡片本身可点（读数卡兼页签、来源卡）：补悬停填充、焦点环与光标。 */
+  /** The card itself is clickable (the stat card doubling as a tab, the source card): add hover fill, focus ring, and cursor. */
   interactive?: boolean;
-  /** 卡片带互斥选中态：选中时换成浮层那一档面、收掉接触阴影，最上层压一圈 2px 的焦点环色描边。 */
+  /** Cards carry an exclusive selected state: when selected, the face switches to the overlay tier, the touch shadow drops away, and a 2px ring in focus ring color is pressed onto the top layer. */
   selectable?: boolean;
-  /** 填充之上另加的那条描边，只给底色和所在表面分不开的卡：灰卡里的白卡用 `--line`，
-   *  嵌在卡里的代码块与错误摘录用 `--line-soft`。`outlined` 自带描边，不必再给。
-   *  `error` 是失败的那一轮：整张卡的框线换成 danger 色，不给卡里的字上色。它画成内收的
-   *  outline，不占盒子：同一列里失败卡与正常卡的内容起点要对齐，真 border 会把内容挤进 1px。 */
+  /** The extra stroke added on top of the fill, only for cards whose background and surface can't be told apart: white cards inside gray cards use `--line`,
+   *  code blocks and error excerpts embedded in cards use `--line-soft`. `outlined` carries its own stroke, so no need to add one.
+   *  `error` is the failed round: the whole card's border switches to the danger color; the text inside the card isn't colored. It's drawn as an
+   *  inset outline, not taking box space: within the same column, a failed card and a normal card must have aligned content starts; a real border would push content in by 1px. */
   bordered?: 'line' | 'soft' | 'error';
   className?: string;
 };
@@ -58,13 +58,13 @@ const VARIANT: Record<CardVariant, string> = {
   raised: 'bg-background-primary-default',
 };
 
-/* 圆角与阴影是一件事：旧样式表里有阴影的只有读数卡那一档（`0 1px 2px #00000008`），
- * 图表卡 `.board-radial-card` / `.board-heat-card` / `.board-sankey-card` 都是净面。 */
+/* Radius and shadow are one thing: the only shadow in the old stylesheet is the metric card tier (`0 1px 2px #00000008`),
+ * and the chart cards `.board-radial-card` / `.board-heat-card` / `.board-sankey-card` are all plain-faced. */
 const RADIUS: Record<CardRadius, string> = {
   default: 'rounded-2xl shadow-card',
   chart: 'rounded-2-5xl',
   surface: 'rounded-surface',
-  /* 数据管理那一排净面读数卡（旧 `.board-plain-stat`）：同样 16px，但不压接触阴影。 */
+  /* The data management row of plain-face count cards (legacy `.board-plain-stat`): the same 16px, but without the pressed shadow. */
   plain: 'rounded-2xl',
 };
 
@@ -79,26 +79,26 @@ const PADDING: Record<CardPadding, string> = {
   default: 'p-5',
 };
 
-/* 悬停只抬填充，选中时不抬：旧规则里选中态那条排在悬停后面，压着它。工具类的先后由
- * Tailwind 自己排，不是写的顺序，所以把「没选中」写进变体里，不指望顺序。 */
+/* Hover lifts the fill only when not selected: in the legacy rules the selected-state rule came after hover and beat it. Utility ordering is Tailwind's own,
+ *  not the written order, so "not selected" goes into the variant instead of relying on order. */
 const INTERACTIVE = 'cursor-pointer outline-none not-data-selected:hover:bg-card-hover'
   + ' focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-3';
 
-/* 选中的那一圈画在 `::after` 上、压在最上层，不用 inset 的 box-shadow：内阴影画在子元素底下，
- * 读数卡的脚注带一铺底色，环的下半截就被盖掉，只剩上面三边。旧
- * `.metricstrip>button[aria-selected=true]::after` 就是一层 2px 描边的覆盖层，圆角跟卡走。 */
+/* The selection ring is painted on `::after`, stacked on top, without an inset box-shadow: an inner shadow paints beneath child elements,
+ * and the metric card's footnote strip carries a background that covers the ring's lower half, leaving only the top three sides. The old
+ * `.metricstrip>button[aria-selected=true]::after` was a 2px-stroke overlay, with the card's radius. */
 const SELECTABLE = 'relative data-selected:bg-background-primary-default data-selected:shadow-none'
   + ' data-selected:after:pointer-events-none data-selected:after:absolute data-selected:after:inset-0'
   + ' data-selected:after:z-1 data-selected:after:rounded-[inherit]'
   + ' data-selected:after:border-2 data-selected:after:border-border-focus-ring';
 
-/** 卡面的类名。宿主可能是 `section`、`li`、React Aria 的 `Tab` 或 `Modal`，所以只给类名。 */
+/** The card face's class name. The host may be a `section`, `li`, React Aria's `Tab` or `Modal`, so only a class name is given. */
 export function cardClass(options: CardOptions = {}) {
   const {
     variant = 'filled', padding = 'default', interactive, selectable, bordered, className,
   } = options;
-  /* 圆角跟着变体走：填充那一族是 16px 加一层接触阴影，描边那一族是 14px 的净面。
-     旧样式表里这两件事本来就绑在一起，拆开写只会让调用方每次都要记住配哪一个。 */
+  /* Radius follows the variant: the filled family is 16px plus a contact shadow, the outlined family a clean 14px face.
+     The legacy stylesheet already binds these two together; splitting them would make every caller remember which pairs with which. */
   const radius = options.radius ?? (variant === 'outlined' ? 'surface' : 'default');
   return [
     FACE,

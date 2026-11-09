@@ -1,10 +1,10 @@
 import type { FollowSource } from './follow-feed';
 
-/** 空来源集合不能转换成后端的全来源检查。 */
+/** An empty source set must not be converted into the backend's all-sources check. */
 export const validCheckSources = (ids: readonly number[]): number[] =>
   [...new Set(ids)].filter(id => Number.isSafeInteger(id) && id > 0);
 
-/** 资料页只检查当前署名或绑定实体对应的来源。 */
+/** The profile page only checks the sources matching the current byline or the bound entity. */
 export function entityCheckSources(sources: readonly Pick<FollowSource, 'id' | 'author_key' | 'entity_id'>[], author: string): number[] {
   if (!author) return [];
   return validCheckSources(sources.filter(source => source.author_key === author

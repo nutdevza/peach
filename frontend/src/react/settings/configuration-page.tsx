@@ -1,10 +1,12 @@
-/* 配置页（`/settings/library`）：这台运行 Peach 的电脑上那些要「保存配置」的多字段表单。
- * 每个分区各占一格页签，一次只摆一组；本机配置权限与数据库写入权限由服务端分别判定。
- * 设置弹层里的「Peach 配置」入口指到这里。
+/* Configuration page (`/settings/library`): the multi-field forms needing "Save configuration" on the machine running Peach.
+ * Each section takes one tab cell, one group on screen at a time; local configuration permission and database write
+ * permission are judged separately by the server.
+ * The settings overlay's "Peach configuration" entry points here.
  *
- * `.ui-configpage` 的第一层：最前面是页签条（`.ui-board-local-nav`），后面每组一个 `h2.ui-configgroup` 小标题
- * 紧跟这一组的根节点，根节点就是那一格页签面板。小标题在样式里不显示，它的字已经写在页签上；
- * 没有内容的组连标题与页签一起省略。页签条第一帧就在，和整页同一次提交画出来。 */
+ * First layer of `.ui-configpage`: first the tab bar (`.ui-board-local-nav`), then each group's `h2.ui-configgroup` heading
+ * immediately followed by that group's root node, the root node being that tab's panel. The heading is not displayed in
+ * styles; its text already sits on the tab; groups with no content drop the heading and tab together. The tab bar is present
+ * from the first frame, rendered in the same commit as the page. */
 import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { peachHistory, shellNavigate, settingsPath } from '@peach/history';
@@ -37,8 +39,8 @@ export function ConfigurationPage({ receipt, reopenTutorial, section = '', diagn
   if (!data) {
     return (
       <div className="ui-configpage">
-        <Note tone="error" title="配置读取失败">
-          {config.error ? errorMessage(config.error) : '未取得配置，请刷新页面重试。'}
+        <Note tone="error" title="Reading the configuration failed">
+          {config.error ? errorMessage(config.error) : 'The configuration could not be fetched; refresh the page and retry.'}
         </Note>
       </div>
     );
@@ -53,17 +55,17 @@ function ConfigurationIssues({ data, sections, reload, refreshing }: {
   return <>{sections.map(key => {
     const issue = data.section_errors?.[key];
     return issue ? <Note key={key} tone="error" title={issue.title}
-      action={<Button variant="secondary" size="small" onClick={reload} {...busyProps(refreshing)}>重新读取</Button>}>{issue.message}</Note> : null;
+      action={<Button variant="secondary" size="small" onClick={reload} {...busyProps(refreshing)}>Read again</Button>}>{issue.message}</Note> : null;
   })}</>;
 }
 
 interface Group { id: string; title: string; body(panel: ConfigurationPanel): ReactElement }
 
-/* 页签与面板的 id 前缀按页签条计数：每画出一条新的页签条领一个号。 */
+/* Tab and panel id prefixes are counted per tab bar: each newly rendered tab bar takes the next number. */
 let tabSequence = 0;
 
-/* 页签条是一个 tablist，方向键在整排里走、首尾相接，Home／End 到两头，挪到哪一格就选中哪一格、焦点跟过去。
-   分区地址与选中项同步，表单保持挂载。 */
+/* The tab strip is a tablist: arrow keys walk the whole row and wrap at the ends, Home/End jump to the two ends, and moving to a tab selects it with focus following.
+   The section URL stays in sync with the selection, and forms stay mounted. */
 function ConfigurationGroups(
   { data, receipt, reopenTutorial, section, diagnostics, reload, refreshing }: Required<ConfigurationProps> & {
     data: ConfigurationData; diagnostics?: ReactElement; reload(): void; refreshing: boolean;
@@ -74,7 +76,7 @@ function ConfigurationGroups(
   const workspace = useRef<HTMLDivElement>(null);
   const previous = useRef(chosen);
   useEffect(() => { setChosen(section) }, [section]);
-  /* 下载渠道、网络与访问、应用与维护随这份配置一次画齐：记下结构，下次整页骨架照它排。 */
+  /* Download channels, network and access, application and maintenance all paint with this config at once: record the structure, and the next full-page skeleton lays out by it. */
   useEffect(() => {
     const downloads = downloadsShape(data);
     if (downloads) rememberShape('downloads', downloads);
@@ -111,21 +113,21 @@ function ConfigurationGroups(
     || networkKeys.some(key => data.section_errors?.[key]));
   const downloads = data.downloads;
   const groups: Group[] = [
-    { id: 'library', title: '媒体库与入库', body: (panel) => <div {...groupRoot(panel)}>
+    { id: 'library', title: 'Library and imports', body: (panel) => <div {...groupRoot(panel)}>
       {issues(['media_sources', 'library_count', 'mount_dependencies'])}
       {!data.section_errors?.media_sources && !data.section_errors?.library_count ? <MediaSettings {...group} /> : null}
       <CodePatternSettings receipt={receipt} />
       <MediaProcessingSettings receipt={receipt} />
       <TaskSpeedSettings receipt={receipt} />
     </div> },
-    { id: 'sources', title: '来源与订阅', body: (panel) => <SourceSettings {...group} panel={panel} issues={issues(['entry_links'])} /> },
+    { id: 'sources', title: 'Sources and subscriptions', body: (panel) => <SourceSettings {...group} panel={panel} issues={issues(['entry_links'])} /> },
     ...(downloads || data.section_errors?.downloads ? [{
-      id: 'downloads', title: '下载渠道',
+      id: 'downloads', title: 'Download channels',
       body: (panel: ConfigurationPanel) => <DownloadGroup initial={downloads} receipt={receipt} panel={panel} issues={issues(['downloads'])} />,
     }] : []),
-    ...(network ? [{ id: 'network', title: '网络与访问', body: (panel: ConfigurationPanel) => <NetworkSettings {...group} panel={panel} issues={issues(networkKeys)} /> }] : []),
+    ...(network ? [{ id: 'network', title: 'Network & access', body: (panel: ConfigurationPanel) => <NetworkSettings {...group} panel={panel} issues={issues(networkKeys)} /> }] : []),
     {
-      id: 'maintenance', title: '应用与维护',
+      id: 'maintenance', title: 'App and maintenance',
       body: (panel) => <div {...groupRoot(panel)}>
         {issues(['startup', 'uninstall', 'storage', 'remote_reporting', 'library_sharing', 'updates', 'update_job', 'automatic_updates', 'facts'])}
         <GeneralSettings {...group} />
@@ -133,13 +135,13 @@ function ConfigurationGroups(
         <MaintenanceSettings {...group} reopenTutorial={reopenTutorial} />
       </div>,
     },
-    { id: 'diagnostics', title: '系统诊断', body: panel => <div {...groupRoot(panel)}>{panel.active ? diagnostics : null}</div> },
+    { id: 'diagnostics', title: 'System diagnostics', body: panel => <div {...groupRoot(panel)}>{panel.active ? diagnostics : null}</div> },
   ];
   const at = Math.max(0, groups.findIndex((item) => item.title === chosen));
   return (
     <div ref={workspace} className="ui-configpage">
       <div className="ui-board-local-nav" data-section-nav="">
-        <SortableBoardTabs group="configuration" label="配置分区" value={groups[at].id}
+        <SortableBoardTabs group="configuration" label="Configuration sections" value={groups[at].id}
           tabs={groups.map(({ id, title }) => ({ value: id, label: title }))} sectionItems panelPrefix={prefix}
           orientation={narrow ? 'horizontal' : 'vertical'} className=""
           onChange={id => choose(groups.find(group => group.id === id)!.title)} />

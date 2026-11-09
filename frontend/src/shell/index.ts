@@ -1,23 +1,26 @@
-/* 壳自己的内存状态（ADR-0031「壳自己的内存状态也只有一份」）。
+/* The shell's own in-memory state (ADR-0031, "the shell's own in-memory state is also a single instance").
  *
- * 目录口径、选择集与选择模式、详情与关注详情「关掉回哪里」的来处、跳到配置页某一节与活动页预填这类
- * 一次性请求，整页只有这一份：Application 与 React 页面直接引用共享源码，随 `peach-app.js` 发出。读法就是
- * ES 模块的活绑定，导入方读到的永远是这里的当前值；导入方不能给绑定赋值，整体换掉一个值走
- * `writeShell`。
+ * The catalog basis, the selection set and selection mode, where details and follow details return to when closed, jumps to a
+ * configuration page section, and one-shot requests like the activity page prefill: one instance for the whole app.
+ * Application and the React pages import the shared source directly and ship with `peach-app.js`. Reading is ES module live
+ * binding: importers always read the current value here; importers must not assign to the binding, and replacing a value
+ * wholesale goes through `writeShell`.
  *
- * 对象语义照壳原样保留：整体重建的写点经 `writeShell` 换引用，其余写点原地改同一个对象的字段，
- * 改完调 `notifyShell`。`barsContext.filters` 与 `state` 的别名关系由写点自己决定，这里不替谁修：
- * `writeShell({state})` 只换 `state`，`barsContext.filters` 仍指旧对象，直到写点再把 `barsContext`
- * 指回来。选择集是两个常驻的 `Set`，原地增删。
+ * Object semantics stay as the shell had them: write sites that rebuild wholesale swap the reference via `writeShell`, the
+ * rest mutate the same object's fields in place and then call `notifyShell`. Whether `barsContext.filters` aliases `state` is
+ * decided by the write sites themselves; this module fixes nothing on anyone's behalf: `writeShell({state})` only swaps
+ * `state`, and `barsContext.filters` keeps pointing at the old object until a write site points `barsContext` back. The
+ * selection set is two resident `Set`s, mutated in place.
  *
- * 每次写入之后通知订阅者，版本号单调递增，React 读者按 `useSyncExternalStore(subscribeShell, shellVersion)`
- * 接。服务端事实（来源在线状态、目录总数、聚合、实体形态、回收站计数）不在这里，归 TanStack Query；
- * 壳判过期的代次计数器也不在这里。 */
+ * After every write, subscribers are notified and the version number increases monotonically; React readers subscribe via
+ * `useSyncExternalStore(subscribeShell, shellVersion)`. Server facts (source online state, catalog totals, aggregates, entity
+ * shapes, trash counts) do not live here; they belong to TanStack Query. Neither does the shell's staleness generation
+ * counter. */
 
-/** 目录筛选口径：键与地址栏上的查询参数同名（`loc`、`creator`、`tag`、`state`、`sort`、`seed`…）。 */
+/** Catalog filter terms: keys share names with the query parameters on the address bar (`loc`, `creator`, `tag`, `state`, `sort`, `seed`…). */
 export type CatalogFilters = Record<string, string>;
 
-/** 顶部三层与筛选条此刻画的是哪一套筛选：首页那份 `state`、某个资料页，或作品详情。 */
+/** Which set of filters the top three tiers and the filter bar are currently rendering: the home page's `state`, a specific profile page, or video details. */
 export interface BarsContext {
   type: 'home' | 'entity' | 'item';
   filters: CatalogFilters;
@@ -26,76 +29,79 @@ export interface BarsContext {
   id?: number;
 }
 
-/** 此刻开着的队列，只用来判「是不是同一个队列里换一条」；队列的条目归详情岛。 */
+/** The queue currently open, used only to tell 'switching items within the same queue'; the queue's entries belong to the detail island. */
 export interface ActiveQueue {
   kind: string;
   seedId?: number;
   playlistId?: number;
 }
 
-/** 详情岛交回来的那一条作品；壳只认 `id`，其余字段原样留着。 */
+/** The one video the detail island hands back; the shell only trusts `id` and keeps the other fields as they are. */
 export interface PresentedItem {
   id: number;
   [key: string]: unknown;
 }
 
-/** 目录筛选状态。启动时由壳按启动地址与保存过的设置写入，尚未写入时为 undefined。 */
+/** Catalog filter state. Written by the shell at startup from the startup address and saved settings; undefined until then. */
 export let state: CatalogFilters | undefined;
-/** 顶部三层与筛选条的语境；启动时由壳指向首页那份 `state`。 */
+/** The context for the top three layers and the filter bar; at startup the shell points it at the home page's `state`. */
 export let barsContext: BarsContext | undefined;
-/** 作品详情打开前的那份语境，关掉详情时还原。 */
+/** The context from before the video detail opened, restored when the detail closes. */
 export let detailReturnBarsContext: BarsContext | null = null;
 
-/** 目录（含资料页、回收站、垃圾文件）与关注页各一份选择集，整页常驻、原地增删。 */
+/** One selection set each for the catalog (profile pages, trash and junk files included) and the follows page, persistent for the whole page and edited in place. */
 export const selected = new Set<number>();
 export const followSelected = new Set<number>();
 export let selectMode = false;
-/** Shift 连选的起点：目录与关注页各一个。 */
+/** The anchor for Shift range selection: one for the catalog, one for the follows page. */
 export let lastSelectedId: number | null = null;
 export let followLastSelectedId: number | null = null;
-/** 进选择模式时所在的那一类页面（`catalog`、`follow`、`junk`）；换到别的一类就退出选择。 */
+/** The kind of page selection mode was entered on (`catalog`, `follow`, `junk`); moving to another kind exits selection. */
 export let selectSurface = '';
 
-/** 关掉作品详情回到的地址。 */
+/** The address returned to when video details close. */
 export let detailReturnPath = '/';
-/** 点开详情的那张卡，以及它当时在视口下半还是上半；之后打开详情没带卡片时沿用这一份。 */
+/** The card that opened the detail, and whether it sat in the lower or upper half of the viewport; later detail opens without a card reuse this. */
 export let detailOriginAnchor: Element | null = null;
 export let detailOriginAbove = false;
-/** 关掉详情时要不要照地址重建来处：深链直接进的详情下面没画过列表。 */
+/** Whether closing the detail rebuilds the origin from the address: a detail entered via deep link has never had a list below it. */
 export let detailReturnNeedsRestore = false;
 export let activeQueue: ActiveQueue | null = null;
-/** 队列地址的前缀：停在哪一条要等详情岛定下来，画出来那一刻才推。 */
+/** The queue address's prefix: which entry it stops on waits for the detail island to settle, and is pushed only at render time. */
 export let pendingQueueRoute: string | null = null;
-/** 详情岛最近一次画出来的那一条。 */
+/** The entry the details island last rendered. */
 export let presentedItem: PresentedItem | null = null;
-/** 关掉关注详情回到的地址。 */
+/** The address returned to when follow details close. */
 export let followDetailReturnPath = '/follow';
 
-/** 配置页下一次打开要选中的那一组页签名，选中之后清空。 */
+/** The tab group the config page should select on its next open, cleared once selected. */
 export let configurationRequestedSection = '';
-/** 本机能不能改配置（`/healthz` 的 `configurable`）：null 是还没问过，问到之前按不能算。 */
+/** Whether this machine may change configuration (`configurable` from `/healthz`): null means not asked yet, and treated as no until asked. */
 export let runtimeConfigurable: boolean | null = null;
-/** 这一次是不是从设置完成页（或教程卡）进来的：口味页打开时取走，取一次就清。 */
+/** Whether this visit came from the setup-complete page (or the tutorial card): taken when the taste page opens, cleared after one read. */
 export let cameFromSetup = false;
 
-/** 壳要路由树按地址打开页面的次数。壳开始路由那一次记 1：在那之前来源、设置与形状名单还没读完，路由树里按匹配
- *  挂上的页面元素只挂着、不打开。之后壳每要求一次「按当前地址把这一页从头重开」（批量写回之后、设置变了要重取、
- *  点开的正是画着的那一位）就加一。后退前进与跨页由页面打开序号（`@peach/history` 的 `openEpoch`）管，不经这里。 */
+/** How many times the shell asked the route tree to open a page by address. The shell starting to route counts 1: before
+ *  that, sources, settings and shape lists are not fully read, and the page elements mounted by match in the route tree only
+ *  hang, not opening. After that, each time the shell asks for "reopen this page from the current address" (after a batch
+ *  write-back, when settings changed and a refetch is due, or when the opened person is the one already rendered) it
+ *  increments. Back/forward and cross-page moves are governed by the page-open epoch (`openEpoch` in `@peach/history`) and
+ *  never pass through here. */
 export let pageOpens = 0;
-/** 队列打开意图的代次：真实条目尚未取齐，地址由详情首屏确定。 */
+/** The epoch of the queue-open intent: the real entries are not fully fetched yet, and the address is settled by the detail's first screen. */
 export let queueOpens = 0;
-/** 资料页按第一页作品推出来的 JAV 语境（壳的 `javActive` 读）：页面推上来，资料页每打开一次先清掉。 */
+/** JAV context inferred from the first page of videos on the profile page (read through the shell's `javActive`): the page pushes it up, and the profile page clears it first on every open. */
 export let entityJavLayout = false;
-/** 关注页这一次进入的取样种子：创作者、题材、标签三排露出哪些由它定，列表按它取样。重新进入与「换一批」时重掷。 */
+/** The sampling seed for this visit to the follows page: it decides which creators, genres, and tags the three rows show, and the list samples by it. Rerolled on re-entry and on "another batch". */
 export let followDiscoverySeed = Math.floor(Math.random() * 0xffffffff);
-/** 关注页的刷新代次：画着时要求重读（回到这一页、批量标记之后）推一个新代次让列表重取，不重挂。 */
+/** The follow page's refresh epoch: a re-read requested while it is rendered (returning to this page, after batch marking) pushes a new epoch so the list refetches without remounting. */
 export let followRevision = 0;
-/** 关注列表停在哪：停在 `/follow` 上滚动时随手记下，列表要从头画时照它滚回去；重新进入时清零。 */
+/** Where the follows list was left: jotted down while scrolling on `/follow`, used to scroll back when the list has to redraw from scratch, and reset to zero on re-entry. */
 export let followScrollY = 0;
-/** 播放列表页的刷新代次：停在这一页时要求重读（顶栏「换一批」）推一个新代次，页面重取、不重挂。 */
+/** The playlist page's refresh epoch: a re-read requested while the page is up (top bar "shuffle") pushes a new epoch, and the page refetches without remounting. */
 export let playlistsRevision = 0;
 
-/** `writeShell` 能整体换掉的那几项。两个选择集是常驻实例，不在其中。 */
+/** The pieces `writeShell` can swap wholesale. The two selection sets are persistent instances and are not among them. */
 export interface ShellFields {
   state: CatalogFilters | undefined;
   barsContext: BarsContext | undefined;
@@ -128,7 +134,7 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 let version = 0;
 
-/** 整体换掉补丁里出现的那几项（值是 undefined 也照写），然后通知一次。只换绑定，不碰别的项。 */
+/** Replaces wholesale the keys that appear in the patch (writing even undefined values), then notifies once. Only the bound keys change; no other key is touched. */
 export function writeShell(patch: Partial<ShellFields>): void {
   const has = (key: keyof ShellFields) => Object.prototype.hasOwnProperty.call(patch, key);
   if (has('state')) state = patch.state;
@@ -159,17 +165,17 @@ export function writeShell(patch: Partial<ShellFields>): void {
   notifyShell();
 }
 
-/** 原地改了 `state`、`barsContext` 的字段或选择集之后调它：版本号加一，通知全部订阅者。 */
+/** Call it after mutating `state`, `barsContext` fields, or the selection in place: the version goes up by one and every subscriber is notified. */
 export function notifyShell(): void {
   version += 1;
   for (const listener of [...listeners]) listener();
 }
 
-/** 订阅每一次写入；返回退订函数。 */
+/** Subscribe to every write; returns an unsubscribe function. */
 export function subscribeShell(listener: Listener): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener) };
 }
 
-/** 单调递增的版本号，每次写入加一。 */
+/** Monotonically increasing version number, incremented on every write. */
 export const shellVersion = (): number => version;

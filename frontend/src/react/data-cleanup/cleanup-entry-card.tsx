@@ -4,7 +4,7 @@ import { CLEANUP_ENTRY } from './cleanup-entry';
 
 const Arrow = spriteGlyph('chevron-right');
 
-/** 点击只进入二级页；数量是状态信息，入口本身不执行业务操作。 */
+/** Clicking only enters the sub-page; the count is status info, and the entry point itself performs no business operation. */
 export function CleanupEntryCard({ label, icon: Icon, summary, detail, state, attributes, onOpen }: {
   label: string;
   icon: Glyph;

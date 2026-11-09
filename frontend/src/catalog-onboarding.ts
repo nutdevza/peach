@@ -4,7 +4,7 @@ import { esc } from '@peach/legacy/core';
 type Request = (url: string) => Promise<any>;
 const FILTERS = ['loc', 'creator', 'performer', 'studio', 'series', 'agency', 'tag', 'tag_match', 'len', 'dur_min', 'dur_max', 'orient', 'region', 'year', 'state', 'jav', 'thumb'];
 
-/** 清除馆藏条件，保留当前页面、视图与本地或在线范围。 */
+/** Clear the library conditions while keeping the current page, view and local or online scope. */
 export function clearCatalogAddress(address = typeof location === 'undefined' ? '/' : location.href): string {
   const url = new URL(address, 'http://localhost');
   for (const key of [...FILTERS, 'q', 'category', 'cat']) url.searchParams.delete(key);
@@ -31,23 +31,23 @@ export async function catalogSuggestions(state: Record<string, string>, request:
   ])].filter(value => value.length > 1).slice(0, 10);
 }
 
-/** 空馆藏、筛选无结果与资料尚未建立分别给出可执行入口。 */
+/** Empty library, no filter results, and a profile not yet built each get an actionable entry point. */
 export function catalogEmptyHtml({ kind = 'catalog', filtered = false, jav = false, configurable: _configurable = false, online = false } = {}): string {
-  const add = '<a class="geist-button primary" href="/settings/library">添加媒体</a>';
-  const follow = '<a class="geist-button' + (online ? ' primary' : '') + '" href="/subscriptions?tab=add">添加关注</a>';
-  if (filtered || jav) return emptyStateHtml('search', jav ? '还没有符合条件的 JAV 作品' : '没有符合条件的内容',
-    jav ? '已扫描但尚未补充发行资料的视频可在全部内容中查看。' : '清除筛选或搜索条件后查看全部内容。',
+  const add = '<a class="geist-button primary" href="/settings/library">Add media</a>';
+  const follow = '<a class="geist-button' + (online ? ' primary' : '') + '" href="/subscriptions?tab=add">Add follows</a>';
+  if (filtered || jav) return emptyStateHtml('search', jav ? 'No JAV videos match the conditions yet' : 'No matching content',
+    jav ? 'Scanned videos without release details yet can be viewed under all content.' : 'Clear filters or search terms to see everything.',
     { actions: jav
-      ? '<a class="geist-button primary" href="/?loc=&thumb=0">查看全部内容</a><a class="geist-button" href="/data-cleanup#libraryProcessing">补全影片资料</a>'
-      : `<a class="geist-button primary" href="${filtered ? esc(clearCatalogAddress()) : '/?loc=&thumb=0'}">${filtered ? '清除筛选' : '查看全部内容'}</a>` });
+      ? '<a class="geist-button primary" href="/?loc=&thumb=0">View all content</a><a class="geist-button" href="/data-cleanup#libraryProcessing">Complete video profiles</a>'
+      : `<a class="geist-button primary" href="${filtered ? esc(clearCatalogAddress()) : '/?loc=&thumb=0'}">${filtered ? 'Clear filters' : 'View all content'}</a>` });
   if (kind !== 'catalog') {
-    const labels: Record<string, string> = { tags: '标签', performers: '艺人', creators: '卖家', studios: '厂牌', agencies: '事务所', series: '系列' };
-    // 在线那一档数的是来源上的东西，名字也跟着来源的说法：艺人页在线摆的是关注来源里的创作者。
-    const onlineLabels: Record<string, string> = { tags: '标签', performers: '创作者' };
-    const label = (online ? onlineLabels[kind] : '') || labels[kind] || '资料';
-    return emptyStateHtml(kind === 'tags' ? 'tags' : 'user-round', '还没有' + label,
-      online ? '添加关注来源并获取内容后，这里会显示来源上的' + label + '。' : '添加内容并补充资料后，这里会显示对应信息。',
+    const labels: Record<string, string> = { tags: 'Tags', performers: 'Artists', creators: 'Sellers', studios: 'Labels', agencies: 'Agency', series: 'Series' };
+    // The online bucket counts what lives on the sources, and naming follows the sources' own usage: a performer page's online tab shows creators from followed sources.
+    const onlineLabels: Record<string, string> = { tags: 'Tags', performers: 'Creators' };
+    const label = (online ? onlineLabels[kind] : '') || labels[kind] || 'Profile';
+    return emptyStateHtml(kind === 'tags' ? 'tags' : 'user-round', 'Not yet' + label,
+      online ? 'After adding a follow source and fetching content, this will show the source\'s' + label + '.' : 'After adding content and completing profiles, the corresponding information appears here.',
       { actions: online ? follow : add + follow });
   }
-  return emptyStateHtml('play', '还没有视频', '添加媒体目录或关注来源，开始建立你的馆藏。', { actions: add + follow });
+  return emptyStateHtml('play', 'No videos yet', 'Add media directories or follow sources to start building your library.', { actions: add + follow });
 }

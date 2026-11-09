@@ -1,41 +1,42 @@
-/* 悬停一叠卡片时把它里面的前几张逐张翻走，说明它是一叠而不是某一个视频。
+/* On hovering a stack of cards, flips through its first few images one by one, saying it is a stack and not one video.
  *
- * 时序与门槛（`frontend/test/react/use-stack-flip.test.tsx`）：指针停 340ms 才开始，面板建好
- * 420ms 后翻第一下，之后每 1100ms 翻一张；翻出去的那张演完（间隔减 120ms）才卸掉离场态，
- * 否则会当场弹回原位。多选、遮挡、减少动效与滚动中都不启动，这些判据归壳，经 `canFlip`
- * 递进来；取图前后各再问一次。离开即停并还原静止封面。
+ * Timing and thresholds (`frontend/test/react/use-stack-flip.test.tsx`): starts after the pointer rests 340ms, flips first
+ * 420ms after the panel builds, then one image every 1100ms; the flipped-out image's exit state is removed only after it
+ * finishes playing (interval minus 120ms), otherwise it snaps back on the spot. Multi-select, occlusion, reduced motion and
+ * mid-scroll never start it; those criteria belong to the shell and arrive via `canFlip`, asked again before and after fetching
+ * images. Leaving stops it and restores the static cover.
  *
- * 翻哪些由调用方给：播放列表翻它自己的封面，首页 Mix 现拉相关作品。能用的图少于两张就
- * 不翻：一张图翻过去还是它自己。 */
+ * What flips is given by the caller: playlists flip their own covers, the home Mix pulls related videos on the fly. With
+ * fewer than two usable images it does not flip: flipping one image over is still itself. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** 一张停多久再翻走。 */
+/** How long a card stays before flipping away. */
 export const MIX_FLIP_MS = 1100;
-/** 面板建好到第一次翻动。直接用 1.1 秒间隔等第一张，指针停下到有反应要接近两秒。 */
+/** From panel creation to the first flip. Waiting for the first face on a plain 1.1 s interval takes nearly two seconds from pointer stop to reaction. */
 export const MIX_FLIP_LEAD_MS = 420;
-/** 最多预备几张，一次悬停不拉一整批封面。 */
+/** Prepare at most a few; one hover does not pull a whole batch of covers. */
 export const MIX_FLIP_FACES = 9;
-/** 指针停多久才算「在看这一叠」，扫过去的不启动。 */
+/** How long the pointer must rest to count as looking at this stack; a passing sweep does not start it. */
 const MIX_FLIP_ARM_MS = 340;
-/** 一张图等多久还没解码好就不要它。 */
+/** How long to wait for an image before dropping it if it has not decoded. */
 const MIX_FLIP_READY_MS = 5000;
 
 export interface StackFlipOptions {
-  /** 这一叠要翻的图地址，按翻动顺序。 */
+  /** The URLs of the images in this stack to flip through, in flip order. */
   load(): Promise<readonly string[]>;
-  /** 此刻能不能翻：多选、遮挡、减少动效、滚动中都回 false。 */
+  /** Whether flipping is allowed right now: multi-select, occlusion, reduced motion, and mid-scroll all return false. */
   canFlip(): boolean;
-  /** 预取解码时带的来路策略，要和台上那几张 `<img>` 一致，否则解码的和显示的是两次请求。
-   *  关注页的外站图不带来路。 */
+  /** The referrer policy carried during prefetch decode; it must match the `<img>`s on stage, otherwise the decoded and displayed images are two requests.
+   *  External images on the follows page carry no referrer. */
   referrerPolicy?: ReferrerPolicy;
 }
 
 export interface StackFlip {
-  /** 已经解码好的那几张；空数组就是不在翻，静止封面照常露着。 */
+  /** The frames already decoded; an empty array means not flipping, and the still cover keeps showing as usual. */
   faces: readonly string[];
-  /** 正在台上的那一张。 */
+  /** The card currently on stage. */
   current: number;
-  /** 刚翻出去、还在演离场的那一张。 */
+  /** The card that just flipped out and is still playing its exit. */
   leaving: number | null;
   onPointerEnter(): void;
   onPointerLeave(): void;
@@ -47,13 +48,13 @@ interface Run {
   timers: Set<ReturnType<typeof setTimeout>>;
   cycle: ReturnType<typeof setInterval> | null;
   cancels: Set<() => void>;
-  /** 指针进来后那一段 340ms 的等待。 */
+  /** The 340ms wait after the pointer enters. */
   armed: ReturnType<typeof setTimeout> | null;
   count: number;
   at: number;
 }
 
-/** 等一张图载入并解码。取不到、宽为 0 或超时都算不能用。 */
+/** Wait for an image to load and decode. Unfetchable, zero width, or a timeout all count as unusable. */
 function readyImage(url: string, run: Run, referrerPolicy?: ReferrerPolicy): Promise<boolean> {
   return new Promise((resolve) => {
     const image = new Image();
@@ -88,7 +89,7 @@ export function useStackFlip({ load, canFlip, referrerPolicy }: StackFlipOptions
   const run = useRef<Run>({
     live: false, generation: 0, timers: new Set(), cycle: null, cancels: new Set(), armed: null, count: 0, at: 0,
   });
-  /* 回调里读的是最新的 `load`／`canFlip`：卡片重画时换了闭包，正在进行的那一次也跟着换。 */
+  /* The callback reads the latest `load` and `canFlip`: a re-render swaps the closure, and the run in progress swaps with it. */
   const latest = useRef({ load, canFlip });
   latest.current = { load, canFlip };
 
@@ -162,7 +163,7 @@ export function useStackFlip({ load, canFlip, referrerPolicy }: StackFlipOptions
     setLeaving(null);
   };
 
-  /* 卸载时只收计时器与在途的图，不再改状态。 */
+  /* On unmount, only timers and in-flight images are collected; no more state changes. */
   useEffect(() => clear, [clear]);
 
   return { faces, current, leaving, onPointerEnter, onPointerLeave };

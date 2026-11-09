@@ -20,7 +20,7 @@ export function useCommitNavigationOrder(store: SettingsStore<{ sidebarOrder?: s
   }, [store, mutate, key]);
 }
 
-/** 把 `key` 挪到 `target` 前面或后面；挪不了（同一项、任一项不在顺序里）时是 null。 */
+/** Moves `key` before or after `target`; null when it cannot be moved (same item, or either item missing from the order). */
 export function moveSidebarKey(order: readonly string[], key: string, target: string, after: boolean): string[] | null {
   if (key === target) return null;
   const next = [...order];

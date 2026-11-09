@@ -1,8 +1,8 @@
-/* 卡片与任务面共用的那一份读取与状态迁移判断。
+/* The read and state-transition judgment shared by the card and the tasks surface.
  *
- * 两处读同一个 `queryKey`，轮询由 Query 合成一份；这里额外盯住「这一趟是不是在本次
- * 眼前跑完的」。任务关掉页面照样在跑，状态里常年躺着上一趟的回执：首屏读到的终态没有
- * 上一个状态，所以它不会被当成刚刚跑完，也不发回执。 */
+ * Both read the same `queryKey`, with polling synthesized into one Query; here we additionally watch "whether this run finished in front of
+ * our eyes". Tasks keep running with the page closed, and the state holds the previous run's receipt year-round: a first-screen read of a terminal state has no
+ * prior state, so it is not treated as just-finished and sends no receipt. */
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
@@ -14,9 +14,9 @@ import {
 
 export interface LibraryProcessingJob {
   job: UseQueryResult<LibraryProcessingData>;
-  /** 本次亲眼看着跑完的那一趟。首屏读到的旧终态不会走到这里。 */
+  /** The run watched to completion this session. The stale final state read on first screen never gets here. */
   settled: LibraryProcessingData | null;
-  /** 又发起了一趟：上一趟的结论不再留在屏幕上。 */
+  /** Another run has started: the previous run's conclusions no longer stay on screen. */
   forget(): void;
 }
 
@@ -38,8 +38,8 @@ export function useLibraryProcessingJob(
     previous.current = state.status;
     const witnessed = !!was && ['running', 'pausing', 'paused', 'stopping'].includes(was) && !processingActive(state);
     if (witnessed) setSettled(state);
-    /* 任务面还要认「刚结束」：首次引导那一趟常在跳到目录页之前就跑完，它从没见过
-       「运行中」。卡片只认自己看着跑完的那一趟。 */
+    /* The task panel must also recognize "just finished": the first-run onboarding pass usually finishes before jumping to the catalog page, so it never saw
+       "running". The card only accepts the pass it watched finish. */
     if (witnessed || mode === 'notice') announceCompletion(state, toast, witnessed);
   }, [state, mode, toast]);
 

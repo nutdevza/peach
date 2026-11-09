@@ -1,4 +1,4 @@
-/* composition 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* composition domain controller: this domain's state and actions, installed at startup by Application's lifecycle. */
 import { loadingState, renderInitialSurfaceLoading } from './loading.js';
 import { clearHomeFeed, feedState, installEntityShapeBootstrap, isFeedNewPath, loadEntityShapes, prepareHomeFeed } from './feed.js';
 import { buildManageBar, closeStats, enterManagementSurface, loadSyncedSettings, mountManageHeader, mountSidebar, openManage, openSettings, paintCatalogPageTitle, paintListTitle, scheduleStickySurfaces, showHomeSurfaces, showManagementBody, syncHeaderActions } from './layout.js';
@@ -38,14 +38,14 @@ const openOverlayTarget=target=>{
 installEntityShapeBootstrap();
 loadingState.entityShapesReady=loadEntityShapes();
 renderInitialSurfaceLoading();
-/* 首页标题随首屏骨架一起出现：等路由打开目录后再显示，会把骨架整页往下推一跳。其余状态页的标题仍由 `paintListTitle` 定。 */
+/* The home page title appears together with the first-screen skeleton: showing it only after the route opens the catalog would push the whole skeleton page down one jump. Other state pages' titles are still set by `paintListTitle`. */
 if(location.pathname==='/'){
   const query=new URLSearchParams(location.search);
   if(!query.has('state')&&query.get('jav')!=='1'){
     $('#catalogPageHeading').hidden=false;paintCatalogPageTitle($('#catalogPageHeading'),query.get('q'));
   }
 }
-/* 新作那一行按本机记着的结论随首屏一起铺骨架，卡片与列表两种显示方式都一样。 */
+/* The new releases row lays its skeleton together with the first screen based on the conclusion remembered on this machine, the same for both card and list display modes. */
 if(isFeedNewPath(decodeURIComponent(location.pathname)))prepareHomeFeed($('#feedNew'));
 mountSidebar();
 compositionState.shellActions = {
@@ -53,7 +53,7 @@ compositionState.shellActions = {
   closeSettings:()=>settingsPanelApi()?.close(false),
   openItem:id=>void openItem(id),
   openEntity:(kind,name)=>void openEntity(kind,name),
-  /* 点一个内容标签是「回目录并按它筛选」：整页换成目录仍归壳，页面只说点了哪个键。 */
+  /* Tapping a content tag means "back to the catalog filtered by it": the full-page swap to the catalog stays with the shell, and the page only reports which key was tapped. */
   openTag:key=>{closeStats();toggleTag(key)},
   openTasteSignal,
   navigate:path=>{
@@ -83,7 +83,7 @@ compositionState.shellActions = {
     preferencesState.saveSettings();
   },
   srcBadge:(location,cost)=>preferencesState.srcBadge(location,cost),
-  /* 索引页：同一页换 search 由壳认领、不重挂；后退前进到另一份 search 时路由树的索引元素按地址重开。 */
+  /* Index page: a same-page search change is claimed by the shell and does not remount; going back or forward to a different search reopens the route tree's index element by URL. */
   routeIndex:(next,{replace=false}={})=>navigationState.route(indexPath(next),replace),
   savePeopleLayout:({layout})=>{preferencesState.appSettings.peopleLayout=layout;preferencesState.saveSettings()},
   exitSelectMode:()=>setSelectMode(false,false),
@@ -94,10 +94,10 @@ compositionState.shellActions = {
   openFollowTag:openFollowTagFromIndex,
   openPlaylist:(id,resume)=>void openPlaylist(id,resume,true),
   canFlip:()=>!selectMode&&!censorOn()&&!window.__scrolling&&!catalogState.reduceMotion(),
-  /* 页面元素挂上、开始取数之前报一次：收起上一页留下的面，再铺开这一页那一侧。 */
+  /* Fires once when the page element mounts, before fetching starts: collapse the face the previous page left behind, then lay out this page's side. */
   surfaceChanged:(kind,path)=>{
-    /* 索引页与资料页画进 `#index`。`showHomeSurfaces` 会清掉 `index-open`／`entity-open` 并恢复顶部横条，
-       这两个类要在它之后加。资料页的语境由画着的那一页推（`currentBarsContext`），变量只记首页那一份。 */
+    /* Both the index page and the profile page render into `#index`. `showHomeSurfaces` clears `index-open`/`entity-open` and restores the top bar,
+       so these two classes must be added after it. The profile page's context is derived from the page being rendered (`currentBarsContext`); the variable only records the home copy. */
     if(kind==='entity'){
       releaseHoverPreviews();writeShell({barsContext:{type:'home',filters:state}});showHomeSurfaces();
       document.body.classList.add('entity-open');syncCatalogFilterScreen();showIndexContainer();return;
@@ -119,7 +119,7 @@ compositionState.shellActions = {
     const open=navigationState.requestedQueue;navigationState.requestedQueue=null;
     if(open)void open();
   },
-  /* 覆盖地址要打开的那一条（作品详情、关注详情、四种队列），地址栏已经是它。 */
+  /* The route the override address should open (video details, follow details, the four queues); the address bar is already on it. */
   openOverlay:target=>{
     const requested=navigationState.requestedOverlay;
     navigationState.requestedOverlay=null;
@@ -133,20 +133,20 @@ compositionState.shellActions = {
   closeStage:()=>{if(mediaState.stageOpen())disposeStage(false)},
   grid:{helpers:catalogState.gridHelpers,actions:catalogState.gridActions},
 
-  // 索引页与资料页的元素用。
+  // Used by the index page and profile page elements.
   configurable:()=>!!runtimeConfigurable,
   /* 整页画上之后：索引页重读侧栏按下态、重排吸顶；资料页重拉侧栏与顶部横条，按取到的名字重写标题（按 ID 直达时导航那一刻还不知道名字）。 */
   surfaceShown:kind=>{if(kind==='index'){syncNavigation();scheduleStickySurfaces()}else{buildBars();loadingState.syncPageTitle(location.href)}},
   entity:{
     missing:kind=>{compositionState.shellActions.surfaceChanged('entity',location.pathname);showEntityMissing(kind)},
-    /* 名单启动时就在取；深链直接落在资料页时它可能还在路上，稍等一下再画骨架，画出来就是最终的形状。等不到
-       就先画，名单到了再补那两块。名单每进一页重取一遍，下一页用的就是服务端的现状。 */
+    /* The roster starts fetching at startup; on a deep link straight to the profile page it may still be in flight, so wait briefly before drawing the skeleton and it comes out in its final shape. If it does not
+       arrive in time, draw anyway and patch in those two blocks once the roster lands. The roster refetches on every page turn, so the next page uses the server's current state. */
     loading:(kind,name,current)=>entityState.application.loading(kind,name,current),
     props:(kind,name,search)=>{
       writeShell({entityJavLayout:['performer','studio'].includes(kind)&&feedState.hasEntityPart(kind,name,'jav')});
       return entityState.application.addressProps(kind,name,search);
     },
-    /* 后退前进落在同一位的另一份筛选上：这一页还画着就只把地址上的新筛选推过去。 */
+    /* Back and forward land on another filter set for the same position: while this page is still rendered, just push the new filters from the address over. */
     refresh:(kind,name,search)=>{
       const filters=entityState.parseEntityFilters(search);if(kind==='creator')filters.creator='';
       const shown=currentBarsContext();
@@ -156,16 +156,16 @@ compositionState.shellActions = {
     },
   },
 
-  // 关注与播放列表用。
+  // Used by follows and playlists.
   follow:followState.followFeedShell,
 
-  // 目录用。
+  // Used by the catalog.
   catalog:{
-    /* 地址上没写来源时的缺省：本地加 115，离线的那一处摘掉。 */
+    /* Defaults when the address names no source: local plus 115, with the offline entry dropped. */
     defaultLoc:()=>onlineDefaultLoc('local,115'),
-    /* 整页打开：筛选已由目录元素照地址写进 `state`。`retitle` 是首页 `?state=ads` 改写成垃圾文件地址的那一下：
-       改写认领了，标题、侧栏与教程状态在这里补；`entering` 是从别处回到首页，顶部三层的缓存作废。
-       回收站清掉搜索框，别的页把地址上的搜索词摆回框里。 */
+    /* Whole-page open: filters have already been written into `state` by the catalog element from the address. `retitle` is the home `?state=ads` rewrite into the junk files address;
+       once the rewrite is claimed, title, sidebar, and tutorial state are filled in here; `entering` is returning home from elsewhere, invalidating the top three layers' cache.
+       Trash clears the search box; other pages put the address's search term back into the box. */
     open:(path,{entering=false,retitle=false}={})=>{
       if(retitle){syncRouteChrome();syncHeaderActions();paintListTitle()}
       if(entering)dropBars();
@@ -173,18 +173,20 @@ compositionState.shellActions = {
       else{$('#q').value=state.q;catalogState.rememberSearchValue()}
       syncNavigation();buildBars();return preferencesState.handOff(loadCatalog());
     },
-    /* 壳认领写了地址、筛选已在 `state` 里：只重取。 */
+    /* The shell claimed it and wrote the address, filters are already in `state`: just refetch. */
     load:()=>preferencesState.handOff(loadCatalog()),
-    /* 没有背景的作品与队列地址（深链、刷新）：详情下面那份列表一次请求都没发过，补发一次，不留一张写着在读、
-       其实没有请求在跑的骨架。走 `paintCatalogGrid` 直接挂网格：`loadCatalog` 开头就 `disposeStage()`，会把这一屏
-       详情一起收掉。网格已经画上（哪怕还在取第一页）就不再补发；不是启动那一条时只接着那张骨架。 */
+    /* Video and queue addresses without a background (deep links, refresh): the list under details has sent no request at all, so
+       backfill one, rather than leaving a skeleton that says loading with no request running. It mounts the grid directly via
+       `paintCatalogGrid`: `loadCatalog` starts with `disposeStage()`, which would tear down this screen's details too. Once the
+       grid is mounted (even still fetching its first page) it does not backfill again; when this is not the startup entry it
+       only takes over the existing skeleton. */
     fill:()=>{
       if(gridTaken())return;
       if(!bootEntry()&&!$('#grid').querySelector('.catalog-skeleton'))return;
       const count=$('#count');count.removeAttribute('aria-busy');count.removeAttribute('aria-label');
       void paintCatalogGrid(navigationState.surfaceToken(navigationState.surfacePath()));
     },
-    /* 离开目录：收起网格与首页新作行。 */
+    /* Leaving catalog: collapse the grid and the home new releases row. */
     release:()=>{clearCatalogGrid();clearHomeFeed()},
   },
 };
@@ -195,23 +197,23 @@ effects.listen(document,'click',event=>{
   event.preventDefault();compositionState.shellActions.navigate(path);
 });
 applicationEffects.own(peachHistory.listen(navigation=>{
-  /* 取齐前地址仍在源页：任何非覆盖历史变化（包括同地址 POP）都撤回这一趟，晚到的包或响应不能再开舞台。 */
+  /* Until everything lands, the URL still sits on the source page: any non-overlay history change (including a same-URL POP) rewinds this run, and late packets or responses can no longer open the stage. */
   if(navigationState.queueOpenRequest&&navigation.seq!==navigationState.queueOpenRequest.seq&&!isOverlayPath(navigation.location.pathname))disposeStage(false);
-  // 历史通知内先同步页面代次，再由路由元素的微任务领取取数代次。
+  // Inside the history notification, sync the page epoch first; the route element's microtask then claims the fetch epoch.
   if(compositionState.routing&&!navigation.claimed)syncRouteChrome();
 }));
-loadRouter(compositionState.shellActions).catch(error=>console.error('客户端导航装载失败',error));
+loadRouter(compositionState.shellActions).catch(error=>console.error('Client-side navigation failed to load',error));
 mountManageHeader();
 mountBatchDock();
 buildManageBar();
 Promise.all([loadSourceStatus(),loadSyncedSettings()])
   .then(()=>{
     if(!effects.isActive)return;
-    /* 顶部两排与筛选栏的两个聚合自带骨架、取回后自己落位，页面打开不等它们：作品列表与它们同时去取。 */
-    if(loadingState.wantsDiscoveryBars())buildBars().catch(error=>console.error('首页横条装载失败',error));
+    /* The two aggregates for the top rows and the filter bar bring their own skeletons and settle into place on arrival, so the page opens without waiting for them: the video list fetches at the same time as they do. */
+    if(loadingState.wantsDiscoveryBars())buildBars().catch(error=>console.error('Home\'s strip failed to load',error));
     syncNavigation();wireAllDrag();
-    // 路由树里按匹配打开的页面等这一下才开始打开：壳的状态到这时才齐。
+    // Pages opened by match in the route tree only start opening at this moment: the shell's state is only complete by then.
     compositionState.routing=true;writeShell({pageOpens:1});syncRouteChrome();
     scheduleStickySurfaces();
-  }).catch(error=>{if(effects.isActive)console.error('应用启动失败',error)});
+  }).catch(error=>{if(effects.isActive)console.error('App failed to start',error)});
 }

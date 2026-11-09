@@ -1,11 +1,14 @@
-/* 详情播放器：给舞台播放区的 `<video>` 挂 Video.js 与全部 Peach 控件。
+/* The details player: attaches Video.js and all Peach controls to the stage play area's `<video>`.
  *
- * - `mountDetailPlayer` 挂一个 Video.js 实例：片源解析、时长校正、出错时从分片退回直读、脱盘判定，
- *   ready 之后挂设置菜单、拖动预览、Media Session、转圈与字幕。
- * - `attachPlayerChrome` 把统计面板、加载速度角标与氛围光接到一块媒体框上。播放器进小窗时摘下，
- *   展开回舞台时接到新的媒体框上，实例本身不重建。
- * - `mountPlayer` 是舞台播放区与沉浸模式每一格的入口：插氛围光画布与统计角标，按作品或关注条目
- *   给片源、海报与上报，返回拆掉这一个播放器的函数。 */
+ * - `mountDetailPlayer` mounts a Video.js instance: stream source resolution, duration correction, falling back from segments
+ *   to direct read on error, offline detection; once ready it attaches the settings menu, scrub preview, Media Session,
+ *   spinner and subtitles.
+ * - `attachPlayerChrome` connects the stats panel, load-speed badge and ambient light to one media frame. It is removed when
+ *   the player enters the mini player and reconnected to the new media frame on expand back to the stage; the instance itself
+ *   is not rebuilt.
+ * - `mountPlayer` is the entry for the stage play area and each immersive slide: inserts the ambient light canvas and stats
+ *   badge, provides stream source, poster and reporting per video or follow entry, and returns the teardown for this one
+ *   player. */
 import { detailPosterUrl } from '@peach/card-art';
 import { api, esc, fmtClock, fmtSize, icon, realDuration } from '@peach/legacy/core';
 
@@ -29,47 +32,47 @@ import type { MediaFacts, PlayerItem, PlayerSource, SourceQuality, VjsPlayer } f
 import { ensureVideojs } from './videojs';
 import { isPlayerGuidePreview } from './guide-preview';
 
-/** 从小窗展开回来或带 `?t=` 深链进来时接着放的那一刻。 */
+/** The moment playback resumes when expanding back from the mini player or entering with a `?t=` deep link. */
 export interface PlayerResume { time: number; autoplay: boolean }
 
 export interface DetailPlayerOptions {
   guidePreview?: boolean;
   playbackKey?: string;
-  /** 给定片源（关注条目的 `/follow-stream`）；不给就按作品的来源解析。 */
+  /** Given a stream (a follow item's `/follow-stream`); when omitted, resolve by the video's source. */
   source?: PlayerSource;
-  /** 播放出错时要不要查来源状态判脱盘。关注条目的片源不在本机来源里，不查。 */
+  /** Whether a playback error should trigger a source-status check for a dropped drive. A follow entry's stream is not among local sources, so no check. */
   checkSourceStatus?: boolean;
   size?: number | null | undefined;
   poster?: string | undefined;
   qualities?: SourceQuality[] | null;
-  /** 清晰度表与字节数，跟默认片源并行解析，回来得比挂载晚。 */
+  /** The quality list and byte counts parse in parallel with the default source and arrive later than mount. */
   mediaPromise?: Promise<MediaFacts | null>;
   resume?: PlayerResume | null;
 }
 
-/** 媒体框里那三块读数：统计键、统计面板与加载速度角标（`playerStatsOverlayHtml`）。 */
+/** The three readouts in the media frame: the stats key, the stats panel, and the load-speed badge (`playerStatsOverlayHtml`). */
 interface PlayerChrome {
   statsButton: HTMLElement | null;
   statsPanel: HTMLElement | null;
   netBadge: HTMLElement | null;
 }
 
-/** 一个播放器实例的读数来源。面板画在哪一块框里由 `chrome` 决定，换框时只换它。 */
+/** One player instance's stat source. Which frame the panel paints into is decided by `chrome`; only it changes when the frame changes. */
 interface PlayerSession {
   chrome: PlayerChrome | null;
-  /** ready 之后统计键才露出来：控件条还没挂上时点它什么也读不到。 */
+  /** The stats button appears only after ready: clicking it before the control bar mounts reads nothing. */
   ready: boolean;
   updateStats(): void;
 }
 
 const sessions = new WeakMap<VjsPlayer, PlayerSession>();
 
-/* 统计面板与加载速度角标的定时器。它们画在舞台的媒体框里，播放器进小窗时跟着舞台一起停。 */
+/* Timers for the stats panel and the load-speed badge. They paint inside the stage's media frame and stop together with the stage when the player goes to the mini player. */
 let statsTimer: ReturnType<typeof setInterval> | null = null;
 let netTimer: ReturnType<typeof setInterval> | null = null;
 let netHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** 停掉统计面板与角标的刷新。播放器本身不动。 */
+/** Stops the stats panel and badge refresh. The player itself is untouched. */
 export function stopPlayerPanels(): void {
   if (statsTimer) { clearInterval(statsTimer); statsTimer = null }
   if (netTimer) { clearInterval(netTimer); netTimer = null }
@@ -86,7 +89,7 @@ export async function mountDetailPlayer(
   if (resume?.autoplay) autoplay = true;
   if (options.guidePreview) autoplay = false;
   const source = () => (options.source ? Promise.resolve(options.source) : detailStreamSource(item));
-  /* 拉不到就退回原生 video，和「页面里没有 videojs」是同一个兜底出口。 */
+  /* When it cannot be pulled, fall back to the native video, the same fallback exit as "no videojs on the page". */
   let videojs;
   try { videojs = await ensureVideojs() } catch {
     video.controls = true;
@@ -101,12 +104,12 @@ export async function mountDetailPlayer(
   }
   const player = videojs(video, {
     controls: true, preload: 'metadata', language: 'zh-CN', responsive: true,
-    /* 海报与作品当前封面偏好一致，交给原生视频显示。 */
+    /* The poster matches the video's current cover preference and is handed to the native video element to display. */
     poster: options.poster || detailPosterUrl(item, host.settings().javImage),
     controlBar: {
       pictureInPictureToggle: true, currentTimeDisplay: false, timeDivider: false,
       durationDisplay: false, remainingTimeDisplay: false,
-      // 时间与悬停预览归 Peach 控件，进度条只保留播放与拖动所需的组件。
+      // Time and hover preview belong to Peach controls; the progress bar keeps only the parts needed for playback and scrubbing.
       progressControl: { seekBar: { mouseTimeDisplay: false, playProgressBar: { timeTooltip: false } } },
     },
   });
@@ -114,16 +117,16 @@ export async function mountDetailPlayer(
   player.peachItem = item;
   player.peachPlaybackKey = options.playbackKey || playbackKey('item', item);
   wirePlayerContextMenu(player);
-  /* 手机上的画面格按视频自己的比例排（`--peach-video-ratio`）。 */
+  /* On mobile, video cells lay out at each video's own ratio (`--peach-video-ratio`). */
   player.on('loadedmetadata', () => {
     const tech = player.el()?.querySelector('video');
     if (tech?.videoWidth && tech.videoHeight) player.el().style.setProperty('--peach-video-ratio', `${tech.videoWidth}/${tech.videoHeight}`);
   });
-  // 非正时长一律当未知。
+  // Non-positive durations are always treated as unknown.
   const expected = realDuration(item.duration);
   const statsHistory = { speed: [] as number[], activity: [] as number[], buffer: [] as number[] };
-  /* 关注条目的字节数要回源 HEAD 才知道，跟清晰度表同一趟回来，比挂载晚。码率是速度读数的
-     换算系数，所以留一个可以后填的口子，别把它固定在挂载那一刻。 */
+  /* A follow entry's byte size is known only from a HEAD to the source, arriving with the quality list, after mount. Bitrate is the conversion factor for the speed readout,
+   so leave a slot to fill in later rather than fixing it at mount time. */
   let mediaSize = Number(options.size ?? item.size) || 0;
   const meter = createBufferMeter(averageBitrate(mediaSize, item.duration));
   let statsLoaded = 0;
@@ -151,37 +154,37 @@ export async function mountDetailPlayer(
     const seconds = resources.reduce((n, entry) => n + (entry.duration || 0), 0) / 1000;
     meter.sample(video);
     const speed = playerSpeedBits(player, item.id, stream, segmented ? null : meter) || (seconds > 0 ? bytes * 8 / seconds : 0);
-    /* 分片流按已完成请求的字节累计；渐进源没有这种请求，按前沿推进折算，码率未知时退到秒。 */
+    /* Segmented streams count bytes from completed requests; progressive sources have no such requests, so progress is derived from the leading edge, falling back to seconds when the bitrate is unknown. */
     const loaded = segmented ? bytes : (meter.bitrate > 0 ? meter.bytes() : meter.seconds);
     const activity = Math.max(0, loaded - statsLoaded); statsLoaded = loaded;
     const buffer = bufferedAhead(video);
     pushPlayerStat(statsHistory.speed, speed);
     pushPlayerStat(statsHistory.activity, activity);
     pushPlayerStat(statsHistory.buffer, buffer);
-    /* 关注条目没有落盘文件名，容器格式只能从片源 MIME 反推；HLS 已经写在传输一侧，不重复。 */
+    /* Follow items have no on-disk file name, so the container format can only be inferred from the source MIME; HLS is already recorded on the transport side and is not repeated. */
     const named = String(item.name || '');
     const container = (named.includes('.') ? named.split('.').pop() || ''
       : segmented ? '' : String(player.currentSource()?.type || '').split('/').pop() || '').toUpperCase() || '—';
     const speedText = speed ? `${(speed / 1e6).toFixed(1)} Mbps` : '—';
     const byteScale = segmented || meter.bitrate > 0;
     const loadedRow: [string, string, string] = segmented
-      ? ['网络活动', `${bytes ? fmtSize(bytes) : '—'} · ${resources.length} 请求`,
-        `最近一秒网络活动 ${activity ? fmtSize(activity) : '0 B'}`]
-      : ['已下载', byteScale ? `${fmtSize(loaded)}${mediaSize > 0 ? ` / ${fmtSize(mediaSize)}` : ''}` : `${loaded.toFixed(0)} 秒`,
-        byteScale ? `最近一秒下载 ${activity ? fmtSize(activity) : '0 B'}` : `最近一秒下载 ${activity.toFixed(1)} 秒`];
+      ? ['Network activity', `${bytes ? fmtSize(bytes) : '—'} · ${resources.length} requests`,
+        `Network activity in the last second ${activity ? fmtSize(activity) : '0 B'}`]
+      : ['Downloaded', byteScale ? `${fmtSize(loaded)}${mediaSize > 0 ? ` / ${fmtSize(mediaSize)}` : ''}` : `${loaded.toFixed(0)} sec`,
+        byteScale ? `Downloaded in the last second ${activity ? fmtSize(activity) : '0 B'}` : `Downloaded ${activity.toFixed(1)} sec in the last second`];
     const rows: [string, string, string?][] = [
-      ['视频 ID / 会话', stream && !options.source ? `${item.id} / ${stream.slice(0, 8)}` : `${item.id}`],
-      ['视口 / 帧', `${Math.round(rect.width)}×${Math.round(rect.height)} / ${quality ? `${quality.totalVideoFrames - quality.droppedVideoFrames} of ${quality.totalVideoFrames}` : '—'}`],
-      ['当前 / 最佳分辨率', `${current} / ${item.width || video.videoWidth || '?'}×${item.height || video.videoHeight || '?'}`],
-      ['编码 / 传输', `${container} / ${segmented ? 'HLS' : 'HTTP Range'}`],
-      ['连接速度', speedText,
-        playerStatsPlot(statsHistory.speed, 'speed', Math.max(10e6, ...statsHistory.speed), `连接速度 ${speedText === '—' ? '暂无数据' : speedText}`)],
+      ['Video ID / session', stream && !options.source ? `${item.id} / ${stream.slice(0, 8)}` : `${item.id}`],
+      ['Viewport / frame', `${Math.round(rect.width)}×${Math.round(rect.height)} / ${quality ? `${quality.totalVideoFrames - quality.droppedVideoFrames} of ${quality.totalVideoFrames}` : '—'}`],
+      ['Current / best resolution', `${current} / ${item.width || video.videoWidth || '?'}×${item.height || video.videoHeight || '?'}`],
+      ['Codec / transport', `${container} / ${segmented ? 'HLS' : 'HTTP Range'}`],
+      ['Connection speed', speedText,
+        playerStatsPlot(statsHistory.speed, 'speed', Math.max(10e6, ...statsHistory.speed), `Connection speed ${speedText === '—' ? 'no data yet' : speedText}`)],
       [loadedRow[0], loadedRow[1],
         playerStatsPlot(statsHistory.activity, 'activity', Math.max(1, ...statsHistory.activity), loadedRow[2])],
-      ['缓冲健康', `${buffer.toFixed(1)} 秒`,
-        playerStatsPlot(statsHistory.buffer, 'buffer', 30, `当前可连续播放 ${buffer.toFixed(1)} 秒`)],
-      ['播放时间', `${fmtClock(video.currentTime)} / ${fmtClock(expected || player.duration())}`],
-      ['日期', new Date().toLocaleString()],
+      ['Buffer health', `${buffer.toFixed(1)} sec`,
+        playerStatsPlot(statsHistory.buffer, 'buffer', 30, `${buffer.toFixed(1)} sec of continuous playback available`)],
+      ['Play time', `${fmtClock(video.currentTime)} / ${fmtClock(expected || player.duration())}`],
+      ['Date', new Date().toLocaleString()],
     ];
     statsPanel.innerHTML = `<dl>${rows.map(([key, value, plot]) =>
       `<dt>${esc(key)}</dt><dd${plot ? ' data-player-stats-metric=""' : ''}>${plot || ''}<span>${esc(value)}</span></dd>`).join('')}</dl>`;
@@ -195,7 +198,7 @@ export async function mountDetailPlayer(
     if (!segmented) meter.sample(video);
     const bits = playerSpeedBits(player, item.id, detailStreamSession(), segmented ? null : meter);
     const rate = segmented ? fmtSpeed(bits) : fmtLoadRate(bits, bufferedAhead(video));
-    netBadge.innerHTML = `${icon('gauge')}<span class="sr-only">加载速度</span><span>${esc(rate)}</span>`;
+    netBadge.innerHTML = `${icon('gauge')}<span class="sr-only">Load speed</span><span>${esc(rate)}</span>`;
   };
   const showNet = () => {
     const netBadge = session.chrome?.netBadge;
@@ -219,11 +222,11 @@ export async function mountDetailPlayer(
       if (autoplay) player.play()?.catch(() => {});
       return;
     }
-    // 播到一半掉盘时 video 元素只报通用错误；来源状态才分得清脱盘和文件损坏。
+    // When the drive drops mid-playback the video element only reports a generic error; source status is what tells a dropped drive apart from a corrupted file.
     if (options.checkSourceStatus === false) return;
     void host.loadSourceStatus().then((status) => {
       if (status[String(item.root_id || item.location)] !== false || player.isDisposed()) return;
-      player.error({ code: 2, message: `媒体目录无法访问 · ${host.offlineReason(String(item.root_id || item.location))}` });
+      player.error({ code: 2, message: `Media folder unreachable · ${host.offlineReason(String(item.root_id || item.location))}` });
     });
   });
   player.ready(() => {
@@ -259,8 +262,8 @@ export async function mountDetailPlayer(
 
 const AMBIENT_CANVAS = '<canvas data-ambient-canvas="" width="32" height="18"></canvas>';
 
-/** 氛围光放在媒体框首部；作品详情的统计键与速率挂到 React 留出的工具栏插槽，统计面板留在框内。
- *  关注详情没有工具栏，读数插在 `before` 前面。已有读数时保留当前节点与事件。 */
+/** Ambient glow goes at the head of the media frame; the video details stats key and rate attach to the toolbar slot React leaves open, with the stats panel inside the frame.
+ *  Follow details have no toolbar, so readouts insert before `before`. When readouts already exist, keep the current nodes and events. */
 export function preparePlayerFrame(frame: HTMLElement, before: Element | null = null): void {
   if (!frame.querySelector(':scope > [data-ambient-canvas]')) frame.insertAdjacentHTML('afterbegin', AMBIENT_CANVAS);
   if (frame.querySelector('#playerStatsBtn')) return;
@@ -274,8 +277,8 @@ export function preparePlayerFrame(frame: HTMLElement, before: Element | null = 
   frame.insertBefore(overlay.content, before);
 }
 
-/** 把统计面板、加载速度角标与氛围光接到 `frame` 上（它先经过 `preparePlayerFrame`）。返回摘下的
- *  函数：进小窗时摘，播放器销毁时自己摘。 */
+/** Attaches the stats panel, load-speed badge and ambient glow to `frame` (which passes through `preparePlayerFrame` first). Returns a
+ *  detach function: detached on entering the mini player, and self-detached when the player is destroyed. */
 export function attachPlayerChrome(player: VjsPlayer, frame: HTMLElement): () => void {
   const session = sessions.get(player);
   if (!session || player.isDisposed()) return () => {};
@@ -316,34 +319,38 @@ export function attachPlayerChrome(player: VjsPlayer, frame: HTMLElement): () =>
   return detach;
 }
 
-/** 关注条目里的一份媒体（组里的第几条视频）。 */
+/** One media item within a follow entry (which video in the group). */
 export interface PlayerMedia { index: number; media_type?: string; size?: number | null }
 
 export interface MountPlayerOptions {
   kind: 'item' | 'follow';
   item: PlayerItem;
   media?: PlayerMedia | null;
-  /** 不给就按设置（`detailAutoplay`）。 */
+  /** When omitted, follow the setting (`detailAutoplay`). */
   autoplay?: boolean | undefined;
   resume?: PlayerResume | null;
-  /** 挂载之前在媒体框里插氛围光画布与统计角标。默认插；小窗里换片不要这些。 */
+  /** Before mount, insert the ambient light canvas and the stats badge into the media frame. Inserted by default; switching videos in the mini player does not want them. */
   chrome?: boolean;
-  /** 挂上之后把实例交出去：小窗与展开要认得这一个。挂不上（Video.js 拉不到、退回原生 video）
-   *  给 null。拆得比挂载快时不回调。 */
+  /** Hand out the instance once mounted: the mini player and the expanded view need to recognize this one. On mount failure (Video.js unavailable, fall back to native video)
+   *  deliver null. No callback when teardown is faster than mounting. */
   onPlayer?: (player: VjsPlayer | null) => void;
-  /** 这个播放器已经被小窗接走：拆播放区时不销毁它。 */
+  /** This player has been taken over by the mini player: do not destroy it when tearing down the playback area. */
   handedOff?: (player: VjsPlayer) => boolean;
 }
 
-/** 舞台播放区的入口：给播放区里的 `<video>` 挂播放器，返回拆掉它的函数。
+/** The stage play area's entry: attach a player to the `<video>` in the play area and return the teardown function.
  *
- *  氛围光画布与统计角标在挂载之前插进媒体框：Video.js 一包，`video` 的父级就换成它自己的那层了。
- *  - 作品（`item`）：片源由 `mountDetailPlayer` 按来源解析，海报是本地图，这一次挂载第一次开播时
- *    记一次播放，离开位置与真实观看由 `wireTelemetry` 随播放写回侧栏。
- *  - 关注（`follow`）：片源是 `/follow-stream`，清晰度与字节数（`/follow-qualities`）跟默认片源并行
- *    解析——它要回源抓详情、再 HEAD 一次正片，不能挡住播放器挂载。
- *  - 沉浸模式的一格（`immerse`）：裸 Video.js、这一格自己的流会话，见 `immerse-player.ts`。
- *  返回的清理在舞台卸下这块媒体区时调：换一份媒体只拆这一个播放器；被小窗接走的只摘读数。 */
+ *  The ambient light canvas and stats badge are inserted into the media frame before mounting: once Video.js wraps it, the
+ *  `video`'s parent becomes its own layer.
+ *  - Video (`item`): the stream source is resolved per source by `mountDetailPlayer`, the poster is a local image, this mount
+ *    records one play on first playback, and leave position and real watching are written back to the sidebar via
+ *    `wireTelemetry` as playback proceeds.
+ *  - Follow (`follow`): the stream source is `/follow-stream`, with quality and byte size (`/follow-qualities`) resolved in
+ *    parallel with the default source; it must re-origin-fetch the details and then HEAD the actual file, so it must not block
+ *    the player mount.
+ *  - An immersive slide (`immerse`): bare Video.js with the slide's own stream session, see `immerse-player.ts`.
+ *  The returned cleanup runs when the stage unmounts this media area: switching media tears down only this one player; one
+ *  taken over by the mini player only has its telemetry removed. */
 export function mountPlayer(video: HTMLVideoElement, options: MountPlayerOptions | ImmersePlayerOptions): () => void {
   if (options.kind === 'immerse') return mountImmersePlayer(video, options);
   const { kind, item, media = null, handedOff, onPlayer } = options;
@@ -375,7 +382,7 @@ export function mountPlayer(video: HTMLVideoElement, options: MountPlayerOptions
   };
   void mountDetailPlayer(item, video, guidePreview ? false : options.autoplay ?? host.settings().detailAutoplay, detail).then((mounted) => {
     player = mounted;
-    // 挂载还没回来媒体区就换了：这一个一出来就拆掉。
+    // The media area changed before the mount came back: this one is torn down the moment it appears.
     if (released) { release(); return }
     trackedVideo = mounted?.el().querySelector('video') ?? video;
     if (guidePreview) {

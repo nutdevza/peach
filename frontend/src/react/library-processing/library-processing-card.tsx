@@ -1,11 +1,12 @@
-/* 数据管理页上的「扫描与采集」卡片。
+/* The "Scan and collect" card on the data management page.
  *
- * 卡片里讲的是那颗按钮此刻在做什么（进度或等待点）；结果和故障讲的是这一趟任务的下场，
- * 挂在卡片外面，和链接管理、资源同步那两块同一个写法。
+ * The card describes what that button is doing right now (progress or waiting dots); results and failures describe the run's
+ * outcome and hang outside the card, written the same way as the link management and resource sync blocks.
  *
- * 写操作是 `useMutation`：服务端回的就是这一趟的新快照，用 `setQueryData` 换进缓存，
- * 再让这个键立刻重读一次接上轮询的节律。首屏读到的旧终态不冒充新结果——任务关掉页面
- * 照样在跑，状态里常年躺着上一趟的回执，判据在 `use-library-processing.ts`。 */
+ * Writes are `useMutation`: the server returns this run's new snapshot, swapped into cache with `setQueryData`, then this key
+ * rereads once immediately to join the polling rhythm. An old terminal state read on first screen does not masquerade as a
+ * new result: jobs keep running after the page closes, and the state lies around holding the last run's receipt; criteria in
+ * `use-library-processing.ts`. */
 import { useEffect, useState } from 'react';
 import { RiArrowRightLine } from '@remixicon/react';
 import { useMutation } from '@tanstack/react-query';
@@ -45,7 +46,7 @@ import { SourceMark } from '../settings/section';
 import { useLibraryTints, type LibraryTint } from '../components/library-tint';
 import { useOrderedLibraries } from '../components/library-order';
 
-const ALL_LIBRARIES = { id: '', name: '所有媒体库', icon: 'database' };
+const ALL_LIBRARIES = { id: '', name: 'All libraries', icon: 'database' };
 
 function LibraryLabel({ library }: { library: Pick<LibraryTint, 'id' | 'name' | 'icon'> }) {
   return <span className="flex min-w-0 items-center gap-2">
@@ -56,31 +57,31 @@ function LibraryLabel({ library }: { library: Pick<LibraryTint, 'id' | 'name' | 
   </span>;
 }
 
-/* 中文正文写成常量：JSX 里换行的文字会在接缝处多出一个空格，中文句子里看得见。
-   卡片正文与首屏骨架共用 `SCAN_CARD_TEXT`（`management.ts`）。 */
-const STALLED_TEXT = '这一项耗时较长，暂时没有新进展。任务结束后可以重试未完成的部分。';
-/* 补齐女优资料是落库之后的一步，一趟里常常什么都不用补，那时这句话不出现：
-   四个读数全是 0 还写一句「别名 0 个」，读的人分不清是没得补还是这一步没跑。 */
+/* Body text is kept in constants: text wrapped across JSX lines picks up an extra space at the seam, which shows in Chinese sentences.
+   The card body and the first-screen skeleton share `SCAN_CARD_TEXT` (`management.ts`). */
+const STALLED_TEXT = 'This one takes a while and has no fresh progress yet. After the task ends you can retry the unfinished parts.';
+/* Filling in performer profiles is a step after database entry, and a run often has nothing to fill; in that case this line does not appear:
+   with all four readouts at 0, a line like "0 aliases" leaves readers unable to tell whether there was nothing to fill or the step never ran. */
 const profileText = (state: LibraryProcessingData) => {
   const aliases = state.performer_aliases || 0;
   const avatars = state.performer_avatars || 0;
   const conflicts = state.performer_profile_conflicts || 0;
   const failed = state.performer_profile_failed || 0;
   if (!aliases && !avatars && !conflicts && !failed) return '';
-  const parts = [`补齐女优资料：别名 ${aliases} 个，头像 ${avatars} 张`];
-  if (conflicts) parts.push(`${conflicts} 项同名人物资料需要确认是否为同一人`);
-  if (failed) parts.push(`${failed} 张头像未取得`);
-  return `${parts.join('，')}。`;
+  const parts = [`Fill in performer profiles: ${aliases} aliases, ${avatars} avatars`];
+  if (conflicts) parts.push(`${conflicts} profiles share a name and need confirmation they are the same person`);
+  if (failed) parts.push(`${failed} avatars could not be fetched`);
+  return `${parts.join(', ')}.`;
 };
 
 const receiptText = (state: LibraryProcessingData) =>
-  state.requested_stage === 'previews' ? `已生成 ${state.previews || 0} 部视频预览。`
-  : `已扫描 ${state.scanned || 0} 个文件，识别 ${state.identified || 0} 个番号，`
-  + `取得 ${state.candidates || 0} 组作品资料，自动保存 ${state.auto_applied || 0} 条。`
-  + (state.previews ? `已生成 ${state.previews} 部视频预览。` : '')
+  state.requested_stage === 'previews' ? `Generated ${state.previews || 0} video previews.`
+  : `Scanned ${state.scanned || 0} files, identified ${state.identified || 0} codes, `
+  + `Fetched ${state.candidates || 0} sets of video details, auto-saved ${state.auto_applied || 0}.`
+  + (state.previews ? `Generated previews for ${state.previews} videos.` : '')
   + profileText(state);
 
-/** 卡片外面那一块：这一趟怎么了。逐条明细要展开才读，完整清单在状态给出的日志文件里。 */
+/** The block outside the card: what happened in this run. Per-item details load on expand; the full list is in the log file the status names. */
 function Outcome(
   { state, problem, settled, onRetry, toast }:
   {
@@ -91,20 +92,20 @@ function Outcome(
   const details = issueDetails(state);
   const exporter = useAction();
   const archive = useAction();
-  /* 「已归档」那句只给刚点了归档的人看，带着撤销；刷新后服务端只剩 `archived`，整块都不再出现。 */
+  /* The 'Archived' line is shown only to someone who just tapped archive, with an undo; after refresh the server only has archived, so the whole block no longer appears. */
   const [archivedHere, setArchivedHere] = useState('');
   const active = processingActive(state);
   const retryable = state.status === 'failed' && !!state.retryable_asset_ids?.length;
   const notes = notesLine(state.notes || {});
   const failed = !!problem || (!state.archived && state.status === 'failed');
   const partial = !problem && !state.archived && processingHasPartialResult(state);
-  /* 这一趟的问题收在同一块里：结论、「7 天内不再问」、清单、日志。分成几块同色的提示，
-     读的人分不清哪句跟着哪个按钮。 */
+  /* This run's question is kept in one block: the conclusion, "Don't ask again for 7 days", the list, and the log. Splitting it into several same-colored hints makes
+     it unclear to the reader which line goes with which button. */
   const issues = failed || (!state.archived && !active && (!!notes || !!state.issue_count));
   const archivable = !active && !!state.job_id && !state.archived;
   const log = state.issues_log || '';
   const slow = slowItem(state);
-  /* 清单是这一页唯一自己滚的块，原生滚动条在这儿就是一条系统灰柱子。 */
+  /* The manifest is the only self-scrolling block on this page, so its native scrollbar is just a plain system-gray column. */
   const list = useOverlayScrollbar<HTMLUListElement>();
   const setArchived = (archived: boolean) => void archive.run(archived ? 'archive' : 'unarchive',
     signal => apiSend<LibraryProcessingData>(LIBRARY_PROCESSING_URL,
@@ -116,43 +117,43 @@ function Outcome(
   const exportButton = state.issue_count && !active
     ? <Button variant="secondary" size="small" {...busyProps(!!exporter.busy)} onClick={() => void exporter.run('export',
         signal => exportProcessingIssues(state, signal), contents => {
-          downloadIssueList(state.job_id!, contents); toast('已导出问题清单');
-        })}>导出完整问题清单</Button>
+          downloadIssueList(state.job_id!, contents); toast('Issue list exported');
+        })}>Export the full issue list</Button>
     : null;
   const body = failed
-    ? [problem || state.error || '处理未完成，请重试', partial ? PARTIAL_RESULT_TEXT : '', notes].filter(Boolean).join('\n')
-    : notes || `这一趟有 ${(state.issue_count || 0).toLocaleString()} 项问题。`;
+    ? [problem || state.error || 'Processing not completed, please retry', partial ? PARTIAL_RESULT_TEXT : '', notes].filter(Boolean).join('\n')
+    : notes || `This trip has ${(state.issue_count || 0).toLocaleString()} issues.`;
   return (
-    /* 空着时整块收起：`aria-live` 的容器留着一条空轨道，卡片底下就凭空多出一个间距。 */
+    /* Collapse the whole block when empty: the `aria-live` container would otherwise leave an empty track and add a phantom gap under the card. */
     <div aria-live="polite" className="flex flex-col gap-4 empty:hidden">
       {slow
         ? <SlowItemNote state={state} slow={slow} />
         : state.status === 'running' && state.stalled
-        ? <Note tone="warning" title="处理较慢">{STALLED_TEXT}</Note>
+        ? <Note tone="warning" title="'Processing slowly'">{STALLED_TEXT}</Note>
         : null}
       {settled?.status === 'complete'
-        ? <Note tone="success" title="处理完成">{receiptText(settled)}</Note>
+        ? <Note tone="success" title="Processing finished">{receiptText(settled)}</Note>
         : null}
-      {/* 取消不止是眼前点的那一下：命令行、任务中心取消的、重开页面才读到的，都留这一句。 */}
-      {(settled ?? state).status === 'cancelled' && !state.archived ? <Note tone="neutral" title="已取消上次任务">
-        已取得的资料和预览已保留，这一轮不会自动继续，需要时重新同步。
+      {/* Cancellation isn't just the click right in front of you: those from the command line, the task center, and ones only read after reopening the page all leave this one line. */}
+      {(settled ?? state).status === 'cancelled' && !state.archived ? <Note tone="neutral" title="Previous task cancelled">
+        The retrieved resources and previews are preserved; this round will not continue automatically; re-sync when needed.
       </Note> : null}
       {issues
         ? <Note tone={!failed ? 'neutral' : partial ? 'warning' : 'error'} className="gap-0 p-3"
-            title={!failed ? undefined : partial ? '处理已结束，部分项目需处理' : '处理未完成'}
+            title={!failed ? undefined : partial ? 'Processing ended, some items still need work' : 'Processing unfinished'}
             action={<div className="flex flex-wrap items-center gap-2">
-              {partial ? <LinkButton href={ALL_CONTENT_URL} size="small" trailingIcon={RiArrowRightLine}>查看全部内容</LinkButton> : null}
-              {retryable ? <Button variant="secondary" size="small" aria-label="立即重试未完成项" onClick={onRetry}>立即重试</Button> : null}
-              {archivable ? <Button variant="secondary" size="small" aria-label="归档提示" {...busyProps(!!archive.busy)}
-                onClick={() => setArchived(true)}>归档</Button> : null}
+              {partial ? <LinkButton href={ALL_CONTENT_URL} size="small" trailingIcon={RiArrowRightLine}>View all content</LinkButton> : null}
+              {retryable ? <Button variant="secondary" size="small" aria-label="Retry unfinished items now" onClick={onRetry}>Retry now</Button> : null}
+              {archivable ? <Button variant="secondary" size="small" aria-label="Archive notice" {...busyProps(!!archive.busy)}
+                onClick={() => setArchived(true)}>Archive</Button> : null}
             </div>}
             extra={<>
-              {/* 三层东西叠在同一块提示里：一句结论、一份清单、一条日志地址。各自之间
-                  横一条自己颜色的发丝线，读的人才看得出哪一段结束了——只靠间距的话，
-                  几十条同样长短的明细会连成一片。 */}
+              {/* Three layers stacked in the same notice block: a concluding line, a list, and a log address. Between each of them
+                  runs a hairline in its own color, so the reader can tell where a section ends — on spacing alone,
+                  dozens of detail lines of similar length would blur into one. */}
               {details ? <div className="-mx-3 mt-3 border-t border-current/20 px-3 pt-3">
                   <Disclosure summary={details.label} contentClassName="gap-0">
-                    {/* 轨道是滚动容器的兄弟，得有一层只裹着清单的定位祖先给它落脚。 */}
+                    {/* The track is a sibling of the scroll container, so it needs a positioned ancestor wrapping only the manifest to anchor to. */}
                     <div className="relative -mr-3">
                       <ul ref={list} className="max-h-96 overflow-y-auto">
                         {details.items.map((item) => (
@@ -165,9 +166,9 @@ function Outcome(
                     </div>
                   </Disclosure>
                 </div> : null}
-              {/* 日志地址与分隔线使用次级文字色；导出读的是同一份记录，排在打开位置旁边。 */}
+              {/* The log address and divider use the secondary text color; export reads the same record and is placed next to “open location”. */}
               {log ? <div className="-mx-3 mt-3 border-t border-current/20 px-3 pt-3 text-text-secondary">
-                  <PathLine path={log} prefix="完整记录：" className="text-caption-1-regular"
+                  <PathLine path={log} prefix="Full log:" className="text-caption-1-regular"
                     action={exportButton} onRevealed={toast} />
                 </div>
               : exportButton ? <div className="-mx-3 mt-3 flex justify-end border-t border-current/20 px-3 pt-3">{exportButton}</div>
@@ -178,8 +179,8 @@ function Outcome(
         : null}
       {state.archived && archivedHere === state.job_id && !problem
         ? <Note tone="neutral" action={<Button variant="secondary" size="small" {...busyProps(!!archive.busy)}
-              onClick={() => setArchived(false)}>撤销</Button>}>
-            已归档上一趟的问题提示，完整记录仍保留。
+              onClick={() => setArchived(false)}>Undo</Button>}>
+            Archived the previous run's issue prompt; the full record is still kept.
           </Note>
         : null}
       {exporter.error || archive.error ? <Note tone="warning">{exporter.error || archive.error}</Note> : null}
@@ -193,7 +194,7 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
   const tints = useLibraryTints({ names: true });
   const libraries = useOrderedLibraries([...tints.values()].filter(library => library.name), library => library.id);
   const selectedLibrary = libraryId
-    ? tints.get(libraryId) || { id: libraryId, name: '媒体库已不存在', icon: 'database' }
+    ? tints.get(libraryId) || { id: libraryId, name: 'The library no longer exists', icon: 'database' }
     : ALL_LIBRARIES;
   const { job, settled, forget } = useLibraryProcessingJob(props);
   const start = useMutation({
@@ -201,12 +202,12 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
       apiSend<LibraryProcessingData>(LIBRARY_PROCESSING_URL, command),
     onSuccess: (next) => {
       forget();
-      // 回的就是这一趟的新快照，换进缓存即可；节律由这个键说了算，让它立刻重读一次接上。
+      // The response is this round's fresh snapshot, just swap it into the cache; the cadence belongs to this key, so have it refetch once immediately to catch up.
       queryClient.setQueryData(LIBRARY_PROCESSING_KEY, next);
       void queryClient.invalidateQueries({ queryKey: LIBRARY_PROCESSING_KEY });
     },
   });
-  // 这一趟跑完了就让遗留层重画数据管理页那几个计数：复核与候选的读数跟着它变。
+  // When this run finishes, have the legacy layer repaint the data management page counters: the review and candidate readings change with it.
   useEffect(() => { if (settled) onComplete?.() }, [settled, onComplete]);
 
   const state = job.data ?? { status: 'idle' };
@@ -233,14 +234,14 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Fieldset layout="stack" label="扫描与采集" footer={
+      <Fieldset layout="stack" label="Scan and scrape" footer={
         <>
-          <LinkButton href="/sources" size="small" trailingIcon={RiArrowRightLine}>来源和凭证</LinkButton>
-          <LinkButton href="/settings/diagnostics" size="small" trailingIcon={RiArrowRightLine}>诊断与日志</LinkButton>
+          <LinkButton href="/sources" size="small" trailingIcon={RiArrowRightLine}>Sources and credentials</LinkButton>
+          <LinkButton href="/settings/diagnostics" size="small" trailingIcon={RiArrowRightLine}>Diagnostics and logs</LinkButton>
           {state.candidates
-            ? <LinkButton href="/review" size="small" trailingIcon={RiArrowRightLine}>复核资料</LinkButton>
+            ? <LinkButton href="/review" size="small" trailingIcon={RiArrowRightLine}>Review details</LinkButton>
             : null}
-          {/* 日常同步保留独立入口，原任务的定向重试只处理该任务的失败项。 */}
+          {/* Daily sync keeps its own entry; the original task's targeted retry handles only that task's failed items. */}
           <ProcessingActions scan libraryId={libraryId} libraryName={libraryId ? selectedLibrary.name : undefined} busy={start.isPending} occupied={processingActive(state)} metadataOnly={state?.metadata_only}
             speedMode={state.speed_mode} pendingCount={state.new_asset_count} onRun={run} onOccupied={() => toast(busyText(state))} />
         </>
@@ -248,14 +249,14 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <FieldsetTitle>扫描与采集</FieldsetTitle>
+              <FieldsetTitle>Scan and collect</FieldsetTitle>
               {state.new_asset_count ? <Chip variant="caption" color="blue">
-                <span className="tabular-nums">{libraryId ? '所有媒体库 · ' : ''}{state.new_asset_count.toLocaleString()} 部待补全</span>
+                <span className="tabular-nums">{libraryId ? 'All libraries · ' : ''}{state.new_asset_count.toLocaleString()} videos to complete</span>
               </Chip> : null}
             </div>
             {hidden && (processingActive(state) || state.status === 'failed' || job.isError)
               ? <Button variant="secondary" size="small" onClick={() => setProcessingNoticeVisible(noticeKey, true)}>
-                  显示进度浮窗
+                  Show progress window
                 </Button> : null}
           </div>
           <p className="text-body-2-regular text-text-secondary">{SCAN_CARD_TEXT}</p>
@@ -264,17 +265,16 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
             <Select aria-labelledby="processingLibraryLabel" selectedKey={libraryId || 'all'} isDisabled={start.isPending || !libraries.length}
               renderValue={<LibraryLabel library={selectedLibrary} />}
               onSelectionChange={key => { if (key !== null) setLibraryId(key === 'all' ? '' : String(key)) }}>
-              <SelectItem id="all" textValue="所有媒体库"><LibraryLabel library={ALL_LIBRARIES} /></SelectItem>
+              <SelectItem id="all" textValue="All libraries"><LibraryLabel library={ALL_LIBRARIES} /></SelectItem>
               {libraries.map(library => <SelectItem id={library.id} key={library.id} textValue={library.name}>
                 <LibraryLabel library={library} />
               </SelectItem>)}
             </Select>
           </div>
-          {processingActive(state) && state.library_name ? <p className="text-body-2-regular text-text-secondary">
-            当前任务媒体库：{state.library_name}
+          {processingActive(state) && state.library_name ? <p className="text-body-2-regular text-text-secondary">Current task library:{state.library_name}
           </p> : null}
           {state.status === 'paused' && !state.total
-            ? <span className="self-start"><StatusLabel>已暂停</StatusLabel></span>
+            ? <span className="self-start"><StatusLabel>Paused</StatusLabel></span>
             : processingActive(state)
             ? <ProcessingProgress state={state} />
             : null}

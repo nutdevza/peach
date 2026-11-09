@@ -5,7 +5,7 @@ import { entityDisplayName } from '../../core/entity-names';
 import { useEntityNames } from '../use-entity-names';
 import type { Discovery } from './jav';
 
-/** 发现人物使用馆藏的共演头像几何与悬停动作。 */
+/** Discovering people reuses the library's co-star avatar geometry and hover behavior. */
 export function DiscoveryFaces({ item }: { item: Discovery }) {
   useEntityNames();
   const people: NonNullable<Discovery['performer_refs']> = item.performer_refs?.length ? item.performer_refs
@@ -16,7 +16,7 @@ export function DiscoveryFaces({ item }: { item: Discovery }) {
       ? { children: <SourceAvatar code={item.code} person={person} /> }
       : { dangerouslySetInnerHTML: { __html: avatarInner(person.name, person, null) } };
     return person.id
-      ? <a key={person.name} data-media-avatar="" style={style} href={entityPath('performer', person.name, person.id)} aria-label={`打开女优页：${entityDisplayName('performer', person.name, person.id)}`} {...face} />
+      ? <a key={person.name} data-media-avatar="" style={style} href={entityPath('performer', person.name, person.id)} aria-label={`Open performer page: ${entityDisplayName('performer', person.name, person.id)}`} {...face} />
       : <span key={person.name} data-media-avatar="" style={style} title={entityDisplayName('performer', person.name)} {...face} />;
   });
   return people.length > 1 ? <div data-media-avatars="" style={{ '--media-avatar-count': Math.min(5, people.length) } as CSSProperties}>{faces}</div> : faces[0] || null;

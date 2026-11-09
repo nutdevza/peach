@@ -1,10 +1,10 @@
-/* 用访问密码登录过的浏览器，逐台撤销。
+/* Browsers that have logged in with the access password, revoked one at a time.
  *
- * 列表单独取：服务端要拿这次请求的 cookie 认出哪一行是本机。撤销与改密码同一条边界，
- * 只在运行 Peach 的电脑上做，别处打开只能看。行照 BoardUI `SettingsRow` 的版式，多一个行首终端图标，
- * 标签里浏览器名前是浏览器标志（`BrowserIcon`），系统词前是品牌原色的平台标志（Remix Icon）；
- * `SettingsRow` 的标签只收文字、BoardUI 源码只加不改，所以这一行在这里自己画。本机标记是 `Chip`，
- * 撤销键是 BoardUI `Button`，确认走 `confirmModal()`。 */
+ * The list is fetched separately: the server needs this request's cookie to recognize which row is the local machine. Revoking shares the same boundary as changing the password,
+ * done only on the computer running Peach; opening elsewhere is view-only. Rows follow the BoardUI `SettingsRow` layout, with one extra terminal icon at the row start;
+ * in the label, before the browser name is the browser mark (`BrowserIcon`), before the system term is the brand-color platform mark (Remix Icon);
+ * `SettingsRow`'s label only takes text and BoardUI source is add-only, so this row is drawn here on its own. The local-machine marker is a `Chip`,
+ * the revoke key is a BoardUI `Button`, and confirmation goes through `confirmModal()`. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -29,16 +29,16 @@ export interface DeviceSession {
 }
 export interface DeviceSessionList { revision: string; sessions: DeviceSession[]; manageable: boolean }
 
-const deviceName = (row: DeviceSession) => row.device || '未识别的浏览器';
+const deviceName = (row: DeviceSession) => row.device || 'Unrecognized browser';
 
 type Glyph = typeof RiComputerLine;
-/* 平台标志与旁边的浏览器标志一样用品牌原色（色值在 device-sessions.css）；Apple 官方标志是单色，用正文色实心；
- * ChromeOS 直接用 Chrome 的彩色标志。行首终端图标是界面字形，保持灰色。 */
+/* Platform badges use brand colors, like the adjacent browser badges (values in device-sessions.css); the official Apple badge is monochrome, so use the solid text color;
+ * ChromeOS uses Chrome's colored badge directly. The device icon at the start of the row is an interface glyph, kept gray. */
 const apple = { glyph: RiAppleFill, brand: 'apple' };
 const android = { glyph: RiAndroidFill, brand: 'android' };
 type Platform = { glyph: Glyph; brand: string } | { browser: string };
 
-/** 服务端 `device_name()` 写出的系统词 → 平台标志与终端形态。没有 Linux 通用标志，只给终端图标。 */
+/** The OS token written by the server's `device_name()` → platform badge and device form. No generic Linux badge; only a device icon. */
 const SYSTEMS: Record<string, { platform?: Platform; terminal: Glyph }> = {
   iPhone: { platform: apple, terminal: RiSmartphoneLine },
   iPad: { platform: apple, terminal: RiTabletLine },
@@ -58,7 +58,7 @@ function PlatformMark({ platform }: { platform: Platform }) {
   return <Glyph aria-hidden data-platform-mark={brand} className={MARK} />;
 }
 
-/** 设备名是「浏览器 · 系统」：浏览器名前放浏览器标志，系统词前放平台标志；认不出的词照原文、不配图。 */
+/** The device name is 'Browser · System': a browser mark before the browser name, a platform mark before the system word; unrecognized words stay as-is, no icon. */
 function DeviceLabel({ row }: { row: DeviceSession }) {
   if (!row.device) return deviceName(row);
   const parts = row.device.split(' · ');
@@ -79,7 +79,7 @@ function TerminalIcon({ row }: { row: DeviceSession }) {
   return <Terminal aria-hidden className="size-5 shrink-0 text-foreground-icon-secondary" />;
 }
 
-/** 与 BoardUI `SettingsRow` 同一套行距、分隔线与字级，左侧多一个终端图标，标签可带标志。 */
+/** Same line spacing, dividers, and text scale as BoardUI's SettingsRow, plus a terminal icon on the left; labels can carry marks. */
 function DeviceRow({ row, children }: { row: DeviceSession; children?: ReactNode }) {
   return (
     <div className="flex min-h-13 w-full items-center justify-between gap-4 border-b border-separator-border py-2.5 pr-2.5 last:border-b-0">
@@ -95,34 +95,34 @@ function DeviceRow({ row, children }: { row: DeviceSession; children?: ReactNode
   );
 }
 
-/** 最近活动按分钟落盘，所以一分钟以内都写「刚刚」。 */
+/** Last activity is stored in minutes, so anything under a minute shows “Just now”. */
 export function lastSeen(seconds: number, now = Date.now() / 1000): string {
   const elapsed = Math.max(0, now - seconds);
-  if (elapsed < 60) return '刚刚';
-  if (elapsed < 3600) return `${Math.floor(elapsed / 60)} 分钟前`;
-  if (elapsed < 86400) return `${Math.floor(elapsed / 3600)} 小时前`;
-  if (elapsed < 86400 * 30) return `${Math.floor(elapsed / 86400)} 天前`;
+  if (elapsed < 60) return 'Just now';
+  if (elapsed < 3600) return `${Math.floor(elapsed / 60)} minutes ago`;
+  if (elapsed < 86400) return `${Math.floor(elapsed / 3600)} hours ago`;
+  if (elapsed < 86400 * 30) return `${Math.floor(elapsed / 86400)} days ago`;
   return new Date(seconds * 1000).toLocaleDateString('zh-CN');
 }
 
 function origin(row: DeviceSession): string {
-  if (row.network === 'loopback') return '运行 Peach 的电脑';
+  if (row.network === 'loopback') return 'The computer running Peach';
   if (!row.network) return '';
-  return row.remote ? `公网入口 · ${row.network}` : row.network;
+  return row.remote ? `Public entry · ${row.network}` : row.network;
 }
 
-const describe = (row: DeviceSession) => [`最近活动 ${lastSeen(row.last_seen)}`, origin(row)].filter(Boolean).join(' · ');
+const describe = (row: DeviceSession) => [`Last active ${lastSeen(row.last_seen)}`, origin(row)].filter(Boolean).join(' · ');
 
-/** 访问密码改了（`revision` 变了）就重新取：旧行已经全部作废。 */
+/** Refetch when the access password changed (`revision` changed): the old rows are all invalidated. */
 export function DeviceSessions({ revision, receipt }: { revision: string; receipt(message: string): void }) {
   const query = useQuery({
     queryKey: ['access-sessions', revision], refetchOnMount: 'always',
     queryFn: ({ signal }) => apiGet<DeviceSessionList>(URL, signal),
   });
   if (query.error) {
-    return <Section title="已登录的设备"><Stack><ErrorText>{errorMessage(query.error)}</ErrorText></Stack></Section>;
+    return <Section title="Signed-in devices"><Stack><ErrorText>{errorMessage(query.error)}</ErrorText></Stack></Section>;
   }
-  if (query.isFetching || !query.data) return <SectionSkeleton label="正在读取已登录的设备" html={devicesSkeleton} />;
+  if (query.isFetching || !query.data) return <SectionSkeleton label="Reading signed-in devices" html={devicesSkeleton} />;
   return <DeviceList initial={query.data} receipt={receipt} />;
 }
 
@@ -135,47 +135,47 @@ function DeviceList({ initial, receipt }: { initial: DeviceSessionList; receipt(
   }, [list, others.length]);
 
   const revoke = (row: DeviceSession) => void confirmModal({
-    title: '撤销这台设备的登录',
-    body: `${deviceName(row)}（${describe(row)}）下次打开 Peach 需要重新输入访问密码。`,
-    confirmLabel: '撤销登录',
+    title: 'Sign out this device',
+    body: `${deviceName(row)} (${describe(row)}) will need to re-enter the access password next time Peach is opened.`,
+    confirmLabel: 'Sign out',
     onConfirm: async () => {
       setList(await apiSend<DeviceSessionList>(`${URL}/revoke`, { revision: list.revision, id: row.id }));
-      receipt('已撤销登录');
+      receipt('Signed out');
     },
   });
   const revokeOthers = () => void confirmModal({
-    title: '撤销其他设备的登录',
-    body: `除本机以外的 ${others.length} 台设备下次打开 Peach 需要重新输入访问密码。`,
-    confirmLabel: '撤销登录',
+    title: 'Sign out the other devices',
+    body: `The ${others.length} devices other than this one will need to re-enter the access password next time Peach is opened.`,
+    confirmLabel: 'Sign out',
     onConfirm: async () => {
       const next = await apiSend<DeviceSessionList & { removed: number }>(`${URL}/revoke`, { revision: list.revision, scope: 'others' });
       setList(next);
-      receipt(`已撤销 ${next.removed} 台设备的登录`);
+      receipt(`Signed out ${next.removed} devices`);
     },
   });
 
   return (
-    <Section title="已登录的设备">
+    <Section title="Signed-in devices">
       {list.sessions.length
         ? <Rows>
             {list.sessions.map(row => (
               <DeviceRow key={row.id} row={row}>
                 {row.current
-                  ? <Chip color="blue" variant="caption">本机</Chip>
+                  ? <Chip color="blue" variant="caption">This device</Chip>
                   : list.manageable
-                    ? <Button size="small" variant="secondary" aria-label={`撤销 ${deviceName(row)} 的登录`}
-                        onClick={() => revoke(row)}>撤销</Button>
+                    ? <Button size="small" variant="secondary" aria-label={`Sign out ${deviceName(row)}`}
+                        onClick={() => revoke(row)}>Undo</Button>
                     : null}
               </DeviceRow>
             ))}
           </Rows>
-        : <Stack><Help>还没有浏览器用访问密码登录过。</Help></Stack>}
+        : <Stack><Help>No browser has signed in with the access password yet.</Help></Stack>}
       {!list.manageable && others.length
-        ? <Stack divided><Help>在运行 Peach 的电脑上打开这一页才能撤销。</Help></Stack>
+        ? <Stack divided><Help>You must open this page on the computer running Peach to sign out.</Help></Stack>
         : null}
       {list.manageable && others.length
-        ? <Footer status="修改访问密码会让全部设备退出。">
-            <Button variant="secondary" onClick={revokeOthers}>撤销其他设备</Button>
+        ? <Footer status="Changing the access password signs out every device.">
+            <Button variant="secondary" onClick={revokeOthers}>Sign out other devices</Button>
           </Footer>
         : null}
     </Section>

@@ -1,26 +1,27 @@
-/* 重复文件的数据契约与折算。
+/* Duplicates' data contract and reductions.
  *
- * 判据是「同番号 + 时长相近 + 分卷标记一致」，不是同番号即重复——合集、分卷和混入的广告
- * 都会共用一个 code，只按番号做「保留最大」会删掉内容。服务端已经按这条判完，前端只挑
- * 每组留谁。批量一律走 `dispose` 进回收站，可逆；永久删除仍只能从回收站单独执行。
+ * The criterion is "same code + similar duration + matching volume marker", not same-code-means-duplicate: compilations,
+ * volumes and mixed-in ads share one code, and keeping the largest by code alone would delete content. The server has already
+ * judged by this rule; the frontend only picks who survives per group. Bulk operations always go through `dispose` into trash,
+ * which is reversible; permanent deletion still only happens from trash, one at a time.
  *
- * 数据管理页那张「重复文件」卡片读的是同一份真相的 `total`／`files`／`reclaimable`，
- * 所以它接下面这个 `DUPLICATES_KEY`，不另发一次 `?limit=1`：服务端两种 limit 都要把整张
- * 表扫一遍分完组，省下的只是回程字节，换来的却是两处读数可能对不上。 */
+ * The data management page's duplicates card reads the same truth's `total`/`files`/`reclaimable`, so it subscribes to the
+ * `DUPLICATES_KEY` below instead of sending another `?limit=1`: the server must scan the whole table to group for either
+ * limit, and the saved return bytes buy the risk of two readouts disagreeing. */
 import { apiGet, apiSend } from '../../api';
 import { prefetchMediaSources } from '../media-sources';
 import { queryClient } from '../query';
 import { t } from '../../i18n';
 
-/** 120 组够铺满这一页，再多的由「可回收」排序挤到后面。 */
+/** 120 groups are enough to fill this page; anything more is pushed behind by the 'reclaimable' sort. */
 export const DUPLICATES_URL = '/api/duplicates?limit=120';
-/** 整页与数据管理页那张卡片共用这一个键。 */
+/** The whole page and the data management page's card share this one key. */
 export const DUPLICATES_KEY = ['duplicates'] as const;
-/** 批量改判。单次上限 200，超过的分批发。 */
+/** Batch re-verdicts. 200 per call at most; larger sets go out in batches. */
 export const BATCH_URL = '/api/batch';
 export const BATCH_LIMIT = 200;
 
-/** `/api/duplicates` 里的一个文件。字段与 `web_batch.q_duplicates` 对齐。 */
+/** A file in `/api/duplicates`. Fields align with `web_batch.q_duplicates`. */
 export interface DuplicateFile {
   id: number;
   name: string;
@@ -37,9 +38,9 @@ export interface DuplicateGroup {
   code: string;
   files: DuplicateFile[];
   count: number;
-  /** 每个文件都有 sha1 且完全相同才算确证字节一致。 */
+  /** Confirmed byte identity only when every file has a sha1 and they all match exactly. */
   identical: boolean;
-  /** `same_code_short_copy` 是同番号下一份明显短一截的副本。 */
+  /** `same_code_short_copy` is a copy under the same code that is clearly much shorter. */
   evidence?: string;
   drives: string[];
   cross_drive: boolean;
@@ -63,24 +64,24 @@ export const keepGroup = (ids: readonly number[], keep: boolean) =>
 export const fetchDuplicates = (signal?: AbortSignal) =>
   apiGet<DuplicatesData>(DUPLICATES_URL, signal);
 
-/* 名字之间在哪里断开算一个词：空格、连字符、下划线、点、括号与路径分隔符。 */
+/* What counts as a word boundary in a name: spaces, hyphens, underscores, dots, brackets and path separators. */
 const NAME_BREAK = /[\s\-_.()[\]【】/\\]/;
 
-/** 一组副本共有的开头，退到最后一个断词处：同一部片子的几份常只在中段不同（分辨率、
- *  转载站、序号），整名中段截断正好把唯一的差别切掉。共有段不足 8 个字或只有一份时为空。 */
+/** The common prefix of a set of copies, backed off to the last word boundary: copies of the same video usually differ only mid-name (resolution,
+ *  mirror site, index), and truncating the full name mid-string cuts away the only difference. Empty when the common part is under 8 characters or there is a single copy. */
 export function sharedNamePrefix(names: readonly string[]): string {
   if (names.length < 2) return '';
   let end = 0;
   const first = names[0]!;
   while (end < first.length && names.every((name) => name[end] === first[end])) end += 1;
-  // 共有段一直到某一个名字的结尾时，那个名字整个都是共有段，退一格留出能显示的部分。
+  // When the shared run extends to the end of one of the names, that whole name is the shared part; back off one segment to leave something displayable.
   if (names.some((name) => name.length <= end)) end = Math.max(0, end - 1);
   let cut = end;
   while (cut > 0 && !NAME_BREAK.test(first[cut - 1]!)) cut -= 1;
   return cut >= 8 ? first.slice(0, cut) : '';
 }
 
-/** 组内显示的名字：去掉组里共有的开头，用「…」顶替；组头已经写着番号。 */
+/** The name shown within the group: strip the prefix shared across the group and replace it with '...'; the group header already carries the code. */
 export const distinctName = (name: string, prefix: string) =>
   prefix && name.startsWith(prefix) && name.length > prefix.length ? `…${name.slice(prefix.length)}` : name;
 
@@ -91,35 +92,35 @@ export async function prefetchDuplicates(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({ queryKey: DUPLICATES_KEY, queryFn: () => fetchDuplicates(signal) });
 }
 
-/** 每组保留哪一个的口径。`all` 是一个不留——整组都是广告时才用得上。其余是网盘代号。 */
+/** Which one each group keeps. `all` keeps nothing, only useful when the whole group is ads. The rest are cloud drive codes. */
 export type KeepRule = 'largest' | 'longest' | 'all' | (string & {});
 
-/** 确认弹层里「每组保留……」那半句。 */
+/** The "keep per group..." half sentence in the confirmation popover. */
 export const KEEP_LABELS: Record<string, string> = {
   largest: t('cleanup:duplicates.keepRuleLargest'), longest: t('cleanup:duplicates.keepRuleLongest'),
   '115': t('cleanup:duplicates.keepRule115'), pikpak: t('cleanup:duplicates.keepRulePikpak'), all: t('cleanup:duplicates.keepRuleNone'),
 };
 
-/** 这一批文件里真正出现过的网盘来源。 */
+/** The cloud drive sources that actually appear among this batch of files. */
 export const cloudPreferenceLocations = (
   files: readonly { location: string }[], configured: readonly string[],
 ) => configured.filter((location) => files.some((file) => file.location === location));
 
-/** 「留 115」只在这一组既有 115 又有别处文件时出现：整组都在同一个网盘，留它和留最大
- *  是同一个结果，多一颗键只是多一个要读的选项。 */
+/** "Keep 115" only appears when this group has both 115 and files elsewhere: with the whole group on one cloud drive, keeping it and keeping the largest
+ *  give the same result, and an extra button is just one more option to read. */
 export const mixedCloudPreferences = (
   files: readonly { location: string }[], configured: readonly string[],
 ) => cloudPreferenceLocations(files, configured)
   .filter((location) => files.some((file) => file.location !== location));
 
-/** 批量条上给哪几颗「全部优先」：至少有一组值得这么挑。 */
+/** Which 'prefer all' buttons the batch bar offers: at least one group must be worth picking this way. */
 export const bulkCloudPreferences = (groups: readonly DuplicateGroup[], configured: readonly string[]) =>
   configured.filter((location) => groups.some((group) => mixedCloudPreferences(group.files, [location]).length));
 
-/** 每组只留一个，其余进回收站；返回要回收的 id。
+/** Keep one per group, the rest to trash; return the ids to reclaim.
  *
- *  指名网盘时先在那个来源里挑最大的，那里没有就退回全组里最大的那个：口径写在弹层上
- *  （「115（没有则留最大）」），换个写法就对不上用户刚刚读到的那句话。 */
+ *  For a named cloud drive, first pick the largest within that source, and if it has none fall back to the group's largest: the criteria are written on the popover
+ *  ("115 (otherwise keep the largest)"), and another wording would not match what the user just read. */
 export function duplicateVictims(groups: readonly DuplicateGroup[], keep: KeepRule): number[] {
   const ids: number[] = [];
   for (const group of groups) {
@@ -141,14 +142,14 @@ export function duplicateVictims(groups: readonly DuplicateGroup[], keep: KeepRu
   return ids;
 }
 
-/** 这一批被回收的文件一共多少字节。确认弹层要点名这个数。 */
+/** Total bytes across this batch of reclaimed files. The confirm popover has to name this number. */
 export function victimBytes(groups: readonly DuplicateGroup[], ids: readonly number[]): number {
   const victims = new Set(ids);
   return groups.reduce((total, group) => total + group.files.reduce(
     (sum, file) => sum + (victims.has(file.id) ? file.size || 0 : 0), 0), 0);
 }
 
-/** 批量改判。一次最多 200 条，分批串行发：并发发出去只是让服务端自己排队。 */
+/** Batch re-judgment. At most 200 per pass, sent serially in batches: firing them concurrently just makes the server queue them itself. */
 export async function batchOperate(ids: readonly number[], operation: 'dispose' | 'restore'): Promise<void> {
   for (let offset = 0; offset < ids.length; offset += BATCH_LIMIT) {
     await apiSend(BATCH_URL, { ids: ids.slice(offset, offset + BATCH_LIMIT), operation,
@@ -156,6 +157,6 @@ export async function batchOperate(ids: readonly number[], operation: 'dispose' 
   }
 }
 
-/** 页头说明行与汇总块那一句。 */
+/** The line used by both the header description and the summary block. */
 export const duplicatesLede = (data: DuplicatesData, formatSize: (bytes: number) => string) =>
   t('cleanup:duplicates.lede', { count: data.total, files: data.files, size: formatSize(data.reclaimable) });

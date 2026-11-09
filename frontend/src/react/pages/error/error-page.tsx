@@ -1,7 +1,7 @@
-/* 错误页：浏览器直接打开的地址撞上 HTTP 错误时给人看的那一页。
+/* Error page: what people see when a browser-opened address hits an HTTP error.
  *
- * 服务端只给状态码（`data-status`）与已换成中文的说明（`data-detail`）；标题按状态码取，404 不显示
- * 说明，按钮回首页。标签页标题跟着标题走。 */
+ * The server gives only the status code (`data-status`) and a detail already localized (`data-detail`); the title comes from the status code, 404 shows no
+ * detail, and the button returns home. The tab title follows the heading. */
 import { useEffect } from 'react';
 
 import { ButtonLink } from '@/components/base/buttons/button';
@@ -10,13 +10,13 @@ import { AuthCard } from '../auth-card';
 import type { PageData } from '../page-data';
 
 const TITLES: Readonly<Record<string, string>> = {
-  403: '这里不能打开',
-  404: '四〇四',
-  409: '现在不能这样做',
+  403: 'Cannot open here',
+  404: '404',
+  409: 'Can\'t do that right now',
 };
 
 export function errorTitle(status: string | undefined): string {
-  return TITLES[status ?? ''] ?? '出了点问题';
+  return TITLES[status ?? ''] ?? 'Something went wrong';
 }
 
 export function ErrorPage({ data }: { data: PageData }) {
@@ -26,7 +26,7 @@ export function ErrorPage({ data }: { data: PageData }) {
   }, [title]);
   return (
     <AuthCard title={title} lede={data.status === '404' ? undefined : data.detail}>
-      <ButtonLink href="/" className="self-start">返回首页</ButtonLink>
+      <ButtonLink href="/" className="self-start">Back to home</ButtonLink>
     </AuthCard>
   );
 }

@@ -1,12 +1,15 @@
-/* 作品详情（ADR-0031）：舞台里那一整块——播放区、右侧队列、侧栏与下方的「接着看」。
+/* Video details (ADR-0031): the whole block inside the stage: play area, right-side queue, sidebar and "Continue watching"
+ * below.
  *
- * 舞台（`<dialog id="stage">`）、它的进出场、小窗与 Video.js 都归舞台岛（`../stage/`），关注详情
- * 也在用；这里只画舞台里的内容，播放区的媒体框画好之后经 `actions.mountPlayer` 交给舞台挂播放器。
- * 点身份、标签、地区回列表或资料页，队列里换一条，都经壳：地址与顶栏上下文要换。队列里换条时舞台
- * 原地换内容，浮窗不重开。
+ * The stage (`<dialog id="stage">`), its enter/exit, the mini player and Video.js all belong to the stage island
+ * (`../stage/`), which follow details also use; this module only renders the stage's content, and once the play area's media
+ * frame is rendered it hands the player mount to the stage via `actions.mountPlayer`. Clicking identity, tags or region
+ * returns to the list or profile page, and switching entries in the queue goes through the shell: address and top-bar context
+ * must change. When switching entries in the queue the stage swaps content in place and the popover does not reopen.
  *
- * 写操作（评分、标签、反馈、稍后看、高清目标、偏好、播放列表排序与移出）都在岛里发，成功后
- * 把服务端回的那几个字段换进 `['item', id]`，目录网格缓存里的同一张卡一起换，不重读列表。 */
+ * Write operations (rating, tags, feedback, Watch later, quality targets, preferences, playlist ordering and removal) are
+ * sent from the island; on success the server-returned fields are swapped into `['item', id]`, the same card in the catalog
+ * grid cache swaps along, and the list is not re-read. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { fmtDur, fmtSize, icon, requestErrorMessage } from '@peach/legacy/core';
@@ -50,14 +53,14 @@ import {
   type ItemDetailHelpers, type ItemDetailProps, type MediaGate, type PlaylistPayload,
 } from './item-detail';
 
-/** 字形原样取壳那一份 `icon()`：骨架与遗留详情画的就是它，换成别的字形接管那一拍会跳。 */
+/** The glyph takes the shell's `icon()` output as-is: the skeleton and the legacy details draw exactly that, and switching to a different glyph makes the handover jump. */
 const Glyph = ({ name }: { name: string }) => (
   <span className="contents" dangerouslySetInnerHTML={{ __html: icon(name) }} />
 );
 const Html = ({ html }: { html: string }) => <span className="contents" dangerouslySetInnerHTML={{ __html: html }} />;
 
-/** 文件大小：没记下或记成 0 的写「大小未知」，同卡片上那一格。 */
-const sizeText = (size: unknown) => (Number(size) > 0 ? fmtSize(Number(size)) : '大小未知');
+/** File size: when not recorded or recorded as 0, write "Size unknown", same as the card's cell. */
+const sizeText = (size: unknown) => (Number(size) > 0 ? fmtSize(Number(size)) : 'Unknown size');
 
 export function ItemDetailPage(props: ItemDetailProps) {
   const { queue: ref, actions } = props;
@@ -91,9 +94,9 @@ export function ItemDetailPage(props: ItemDetailProps) {
   return <Detail key={result.data.id} {...props} item={withPartLabel(result.data, queue)} queue={queue} />;
 }
 
-/** 关闭键。`id` 留着：Escape、点浮窗外面与壳的兜底都按 `#closeStage` 找它再点一下。 */
+/** The close key. Its `id` stays: Escape, clicking outside the overlay, and the shell's fallback all find it by `#closeStage` and click it once more. */
 const CloseStage = ({ onClose }: { onClose(): void }) => (
-  <button type="button" data-stage-close="" id="closeStage" title="关闭" aria-label="关闭" onClick={onClose}
+  <button type="button" data-stage-close="" id="closeStage" title="Close" aria-label="Close" onClick={onClose}
     dangerouslySetInnerHTML={{ __html: icon('x') }} />
 );
 
@@ -101,10 +104,10 @@ function Detail(props: ItemDetailProps & { item: DetailItem; queue: DetailQueue 
   const { item, queue, actions, helpers } = props;
   const write = useDetailWrite(item, actions, helpers.tagLabel);
 
-  /* 画出来的是哪一条只报一次：写完换进来的是同一条的新对象，不能因此重推地址、重画顶栏。 */
+  /* Which item got painted is reported once: what is swapped in after the write is a new object of the same item, which must not re-push the address or repaint the top bar. */
   const presented = useRef(item);
   useLayoutEffect(() => { actions.present(presented.current, queue) }, [actions]);
-  /* 播放列表记下续播位置：每打开一条报一次，失败不打扰（下次打开照旧从记下的那一条开始）。 */
+  /* The playlist records the resume position: reported once per opened item, failures stay quiet (the next open still starts from the recorded item). */
   useEffect(() => {
     if (queue?.kind !== 'playlist') return;
     apiSend(PLAYLIST_URL, { action: 'progress', id: queue.playlistId, asset_id: item.id }).catch(() => {});
@@ -131,16 +134,16 @@ function Detail(props: ItemDetailProps & { item: DetailItem; queue: DetailQueue 
   );
 }
 
-/* ── 播放区 ── */
+/* ── Playback area ── */
 
 function MediaFrame({ item, gate, helpers, actions, autoplay, onEnded }: {
   item: DetailItem; gate: MediaGate; helpers: ItemDetailHelpers; actions: ItemDetailActions;
   autoplay?: boolean; onEnded(): void;
 }) {
-  /* 计费来源先挡一层说明，点了才拉流；没挂载与在线拦截的那两种不挂播放器。 */
+  /* Metered sources put an explanation in front and only pull the stream on click; the unmounted and online-blocked kinds get no player. */
   const [started, setStarted] = useState<'auto' | 'clicked' | ''>(gate ? '' : 'auto');
-  /* 播放器挂在这块框里，`<video>` 由舞台建：Video.js 会把它包进自己的 div，从小窗展开回来时
-     整个实例还要搬进来，那一截 DOM 不归 React。 */
+  /* The player attaches inside this frame and the stage builds the `<video>`: Video.js wraps it in its own div, and expanding back from the mini player moves the whole
+     instance back in; that stretch of DOM does not belong to React. */
   const frameRef = useRef<HTMLDivElement>(null);
   const [image, setImage] = useState(-2);
   const refreshSamples = useRef(false);
@@ -153,9 +156,9 @@ function MediaFrame({ item, gate, helpers, actions, autoplay, onEnded }: {
     enabled: !!item.is_jav && !!item.code && !item.sample_images?.length });
   const samples = item.sample_images?.length ? item.sample_images.map(sample => ({ index: sample.n, source: false }))
     : Array.from({ length: Math.min(30, Math.max(0, source.data?.preview_count || 0)) }, (_, index) => ({ index: index + 1, source: true }));
-  const media = item.is_jav && item.code ? [...(item.has_cover ? [{ index: -1, label: '封面' }] : []),
-    ...samples.map((sample, index) => ({ ...sample, label: `预览 ${index + 1}` })),
-    { index: -2, label: '正片', video: true }] : [];
+  const media = item.is_jav && item.code ? [...(item.has_cover ? [{ index: -1, label: 'Cover' }] : []),
+    ...samples.map((sample, index) => ({ ...sample, label: `Preview ${index + 1}` })),
+    { index: -2, label: 'Feature', video: true }] : [];
   const hasPictures = media.length > 1;
   const selectImage = (index: number) => {
     if (index !== -2) frameRef.current?.querySelector('video')?.pause();
@@ -181,7 +184,7 @@ function MediaFrame({ item, gate, helpers, actions, autoplay, onEnded }: {
       <div data-player-toolbar="">
         <span data-player-stats-slot="" />
         {hasPictures ? <button type="button" data-jav-preview-toggle="" aria-pressed={image !== -2}
-          onClick={() => selectImage(image === -2 ? media[0]!.index : -2)}><Glyph name={image === -2 ? 'image' : 'play'} />{image === -2 ? '查看图片' : '播放正片'}</button>
+          onClick={() => selectImage(image === -2 ? media[0]!.index : -2)}><Glyph name={image === -2 ? 'image' : 'play'} />{image === -2 ? 'View images' : 'Play the feature'}</button>
           : null}
         <span data-player-net-slot="" />
       </div>
@@ -192,27 +195,27 @@ function MediaFrame({ item, gate, helpers, actions, autoplay, onEnded }: {
             source={samples.find(sample => sample.index === (entry.index === -2 ? media[0]!.index : entry.index))?.source} thumbnail />} />
       </> : null}
       {image !== -2 && item.is_jav && item.code && !item.sample_images?.length && (source.isPending || source.error || source.data?.state === 'partial') ?
-        <div data-item-samples-state="">{source.isPending ? <span data-skeleton="samples" role="status" aria-label="正在读取样图" className="relative block h-12 w-20 skeleton-sheen" />
+        <div data-item-samples-state="">{source.isPending ? <span data-skeleton="samples" role="status" aria-label="Loading sample images" className="relative block h-12 w-20 skeleton-sheen" />
           : <Button variant="secondary" {...busyProps(source.isFetching)} title={source.data?.message || requestErrorMessage(source.error)}
-            aria-label="立即重试样图" onClick={() => { refreshSamples.current = true; void source.refetch() }}>立即重试</Button>}</div> : null}
+            aria-label="Retry sample images now" onClick={() => { refreshSamples.current = true; void source.refetch() }}>Retry now</Button>}</div> : null}
       {gate === 'offline' ? <OfflineGate item={item} badge={badge} helpers={helpers} actions={actions} />
         : gate === 'disc' ? (
           <div role="status" data-item-gate="disc">
-            <b>ISO 原盘</b>
-            <span>请使用支持原盘的外部播放器打开。</span>
-            <ExternalPlayback key={item.id} id={item.id} onOpened={() => actions.toast('已请求打开本地播放器')} />
+            <b>ISO full disc</b>
+            <span>Open with an external player that supports full discs.</span>
+            <ExternalPlayback key={item.id} id={item.id} onOpened={() => actions.toast('Requested to open the local player')} />
           </div>
         ) : gate === 'online' ? (
           <div id="onlineGate" role="status" data-item-gate="online">
             <Html html={badge} />
-            <b>在线作品</b>
-            <span>这条没有对应的关注条目，媒体地址无从解析。</span>
-            <button className="chip" id="openSavedFollow" type="button" onClick={actions.openSavedFollow}>打开已保存关注</button>
+            <b>Online videos</b>
+            <span>This entry has no matching follow entry, so the media address cannot resolve.</span>
+            <button className="chip" id="openSavedFollow" type="button" onClick={actions.openSavedFollow}>Open saved follows</button>
           </div>
         ) : gate === 'metered' && !started ? (
           <div id="gate" data-item-gate="metered" onClick={() => setStarted('clicked')}>
             <Html html={badge} />
-            <span>点此开始拉流 · {sizeText(item.size)}</span>
+            <span>Click to start streaming · {sizeText(item.size)}</span>
           </div>
         ) : null}
     </div>
@@ -234,16 +237,16 @@ function OfflineGate({ item, badge, helpers, actions }: {
   return (
     <div id="offlineGate" role="status" data-item-gate="offline">
       <Html html={badge} />
-      <b>媒体目录无法访问</b>
+      <b>The media folder is unreachable</b>
       <span>{helpers.offlineReason(String(item.root_id || item.location || ''))}</span>
       <button className="chip" id="offlineRetry" type="button" disabled={checking} onClick={() => void retry()}>
-        {still ? '仍无法读取 · 刷新' : '刷新状态'}
+        {still ? 'Still unreadable · refresh' : 'Refresh state'}
       </button>
     </div>
   );
 }
 
-/* ── 队列 ── */
+/* ── Queue ── */
 
 function Queue({ queue, itemId, helpers, actions }: {
   queue: DetailQueue; itemId: number; helpers: ItemDetailHelpers; actions: ItemDetailActions;
@@ -257,8 +260,8 @@ function Queue({ queue, itemId, helpers, actions }: {
     list.current = node;
     if (!node) return;
     helpers.wireDrag(node);
-    /* 顺序直接拖：一列十几条，靠上移下移把最后一条挪到第二位要按十几次，而每一次都是一趟写库
-       加一次重绘。拖动中的行态由 `wireDragReorder` 挂在行上，行是按 id 复用的，重排之后监听还在。 */
+    /* Order by direct drag: a dozen-odd rows, and moving the last one to second place by up/down keys takes a dozen-plus presses, each one a database write
+       plus a repaint. The dragging row state hangs on the row via `wireDragReorder`, rows are reused by id, and listeners survive reordering. */
     if (queue.kind === 'playlist') {
       helpers.wireDragReorder(node, {
         selector: '[data-queue-row]', attribute: 'data-queue-row',
@@ -268,10 +271,10 @@ function Queue({ queue, itemId, helpers, actions }: {
   }, [helpers, queue.kind]);
   const saveMix = useSaveMix(queue, actions);
   const head = queue.kind === 'mix'
-    ? <button type="button" data-save-mix="" title="保存为播放列表" aria-label="保存为播放列表" onClick={saveMix}
+    ? <button type="button" data-save-mix="" title="Save as playlist" aria-label="Save as playlist" onClick={saveMix}
       dangerouslySetInnerHTML={{ __html: icon('playlist') }} />
     : queue.kind === 'playlist'
-      ? <button type="button" data-edit-playlist="" title="编辑播放列表" aria-label="编辑播放列表" onClick={actions.editPlaylist}
+      ? <button type="button" data-edit-playlist="" title="Edit playlist" aria-label="Edit playlist" onClick={actions.editPlaylist}
         dangerouslySetInnerHTML={{ __html: icon('playlist') }} />
       : null;
   const ref = { kind: queue.kind, seedId: queue.seedId, playlistId: queue.playlistId };
@@ -280,11 +283,11 @@ function Queue({ queue, itemId, helpers, actions }: {
       {queue.items.map((row) => {
         const edition = queue.kind === 'editions' && row.edition_label
           ? <i className={`javedition ${EDITION_TONE[row.edition_label] || 'censored'}`} data-queue-edition="">{row.edition_label}</i> : null;
-        // 已消失的条目照旧列在播放列表里、能移出，但文件不在盘上，这一行不能点开去播放。
+        // Vanished entries still appear in the playlist and can be removed, but the file is gone from disk, so this row cannot be opened for playback.
         const gone = queue.kind === 'playlist' && isVanished(row);
         return (
           <MixQueueRow key={row.id} current={row.id === itemId} data-queue-item={row.id} row={{ 'data-queue-row': row.id }}
-            disabled={gone} title={gone ? '文件已不在盘上，不能播放' : undefined}
+            disabled={gone} title={gone ? 'The file is no longer on disk and cannot play' : undefined}
             {...(gone ? { 'data-queue-vanished': '' } : {})}
             onClick={() => { if (!gone) actions.openQueueItem(ref, row.id) }}
             pic={<><Html html={queueThumbHtml(row, helpers.javImage())} /><i className="mono" data-mix-item-duration="">{fmtDur(row.duration)}</i></>}
@@ -292,12 +295,12 @@ function Queue({ queue, itemId, helpers, actions }: {
             after={queue.kind === 'playlist' ? (
               <span data-queue-edit="">
                 <i data-queue-grip="" aria-hidden="true"><Glyph name="grip-vertical" /></i>
-                <button type="button" data-queue-remove={row.id} title="移出播放列表" aria-label="移出播放列表"
+                <button type="button" data-queue-remove={row.id} title="Remove from playlist" aria-label="Remove from playlist"
                   onClick={() => reorder.remove(row.id)}><Glyph name="x" /></button>
               </span>
             ) : null}>
             <span data-queue-head="">{edition}<b data-middle-truncate="">{helpers.displayName(row)}</b></span>
-            <span data-truncate-end="">{gone ? '已消失 · 文件已不在盘上'
+            <span data-truncate-end="">{gone ? 'Vanished · file no longer on disk'
               : queue.kind === 'parts' || (queue.kind === 'editions' && row.part_label)
                 ? partLabel(row.part_label) : mixLabel(row, helpers.tagLabel)}</span>
           </MixQueueRow>
@@ -307,7 +310,7 @@ function Queue({ queue, itemId, helpers, actions }: {
   );
 }
 
-/** 保存 Mix：壳弹表单（舞台是原生模态，弹层要进同一层），确认时由这里写库。 */
+/** Saving a Mix: the shell raises the form (the stage is a native modal, so the popover must join that layer), and this writes the database on confirm. */
 function useSaveMix(queue: DetailQueue, actions: ItemDetailActions) {
   const save = useMutation({
     mutationFn: (name: string) => apiSend<{ playlist: PlaylistPayload }>(PLAYLIST_URL, {
@@ -317,9 +320,9 @@ function useSaveMix(queue: DetailQueue, actions: ItemDetailActions) {
   return () => actions.saveMix({ title: queue.title, count: queue.items.length, save: (name) => save.mutateAsync(name) });
 }
 
-/** 播放列表的排序与移出。两者写完都把服务端回的整份列表换进队列缓存，行原地重排，不重挂舞台；
- *  移出的正是这一条时才经壳换到下一条，列表被移空就回列表页。撤销拿的是动作之前那一份完整顺序，
- *  所以一次拖动无论跨多少行都只需按一次撤销。 */
+/** Playlist sorting and removal. After either write, the server-returned full list is swapped into the queue cache, rows reorder in place, and the stage does not remount;
+ *  only when the removed one is the current entry does it switch to the next via the shell, and if the list empties, return to the list page. Undo takes the full order from before the action,
+ *  so one drag across any number of rows needs only one undo. */
 function usePlaylistReorder(queue: DetailQueue, itemId: number, actions: ItemDetailActions) {
   const key = queueKey({ kind: 'playlist', playlistId: queue.playlistId });
   const apply = (playlist: PlaylistPayload) => {
@@ -331,7 +334,7 @@ function usePlaylistReorder(queue: DetailQueue, itemId: number, actions: ItemDet
   const reorder = useMutation({
     mutationFn: (ids: number[]) => write({ action: 'reorder', asset_ids: ids }),
     onSuccess: (playlist, _ids) => { apply(playlist) },
-    onError: (error) => actions.failure('调整播放顺序', error),
+    onError: (error) => actions.failure('Reorder playback', error),
   });
   const ids = queue.items.map((row) => row.id);
   return {
@@ -341,17 +344,17 @@ function usePlaylistReorder(queue: DetailQueue, itemId: number, actions: ItemDet
       if (sameOrder(next, ids)) return;
       const before = ids;
       await reorder.mutateAsync(next);
-      actions.toast('已调整播放顺序', { undo: async () => { apply(await write({ action: 'reorder', asset_ids: before })) } });
+      actions.toast('Playback order adjusted', { undo: async () => { apply(await write({ action: 'reorder', asset_ids: before })) } });
     },
     remove: (assetId: number) => {
       const before = ids;
       void confirmModal({
-        title: '移出播放列表', body: '这个视频将从播放列表移除，视频文件保留。', confirmLabel: '移出播放列表',
+        title: 'Remove from playlist', body: 'This video will be removed from the playlist; the video file is kept.', confirmLabel: 'Remove from playlist',
         onConfirm: async () => {
           const playlist = await write({ action: 'remove', asset_id: assetId });
-          /* 撤销要把它放回它那一位：`add` 只会补在末尾，所以补完再按移出之前那份顺序排一次。
-             列表被这一下清空时它已经不在页面上，撤销后带回列表页而不是空队列。 */
-          actions.toast('已移出播放列表', {
+          /* Undo puts it back in its slot: `add` only appends, so after appending, re-sort by the order from before the removal.
+             When the removal emptied the list it is no longer on screen, so undo returns to the list page instead of an empty queue. */
+          actions.toast('Removed from playlist', {
             undo: async () => {
               await write({ action: 'add', asset_ids: [assetId] });
               const restored = apply(await write({ action: 'reorder', asset_ids: before }));
@@ -371,7 +374,7 @@ function usePlaylistReorder(queue: DetailQueue, itemId: number, actions: ItemDet
   };
 }
 
-/* ── 侧栏 ── */
+/* ── Sidebar ── */
 
 function Side({ item, queue, write, helpers, actions }: {
   item: DetailItem; queue: DetailQueue | null; write: DetailWrite; helpers: ItemDetailHelpers; actions: ItemDetailActions;
@@ -394,52 +397,54 @@ function Side({ item, queue, write, helpers, actions }: {
           {item.release_date ? <span data-spec-item=""><Glyph name="calendar" /><span>{item.release_date}</span></span> : null}
           {item.region_label ? (
             <button type="button" data-spec-item="" data-open-region={item.region || ''}
-              title="打开同产地的作品"
+              title="Open works from the same origin"
               onClick={() => actions.openRegion(item.region || '')}>
-              <Glyph name="globe" /><span>{item.region_label}{item.region_settled ? '' : '（推断）'}</span>
+              <Glyph name="globe" /><span>{item.region_label}{item.region_settled ? '' : ' (inferred)'}</span>
             </button>
           ) : null}
         </div>
         {(item.medium || 'video') === 'video' && !online && !String(item.name || '').toLowerCase().endsWith('.iso')
-          ? <ExternalPlayback key={item.id} id={item.id} onOpened={() => actions.toast('已请求打开本地播放器')} /> : null}
+          ? <ExternalPlayback key={item.id} id={item.id} onOpened={() => actions.toast('Requested to open the local player')} /> : null}
         <Identity item={item} helpers={helpers} actions={actions} />
         <Tags item={item} write={write} helpers={helpers} actions={actions} />
         <LibraryCompletionPrompt assetIds={missingPreviewIds([item], helpers.javImage())}
           onComplete={() => { void queryClient.invalidateQueries({ queryKey: itemKey(item.id) }) }} />
         <Trace item={item} />
         <div data-stage-actions="" data-item-feedback="">
-          <button type="button" id="likeBtn" data-fb="like" aria-label={item.liked ? '取消喜欢' : '喜欢'} title="喜欢 · 记录口味偏好"
+          <button type="button" id="likeBtn" data-fb="like" aria-label={item.liked ? 'Unfavorite' : 'Like'} title="Favorite · record taste preference"
             aria-pressed={!!item.liked} {...busy('like')} onClick={() => write.preference({ liked: !item.liked })}><Glyph name="thumbs-up" /></button>
-          <button type="button" id="preferenceToggle" data-fb="reason" aria-label="喜爱理由" title="喜爱理由" aria-expanded={reasonOpen}
+          <button type="button" id="preferenceToggle" data-fb="reason" aria-label="Favorite reason" title="Favorite reason" aria-expanded={reasonOpen}
             aria-controls="preferencePanel" data-has-reason={String(!!item.like_reason)}
             onClick={() => setReasonOpen((open) => !open)}><Glyph name="notebook-pen" /></button>
-          <button type="button" data-stage-action="dislike" data-kind="dislike" aria-label="不合口味" title="不合口味 · 降低推荐权重"
+          <button type="button" data-stage-action="dislike" data-kind="dislike" aria-label="Not my taste" title="Not your taste · lowers recommendation weight"
             aria-pressed={item.feedback === 'dislike'} {...busy('dislike')} onClick={() => write.feedback('dislike')}><Glyph name="thumbs-down" /></button>
-          <button type="button" data-stage-action="seen" data-kind="seen" aria-label="看过了" title="看过了 · 只降低近期推荐"
+          <button type="button" data-stage-action="seen" data-kind="seen" aria-label="Watched" title="Watched · lowers recent recommendations only"
             aria-pressed={item.feedback === 'seen'} {...busy('seen')} onClick={() => write.feedback('seen')}><Glyph name="eye" /></button>
-          <button type="button" data-stage-action="later" id="stageLater" aria-label="稍后看" title="稍后看 · 加入或移出队列"
+          <button type="button" data-stage-action="later" id="stageLater" aria-label="Watch later" title="Watch later · add to or remove from the queue"
             aria-pressed={!!item.watch_later} {...busy('later')} onClick={write.later}><Glyph name={item.watch_later ? 'check' : 'bookmark-plus'} /></button>
-          <button type="button" id="addPlaylist" data-fb="playlist" aria-label="加入播放列表" title="加入播放列表"
+          <button type="button" id="addPlaylist" data-fb="playlist" aria-label="Add to playlist" title="Add to playlist"
             onClick={() => actions.addToPlaylist(item)}><Glyph name="playlist" /></button>
-          <button type="button" id="betterVersion" data-fb="quality" aria-label="寻找更好版本"
-            title={item.better_version ? (item.better_version_reason || '已标记寻找更好版本') : '寻找高清、无水印或完整版'}
+          <button type="button" id="betterVersion" data-fb="quality" aria-label="Find a better edition"
+            title={item.better_version ? (item.better_version_reason || 'Marked to find a better edition') : 'Find HD, watermark free or full versions'}
             aria-pressed={!!item.better_version} {...busy('quality')} onClick={write.quality}><Glyph name="sparkles" /></button>
-          <button type="button" data-kind="dispose" data-fb="dispose" aria-label="移入回收站" title="移入回收站 · 文件仍保留，可从回收站永久清除"
+          <button type="button" data-kind="dispose" data-fb="dispose" aria-label="Move to trash" title="Move to trash · Files stay and can be permanently cleared from trash"
             aria-pressed={item.disposal === 'trash'} {...busy('dispose')} onClick={() => write.feedback('dispose')}><Glyph name="trash" /></button>
         </div>
         <Preference item={item} open={reasonOpen} write={write} />
         <button type="button" data-kind="o" {...busy('o')} onClick={() => write.feedback('o')}>
-          <Glyph name="sperm" /><span>记一次高潮</span><b className="mono" id="oCount">{item.o_count || 0}</b>
+          <Glyph name="sperm" /><span>Log a climax</span><b className="mono" id="oCount">{item.o_count || 0}</b>
         </button>
       </div>
     </div>
   );
 }
 
-/* 标题默认折成两行，真溢出才给展开键：折叠态下 scrollHeight 比 clientHeight 高，就是有行被裁掉了。
-   展开与收起换字形——往下多看一截是 chevron-down，收回去是 chevron-up。展开键排在那排键最前面，
-   紧挨着它管的标题。标题文字本身也接这一下：人想看全文时手本来就落在字上。选中文字那一下不算，
-   那是在复制标题。溢出不只在打开那一刻判：影院模式和普通视图之间切换时标题栏宽度差一大截。 */
+/* Titles fold to two lines by default and get an expand key only on real overflow: in the folded state, scrollHeight higher
+   than clientHeight means a line is being clipped.
+   Expand and collapse swap glyphs: chevron-down for reading further, chevron-up for taking it back. The expand key leads the
+   row of keys, right beside the title it manages. The title text itself also takes the click: when someone wants the full
+   text, their hand is already on the words. Selecting text does not count; that is copying the title. Overflow is not judged
+   only at open: the title bar's width differs greatly between theater mode and normal view. */
 function DetailTitle({ item, queue, helpers, actions, onStatus }: {
   item: DetailItem; queue: DetailQueue | null; helpers: ItemDetailHelpers; actions: ItemDetailActions;
   onStatus(text: string): void;
@@ -455,11 +460,11 @@ function DetailTitle({ item, queue, helpers, actions, onStatus }: {
           dangerouslySetInnerHTML={{ __html: html }} />
         <span data-title-tools="">
           <button type="button" data-title-fold="" hidden={!foldable} aria-expanded={expanded}
-            aria-label={expanded ? '收起标题' : '展开标题'} title={expanded ? '收起标题' : '展开完整标题'} onClick={toggle}>
+            aria-label={expanded ? 'Collapse title' : 'Expand title'} title={expanded ? 'Collapse title' : 'Show the full title'} onClick={toggle}>
             <CollapseChevron />
           </button>
-          {/* 取景框存的是坐标不是图片：存完重取这一条，封面地址没变，变的是接口给的 `poster_box`。
-              背后网格里同一番号的卡不重取，就地换上新框，关掉详情看到的就是框过的样子。 */}
+          {/* The crop box stores coordinates, not an image: after saving, refetch this entry; the cover URL is unchanged, what changes is the `poster_box` the API returns.
+              Cards for the same code in the grid behind are not refetched; they take the new box in place, so closing the details shows the cropped look. */}
           {item.has_cover && (item.cover_key || item.code) ? (
             <span data-cover-crop-host="">
               <CoverCrop code={item.cover_key || item.code || ''} coverUrl={coverUrl(item)} box={item.poster_box || null}
@@ -476,7 +481,7 @@ function DetailTitle({ item, queue, helpers, actions, onStatus }: {
   );
 }
 
-/** 定位源文件与核对目录。对账删掉的可能就是这一条，删了就没什么可停留的，直接退回列表。 */
+/** Locate the source file and verify the catalog. Reconciliation may have removed exactly this item; with it gone there is nothing to stay on, so return straight to the list. */
 function SourceTools({ id, actions, onStatus }: { id: number; actions: ItemDetailActions; onStatus(text: string): void }) {
   const [busy, setBusy] = useState('');
   const reveal = async () => {
@@ -489,7 +494,7 @@ function SourceTools({ id, actions, onStatus }: { id: number; actions: ItemDetai
   const sync = async () => {
     if (busy) return;
     setBusy('sync');
-    onStatus('正在核对目录…');
+    onStatus('Verifying folders…');
     const result = await actions.sync(id);
     onStatus(result.text);
     setBusy('');
@@ -497,10 +502,10 @@ function SourceTools({ id, actions, onStatus }: { id: number; actions: ItemDetai
   };
   return (
     <>
-      <button type="button" data-reveal={id} title="在文件管理器里打开源文件所在目录" aria-label="定位源文件"
+      <button type="button" data-reveal={id} title="Open the source file's folder in the file manager" aria-label="Locate source file"
         {...(busy === 'reveal' ? { 'aria-busy': true, 'aria-disabled': true } : {})} onClick={() => void reveal()}
-        dangerouslySetInnerHTML={{ __html: busy === 'reveal' ? spinnerHtml('正在定位') : icon('folder-open') }} />
-      <button type="button" data-sync={id} title="核对该目录：磁盘上已删除的移入 Peach 回收站，带个人记录的标为已消失" aria-label="同步删除"
+        dangerouslySetInnerHTML={{ __html: busy === 'reveal' ? spinnerHtml('Locating') : icon('folder-open') }} />
+      <button type="button" data-sync={id} title="Reconcile this directory: items deleted on disk move to Peach trash, and those with personal records are marked vanished" aria-label="Delete on sync too"
         {...(busy === 'sync' ? { 'aria-busy': true, 'aria-disabled': true } : {})} onClick={() => void sync()}>
         <Glyph name="folder-sync" />
       </button>
@@ -508,11 +513,11 @@ function SourceTools({ id, actions, onStatus }: { id: number; actions: ItemDetai
   );
 }
 
-/* 五颗星站在标题和那行规格之间：评分是对这一条作品的判断，属于身份的一部分。 */
+/* The five stars sit between the title and the spec line: the rating is a judgment of this specific video and part of its identity. */
 function Rating({ item, write }: { item: DetailItem; write: DetailWrite }) {
   const on = ratingStars(item.rating);
   return (
-    <div id="detailRating" role="group" data-item-rating="" aria-label="评分" data-value={clampRating(item.rating)}>
+    <div id="detailRating" role="group" data-item-rating="" aria-label="Rating" data-value={clampRating(item.rating)}>
       <RatingStars value={on} onRate={star => write.rate(star)}
         busyStar={[1, 2, 3, 4, 5].find(star => write.busy.has(`rate:${star}`))}
         busyAttrs={star => write.busyAttrs(`rate:${star}`)} />
@@ -521,8 +526,8 @@ function Rating({ item, write }: { item: DetailItem; write: DetailWrite }) {
   );
 }
 
-/* 身份按类别分组：标签作为组标题写在上方，同类横向排开。逐行一个名字在共演作品上会把整个侧栏
-   撑满。一个都没有时，「未归属」就是这条作品所属的那一类，和女优、厂牌并列：点进去看得到全部。 */
+/* Identities grouped by category: the tag is the group heading above, same-category names laid out horizontally. One name per row would fill the whole sidebar
+   for co-starred videos. When there are none, "Unattributed" is the category this video belongs to, listed alongside performers and labels: open it to see everything. */
 function Identity({ item, actions }: { item: DetailItem; helpers: ItemDetailHelpers; actions: ItemDetailActions }) {
   const groups = useMemo(() => identityGroups(item), [item]);
   const [castOpen, setCastOpen] = useState(false);
@@ -541,21 +546,21 @@ function Identity({ item, actions }: { item: DetailItem; helpers: ItemDetailHelp
   const primary = [
     groups.unowned ? (
       <section key="unowned" data-id-group="unowned">
-        <h5 data-id-label="">归属</h5>
+        <h5 data-id-label="">Attribution</h5>
         <div data-id-row="">
-          <button type="button" data-id-cell="unowned" data-open-unowned="" title="打开未归属：馆藏里没有署名人的作品"
+          <button type="button" data-id-cell="unowned" data-open-unowned="" title="Open Unattributed: library videos with no credited person"
             onClick={actions.openUnowned}>
-            <span data-id-face=""><Glyph name="user-round" /></span><span data-id-name="">未归属</span>
+            <span data-id-face=""><Glyph name="user-round" /></span><span data-id-name="">Unattributed</span>
           </button>
         </div>
       </section>
     ) : group(performerLabel(item), 'performer', groups.cast, overflow && !castOpen
       ? <Button variant="secondary" size="small" id="castMore" data-cast-more="" trailingIcon={RiArrowDownSLine}
-        aria-expanded={false} onClick={() => setCastOpen(true)}>还有 {overflow} 位</Button> : null),
-    group('厂牌', 'studio', groups.studios),
-    group('片商', 'studio', groups.makers),
-    group('卖家', 'creator', groups.creators.filter(ref => ref.identity_categories?.includes('seller'))),
-    group('创作者', 'creator', groups.creators.filter(ref => !ref.identity_categories?.includes('seller'))),
+        aria-expanded={false} onClick={() => setCastOpen(true)}>and {overflow} people</Button> : null),
+    group('Labels', 'studio', groups.studios),
+    group('Studios', 'studio', groups.makers),
+    group('Sellers', 'creator', groups.creators.filter(ref => ref.identity_categories?.includes('seller'))),
+    group('Creators', 'creator', groups.creators.filter(ref => !ref.identity_categories?.includes('seller'))),
   ].filter(Boolean);
   return (
     <div data-item-identity="">
@@ -565,7 +570,7 @@ function Identity({ item, actions }: { item: DetailItem; helpers: ItemDetailHelp
   );
 }
 
-/* ── 标签 ── */
+/* ── Tags ── */
 
 function Tags({ item, write, helpers, actions }: {
   item: DetailItem; write: DetailWrite; helpers: ItemDetailHelpers; actions: ItemDetailActions;
@@ -577,20 +582,20 @@ function Tags({ item, write, helpers, actions }: {
   </div>;
 }
 
-/* ── 观看轨迹 ──
-   两条读数的 id 留给壳：Video.js 挂上之后，离开位置由 `wireTelemetry` 随播放写，真实观看在每次
-   上报之后回填。这里只画初值，之后不再改它们。 */
+/* -- Watch history --
+   The two readout ids are reserved for the shell: once Video.js attaches, the left-off position is written by `wireTelemetry` during playback, and real watch time is filled back in after each
+   report. This only renders the initial values and never touches them again. */
 function Trace({ item }: { item: DetailItem }) {
   const real = realWatched(item);
   return (
     <div data-item-trace="">
       <div data-trace-metric="">
-        <div data-trace-label=""><span>离开位置</span><span id="ratioTxt">0%</span></div>
+        <div data-trace-label=""><span>Leaving the position</span><span id="ratioTxt">0%</span></div>
         <div data-trace-bar=""><u id="watched" /><b id="mark" /></div>
       </div>
       <div data-trace-metric="">
-        <div data-trace-label=""><span>真实观看</span><span id="realTxt">{real == null ? '0%' : `${real.toFixed(0)}%`}</span></div>
-        {/* oxlint-disable-next-line shadcn/no-inline-styles -- 宽度是这一条看过的比例，之后由壳的遥测随上报改写 */}
+        <div data-trace-label=""><span>Actually watched</span><span id="realTxt">{real == null ? '0%' : `${real.toFixed(0)}%`}</span></div>
+        {/* oxlint-disable-next-line shadcn/no-inline-styles -- the width is this item's watched ratio, later rewritten by shell telemetry on report */}
         <div data-trace-bar=""><u id="realBar" data-trace-real="" style={real == null ? undefined : { width: `${real.toFixed(1)}%` }} /></div>
       </div>
     </div>
@@ -601,26 +606,26 @@ function Preference({ item, open, write }: { item: DetailItem; open: boolean; wr
   const [reason, setReason] = useState(item.like_reason || '');
   const field = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (open) field.current?.focus() }, [open]);
-  /* 服务端回来的理由（保存、撤销）换进输入框；正在打字时本地这一份不被覆盖，因为它只在写完才变。 */
+  /* The reason returned by the server (save, undo) is swapped into the input; while the user is typing, the local copy is not overwritten, because it only changes once the write completes. */
   useEffect(() => { setReason(item.like_reason || '') }, [item.like_reason]);
   const saving = write.busy.has('preference');
   return (
     <div id="preferencePanel" data-item-preference="" hidden={!open}>
-      <textarea ref={field} id="likeReason" maxLength={2000} placeholder="为什么喜欢？" value={reason}
+      <textarea ref={field} id="likeReason" maxLength={2000} placeholder="Why favorite it?" value={reason}
         onChange={(event) => setReason(event.target.value)} />
       <div data-preference-foot="">
         <span id="preferenceState" aria-live="polite">{write.preferenceState}</span>
-        <button type="button" className="geist-button primary" id="savePreference" data-save-preference="" title="提交喜爱理由" aria-label="提交喜爱理由"
+        <button type="button" className="geist-button primary" id="savePreference" data-save-preference="" title="Submit the favorite reason" aria-label="Submit the favorite reason"
           {...write.busyAttrs('preference')} onClick={() => write.preference({ reason })}
-          dangerouslySetInnerHTML={{ __html: saving ? `${spinnerHtml('正在提交喜爱理由')}<span>提交中</span>` : '<span>提交</span>' }} />
+          dangerouslySetInnerHTML={{ __html: saving ? `${spinnerHtml('Submitting favorite reason')}<span>Submitting</span>` : '<span>Submit</span>' }} />
       </div>
     </div>
   );
 }
 
-/* ── 接着看 ──
-   这一排的卡是目录网格的 items 模式：取数在这里，卡只画。空结果与失败留在推荐区，
-   拖动与滚轮都靠壳的 `wireDrag`。 */
+/* -- Continue watching --
+   This row's cards are the catalog grid's items mode: fetching happens here, cards only render. Empty results and failures stay in the recommendations area,
+   and both dragging and the wheel rely on the shell's `wireDrag`. */
 function Related(props: ItemDetailProps & { item: DetailItem }) {
   const { item, relatedLimit, helpers, grid } = props;
   const result = useQuery({
@@ -633,7 +638,7 @@ function Related(props: ItemDetailProps & { item: DetailItem }) {
   const [skeleton] = useState(() => helpers.relatedSkeletonHtml());
   return (
     <RelatedSection wireDrag={helpers.wireDrag} busy={result.isPending} empty={result.data?.length === 0}
-      error={result.isError ? `读取接着看失败：${requestErrorMessage(result.error)}` : undefined}
+      error={result.isError ? `Failed to load Continue watching: ${requestErrorMessage(result.error)}` : undefined}
       onRetry={() => { void result.refetch() }}>
         {result.data ? (
           <CatalogGridPage mode="items" variant="next" items={result.data} helpers={grid.helpers} actions={grid.actions}
@@ -644,10 +649,10 @@ function Related(props: ItemDetailProps & { item: DetailItem }) {
   );
 }
 
-/* ── 写操作 ──
- * 每一枚键各有自己的忙态（`aria-busy` + `aria-disabled`，控件仍可聚焦，重复触发由壳的
- * `wireBusyActions` 拦住）。成功后把服务端回的那几个字段换进 `['item', id]` 与目录缓存里同一张卡；
- * 撤销也是一次真实写回，写完同样换进去。 */
+/* -- Write operations --
+ * Each key has its own busy state (`aria-busy` + `aria-disabled`; the control stays focusable, and repeat triggers are blocked by the shell's
+ * `wireBusyActions`). On success, swap the fields the server returned into `['item', id]` and into the same card in the catalog cache;
+ * undo is also a real write, and after it completes it is swapped in the same way. */
 type DetailWrite = ReturnType<typeof useDetailWrite>;
 type Patch = Partial<DetailItem>;
 
@@ -696,14 +701,14 @@ function useDetailWrite(item: DetailItem, actions: ItemDetailActions, label: (ta
     busy, sourceState, setSourceState, preferenceState,
     busyAttrs: (name: string) => (busy.has(name) ? { 'aria-busy': true, 'aria-disabled': true } as const : {}),
 
-    rate: (star: number) => start(`rate:${star}`, '评分', async () => {
+    rate: (star: number) => start(`rate:${star}`, 'Rating', async () => {
       const before = current().rating || 0;
       const value = nextRating(before, star);
       await sendFeedback('rate', value);
-      actions.toast(value ? `已评 ${ratingStars(value)} 星` : '已取消评分', { undo: async () => { await sendFeedback('rate', before) } });
+      actions.toast(value ? `Rated ${ratingStars(value)} stars` : 'Rating removed', { undo: async () => { await sendFeedback('rate', before) } });
     }),
 
-    feedback: (kind: string) => start(kind, '操作', async () => {
+    feedback: (kind: string) => start(kind, 'Actions', async () => {
       const before = { feedback: current().feedback || null };
       const result = await sendFeedback(kind);
       actions.toast(feedbackReceipt(kind, result), {
@@ -720,55 +725,55 @@ function useDetailWrite(item: DetailItem, actions: ItemDetailActions, label: (ta
       if (kind === 'dispose') await actions.trashChanged(result.disposal || null, false);
     }),
 
-    later: () => start('later', '更新稍后看', async () => {
+    later: () => start('later', 'Update Watch later', async () => {
       const result = await post<{ watch_later: boolean }>(WATCH_LATER_URL, {});
       apply({ watch_later: result.watch_later });
-      actions.toast(result.watch_later ? '已加入稍后看' : '已移出稍后看', {
+      actions.toast(result.watch_later ? 'Added to Watch later' : 'Removed from Watch later', {
         undo: async () => { apply({ watch_later: (await post<{ watch_later: boolean }>(WATCH_LATER_URL, {})).watch_later }) },
       });
     }),
 
-    quality: () => start('quality', '更新版本需求', async () => {
+    quality: () => start('quality', 'Update edition requirements', async () => {
       const before = { wanted: !!current().better_version, reason: current().better_version_reason || '' };
       type Goal = { better_version: boolean; better_version_reason?: string };
       const paint = (goal: Goal) => apply({ better_version: goal.better_version, better_version_reason: goal.better_version_reason || '' });
       const result = await post<Goal>(QUALITY_GOAL_URL, { wanted: !before.wanted });
       paint(result);
-      actions.toast(result.better_version ? '已标记寻找更好版本' : '已取消寻找更好版本', {
+      actions.toast(result.better_version ? 'Marked to find a better edition' : 'Cancelled find-better-edition', {
         undo: async () => { paint(await post<Goal>(QUALITY_GOAL_URL, before)) },
       });
     }),
 
-    /* 喜欢与理由是同一条偏好：点喜欢键只改 `liked`，提交理由时有字就算喜欢。 */
+    /* Like and reason are one preference: tapping the like key only flips `liked`, and submitting a reason with text counts as liked. */
     preference: ({ liked, reason }: { liked?: boolean; reason?: string }) => {
       const name = liked === undefined ? 'preference' : 'like';
-      start(name, '保存喜欢偏好', async () => {
+      start(name, 'Save the favorite preference', async () => {
         const before = { liked: !!current().liked, reason: current().like_reason || '' };
         const text = reason ?? before.reason;
         const wanted = liked ?? (before.liked || text.trim().length > 0);
         type Preference = { liked: boolean; like_reason?: string };
         const paint = (result: Preference) => apply({ liked: result.liked, like_reason: result.like_reason || '' });
-        setPreferenceState('保存中…');
+        setPreferenceState('Saving…');
         try {
           paint(await post<Preference>(PREFERENCE_URL, { liked: wanted, reason: text }));
         } catch (error) {
-          setPreferenceState('保存失败 · 请重试');
+          setPreferenceState('Save failed · retry');
           throw error;
         }
-        setPreferenceState('已保存');
-        setTimeout(() => setPreferenceState((now) => (now === '已保存' ? '' : now)), 1400);
+        setPreferenceState('Saved');
+        setTimeout(() => setPreferenceState((now) => (now === 'Saved' ? '' : now)), 1400);
         const saved = current();
-        actions.toast(saved.liked ? '已保存喜欢偏好' : '已取消喜欢', {
+        actions.toast(saved.liked ? 'Liked preferences saved' : 'Like removed', {
           undo: async () => { paint(await post<Preference>(PREFERENCE_URL, before)) },
         });
       });
     },
 
-    removeTag: (tag: DetailTag) => start(`tag:${tag.k}`, '删除标签', async () => {
+    removeTag: (tag: DetailTag) => start(`tag:${tag.k}`, 'Delete tag', async () => {
       const result = await post<{ ok?: boolean }>(ITEM_TAG_URL, { operation: 'remove', tag: tag.k });
-      if (!result.ok) throw new Error('标签未删除');
+      if (!result.ok) throw new Error('Tag not deleted');
       apply((now) => withoutTag(now, tag.k));
-      actions.toast(`已删除标签「${label(tag.k)}」`, {
+      actions.toast(`Deleted tag "${label(tag.k)}"`, {
         undo: async () => {
           await post(ITEM_TAG_URL, { operation: 'add', tag: tag.k });
           apply((now) => withTag(now, tag));
@@ -779,17 +784,17 @@ function useDetailWrite(item: DetailItem, actions: ItemDetailActions, label: (ta
     addTag: (raw: string) => {
       const tag = raw.trim();
       if (!tag) return;
-      start(`add:${tag}`, '添加标签', async () => {
+      start(`add:${tag}`, 'Add tag', async () => {
         const result = await post<{ ok?: boolean; tag?: string }>(ITEM_TAG_URL, { operation: 'add', tag });
         if (!result.ok) return;
         const canonical = result.tag || tag;
         if (hasTag(current(), canonical)) {
-          actions.toast(`标签「${label(canonical)}」已存在`);
+          actions.toast(`The tag "${label(canonical)}" already exists`);
           return;
         }
         apply((now) => withTag(now, { k: canonical, cat: 'general' }));
         rememberTag(canonical);
-        actions.toast(`已添加标签「${label(canonical)}」`, {
+        actions.toast(`Added the tag "${label(canonical)}"`, {
           undo: async () => {
             await post(ITEM_TAG_URL, { operation: 'remove', tag: canonical });
             apply((now) => withoutTag(now, canonical));

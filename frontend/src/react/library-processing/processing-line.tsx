@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { TaskProgress } from '../components/task-progress';
 import { processingLine, type LibraryProcessingData } from './library-processing';
 
-/** 服务端等待时长作为起点，本地时钟只推进当前显示。 */
+/** The server-reported wait is the starting point; the local clock only advances the current display. */
 function useProcessingLine(state: LibraryProcessingData): string {
   const [clock, setClock] = useState({ snapshot: state, seconds: 0 });
   const waiting = state.waited_seconds;
@@ -23,7 +23,7 @@ export function ProcessingLine({ state }: { state: LibraryProcessingData }) {
   return useProcessingLine(state);
 }
 
-/** 每秒只更新当前进度子树，控件和结果清单沿用接口快照。 */
+/** Only the progress subtree updates each second; controls and the result list keep using the API snapshot. */
 export function ProcessingProgress({ state }: { state: LibraryProcessingData }) {
   const line = useProcessingLine(state);
   return <TaskProgress embedded label={line} value={Math.min(state.checked || 0, state.total || 0)} total={state.total} />;

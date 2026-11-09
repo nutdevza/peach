@@ -64,7 +64,7 @@ function DockSurface({ children, count, label }: Omit<SelectionDockProps, 'visib
   );
 }
 
-/** 持续挂载这个外壳，数量变化只更新内容，清空选择由内部完成退出。 */
+/** This shell stays mounted; count changes only update content, and clearing the selection exits from within. */
 export function SelectionDock({ visible, ...props }: SelectionDockProps) {
   return <AnimatePresence>{visible ? <DockSurface key="selection" {...props} /> : null}</AnimatePresence>;
 }

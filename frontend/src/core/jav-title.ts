@@ -1,12 +1,12 @@
-/* JAV 标题：从 item 计算番号、版本徽章与标题。
- * 纯字符串逻辑，只依赖 core 的 esc 与语言标记，不碰 DOM、不读 state。
- * Application 与 React 页面直接引用本模块，标题规则只有一份。
- * 后缀只对 is_jav 剥离；官方标题优先取含日文的一条，再按字段顺序回落。 */
+/* JAV titles: compute the code, edition badge, and title from the item.
+ * Pure string logic depending only on core's esc and the language flag; touches no DOM and reads no state.
+ * Application and React pages reference this module directly, so title rules exist only once.
+ * The suffix is stripped only for is_jav; the official title prefers the entry containing Japanese, then falls back by field order. */
 
 import { esc } from './index';
 import { langAttr } from './text-lang';
 
-/** 算标题要读的那几个字段。 */
+/** The fields read to compute the title. */
 export interface JavTitleSource {
   name?: string | null;
   code?: string | null;
@@ -45,27 +45,27 @@ export function javTitleParts(it:Item,value=it?.name):{code:string;title:string;
   const prefixLength=upper.startsWith(displayCode)?displayCode.length:code.length;
   const filenameTitle=(hasPrefix?name.slice(prefixLength):name).replace(/^[\s._-]+/,'').trim();
   const officialTitle=javPreferredTitle(it);
-  // API 显式返回空 display_title 也是有意义的“清洁后无标题”，不能再回退到脏文件名。
+  // An API-returned empty display_title is also meaningful "cleaned, no title", and must not fall back to the dirty file name again.
   const cleanFallback=Object.prototype.hasOwnProperty.call(it||{},'display_title')
     ?String(it.display_title||'').trim():filenameTitle;
   const title=officialTitle||cleanFallback;
   const badges=Array.isArray(it?.edition_badges)?it.edition_badges.filter(
-    label=>['中字','无码','无码流出','无码破解'].includes(label)):[];
+    label=>['Chinese subs','Uncensored','无码流出','Uncensored'].includes(label)):[];
   const dimensions=[Number(it?.width)||0,Number(it?.height)||0];
   if(Math.min(...dimensions)>=2160&&Math.max(...dimensions)>=3840)badges.push('4K');
   return {code:displayCode,title,badges};
 }
 
-/** 同一条目的纯文本形态，用于无障碍名称。 */
+/** The plain text form of the same entry, for the accessible name. */
 export const javDisplayName=(it:Item,value=it?.name)=>{
   const {code,title,badges=[]}=javTitleParts(it,value);
   return code?[code,...badges,title].filter(Boolean).join(' '):title;
 };
 
-/** 番号 + 版次徽章 + 标题的 HTML。非 JAV 条目退化成转义后的文件名。 */
+/** HTML of code + edition badge + title. Non-JAV entries degrade to the escaped file name. */
 export function javTitleHtml(it:Item,value=it?.name){
   const {code,title,badges=[]}=javTitleParts(it,value);
   if(!code)return esc(title);
-  const edition=badges.map(label=>`<small class="javedition ${label==='中字'?'subtitle':label==='无码'?'uncensored':label==='无码流出'?'leaked':label==='无码破解'?'cracked':'quality'}">${esc(label)}</small>`).join('');
+  const edition=badges.map(label=>`<small class="javedition ${label==='Chinese subs'?'subtitle':label==='Uncensored'?'uncensored':label==='leaked'?'leaked':label==='decensored'?'cracked':'quality'}">${esc(label)}</small>`).join('');
   return `<span class="ui-javidentity"><strong class="ui-javcode">${esc(code)}</strong>${edition}</span>${title?` <span class="ui-javtitle"${langAttr(title)}>${esc(title)}</span>`:''}`;
 }

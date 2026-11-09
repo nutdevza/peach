@@ -1,7 +1,7 @@
 import { esc } from '@peach/legacy/core';
 import { noteHtml, loadingDotsHtml } from '@peach/legacy/ui';
 
-/** 任务那枚环形进度。口味页与统计页归 React 之后只剩这一个读者，所以留在它身边。 */
+/** The jobs ring progress. After the taste and stats pages moved to React this is the only reader left, so it stays beside it. */
 function jobProgressHtml(label: string, value: number, max: number): string {
   if (!Number.isFinite(max) || max <= 0) return '';
   const done = Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0));
@@ -9,7 +9,7 @@ function jobProgressHtml(label: string, value: number, max: number): string {
   return `<div class="ui-board-job-progress" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${done}"><svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><circle class="ui-board-job-track" cx="18" cy="18" r="15"/><circle class="ui-board-job-fill" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="${percent} ${100 - percent}" transform="rotate(-90 18 18)"/></svg><span>${esc(label)}<small>${Math.round(percent)}%</small></span></div>`;
 }
 
-/** 后台任务查询只重试读状态；启动和写入请求由调用方单次提交。 */
+/** Background task queries retry reads only; start and write requests are submitted once by the caller. */
 export interface JobState {
   status: string;
   job_id?: string;
@@ -22,7 +22,7 @@ export interface JobState {
     max_attempts?: number; retry_in?: number };
 }
 
-/** 正在推进的任务用真实计数；总量未取得时显示状态文字。 */
+/** Tasks in progress use real counts; when the total is unavailable, status text shows instead. */
 export function jobActivityHtml(label: string, value = 0, total = 0): string {
   return total > 0 ? jobProgressHtml(label, value, total) : loadingDotsHtml(label);
 }
@@ -72,10 +72,10 @@ export function followJobProgress(options: {
   title?: string;
   watchIdle?: boolean;
 }): void {
-  const note=options.note || (text=>noteHtml(text,{label:'任务状态',variant:'error'}));
+  const note=options.note || (text=>noteHtml(text,{label:'Task state',variant:'error'}));
   const loading=options.loading || loadingDotsHtml;
-  const progress=options.progress || ((value,max,label)=>jobActivityHtml(label||`已处理 ${value} / ${max}`,value,max));
-  const container=options.container || (content=>`<section class="followtask" data-geist-fieldset aria-label="任务进度"><div class="geist-fieldset-content">${content}</div></section>`);
+  const progress=options.progress || ((value,max,label)=>jobActivityHtml(label||`Processed ${value} / ${max}`,value,max));
+  const container=options.container || (content=>`<section class="followtask" data-geist-fieldset aria-label="Task progress"><div class="geist-fieldset-content">${content}</div></section>`);
   const panel = document.createElement('div');
   options.host.hidden = true;
   panel.dataset.followJob = '';
@@ -97,10 +97,10 @@ export function followJobProgress(options: {
         if (tracked) sessionStorage.setItem(storageKey, tracked);
         const current = state.current;
         const attempt = (current?.attempt || 1) > 1
-          ? ` · 第 ${current?.attempt}/${current?.max_attempts} 次尝试${current?.retry_in ? `，${current.retry_in} 秒后重试` : ''}` : '';
-        const text = (state.message || (options.title ? options.title + (state.total ? `：已完成 ${state.checked || 0}/${state.total}` : '') : '') || (state.total
-          ? `${state.older ? '抓取历史' : '检查更新'}：已完成 ${state.checked || 0}/${state.total} 个来源`
-          : '正在准备检查任务'))
+          ? ` · Attempt ${current?.attempt}/${current?.max_attempts}${current?.retry_in ? `, retrying in ${current.retry_in} sec` : ''}` : '';
+        const text = (state.message || (options.title ? options.title + (state.total ? `: completed ${state.checked || 0}/${state.total}` : '') : '') || (state.total
+          ? `${state.older ? 'Fetch history' : 'Check for updates'}: completed ${state.checked || 0}/${state.total} sources`
+          : 'Preparing the check task'))
           + (current ? ` · ${current.label || current.provider || ''}${attempt}` : '');
         const content = (state.total || 0) > 0
           ? progress(state.checked || 0, state.total!, text) : loading(text);
@@ -110,12 +110,12 @@ export function followJobProgress(options: {
         settled = true;
         options.host.hidden = state.status !== 'failed';
         sessionStorage.removeItem(storageKey);
-        panel.innerHTML = state.status === 'failed' ? note(state.error || '检查失败') : '';
+        panel.innerHTML = state.status === 'failed' ? note(state.error || 'Check failed') : '';
         options.complete(state);
       } else {
         if (tracked && state.status === 'idle') {
           options.host.hidden = false;
-          panel.innerHTML = note('任务状态已失效，请重新发起任务');
+          panel.innerHTML = note('The task state went stale; start the task again');
           sessionStorage.removeItem(storageKey);
           settled = true;
           return;
@@ -125,7 +125,7 @@ export function followJobProgress(options: {
     },
     disconnected: () => {
       options.host.hidden = false;
-      panel.innerHTML = note('暂时无法读取进度，正在重新连接…');
+      panel.innerHTML = note('Progress could not be read for the moment; reconnecting…');
     },
   });
 }

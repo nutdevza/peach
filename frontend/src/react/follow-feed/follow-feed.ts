@@ -1,17 +1,20 @@
-/* 关注页 `/follow`（ADR-0031 第 10g 步）：数据形状、取数键与这一页自己的判定。
+/* The follows page `/follow` (ADR-0031 step 10g): data shapes, query keys and this page's own criteria.
  *
- * 整页一个岛，自己拥有取数：`/api/follow` 与 `/api/follow/credentials` 两趟都在 TanStack Query
- * 里。地址栏是筛选的唯一真相源，归壳写：壳从 URL 读出 `view`（状态、媒体、创作者、来源、题材、
- * 标签、排序、种子）当 props 递进来，岛改筛选只调 `actions.route(view)`，壳写好地址再经
- * `updateManagedRoute` 推回新的 `view`，岛按新键取数。
+ * One island for the whole page, owning its fetching: both trips, `/api/follow` and `/api/follow/credentials`, live in
+ * TanStack Query. The address bar is the single source of truth for filters and the shell owns it: the shell reads `view`
+ * (status, media, creators, sources, tags, tag filter, sort, seed) from the URL and passes it as props; the island changes
+ * filters only by calling `actions.route(view)`, the shell writes the address and pushes the new `view` back via
+ * `updateManagedRoute`, and the island fetches by the new key.
  *
- * 两粒种子分开：`view.seed` 是服务端随机排序那一粒，写在地址里；`seed` 是这一次进入的取样种子，
- * 上面创作者、题材、标签三排露出哪些由它定。重新进入（壳的 `enterFollow`）与「换一批」
- * 才换它，从别的页面回来沿用离开时那一粒，岛重画从不重新洗牌。
+ * The two seeds are separate: `view.seed` is the server's random-order seed and lives in the address; `seed` is this visit's
+ * sampling seed, deciding which creators, tags and tag rows are exposed in the three rows above. Re-entering (the shell's
+ * `enterFollow`) and "Shuffle" change it; returning from another page keeps the seed from when you left, and island re-renders
+ * never reshuffle.
  *
- * 详情（`/posts/:id`）是另一座岛（`../follow-detail/`），先扫这里缓存的几页找条目
- * （`findFollowItem`），扫不到才单独取。侧栏仍归壳画：岛每取到一版列表就经 `actions.loaded`
- * 交回这一视图可见条目的标签计数、全库口径的来源与时长有无。 */
+ * Details (`/posts/:id`) are a separate island (`../follow-detail/`); it first scans the pages cached here for the entry
+ * (`findFollowItem`) and fetches on its own only if the scan misses. The sidebar still belongs to the shell: every time the
+ * island fetches a new list it hands back, via `actions.loaded`, the tag counts of the entries visible in this view plus the
+ * library-wide source and duration availability. */
 import { keepPreviousData, type InfiniteData, type QueryKey } from '@tanstack/react-query';
 import { seededRank } from '@peach/legacy/core';
 
@@ -19,22 +22,22 @@ import { apiGet } from '../../api';
 import { FOLLOW_CREDENTIALS_URL, type CheckResult } from '../follow-manage/follow-manage';
 import { queryClient } from '../query';
 
-/* ── 地址栏那一组 ── */
+/* ── The address bar group ── */
 
-/** 状态那一排。已看那一档不摆：看过就归档，要再翻出来是「全部」的事。 */
-export const FOLLOW_FILTERS = [['', '全部'], ['new', '未看'], ['saved', '已保存'], ['ignored', '已忽略']] as const;
+/** The status row. The watched tier is left out: watched means archived, and digging it back out is the 'All' view's job. */
+export const FOLLOW_FILTERS = [['', 'All'], ['new', 'Unwatched'], ['saved', 'Saved'], ['ignored', 'Ignored']] as const;
 export type FollowStatus = (typeof FOLLOW_FILTERS)[number][0];
 
-/** 排序键与各自方向的说法；「换一批」按下去是 `rand`，没有自己的键。 */
-export const FOLLOW_FEED_SORTS = [['new', '更新时间'], ['hot', '热度'], ['dur', '时长']] as const;
+/** Sort keys and their direction labels; pressing 'shuffle' sends `rand`, which has no key of its own. */
+export const FOLLOW_FEED_SORTS = [['new', 'Updated'], ['hot', 'Popularity'], ['dur', 'Duration']] as const;
 export const FOLLOW_FEED_DIR_WORDS: Record<string, readonly [string, string]> = {
-  new: ['从新到旧', '从旧到新'], hot: ['从高到低', '从低到高'], dur: ['从长到短', '从短到长'],
+  new: ['Newest first', 'Oldest first'], hot: ['Highest first', 'Lowest first'], dur: ['Longest first', 'Shortest first'],
 };
 export const FOLLOW_RANDOM_SORT = 'rand';
 export type FollowSort = (typeof FOLLOW_FEED_SORTS)[number][0] | typeof FOLLOW_RANDOM_SORT;
 export type FollowMedia = 'videos' | 'images';
 
-/** 地址栏上的关注页筛选。创作者、来源、题材各按着一个（空串是不筛），标签是交集。 */
+/** The follows page's filters on the address bar. Creator, source and genre each hold one (empty string means unfiltered), tags intersect. */
 export interface FollowView {
   status: FollowStatus;
   media: FollowMedia;
@@ -42,23 +45,23 @@ export interface FollowView {
   provider: string;
   work: string;
   tags: readonly string[];
-  /** 时长两端（秒），同首页的 `dur_min`／`dur_max`；0 是这一端不限。 */
+  /** Duration bounds in seconds, same as the home page's `dur_min`/`dur_max`; 0 means unbounded on that end. */
   durMin: number;
   durMax: number;
   sort: FollowSort;
   dir: 'asc' | 'desc';
-  /** 服务端随机排序的种子，只在 `sort` 为 `rand` 时进请求。 */
+  /** The server's random-sort seed, sent with the request only when `sort` is `rand`. */
   seed: number;
 }
 
-/** 关注页一次取一屏。`counts` 是全库口径，`groups` 只是这一页，所以列表底部要能继续加载。
- *  一页 100 组：一张卡三四十个节点，一次挂几百张就是首屏一秒多的长任务。 */
+/** The follows page fetches one screen at a time. `counts` is library-wide while `groups` is this page only, so the list bottom must support loading more.
+ *  100 groups per page: each card is 30-40 nodes, and mounting several hundred at once would be a first-paint long task of over a second. */
 export const FOLLOW_PAGE = 100;
-/** 已经摆出这么多组以后，滚到底不再自己接下一页，要点「加载更多」：一直滚下去页面就一直变重，
- *  滚过头的那一下不该悄悄再挂几百张卡。 */
+/** Once this many groups are laid out, scrolling to the bottom no longer auto-appends the next page; "Load more" must be clicked: endless scrolling keeps weighing the page down,
+ *  and one overshoot should not quietly mount several hundred more cards. */
 export const FOLLOW_AUTO_LOAD_LIMIT = 500;
 
-/** 这一页第 `offset` 组起的请求地址，参数拼法同壳里 `followPageUrl`：默认那一档不写进去。 */
+/** The request URL for this page starting at group `offset`, spelled like the shell's `followPageUrl`: the default tier is left out. */
 export function followPageUrl(view: FollowView, offset: number): string {
   const csv = (values: readonly string[]) => encodeURIComponent(values.join(','));
   return `/api/follow?limit=${FOLLOW_PAGE}&offset=${offset}`
@@ -74,9 +77,9 @@ export function followPageUrl(view: FollowView, offset: number): string {
     + (view.dir !== 'desc' ? `&dir=${view.dir}` : '');
 }
 
-/* ── 接口形状（`src/peach/web_follow.py` 的 `q_follow`） ── */
+/* ── API shape (`q_follow` in `src/peach/web_follow.py`) ── */
 
-/** 条目里嵌着的一份媒体：多附件帖的每张图、每段视频。 */
+/** One piece of media embedded in an entry: each image or video of a multi-attachment post. */
 export interface FollowMediaItem {
   index: number;
   media_kind?: string;
@@ -87,7 +90,7 @@ export interface FollowMediaItem {
   resource_group?: unknown;
 }
 
-/** 一条抓回来的更新。只列这一页读到的字段，其余原样留给详情。 */
+/** One fetched update. It lists only the fields this page reads; the rest are left intact for the detail. */
 export interface FollowItem {
   id: number;
   title: string;
@@ -110,7 +113,7 @@ export interface FollowItem {
   [field: string]: unknown;
 }
 
-/** 服务端对一组的叠卡判定（`peach.follow_faces`）：去重后的媒体数、合并了几份与翻卡画面。 */
+/** The server's stacked-cards verdict for a group (`peach.follow_faces`): the deduplicated media count, how many entries merged, and the flip-card view. */
 export interface FollowStackInfo {
   media?: number;
   copies?: number;
@@ -118,18 +121,18 @@ export interface FollowStackInfo {
   faces?: { thumb_url?: string; face?: unknown; media_kind?: string }[];
 }
 
-/** 一张卡：同一作品的主条目、本站的 alt 与 WIP、跨站的另见。 */
+/** One card: the same video's primary entry, this site's alts and WIP, and cross-site see-alsos. */
 export interface FollowGroup {
   primary: FollowItem;
   variants: FollowItem[];
   duplicates: FollowItem[];
   has_wip?: boolean;
-  /** 论坛发布帖：组里每条是一条回复，正文是回复内容而不是线程标题。 */
+  /** A forum post: each item in the group is a reply, and the body is the reply's content, not the thread title. */
   is_release?: boolean;
   stack?: FollowStackInfo | null;
 }
 
-/** 一个关注来源。 */
+/** A follow source. */
 export interface FollowSource {
   id: number;
   provider: string;
@@ -143,7 +146,7 @@ export interface FollowSource {
   [field: string]: unknown;
 }
 
-/** 题材那一排的一行：键、给人看的写法、组数、挑不挑得出代表图、那张图的取景。 */
+/** One row in the genre strip: key, human-readable label, group count, whether a representative image can be picked, and that image's framing. */
 export type FollowWorkRow = readonly [key: string, label: string, n: number, icon?: number, focus?: unknown];
 
 export interface FollowFacets {
@@ -151,11 +154,11 @@ export interface FollowFacets {
   providers?: string[];
   tags?: [string, number][];
   works?: FollowWorkRow[];
-  /** 库里有没有时长读数：侧栏据它出不出时长拉条。 */
+  /** Whether the library has duration readings: the sidebar decides from it whether to show the duration slider. */
   duration?: boolean;
 }
 
-/** 交给壳画侧栏的那一份：可见条目的标签计数、全库口径的来源（键、显示名、站标地址）与时长有无。 */
+/** The copy handed to the shell for the sidebar: tag counts over visible items, library-wide sources (key, display name, favicon address), and whether durations exist. */
 export interface FollowDrawer {
   tags: readonly (readonly [string, number])[];
   providers: readonly (readonly [key: string, label: string, icon: string])[];
@@ -168,7 +171,7 @@ export interface FollowPage {
   sources: FollowSource[];
   author_aliases?: unknown[];
   facets: FollowFacets;
-  /** 正好按一位作者筛时，只数这一位名下的那一份筛选项（资料页在线视图读它）；否则是空的。 */
+  /** When filtering by exactly one author, counts only that author's share of each filter option (read by the profile page's online view); otherwise empty. */
   author_facets?: FollowFacets;
   offset: number;
   limit?: number;
@@ -178,12 +181,12 @@ export interface FollowPage {
 
 export interface FollowCredentials { providers?: { provider: string; present?: boolean }[] }
 
-/* ── 取数键 ── */
+/* ── Fetch keys ── */
 
-/** 同一标签页保留已加载的关注内容，主动刷新仍按新代次取数。 */
+/** The same tab keeps the loaded follow content; a manual refresh still fetches a new generation. */
 export const FOLLOW_FEED_GC_MS = Infinity;
 
-/** 列表的键。媒体切换是纯前端分组，不进键：换视图不重取。`revision` 是壳要求重读的代次。 */
+/** The list's key. Media switching is pure frontend grouping and stays out of the key: switching views does not refetch. `revision` is the epoch of the shell's requested re-read. */
 export function followFeedQuery(view: FollowView, revision: number) {
   const url = followPageUrl(view, 0);
   return {
@@ -191,7 +194,7 @@ export function followFeedQuery(view: FollowView, revision: number) {
     queryFn: ({ pageParam, signal }: { pageParam: number; signal?: AbortSignal }) =>
       apiGet<FollowPage>(followPageUrl(view, pageParam), signal),
     initialPageParam: 0,
-    /* 服务端先整批分组再按组分页，同一作品不会跨页，下一页的组直接接在后面。 */
+    /* The server groups the whole batch first, then pages by group: one video never spans pages, and the next page's groups continue right after. */
     getNextPageParam: (last: FollowPage) => (last.has_more ? (last.offset || 0) + FOLLOW_PAGE : undefined),
     placeholderData: keepPreviousData,
     gcTime: FOLLOW_FEED_GC_MS,
@@ -221,7 +224,7 @@ export async function prefetchFollowFeed(props: { view: FollowView; revision: nu
     });
 }
 
-/** 几页合成一份，形状同壳里 `followData`：组接在后面，其余取最后一页（来源随每页刷新）。 */
+/** Several pages merged into one, shaped like the shell's `followData`: groups are appended, everything else takes the last page (sources refresh with each page). */
 export function mergedPage(data: InfiniteData<FollowPage> | undefined): FollowPage | null {
   if (!data?.pages.length) return null;
   const pages = data.pages;
@@ -229,22 +232,22 @@ export function mergedPage(data: InfiniteData<FollowPage> | undefined): FollowPa
   return { ...pages[0]!, ...last, groups: pages.flatMap((page) => page.groups || []) };
 }
 
-/* ── 取样 ── */
+/* ── Sampling ── */
 
-/** 按种子打散，同秩再按键名排，结果只随种子变。秩取壳那一份 `seededRank`，同一粒种子两边取到同一批。 */
+/** Shuffled by seed, ties ordered by key name, so the result changes only with the seed. Rank comes from the shell's `seededRank`; the same seed yields the same batch on both sides. */
 export function randomOrder<T>(rows: readonly T[], key: (row: T) => string, seed: number): T[] {
   return [...rows].sort((a, b) =>
     seededRank(seed, key(a)) - seededRank(seed, key(b)) || String(key(a)).localeCompare(String(key(b))));
 }
 
-/** 题材那一排露出几个，同首页那排厂牌（壳的 `ROW_FIRST`）。 */
+/** How many the genre strip reveals, same as the home page's label strip (the shell's `ROW_FIRST`). */
 export const FOLLOW_WORKS_FIRST = 24;
-/** 标签露出几个。 */
+/** How many tags are shown. */
 export const FOLLOW_TAGS_FIRST = 20;
 
-/* ── 媒体判定 ── */
+/* ── Media decisions ── */
 
-/** 一组里的全部条目，主条目在前、按 id 去重。 */
+/** All entries in a group, primary entry first, deduplicated by id. */
 export function collectionItems(group: FollowGroup): FollowItem[] {
   const seen = new Set<number>();
   return [group.primary, ...group.variants, ...group.duplicates].filter((item) => {
@@ -254,7 +257,7 @@ export function collectionItems(group: FollowGroup): FollowItem[] {
   });
 }
 
-/** 列表缓存里的一条：条目本身、所在的组与那一版的来源和别名。 */
+/** One entry in the list cache: the item itself, its group, and that edition's sources and aliases. */
 export interface FollowItemHit {
   item: FollowItem;
   group: FollowGroup;
@@ -262,8 +265,8 @@ export interface FollowItemHit {
   aliases: unknown[];
 }
 
-/** 在这座岛已缓存的每一版列表里找一条（详情先扫这里）。来源与别名取那一版最后一页的，同 `mergedPage`。
- *  新取的那一版先找：上一代次的列表还留在缓存里，同一条在那里是标记、保存之前的样子。 */
+/** Find an entry in every cached list version on this island (details scans here first). Source and alias come from that version's last page, same as `mergedPage`.
+ *  The freshly fetched version is searched first: the previous generation's list remains cached, where the same entry is the marked, pre-save state. */
 export function findFollowItem(id: number): FollowItemHit | null {
   const versions = queryClient.getQueryCache().findAll({ queryKey: ['follow-feed'] })
     .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt);
@@ -281,7 +284,7 @@ export function findFollowItem(id: number): FollowItemHit | null {
   return null;
 }
 
-/** 每一版列表缓存里的同一条换成 `next`（详情隐藏或恢复一张图之后，服务端投影给出新的媒体清单）。 */
+/** Replaces the same entry in every cached list version with `next` (after the detail hides or restores an image, the server projection hands back a new media list). */
 export function replaceFollowItem(next: FollowItem): void {
   queryClient.setQueriesData<InfiniteData<FollowPage>>({
     queryKey: ['follow-feed'], predicate: (query) => Array.isArray((query.state.data as InfiniteData<FollowPage>)?.pages),
@@ -298,14 +301,14 @@ export function replaceFollowItem(next: FollowItem): void {
   });
 }
 
-/** 每一版列表缓存里的同一条换状态、挪计数（详情里的保存与标记）。不移出整组：详情不知道每一版筛着哪一档。 */
+/** Updates the same entry's state and moves the counts in every cached list version (save and mark from the detail). It is never moved out of the whole group: the detail does not know which tier each version filters to. */
 export function setFollowItemStatus(id: number, to: string): void {
   queryClient.setQueriesData<InfiniteData<FollowPage>>({
     queryKey: ['follow-feed'], predicate: (query) => Array.isArray((query.state.data as InfiniteData<FollowPage>)?.pages),
   }, (data) => data && withStatus(data, null, id, to));
 }
 
-/** 同上，按发布时间从新到旧。 */
+/** Same as above, by release time from newest to oldest. */
 export function collectionItemsNewest(group: FollowGroup): FollowItem[] {
   return collectionItems(group).sort((a, b) => {
     const byTime = (Date.parse(b.published_at || '') || 0) - (Date.parse(a.published_at || '') || 0);
@@ -313,8 +316,8 @@ export function collectionItemsNewest(group: FollowGroup): FollowItem[] {
   });
 }
 
-/* 关注条目和资料页的作品不是同一种 DTO，但媒体切换的语义相同：一张卡只要含对应媒体就进入对应
-   视图。external 只说明有外部文件页，不能冒充视频；没有可验证媒体类型的旧行不进任一视图。 */
+/* Follow entries and profile-page videos are not the same DTO, but the media-switch semantics match: a card enters the matching view whenever it contains the matching media.
+   external only means an external files page exists and cannot pose as a video; legacy rows with no verifiable media type enter neither view. */
 export function itemMediaKinds(item: FollowItem): Set<string> {
   const kinds = new Set<string>();
   const embedded = item.media_items || [];
@@ -332,34 +335,36 @@ export function groupMediaKinds(group: FollowGroup): Set<string> {
   return kinds;
 }
 
-/** 卡面摆哪一条：组里最新的、含当前视图那种媒体的那条，都没有就是主条目。 */
+/** Which entry the card face shows: the newest one in the group that contains the current view's media type, falling back to the primary entry. */
 export function itemForMedia(group: FollowGroup, view: FollowMedia): FollowItem {
   const wanted = view === 'images' ? 'image' : 'video';
   return collectionItemsNewest(group).find((item) => itemMediaKinds(item).has(wanted)) || group.primary;
 }
 
-/** 资料页在线视图取数用的那一份：只按创作者筛，状态全部、按更新时间从新到旧。 */
+/** The query used by the profile page's online view: filtered by creator only, all statuses, newest to oldest by update time. */
 export function entityFollowView(author: string): FollowView {
   return { status: '', media: 'videos', author, provider: '', work: '', tags: [], durMin: 0, durMax: 0,
     sort: 'new', dir: 'desc', seed: 0 };
 }
 
-/* F95 的「8 条动态」可能只有一个网盘页，也可能一条实际视频都没有。Mix 是播放语义，只能由已解析、
-   可在 Peach 内播放的视频触发，不能拿回复数或外链数冒充。 */
+/* F95's "8 updates" may be a single cloud drive page, or may contain no actual video at all. Mix is playback semantics and can only be triggered by videos that are resolved
+   and playable inside Peach; reply counts or external link counts cannot stand in. */
 export function videoItems(group: FollowGroup): FollowItem[] {
   return collectionItemsNewest(group).filter((item) => item.playable && item.media_kind === 'video');
 }
 
-/* ── 叠卡 ──
-   哪几张是同一个画面由服务端判（`peach.follow_faces`，文件内容哈希，缩略图 dHash、8×8 色块加时长）：
-   每个成员和媒体带 `face`，编号相同就是同一个画面；组上的 `stack` 给出去重后的媒体数 `media`、合并了
-   几份 `copies`、媒体类型 `kind` 和彼此不同的翻卡画面 `faces`。这里只决定怎么说、翻哪几张。
+/* Stacked cards.
+   Which images are the same one is decided by the server (`peach.follow_faces`: file content hashes, thumbnail dHash, 8×8
+   color blocks plus duration): each member and media carries `face`, and matching numbers mean the same image; the group's
+   `stack` provides the deduplicated media count `media`, how many copies were merged `copies`, the media type `kind`, and the
+   distinct flip images `faces`. This module only decides how to say it and which images to flip.
 
-   角标只报一个数：这张卡合并了几个不同的媒体。同一个视频在两个站各传一份是一个媒体、两个来源；
-   去重后只剩一个媒体时，报的就是来源数。量词随媒体类型走：视频论「个」，图片论「张」，与详情里
-   「第 1 张，共 11 张」同一套；图和视频混在一起时说「个媒体」，不说「项」——「项」在关注页数的是
-   更新条目，读起来像又在数帖子。 */
-const UNITS: Record<string, string> = { video: '个视频', image: '张图片', mixed: '个媒体' };
+   The badge reports one number: how many distinct media this card merged. The same video uploaded on two sites is one media
+   with two sources; when deduplication leaves one media, the source count is what is reported. The counter word follows the
+   media type: videos count as "items", images as "images", the same set as the details page's "1 of 11 images"; when images
+   and videos are mixed it says "media" and not "entries", because on the follows page "entries" counts update posts and would
+   read like counting posts again. */
+const UNITS: Record<string, string> = { video: 'videos', image: 'images', mixed: 'media items' };
 
 export interface FollowStack {
   isMix: boolean;
@@ -375,12 +380,12 @@ export function followStack({ cover = '', coverFace = null, stack = null, imageV
   const copies = stack?.copies || 0;
   const kind = stack?.kind || '';
   const label = media > 1 ? `${media} ${UNITS[kind] || UNITS.mixed}`
-    : copies > 1 ? `${copies} 个来源` : '';
-  /* 字形说的是点开以后看什么：视频起播是 play，图片是 pics。图和视频混在一起时，点开落在哪一种由
-     视图决定，字形跟着视图走。 */
+    : copies > 1 ? `${copies} sources` : '';
+  /* The glyph says what opens on click: play for videos, pics for images. When images and videos are mixed, which one opens is decided by
+     the view, and the glyph follows the view. */
   const glyph = kind === 'image' || (kind !== 'video' && imageView) ? 'pics' : 'play';
-  /* 图片视图里只翻图片：这一叠说的就是这几张图。第一张是静止封面本身，否则一翻就露出取景差别；
-     和封面同一个画面的不再翻。画面彼此相同的服务端已经并成一张。 */
+  /* The image view pages through images only: this stack is exactly these pictures. The first is the static cover itself, otherwise paging would immediately expose crop differences;
+     frames identical to the cover are not paged to. Frames identical to each other are merged server-side already. */
   const seen = new Set<unknown>([coverFace ?? cover]);
   const faces = cover ? [cover] : [];
   for (const face of stack?.faces || []) {
@@ -392,41 +397,41 @@ export function followStack({ cover = '', coverFace = null, stack = null, imageV
   return { isMix: Boolean(label), label, glyph, faces: faces.length > 1 ? faces.slice(0, limit) : [] };
 }
 
-/* ── 往回抓 ──
-   往回抓到哪儿了。不说的话，用户点一次只看到列表变长一点，不知道自己走到第几页，也不知道还要点
-   几次。页码是 0 起的游标（0 = 只抓过第一页），显示成人读的第几页。 */
+/* -- Backfill --
+   How far the backfill has gotten. Without it, each click just makes the list a bit longer, and the user cannot tell which page they are on or how many
+   clicks remain. The page number is a 0-based cursor (0 = only the first page fetched), displayed as a human-readable page number. */
 export function backfillState(sources: readonly FollowSource[]): string {
   const pages = sources.filter((source) => source.can_backfill).map((source) => (source.backfill_page || 0) + 1);
   if (!pages.length) return '';
   const deepest = Math.max(...pages);
   const shallowest = Math.min(...pages);
-  if (deepest <= 1) return '每个来源都只抓了第 1 页';
-  return shallowest === deepest ? `每个来源都抓到第 ${deepest} 页` : `已抓到第 ${shallowest}–${deepest} 页`;
+  if (deepest <= 1) return 'Every source fetched only page 1';
+  return shallowest === deepest ? `Every source was fetched through page ${deepest}` : `Fetched pages ${shallowest}–${deepest}`;
 }
 
-/* ── 排序键 ── */
+/* ── Sort keys ── */
 
-/** 点未选中项换列并用该列的默认方向，点选中项翻方向；同壳里 `nextSortState` 配上这一页的词表。 */
+/** Clicking an unselected item switches columns and takes that column's default direction; clicking the selected one flips direction; the same as the shell's `nextSortState` paired with this page's vocabulary. */
 export function nextSort(key: string, current: string, dir: 'asc' | 'desc') {
   if (key !== current) return { sort: key as FollowSort, dir: 'desc' as const };
   if (!FOLLOW_FEED_DIR_WORDS[key]) return null;
   return { sort: key as FollowSort, dir: dir === 'asc' ? 'desc' as const : 'asc' as const };
 }
 
-/** 无障碍名称播报点下去会得到什么，不是当前状态。 */
+/** The accessible name announces what pressing will get you, not the current state. */
 export function sortAriaLabel(key: string, label: string, current: string, dir: 'asc' | 'desc'): string {
   const next = nextSort(key, current, dir);
   if (!next) return '';
   const words = FOLLOW_FEED_DIR_WORDS[next.sort];
-  return `按${label}${words ? words[next.dir === 'asc' ? 1 : 0] : ''}排序`;
+  return `Sort by ${label}${words ? words[next.dir === 'asc' ? 1 : 0] : ''}`;
 }
 
-/* ── 壳递进来的那几样 ── */
+/* ── The pieces the shell hands in ── */
 
-/** 署名：名字、圆框里那段头像 HTML、「署名含」那一行。 */
+/** Attribution: the name, the avatar HTML inside the round frame, and the 'attribution includes' line. */
 export interface FollowIdentity { author: string; avatar: string; credited: string; entityName: string }
 
-/** 这一页上下文：卡片与两排的身份、头像读的都是这一版的来源、别名与凭据，不读壳的全局。 */
+/** This page's context: cards and both rows read identities and avatars from this copy of sources, aliases and credentials, not from the shell's globals. */
 export interface FollowContext {
   sources: readonly FollowSource[];
   aliases: readonly unknown[];
@@ -434,20 +439,20 @@ export interface FollowContext {
   credentialsReady?: boolean;
 }
 
-/** 仍由遗留层给的 HTML 与接线：详情用的是同一份，只有一处实现。署名、头像、来源图标与标题前后
- *  那几处字样在岛里（`follow-marks.ts`）。 */
+/** HTML and wiring still supplied by the legacy layer: details use the same copy, with one implementation. The byline, avatar, source icons and the bits of text around
+ *  the title live in the island (`follow-marks.ts`). */
 export interface FollowFeedHelpers {
-  /** 题材圆标里那段（有代表图出 `<img>`，没有写两个字母）；取景与放大走资料页那两个函数。 */
+  /** The content inside a genre roundel (an `<img>` when a representative image exists, otherwise two letters); framing and zoom reuse the profile page's two functions. */
   workMark(row: FollowWorkRow): string;
-  /** 标签的界面名称，关注详情（舞台）读它；列表页与卡片从 `@peach/legacy/tags` 直接 import 同一个函数。 */
+  /** The tag's UI name, read by follow details (the stage); the list page and cards import the same function directly from `@peach/legacy/tags`. */
   tagLabel(tag: string): string;
-  /** 横滚行接上拖动与滚轮（`wireDrag`）；只接滚轮与两端渐隐（`wireHorizontalScroller`）。 */
+  /** Horizontal scroll rows get drag and wheel (`wireDrag`); wheel and edge fades only (`wireHorizontalScroller`). */
   wireDrag(row: Element | null): void;
   wireScroller(row: Element | null): void;
-  /** 进页整块骨架（`followSkeletonHtml`）之外，换筛选时列表区那一块骨架。 */
+  /** Besides the full-page skeleton on entry (`followSkeletonHtml`), the list-area skeleton shown while filters change. */
   listSkeletonHtml(media: FollowMedia): string;
-  /** 检查更新与往回抓那一趟后台任务的进度条（`peach-ui` 的 `followJobProgress`），作业 id 记在
-   *  `sessionStorage` 的 `peach-follow-job`，刷新或换页回来还接得上。 */
+  /** The progress bar for the check-updates and back-crawl background run (`peach-ui`'s `followJobProgress`), with the job id recorded in
+   *  `sessionStorage`'s `peach-follow-job`, so refresh or page change still reconnects. */
   jobProgress(options: FollowJobProgressOptions): void;
 }
 
@@ -462,33 +467,33 @@ export interface FollowJobProgressOptions {
 }
 
 export interface FollowFeedActions {
-  /** 换筛选或排序：壳把它写进地址栏，再推回新的 `view`。 */
+  /** Changing filters or sorting: the shell writes it into the address bar, then pushes back a new `view`. */
   route(view: FollowView): void;
-  /** 换一批：壳掷一粒新种子，两排取样与列表次序都换。 */
+  /** Shuffle: the shell rolls a new seed; both rows' sampling and the list order change. */
   shuffle(): void;
-  /** 岛取到一版列表（首屏、续页、写操作之后）：侧栏要的标签计数、来源与时长有无，壳拿去画侧栏。 */
+  /** A list version the island fetched (first screen, next page, or after a write): the tag counts, sources, and duration availability the sidebar needs, handed to the shell to paint the sidebar. */
   loaded(drawer: FollowDrawer): void;
   openDetail(id: number): void;
   openAuthor(name: string): void;
-  /** 多选里的一张：`range` 是 Shift 连选。 */
+  /** One selection in multi-select: `range` is a Shift range pick. */
   toggleSelection(id: number, range: boolean): void;
-  /** 照片墙「仅显示图片」与图片布局两样偏好，壳存起来再推回。 */
+  /** The photo wall's 'images only' and image layout preferences; the shell stores them and pushes them back. */
   setImagesOnly(on: boolean): void;
   setPhotoLayout(layout: FollowPhotoLayout): void;
-  /** 此刻能不能悬停翻卡（多选、遮挡、减少动效、滚动中都回 false）。 */
+  /** Whether hover card flipping is allowed right now (returns false during multi-select, occlusion, reduced motion and scrolling). */
   canFlip(): boolean;
-  /** 操作回执；给了 `undo` 就带一颗撤销键。失败走 `failure`。 */
+  /** Action receipt; when `undo` is given it carries an undo button. Failures go through `failure`. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
   failure(action: string, error: unknown): void;
-  /** 检查更新的结果（`followCheckToast`）：新增、没有更新与失败各说清。 */
+  /** The check-for-updates result (`followCheckToast`): newly added, nothing new and failure each stated clearly. */
   checkReport(report: unknown): void;
 }
 
-/** 状态写接口回的那一份：换的是哪一条、换成了什么。 */
+/** The payload the status write endpoint returns: which entry changed and what it became. */
 export interface FollowStatusWrite { item: number; to: string }
 
-/** 写完之后在缓存里换局部：条目状态、状态计数，筛着某一档而新状态不在这一档时整组移出。
- *  `view` 为空时只换状态与计数、不移出（详情里的写操作）。 */
+/** After a write, patch the cache locally: the entry's state and the state counts, and when filtering by a tier the new state does not belong to, the whole group moves out.
+ *  With `view` empty, only state and counts change and nothing moves out (write operations from details). */
 export function withStatus(data: InfiniteData<FollowPage>, view: FollowView | null, id: number, to: string):
 InfiniteData<FollowPage> {
   let before = '';
@@ -524,9 +529,9 @@ export type FollowPhotoLayout = 'fixed' | 'masonry';
 
 export interface FollowFeedProps {
   view: FollowView;
-  /** 这一次进入的取样种子。 */
+  /** The sampling seed for this visit. */
   seed: number;
-  /** 壳要求重读的代次（批量标记之后、从别处写完回来），加一就重取、不重挂。 */
+  /** The epoch the shell asks to reread (after bulk flagging, after a write returns from elsewhere); incrementing it refetches without remounting. */
   revision: number;
   selectMode: boolean;
   selected: ReadonlySet<number>;
@@ -537,29 +542,29 @@ export interface FollowFeedProps {
   actions: FollowFeedActions;
 }
 
-/** 当前按下的筛选条件，四个维度收成一张清单，顺序照筛选条从粗到细：创作者、来源、题材、标签。 */
-export interface FollowCondition { kind: '创作者' | '来源' | '题材' | '标签'; key: string; label: string }
+/** The currently pressed filters, four dimensions gathered into one list, ordered coarse to fine like the filter bar: creator, source, genre, tag. */
+export interface FollowCondition { kind: 'Creators' | 'Source' | 'Genres' | 'Tags'; key: string; label: string }
 
 export function followConditions(view: FollowView, names: {
   authors: ReadonlyMap<string, string>; providers: ReadonlyMap<string, string>; works: ReadonlyMap<string, string>;
 }): FollowCondition[] {
   const rows: FollowCondition[] = [];
-  if (view.author) rows.push({ kind: '创作者', key: view.author, label: names.authors.get(view.author) || view.author });
-  if (view.provider) rows.push({ kind: '来源', key: view.provider, label: names.providers.get(view.provider) || view.provider });
-  if (view.work) rows.push({ kind: '题材', key: view.work, label: names.works.get(view.work) || view.work });
-  view.tags.forEach((tag) => rows.push({ kind: '标签', key: tag, label: tag }));
+  if (view.author) rows.push({ kind: 'Creators', key: view.author, label: names.authors.get(view.author) || view.author });
+  if (view.provider) rows.push({ kind: 'Source', key: view.provider, label: names.providers.get(view.provider) || view.provider });
+  if (view.work) rows.push({ kind: 'Genres', key: view.work, label: names.works.get(view.work) || view.work });
+  view.tags.forEach((tag) => rows.push({ kind: 'Tags', key: tag, label: tag }));
   return rows;
 }
 
-/** 撤掉一条：按维度撤，同一个字符串在两个维度里都可能出现。 */
+/** Remove one entry: removal is per dimension, since the same string can appear in both dimensions. */
 export function dropCondition(view: FollowView, row: FollowCondition): FollowView {
-  if (row.kind === '创作者') return { ...view, author: '' };
-  if (row.kind === '来源') return { ...view, provider: '' };
-  if (row.kind === '题材') return { ...view, work: '' };
+  if (row.kind === 'Creators') return { ...view, author: '' };
+  if (row.kind === 'Source') return { ...view, provider: '' };
+  if (row.kind === 'Genres') return { ...view, work: '' };
   return { ...view, tags: view.tags.filter((tag) => tag !== row.key) };
 }
 
-/** 标签在这一页的类型：取第一个记了类型的组，没有就按 general 着色。 */
+/** The tags' type on this page: take the first group with a recorded type, otherwise color as general. */
 export function groupTagType(groups: readonly FollowGroup[], tag: string): string {
   for (const group of groups) {
     const type = group.primary?.tag_types?.[tag];

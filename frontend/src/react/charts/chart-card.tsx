@@ -1,8 +1,8 @@
-/* 图表卡的外壳、页头与 EvilCharts 配色，统计页与口味页共用。
+/* Chart cards' shell, header and EvilCharts coloring, shared by the stats page and taste page.
  *
- * 图表卡比读数卡大一档圆角：旧 `.board-radial-card`／`.board-heat-card`／`.board-sankey-card`
- * 都是 20px。页头是两列：标题压着大数在左，那句注解贴右下角对齐大数的基线，注解长短不一
- * 也不会把标题挤走。 */
+ * Chart cards take one radius tier above readout cards: the legacy `.board-radial-card` / `.board-heat-card` /
+ * `.board-sankey-card` are all 20px. The header is two columns: title over the big number on the left, with the annotation
+ * hugging the bottom right aligned to the number's baseline, so annotations of any length never push the title away. */
 import type { ReactNode } from 'react';
 import { Text } from 'recharts';
 
@@ -12,7 +12,7 @@ import { cardClass } from '../components/card';
 
 export const CHART_CARD = `${cardClass({ radius: 'chart' })} flex flex-col gap-4 max-sm:p-4`;
 
-/** 一张没有可画数据的图：标题照旧，图的位置换成一句说明。统计页与口味页的图共用。 */
+/** A chart with no data to draw: title unchanged, the plot area replaced by one line of explanation. Shared by the stats and taste pages' charts. */
 export function ChartEmpty({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className={CHART_CARD} aria-label={title}>
@@ -22,13 +22,13 @@ export function ChartEmpty({ title, children }: { title: string; children: React
   );
 }
 
-/** 量不了字宽时（没有 canvas）一个字形按多宽估，宁宽勿窄：中日文、全角符号与 emoji 按 13 算，其余按 7 算。 */
+/** When glyph width cannot be measured (no canvas), estimate each glyph's width, erring wide: CJK, fullwidth symbols, and emoji count as 13, everything else as 7. */
 const glyphWidth = (glyph: string) => ((glyph.codePointAt(0) ?? 0) > 0x2e7f ? 13 : 7);
 
 const graphemes = (text: string): string[] =>
   [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((part) => part.segment);
 
-/** 坐标轴文字（12px、页面字体）的量尺，第一次用到时建。取不到 2D 画布就是 `null`。 */
+/** A measuring ruler for axis text (12px, page font), built on first use. `null` when no 2D canvas is available. */
 let ruler: CanvasRenderingContext2D | null | undefined;
 function measureText(text: string): number | null {
   if (ruler === undefined) {
@@ -42,11 +42,11 @@ function measureText(text: string): number | null {
   return ruler ? ruler.measureText(text).width : null;
 }
 
-/** 一段坐标轴文字的宽度（像素）：浏览器里实量，量不了就按字形估。 */
+/** The width of one axis label in pixels: measured in the browser, or estimated from glyph metrics when it cannot be. */
 export const labelWidth = (text: string): number =>
   measureText(text) ?? graphemes(text).reduce((sum, glyph) => sum + glyphWidth(glyph), 0);
 
-/** 把一个类别名截到 `room` 像素以内，截掉的部分换成省略号；放得下就原样返回。 */
+/** Truncates a category name to within `room` pixels, replacing the cut part with an ellipsis; returns it unchanged when it fits. */
 export function fitLabel(text: string, room: number): string {
   if (labelWidth(text) <= room) return text;
   const glyphs = graphemes(text);
@@ -55,12 +55,12 @@ export function fitLabel(text: string, room: number): string {
   return `${glyphs.slice(0, kept).join('')}…`;
 }
 
-/** 横向柱状图类别轴的宽度：跟着最长的名字走，但不超过 `cap`，柱子不被名字挤没。 */
+/** The horizontal bar chart's category axis width: follows the longest name up to `cap`, so bars are not squeezed out by names. */
 export const categoryAxisWidth = (names: string[], cap = 104): number =>
   Math.min(cap, Math.max(24, ...names.map(labelWidth)) + 12);
 
-/** 类别轴上的一个名字。Recharts 把刻度的坐标、轴宽与可见刻度数交进来：竖柱按每根柱分到的
- *  宽度截断，横条按轴宽截断。全名在 `<title>` 里，悬停浮层读的也是全名。 */
+/** One name on the category axis. Recharts hands in the tick's coordinates, the axis width and the visible tick count: vertical bars truncate by each bar's
+ *  allotted width, horizontal bars by the axis width. The full name is in `<title>`, and the hover overlay reads the full name too. */
 export function CategoryTick(
   props: {
     along: 'x' | 'y'; payload?: { value?: unknown }; width?: number; visibleTicksCount?: number;
@@ -68,7 +68,7 @@ export function CategoryTick(
 ) {
   const { along, payload, width = 0, visibleTicksCount = 1, ...rest } = props;
   const name = String(payload?.value ?? '');
-  // 竖柱的名字在一根柱分到的那一格里居中，左右各留 1px；横条的名字与条之间隔着 8px 的 tickMargin。
+  // A vertical bar's name centers in the slot its bar takes, with 1px on each side; a horizontal bar's name sits 8px of tickMargin away from the bar.
   const room = along === 'x' ? width / Math.max(1, visibleTicksCount) - 2 : width - 8;
   return (
     <g>
@@ -78,7 +78,7 @@ export function CategoryTick(
   );
 }
 
-/** 一张图的头：一个标题、一个大数、一句它此刻指的是什么。 */
+/** A chart's head: a title, one big number, and a sentence for what it points at right now. */
 export function ChartHead({ title, figure, note }: { title: string; figure: string; note: string }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
@@ -91,19 +91,19 @@ export function ChartHead({ title, figure, note }: { title: string; figure: stri
   );
 }
 
-/** BoardUI 的六档图表色，`ChartConfig` 里只写这几个变量，深浅两档跟着 token 走。 */
+/** BoardUI's six chart colors; `ChartConfig` writes only these variables, and both light and dark tiers follow the tokens. */
 export const CHART_COLORS = [
   'var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-chart-3)',
   'var(--color-chart-4)', 'var(--color-chart-5)', 'var(--color-chart-6)',
 ] as const;
 
-/** 一种颜色的 EvilCharts 配色。 */
+/** The EvilCharts palette for one color. */
 export const tone = (color: string): ChartConfig[string]['colors'] => ({ light: [color] });
 
-/** 分类图（径向、每段一色）的键。
+/** Keys for the category chart (radial, one color per segment).
  *
- * EvilCharts 拿键拼 CSS 变量名和 SVG 渐变 id，媒体库名、来源名里的空格与中文进不了标识符，
- * 所以键一律是 `s0`、`s1`…，显示的名字放在 `label` 里。 */
+ * EvilCharts builds CSS variable names and SVG gradient ids from keys; spaces and CJK in library or source names cannot enter identifiers,
+ * so keys are always `s0`, `s1`..., with display names in `label`. */
 export const sliceKey = (index: number) => `s${index}`;
 
 export function sliceConfig(names: string[]): ChartConfig {

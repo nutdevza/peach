@@ -1,4 +1,4 @@
-/* 舞台岛对壳的契约：壳只拿命令式入口，舞台、两座详情、播放器与小窗都在 `peach-app.js` 里。 */
+/* The stage island's contract with the shell: the shell gets only imperative entry points, and the stage, the two details, the player, and the mini player all live in `peach-app.js`. */
 import type { PlayerItem, PlayerResume } from '../../player';
 import type { FollowDetailActions, FollowDetailProps } from '../follow-detail/follow-detail';
 import type { ItemDetailActions, ItemDetailProps } from '../item-detail/item-detail';
@@ -7,11 +7,11 @@ import type { JavDetailProps } from '../jav-detail/jav-detail';
 
 export type StageHost = StagePlayerHost;
 
-/** 打开作品详情。动作里没有 `mountPlayer`：媒体框交给舞台自己的播放器。 */
+/** Opens video detail. No `mountPlayer` in the actions: the media frame goes to the stage's own player. */
 export interface StageItemRequest extends Omit<ItemDetailProps, 'actions'> {
   kind: 'item';
   actions: Omit<ItemDetailActions, 'mountPlayer'>;
-  /** 深链带 `?t=` 进来：第一次挂上这一条时从这一刻接着放。 */
+  /** A deep link arrives with `?t=`: the first time this entry mounts, playback resumes from that moment. */
   resume?: PlayerResume | null;
 }
 
@@ -24,36 +24,36 @@ export interface StageFollowRequest extends Omit<FollowDetailProps, 'actions'> {
 export interface StageJavRequest extends JavDetailProps { kind: 'jav'; id?: never; resume?: never }
 export type StageRequest = StageItemRequest | StageFollowRequest | StageJavRequest;
 
-/** 开着的详情上会变的那几样：选择态与版式推给「接着看」那一排。 */
+/** What changes on an open detail: selection state and layout are pushed to the "Continue watching" row. */
 export type StagePatch = Partial<Pick<ItemDetailProps, 'layout' | 'selectMode' | 'selected' | 'seekSeconds' | 'relatedLimit'>>;
 
 export interface StageApi {
-  /** 播放墙的媒体宿主。收起后可交给小窗，详情可认领同一实例。 */
+  /** The playback wall's media host. Once collapsed it can hand off to the mini player; details can claim the same instance. */
   mountWallPlayer(item: PlayerItem, frame: HTMLElement, signal: AbortSignal): Promise<(continuePlaying?: boolean) => void>;
-  /** 打开一条详情：先画骨架、`showModal()`，取完数再换成内容。小窗放着的正是这一条时，内容
-   *  画出来那一刻把同一个播放器搬回来。浮窗开着同一种详情时不重开，取完数原地换内容。 */
+  /** Opens a details view: draw the skeleton, call `showModal()`, then swap in content once data arrives. When the mini player is already holding this exact entry, the same
+   *  player is moved back the moment content renders. When an overlay already shows the same kind of details, do not reopen; swap content in place after the fetch. */
   open(request: StageRequest): Promise<void>;
   update(patch: StagePatch): void;
-  /** 退场动画；拆舞台之前等它演完。 */
+  /** Exit animation; wait for it to finish before tearing down the stage. */
   exit(): Promise<void>;
-  /** 拆掉舞台。`miniplayer` 为假时正在放的视频不进小窗（显式关闭、换详情、删掉当前条目）。 */
+  /** Tear down the stage. When `miniplayer` is false the playing video does not enter the mini player (explicit close, switching details, deleting the current item). */
   dispose(options?: { miniplayer?: boolean }): void;
   isOpen(): boolean;
-  /** 浮窗此刻开着、能原地换条的那一种详情；没开、在退场或已要求关闭时为空。壳据此决定换条前拆不拆舞台。 */
+  /** The kind of detail that is currently open in the overlay and can swap items in place; empty when not open, exiting, or already asked to close. The shell decides from this whether to tear down the stage before swapping. */
   showing(): StageRequest['kind'] | null;
-  /** 显式关闭详情：交给当前详情自己的 `close`，退场期间再要一次不重复。 */
+  /** Explicitly close the details: hand it to the current detail's own `close`; a second request during the exit does not double it. */
   requestClose(): void;
-  /** Escape 先关闭最上层弹层；没有弹层时才关闭详情。 */
+  /** Escape closes the topmost popover first; details only close when no popover is open. */
   requestEscape(): void;
-  /** 该响应播放快捷键的 video：舞台开着取舞台里的，否则取小窗里的。 */
+  /** The video that should respond to playback shortcuts: the stage's one when the stage is open, otherwise the mini player's. */
   activeVideo(): HTMLVideoElement | null;
   toggleTheater(): void;
-  /** i 键：详情里进小窗，小窗里展开回详情。 */
+  /** The i key: from details it enters the mini player, from the mini player it expands back to details. */
   toggleMiniplayer(): void;
   closeMiniplayer(): void;
   miniplayerActive(): boolean;
   miniplayerTakesCard(item: PlayerItem | null | undefined): boolean;
   miniplayerPlay(id: number): void;
-  /** 默认封面换了：开着的作品详情把海报位跟着换。 */
+  /** The default cover changed: any open video detail swaps its poster slot along with it. */
   repaintPoster(): void;
 }

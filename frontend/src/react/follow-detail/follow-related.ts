@@ -9,7 +9,7 @@ import type { FollowDetailData } from './follow-detail';
 export const followRelatedKey = (id: number, media: FollowMedia, limit: number) =>
   ['follow-feed', 'related', id, media, limit] as const;
 
-/** 推荐认整组身份，排除当前组、已看与忽略；按共同标签排序，等分沿用取数顺序。 */
+/** Recommendations recognize the whole identity group, excluding the current group, watched and ignored; sorted by shared tags, ties keep the fetch order. */
 export function followRelatedGroups(pages: readonly FollowPage[], current: FollowDetailData, media: FollowMedia, limit: number): FollowGroup[] {
   const excluded = new Set((current.group ? collectionItems(current.group) : [current.item]).map(item => item.id));
   const seen = new Set<number>();
@@ -33,12 +33,12 @@ export function followRelatedGroups(pages: readonly FollowPage[], current: Follo
     .slice(0, limit).map(row => row.group);
 }
 
-/** 接着看那张卡的推荐理由：同创作者，加上和当前这条共有的标签。标签按这几页里出现的次数从少到多排，
- *  最能说明「为什么是它」的排在前面；人人都有的泛标签落到后面，一行写不下就被截掉。来源标成 metadata
- *  （时长、有声、待标注）与 artist（同创作者已经说了）的不算理由。 */
+/** The "Continue watching" card's recommendation reason: same creator, plus tags shared with the current item. Tags sort by occurrence count across these pages, fewest to most,
+ *  with the most distinctive for "why this one" up front; generic tags everyone has drop to the back, and get truncated if they don't fit a line. Sources marked metadata
+ *  (duration, has audio, needs labeling) or artist (same creator already stated) don't count as reasons. */
 const NOT_A_REASON = new Set(['metadata', 'artist']);
 export function followRelatedReasons(pages: readonly FollowPage[], current: FollowDetailData, media: FollowMedia) {
-  /* 比的是详情那一份全部标签：卡片上的内容标签只收来源分过类的 general，没分类的帖子一枚都没有。 */
+  /* Compared is the full tag set from the detail copy: the content tags on the card only take the general ones the source classified; uncategorized posts have none. */
   const all = (row: FollowItem & { detail_tags?: string[] }) => row.detail_tags || row.tags || [];
   const mine = new Set(all(current.item));
   const author = current.sources.find(source => source.id === current.item.source_id)?.author_key;
@@ -52,11 +52,11 @@ export function followRelatedReasons(pages: readonly FollowPage[], current: Foll
     const source = item.source_id === undefined ? undefined : sources.get(item.source_id);
     const tags = all(item).filter(tag => mine.has(tag) && !NOT_A_REASON.has(item.tag_types?.[tag] || ''))
       .sort((a, b) => (seen.get(a) || 0) - (seen.get(b) || 0) || a.localeCompare(b));
-    return { reasons: author && source?.author_key === author ? ['同创作者'] : [], tags };
+    return { reasons: author && source?.author_key === author ? ['Same creator'] : [], tags };
   };
 }
 
-/** 复用关注分页和缓存结构。最多读三页；同作者不足时补全库未看内容，换条仍可直接命中列表缓存。 */
+/** Reuses follow pagination and the cache structure. At most three pages are read; when one author runs short, unseen items from the whole library fill in, so switching still hits the list cache directly. */
 export async function fetchFollowRelated(current: FollowDetailData, media: FollowMedia, limit: number,
   signal: AbortSignal): Promise<InfiniteData<FollowPage>> {
   const author = current.sources.find(source => source.id === current.item.source_id)?.author_key || '';

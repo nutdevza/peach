@@ -18,11 +18,11 @@ export function JavBatchResources({ items, close, readOnly, receipt }: {
   const provider = downloads.data?.providers.find(row => row.configured)?.key || '';
   return <ModalFrame isOpen={Boolean(items)} onOpenChange={open => { if (!open) close() }} width="collections">
     <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-separator-border bg-background-full px-5 py-4">
-      <Heading slot="title" className="text-title-2-medium text-text-primary"><span data-copy-key="jav.resources.title">查找所选资源</span> · {items?.length || 0} 部</Heading>
-      <Button iconOnly variant="ghost" leadingIcon={RiCloseLine} aria-label="关闭批量资源查找" onClick={close} />
+      <Heading slot="title" className="text-title-2-medium text-text-primary"><span data-copy-key="jav.resources.title">Find resources for the selection</span> · {items?.length || 0} 部</Heading>
+      <Button iconOnly variant="ghost" leadingIcon={RiCloseLine} aria-label="Close bulk resource search" onClick={close} />
     </div>
     <div className="flex min-w-0 flex-col gap-6 p-5">
-      {downloads.error ? <Note tone="error">下载配置未取得：{errorMessage(downloads.error)}</Note> : null}
+      {downloads.error ? <Note tone="error">'Download configuration not obtained:'{errorMessage(downloads.error)}</Note> : null}
       {items?.map(item => <section key={item.code} aria-label={item.code} className="flex min-w-0 flex-col gap-2">
         <h3 className="text-headline-medium text-text-primary">{item.code}</h3>
         {item.title ? <p className="text-body-2-regular text-text-secondary">{item.title}</p> : null}

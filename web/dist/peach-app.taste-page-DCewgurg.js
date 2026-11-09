@@ -1,11 +1,11 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "8b9a1248-bf4a-4f4d-b6e1-690a112365f6", e._sentryDebugIdIdentifier = "sentry-dbid-8b9a1248-bf4a-4f4d-b6e1-690a112365f6");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "8788d995-d092-402f-9083-750c78f149f8", e._sentryDebugIdIdentifier = "sentry-dbid-8788d995-d092-402f-9083-750c78f149f8");
 	} catch {}
 })();
 import { $542a13ca2fa5b484$export$5b6b19405a83ff9d as e, $b4f18e3395fe64d7$export$3d96ec278d3efce4 as t, $b4f18e3395fe64d7$export$3e41faf802a29e71 as n, $b4f18e3395fe64d7$export$b2539bed5023c21c as r, Button as i, ButtonLink as a, Disclosure as o, E3 as s, EmptyState as c, FLOW_LABEL_X as l, FLOW_VIEWBOX as u, Gg as d, IDLE_POLL_MS as f, Input as p, M6 as m, MENU_ITEM as h, MENU_ITEM_INTERACTIVE as g, MENU_POPOVER_SURFACE as _, MenuDialog as v, Note as y, OV as b, Progress as x, Rf as S, SEGMENT as ee, SEGMENTED_TRACK as te, STAT_STRIP as ne, SegmentedTabList as re, Select$1 as ie, SelectItem as ae, StatCard as C, TASTE_REFRESH_KEY as oe, TASTE_WINDOWS as se, TaskProgress as ce, Wt as w, Xt as le, _8 as T, __toESM as ue, aB as de, avatarInner as fe, busyProps as E, cB as pe, cardClass as D, clsx as O, configureTasteBrowser as k, confirmModal as A, cx as me, errorMessage as j, f1 as M, fetchTaste as he, fetchTasteJob as ge, firstGrapheme as N, flowGraph as _e, flowLabel as ve, fmtSize as ye, g4 as be, historySpan as xe, importTasteExport as Se, keepPreviousData as Ce, mM as we, pv as Te, queryClient as P, r2 as Ee, radarRows as De, rankDetail as Oe, rankShares as ke, removeTasteSource as Ae, require_jsx_runtime as je, require_react as Me, siteMarkUrl as Ne, startTasteRefresh as Pe, statCardClass as Fe, tasteDate as Ie, tasteDimensions as Le, tasteHours as Re, tasteKey as F, tasteRefetchInterval as ze, tasteTime as Be, topScores as Ve, uo as He, useBackgroundJob as Ue, useMutation as We, useQuery as Ge } from "./peach-app.js";
-import { ActivityHeat as Ke, BAR_DOMAIN as qe, ExpandableRanking as Je, PolarAngleAxis as Ye, Polygon as Xe, barLabel as Ze, selectPolarAxisScale as Qe, selectPolarAxisTicks as I } from "./peach-app.expandable-ranking-BvMp3uyZ.js";
+import { ActivityHeat as Ke, BAR_DOMAIN as qe, ExpandableRanking as Je, PolarAngleAxis as Ye, Polygon as Xe, barLabel as Ze, selectPolarAxisScale as Qe, selectPolarAxisTicks as I } from "./peach-app.expandable-ranking-CjXvQmDM.js";
 import { LEGACY_AVATAR_IMG as $e } from "./peach-app.legacy-avatar-NSITxLRS.js";
 import { Page as et } from "./peach-app.page-QAncjzM1.js";
 import { ActivePoints as tt, AnimatedItems as nt, CHART_CARD as rt, CHART_COLORS as it, CartesianLabelListContextProvider as at, CategoryTick as ot, ChartBackground as st, ChartContainer as ct, ChartHead as lt, ChartLegend as ut, ChartLegendContent as dt, ChartTip as ft, ChartTooltip as pt, ChartTooltipContent as mt, DefaultZIndexes as ht, Dots as gt, EvilBarChart as _t, LabelListFromLabelProp as vt, Layer as L, LoadingIndicator as yt, PolarChart as bt, PolarLabelContextProvider as xt, PolarLabelFromLabelProp as St, RegisterGraphicalItemId as Ct, SetPolarGraphicalItem as wt, SetPolarLegendPayload as Tt, SetTooltipEntrySettings as Et, Text as Dt, ZIndexLayer as Ot, adaptEventsOfChild as kt, addRadiusAxis as At, arrayTooltipSearcher as jt, categoryAxisWidth as Mt, cn as Nt, createSelector as R, defaultPolarChartProps as Pt, defaultPolarRadiusAxisProps as Ft, fitLabel as It, getAxisTypeBasedOnLayout as Lt, getBandSizeOfAxis as Rt, getClassNameFromUnknown as zt, getColorsCount as Bt, getTooltipNameProp as Vt, getValueByDataKey as Ht, identity as Ut, interpolate as z, isArrayLike as Wt, isCategoricalAxis as Gt, isNullish as Kt, iteratee as qt, matchAnimationItems as Jt, matchByIndex as Yt, noop as Xt, polarToCartesian as B, removeRadiusAxis as Zt, resolveDefaultProps as V, selectAngleAxis as Qt, selectChartDataAndAlwaysIgnoreIndexes as $t, selectChartLayout as en, selectPolarViewBox as tn, selectRadiusAxis as nn, selectUnfilteredPolarItems as rn, svgPropertiesAndEvents as an, svgPropertiesNoEvents as H, svgPropertiesNoEventsFromUnknown as on, tone as sn, useAnimationCallbacks as cn, useAnimationStartSnapshot as ln, useAppDispatch as un, useAppSelector as U, useIsPanorama as dn, usePolarChartLayout as fn } from "./peach-app.chart-tip-CRxYp6KT.js";
@@ -1241,7 +1241,7 @@ var Si = [
 	"fill-chart-5",
 	"fill-chart-6"
 ], wi = { value: {
-	label: "标签出现次数",
+	label: "Tag occurrence counts",
 	colors: sn(it[3])
 } }, Ti = [
 	"min-h-24",
@@ -1263,7 +1263,7 @@ function ki({ rows: e, label: t }) {
 	}));
 	return /* @__PURE__ */ (0, X.jsx)("div", {
 		role: "img",
-		"aria-label": `${t}：${i.map((e) => e.name).join("，")}`,
+		"aria-label": `${t}: ${i.map((e) => e.name).join(", ")}`,
 		children: /* @__PURE__ */ (0, X.jsxs)(Q, {
 			data: i,
 			config: Di,
@@ -1338,12 +1338,12 @@ function ji({ flows: e }) {
 		className: rt,
 		children: [
 			/* @__PURE__ */ (0, X.jsx)(lt, {
-				title: "创作者线索来源",
+				title: "Creator clue sources",
 				figure: (t ? t.value : r.total).toLocaleString(),
-				note: t ? t.label : "条线索"
+				note: t ? t.label : "clues"
 			}),
 			/* @__PURE__ */ (0, X.jsx)("ol", {
-				"aria-label": "来源网站与创作者线索",
+				"aria-label": "Source sites and creator leads",
 				className: "flex flex-col sm:hidden",
 				children: [...r.links].sort((e, t) => t.value - e.value).map((e) => /* @__PURE__ */ (0, X.jsxs)("li", {
 					className: "flex items-baseline justify-between gap-3 border-b border-separator-border py-2 text-body-2-regular text-text-primary last:border-b-0",
@@ -1362,7 +1362,7 @@ function ji({ flows: e }) {
 					viewBox: `0 0 ${u.width} ${r.height}`,
 					fill: "none",
 					role: "img",
-					"aria-label": "来源网站与创作者线索",
+					"aria-label": "Source sites and creator leads",
 					className: "block h-auto w-full",
 					onPointerLeave: () => n(null),
 					children: [/* @__PURE__ */ (0, X.jsx)("g", { children: r.links.map((e) => /* @__PURE__ */ (0, X.jsx)("path", {
@@ -1370,7 +1370,7 @@ function ji({ flows: e }) {
 						strokeWidth: e.width,
 						tabIndex: 0,
 						role: "img",
-						"aria-label": `${e.label}：${e.value} 条线索`,
+						"aria-label": `${e.label}: ${e.value} leads`,
 						fillOpacity: 0,
 						strokeOpacity: a(e, e.label) ? .55 : .08,
 						className: `outline-none transition-opacity ${Si[e.color]}`,
@@ -1388,7 +1388,7 @@ function ji({ flows: e }) {
 					}, e.key)) }), /* @__PURE__ */ (0, X.jsx)("g", { children: r.nodes.map((e) => /* @__PURE__ */ (0, X.jsxs)("g", {
 						tabIndex: 0,
 						role: "img",
-						"aria-label": `${e.name}：${e.value} 条线索`,
+						"aria-label": `${e.name}: ${e.value} leads`,
 						className: "outline-none focus-visible:opacity-100",
 						onPointerEnter: () => n({
 							value: e.value,
@@ -1425,7 +1425,7 @@ function ji({ flows: e }) {
 			}),
 			/* @__PURE__ */ (0, X.jsxs)("footer", {
 				className: "flex justify-between gap-3 text-caption-1-regular text-text-secondary max-sm:hidden",
-				children: [/* @__PURE__ */ (0, X.jsx)("span", { children: "来源网站" }), /* @__PURE__ */ (0, X.jsx)("span", { children: "创作者 · 线索占比" })]
+				children: [/* @__PURE__ */ (0, X.jsx)("span", { children: "Source sites" }), /* @__PURE__ */ (0, X.jsx)("span", { children: "Creators · lead share" })]
 			})
 		]
 	});
@@ -1441,18 +1441,18 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 	});
 	return /* @__PURE__ */ (0, X.jsxs)("section", {
 		className: `${D()} flex flex-col gap-4`,
-		"aria-label": "数据源",
+		"aria-label": "Data source",
 		children: [
 			/* @__PURE__ */ (0, X.jsxs)("div", {
 				className: "flex flex-wrap items-center justify-between gap-3",
 				children: [/* @__PURE__ */ (0, X.jsx)("h3", {
 					className: "text-title-2-medium text-text-primary",
-					children: "数据源"
+					children: "Data sources"
 				}), /* @__PURE__ */ (0, X.jsx)(i, {
 					variant: "secondary",
 					onClick: () => o(!0),
 					disabled: a,
-					children: "添加浏览器"
+					children: "Add browser"
 				})]
 			}),
 			f.error ? /* @__PURE__ */ (0, X.jsx)(y, {
@@ -1470,7 +1470,7 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 				},
 				children: [
 					/* @__PURE__ */ (0, X.jsx)(p, {
-						label: "浏览器名称",
+						label: "Browser name",
 						value: s,
 						onChange: c,
 						maxLength: 80,
@@ -1478,13 +1478,13 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 						isDisabled: f.isPending
 					}),
 					/* @__PURE__ */ (0, X.jsx)(p, {
-						label: "资料目录或历史文件",
+						label: "Profile directory or history files",
 						value: l,
 						onChange: u,
 						maxLength: 1024,
 						isRequired: !0,
 						isDisabled: f.isPending,
-						hint: "请选择运行 Peach 的电脑上的浏览器资料。"
+						hint: "Choose the browser profile on the computer running Peach."
 					}),
 					/* @__PURE__ */ (0, X.jsxs)("div", {
 						className: "flex gap-2",
@@ -1494,13 +1494,13 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 							onClick: () => {
 								o(!1), f.reset();
 							},
-							children: "取消"
+							children: "Cancel"
 						}), /* @__PURE__ */ (0, X.jsx)(i, {
 							type: "submit",
 							variant: "secondary",
 							disabled: !s.trim() || !l.trim(),
 							...E(f.isPending),
-							children: "添加"
+							children: "Add"
 						})]
 					})
 				]
@@ -1530,15 +1530,15 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 									}),
 									/* @__PURE__ */ (0, X.jsx)("span", {
 										className: "text-caption-1-regular text-text-secondary",
-										children: e.enabled ? e.available ? `历史与书签 · ${e.profiles} 个资料` : "资料目录不可用" : "已停止读取"
+										children: e.enabled ? e.available ? `History and bookmarks · ${e.profiles} profiles` : "Profile directory unavailable" : "Stopped reading"
 									}),
 									n.length ? /* @__PURE__ */ (0, X.jsxs)("span", {
 										className: "text-caption-1-regular text-text-secondary",
 										children: [
 											r.toLocaleString(),
-											" 条历史 · ",
+											" history entries · ",
 											a.toLocaleString(),
-											" 枚书签"
+											" bookmarks"
 										]
 									}) : null
 								]
@@ -1551,12 +1551,12 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 									...E(f.isPending),
 									iconOnly: !0,
 									leadingIcon: e.enabled ? b : d,
-									"aria-label": `${e.enabled ? "停止读取" : "启用"} ${e.name}`,
+									"aria-label": `${e.enabled ? "Stop reading" : "Enable"} ${e.name}`,
 									onClick: () => {
 										e.enabled ? A({
-											title: `停止读取 ${e.name}`,
-											body: "已导入的历史与书签仍用于口味分析。",
-											confirmLabel: "停止读取",
+											title: `Stop reading ${e.name}`,
+											body: "Imported history and bookmarks still feed taste analysis.",
+											confirmLabel: "Stop reading",
 											onConfirm: () => f.mutateAsync({
 												operation: "disable",
 												id: e.id
@@ -1572,12 +1572,12 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 									iconOnly: !0,
 									leadingIcon: m,
 									...E(f.isPending),
-									"aria-label": `删除 ${e.name}`,
+									"aria-label": `Delete ${e.name}`,
 									onClick: () => {
 										A({
-											title: `删除 ${e.name}`,
-											body: "移除该浏览器的读取配置和已导入历史、书签，浏览器原文件保留。可以通过添加浏览器重新接入。",
-											confirmLabel: "删除浏览器来源",
+											title: `Delete ${e.name}`,
+											body: "Removes the import configuration for this browser and its imported history and bookmarks; the browser files stay. Reconnect by adding the browser again.",
+											confirmLabel: "Delete browser source",
 											danger: !0,
 											onConfirm: () => f.mutateAsync({
 												operation: "delete_browser",
@@ -1595,10 +1595,10 @@ function Ni({ browsers: e, sources: t, range: n, children: r }) {
 	});
 }
 // src/react/taste/taste-page.tsx
-var Pi = 10, Fi = me(h, g, "text-body-2-medium"), Ii = `${D()} flex flex-col gap-4`, Li = "rounded-xl bg-background-primary-default p-3", Ri = "读取运行 Peach 的这台电脑上的浏览历史与书签", zi = "导入或读取浏览记录后，这里会列出记录来自哪些设备。", Bi = "馆藏中暂时没有与你浏览过的内容相符的标签。", Vi = "读取浏览记录后，这里会按类别汇总你浏览过的内容。", Hi = "这些标签出现在浏览记录中，Peach 的观看或评价记录中尚未出现这些标签", Ui = "采集浏览记录后，这里会列出浏览过的标签。", Wi = "采集浏览记录后，这里会列出浏览过的创作者。", Gi = "采集浏览记录后，这里会列出常访问的网站。", Ki = "在 Peach 里播放或评价作品后，这里会列出对应的标签。", qi = "在 Peach 里播放或评价作品后，这里会列出对应的创作者。", Ji = "在 Peach 里播放或评价作品后，这里会列出对应的女优。", Yi = "在运行 Peach 的电脑上使用浏览器：点上面的「读取浏览器记录」。", Xi = "记录在其他设备上：导出文件后，选择「导入历史文件」或「导入书签文件」。书签支持浏览器导出的 HTML 文件和 Chromium Bookmarks JSON 文件。", Zi = "需要刷新时再次读取或导入；数据源可在页面底部移除。", Qi = "删除这个来源的已导入记录，原始文件保留。若浏览器仍启用，下次读取会再次导入。", $i = "peach-taste-guide-dismissed", ea = (0, W.createContext)(/* @__PURE__ */ (0, X.jsx)(a, {
+var Pi = 10, Fi = me(h, g, "text-body-2-medium"), Ii = `${D()} flex flex-col gap-4`, Li = "rounded-xl bg-background-primary-default p-3", Ri = "Read the browsing history and bookmarks on this computer running Peach", zi = "After importing or reading browsing data, this lists which devices the records came from.", Bi = "No tags in the library currently match what you have browsed.", Vi = "After reading browsing data, this summarizes what you browsed by category.", Hi = "These tags appear in browsing history but not yet in the watch or rating records in Peach", Ui = "After collecting browsing data, this lists the tags you browsed.", Wi = "After browsing history is collected, the creators you viewed are listed here.", Gi = "After collecting browsing data, this lists the sites you visit often.", Ki = "After you play or rate videos in Peach, the related tags are listed here.", qi = "After you play or rate videos in Peach, the related creators are listed here.", Ji = "After you play or rate videos in Peach, the related performers are listed here.", Yi = "In the browser on the computer running Peach: click \"Read browser history\" above.", Xi = "Records on other devices: after exporting the file, choose \"Import history file\" or \"Import bookmarks file\". Bookmarks accept browser-exported HTML files and Chromium Bookmarks JSON files.", Zi = "Read or import again whenever a refresh is needed; data sources can be removed at the bottom of the page.", Qi = "Deletes the imported records of this source; original files are kept. If the browser source is still enabled, the next read imports them again.", $i = "peach-taste-guide-dismissed", ea = (0, W.createContext)(/* @__PURE__ */ (0, X.jsx)(a, {
 	size: "small",
 	href: "/",
-	children: "浏览馆藏"
+	children: "Browse library"
 }));
 function ta() {
 	return (0, W.useContext)(ea);
@@ -1643,7 +1643,7 @@ function ia({ rows: e, kind: t, visual: n, empty: r, onSignal: i }) {
 	if (!e.length) return /* @__PURE__ */ (0, X.jsx)(c, {
 		size: "compact",
 		icon: Te,
-		title: "记录还不够",
+		title: "Not enough records",
 		actions: /* @__PURE__ */ (0, X.jsx)(ta, {}),
 		children: r
 	});
@@ -1753,14 +1753,14 @@ function oa({ data: e, onSignal: t, navigate: n }) {
 	}))];
 	return /* @__PURE__ */ (0, X.jsxs)("section", {
 		className: Ii,
-		"aria-label": "口味总结",
+		"aria-label": "Taste summary",
 		children: [
 			/* @__PURE__ */ (0, X.jsxs)("header", {
 				className: "flex flex-col gap-2",
 				children: [
 					/* @__PURE__ */ (0, X.jsx)("h3", {
 						className: "text-title-2-medium text-text-primary",
-						children: "口味总结"
+						children: "Taste summary"
 					}),
 					/* @__PURE__ */ (0, X.jsx)("p", {
 						className: "max-w-prose text-title-2-regular wrap-anywhere text-text-primary",
@@ -1773,7 +1773,7 @@ function oa({ data: e, onSignal: t, navigate: n }) {
 							className: `size-2 shrink-0 rounded-full ${i.level === "high" ? "bg-status-lime-text" : i.level === "medium" ? "bg-status-yellow-text" : "bg-text-tertiary"}`
 						}), /* @__PURE__ */ (0, X.jsx)("span", {
 							className: "min-w-0 wrap-anywhere",
-							children: i.label || "仍在学习"
+							children: i.label || "Still learning"
 						})]
 					})
 				]
@@ -1814,11 +1814,11 @@ function oa({ data: e, onSignal: t, navigate: n }) {
 			}) : /* @__PURE__ */ (0, X.jsx)(c, {
 				size: "compact",
 				icon: Te,
-				title: "还没有可探索的入口",
+				title: "No entry points to explore yet",
 				actions: /* @__PURE__ */ (0, X.jsx)(a, {
 					size: "small",
 					href: "/",
-					children: "浏览馆藏"
+					children: "Browse library"
 				}),
 				children: Bi
 			})
@@ -1839,7 +1839,7 @@ function sa({ onboarding: e, done: t }) {
 			className: "p-4"
 		}),
 		children: /* @__PURE__ */ (0, X.jsxs)(o, {
-			summary: "浏览器历史记录导入指南",
+			summary: "Browser history import guide",
 			defaultOpen: e,
 			children: [
 				/* @__PURE__ */ (0, X.jsx)("p", {
@@ -1853,7 +1853,7 @@ function sa({ onboarding: e, done: t }) {
 				/* @__PURE__ */ (0, X.jsxs)("ul", {
 					className: "flex list-disc flex-col gap-1 pl-5 text-body-2-regular text-text-secondary",
 					children: [/* @__PURE__ */ (0, X.jsxs)("li", { children: [
-						"Chrome：在 ",
+						"Chrome: in ",
 						/* @__PURE__ */ (0, X.jsxs)("a", {
 							href: "https://takeout.google.com/",
 							target: "_blank",
@@ -1865,9 +1865,9 @@ function sa({ onboarding: e, done: t }) {
 							})]
 						}),
 						" ",
-						"选择 Chrome 历史记录，下载 ZIP 后直接导入。"
+						"Select Chrome history and import directly after downloading the ZIP."
 					] }), /* @__PURE__ */ (0, X.jsxs)("li", { children: [
-						"其他浏览器：用 ",
+						"Other browsers: use ",
 						/* @__PURE__ */ (0, X.jsxs)("a", {
 							href: "https://github.com/purarue/browserexport",
 							target: "_blank",
@@ -1879,7 +1879,7 @@ function sa({ onboarding: e, done: t }) {
 							})]
 						}),
 						" ",
-						"导出历史记录，再导入导出文件。"
+						"Export history, then import the export file."
 					] })]
 				}),
 				/* @__PURE__ */ (0, X.jsx)("p", {
@@ -1897,7 +1897,7 @@ function sa({ onboarding: e, done: t }) {
 							} catch {}
 							r(!0);
 						},
-						children: "跳过"
+						children: "Skip"
 					})
 				})
 			]
@@ -1918,12 +1918,12 @@ function ca({ busy: t, onRefresh: n, onImport: r, onImportBookmarks: a }) {
 			title: Ri,
 			onClick: n,
 			...E(t),
-			children: "读取浏览器记录"
+			children: "Read browser history"
 		}), /* @__PURE__ */ (0, X.jsx)(i, {
 			ref: o,
 			iconOnly: !0,
 			leadingIcon: M,
-			"aria-label": "更多取得浏览记录的方式",
+			"aria-label": "More ways to obtain browsing data",
 			"aria-haspopup": "dialog",
 			"aria-expanded": c,
 			...E(t),
@@ -1939,7 +1939,7 @@ function ca({ busy: t, onRefresh: n, onImport: r, onImportBookmarks: a }) {
 		offset: 4,
 		className: _,
 		children: /* @__PURE__ */ (0, X.jsxs)(v, {
-			"aria-label": "更多取得浏览记录的方式",
+			"aria-label": "More ways to obtain browsing data",
 			className: "flex w-52 flex-col gap-1 outline-none",
 			children: [
 				/* @__PURE__ */ (0, X.jsxs)("button", {
@@ -1949,7 +1949,7 @@ function ca({ busy: t, onRefresh: n, onImport: r, onImportBookmarks: a }) {
 					children: [/* @__PURE__ */ (0, X.jsx)(s, {
 						"aria-hidden": !0,
 						className: "size-4 shrink-0"
-					}), "读取浏览器记录"]
+					}), "Read browser history"]
 				}),
 				/* @__PURE__ */ (0, X.jsxs)("button", {
 					type: "button",
@@ -1958,7 +1958,7 @@ function ca({ busy: t, onRefresh: n, onImport: r, onImportBookmarks: a }) {
 					children: [/* @__PURE__ */ (0, X.jsx)(S, {
 						"aria-hidden": !0,
 						className: "size-4 shrink-0"
-					}), "导入历史文件"]
+					}), "Import history file"]
 				}),
 				/* @__PURE__ */ (0, X.jsxs)("button", {
 					type: "button",
@@ -1967,7 +1967,7 @@ function ca({ busy: t, onRefresh: n, onImport: r, onImportBookmarks: a }) {
 					children: [/* @__PURE__ */ (0, X.jsx)(be, {
 						"aria-hidden": !0,
 						className: "size-4 shrink-0"
-					}), "导入书签文件"]
+					}), "Import bookmarks file"]
 				})
 			]
 		})
@@ -1977,7 +1977,7 @@ function la({ sources: e, browsers: t, window: n, toast: r, emptyActions: a }) {
 	let o = We({
 		mutationFn: (e) => Ae(e, n),
 		onSuccess: (e) => {
-			P.setQueryData(F(n), e.dashboard), r("已移除口味数据源");
+			P.setQueryData(F(n), e.dashboard), r("Removed the taste data source");
 		}
 	});
 	return /* @__PURE__ */ (0, X.jsxs)(Ni, {
@@ -2011,22 +2011,22 @@ function la({ sources: e, browsers: t, window: n, toast: r, emptyActions: a }) {
 						children: e.profile
 					}), /* @__PURE__ */ (0, X.jsx)("small", {
 						className: "min-w-0 text-caption-1-regular break-words text-text-secondary",
-						children: `导入文件 · ${e.host} · ${Number(e.visits || e.bookmarks || 0).toLocaleString()} ${e.bookmarks ? "枚书签" : "条历史"}`
+						children: `Import files · ${e.host} · ${Number(e.visits || e.bookmarks || 0).toLocaleString()} ${e.bookmarks ? "bookmarks" : "history entries"}`
 					})]
 				}),
 				/* @__PURE__ */ (0, X.jsx)(i, {
 					variant: "secondary",
 					size: "small",
-					"aria-label": `移除 ${e.profile}`,
+					"aria-label": `Remove ${e.profile}`,
 					className: "shrink-0",
 					iconOnly: !0,
 					leadingIcon: m,
 					...E(o.isPending),
 					onClick: () => {
 						o.isPending || A({
-							title: "移除口味数据源",
+							title: "Remove taste data source",
 							body: Qi,
-							confirmLabel: "移除口味数据源",
+							confirmLabel: "Remove taste data source",
 							onConfirm: () => o.mutateAsync(e.source_key)
 						});
 					}
@@ -2035,7 +2035,7 @@ function la({ sources: e, browsers: t, window: n, toast: r, emptyActions: a }) {
 		}, e.source_key)) }) : t.length ? null : /* @__PURE__ */ (0, X.jsx)(c, {
 			size: "compact",
 			icon: T,
-			title: "还没有数据源",
+			title: "No data sources yet",
 			actions: a,
 			children: zi
 		})]
@@ -2053,7 +2053,7 @@ function ua(e) {
 		start: () => Pe(d),
 		idlePollMs: f,
 		onFinish: (e) => {
-			e.status !== "failed" && (P.invalidateQueries({ queryKey: ["taste"] }), l(e.warnings?.length ? "部分浏览记录未取得" : "已更新口味分析"));
+			e.status !== "failed" && (P.invalidateQueries({ queryKey: ["taste"] }), l(e.warnings?.length ? "Some browsing history unavailable" : "Taste analysis updated"));
 		}
 	}), w = We({
 		mutationFn: (e) => he(e, void 0, !0),
@@ -2063,7 +2063,7 @@ function ua(e) {
 	}), T = We({
 		mutationFn: (e) => Se(e),
 		onSuccess: (e) => {
-			P.setQueryData(F("all"), e.dashboard), p("all"), l("已导入口味数据");
+			P.setQueryData(F("all"), e.dashboard), p("all"), l("Taste data imported");
 		}
 	}), ue = (e) => {
 		let t = e.currentTarget.files?.[0];
@@ -2073,21 +2073,21 @@ function ua(e) {
 	}, D = v.data;
 	if (!D) return /* @__PURE__ */ (0, X.jsx)(et, { children: /* @__PURE__ */ (0, X.jsx)(y, {
 		tone: "error",
-		title: "口味分析读取失败",
-		children: v.error ? j(v.error) : "读取口味分析失败"
+		title: "Reading taste analysis failed",
+		children: v.error ? j(v.error) : "Reading taste analysis failed"
 	}) });
-	let O = D.summary || {}, k = D.coverage || {}, A = D.rankings || {}, me = D.storage || {}, M = Le(A.browser_categories || []), N = De(M).length > 0, _e = D.gaps || [], ve = k.tagged || 0, Ee = k.identified || 0, Oe = C.error ? j(C.error) : T.error ? j(T.error) : w.error ? j(w.error) : S?.status === "failed" ? S.error || "读取未取得" : "", ke = /* @__PURE__ */ (0, X.jsxs)("div", {
+	let O = D.summary || {}, k = D.coverage || {}, A = D.rankings || {}, me = D.storage || {}, M = Le(A.browser_categories || []), N = De(M).length > 0, _e = D.gaps || [], ve = k.tagged || 0, Ee = k.identified || 0, Oe = C.error ? j(C.error) : T.error ? j(T.error) : w.error ? j(w.error) : S?.status === "failed" ? S.error || "Read not fetched" : "", ke = /* @__PURE__ */ (0, X.jsxs)("div", {
 		className: "flex flex-wrap justify-center gap-2",
 		children: [/* @__PURE__ */ (0, X.jsx)(i, {
 			variant: "secondary",
 			...E(x || C.isPending || T.isPending),
 			onClick: fe,
-			children: "读取浏览器记录"
+			children: "Read browser history"
 		}), /* @__PURE__ */ (0, X.jsx)(i, {
 			variant: "secondary",
 			...E(T.isPending),
 			onClick: () => g.current?.click(),
-			children: "导入历史文件"
+			children: "Import history file"
 		})]
 	});
 	return /* @__PURE__ */ (0, X.jsx)(et, { children: /* @__PURE__ */ (0, X.jsxs)(ea, {
@@ -2095,12 +2095,12 @@ function ua(e) {
 			size: "small",
 			variant: "secondary",
 			href: "/",
-			children: "浏览馆藏"
+			children: "Browse library"
 		}) : ke : /* @__PURE__ */ (0, X.jsx)(i, {
 			size: "small",
 			variant: "secondary",
 			onClick: () => p("all"),
-			children: "查看全部时间"
+			children: "View all time"
 		}),
 		children: [
 			/* @__PURE__ */ (0, X.jsxs)(r, {
@@ -2111,22 +2111,22 @@ function ua(e) {
 					/* @__PURE__ */ (0, X.jsxs)("div", {
 						className: "flex flex-wrap items-center justify-between gap-3",
 						children: [/* @__PURE__ */ (0, X.jsxs)(re, {
-							"aria-label": "口味分析的数据来源",
+							"aria-label": "Data sources for taste analysis",
 							className: te,
 							children: [/* @__PURE__ */ (0, X.jsx)(n, {
 								id: "peach",
 								className: ee,
-								children: "Peach 观看与评价"
+								children: "Peach watches and ratings"
 							}), /* @__PURE__ */ (0, X.jsx)(n, {
 								id: "browser",
 								className: ee,
-								children: "浏览器记录"
+								children: "Browser history"
 							})]
 						}), /* @__PURE__ */ (0, X.jsxs)("div", {
 							className: "flex flex-wrap items-center gap-2",
 							children: [
 								/* @__PURE__ */ (0, X.jsx)(ie, {
-									"aria-label": "分析范围",
+									"aria-label": "Analysis range",
 									selectedKey: d,
 									onSelectionChange: (e) => {
 										e !== null && p(String(e));
@@ -2171,11 +2171,11 @@ function ua(e) {
 						className: "flex flex-col gap-3 empty:hidden",
 						children: [
 							x ? /* @__PURE__ */ (0, X.jsx)(ce, {
-								label: b?.message || "正在读取浏览记录并更新口味分析",
+								label: b?.message || "Reading browsing data and updating taste analysis",
 								value: b?.checked,
 								total: b?.total
 							}) : null,
-							T.isPending ? /* @__PURE__ */ (0, X.jsx)(ce, { label: "正在导入口味数据" }) : null,
+							T.isPending ? /* @__PURE__ */ (0, X.jsx)(ce, { label: "Importing taste data" }) : null,
 							D.stale && D.error ? /* @__PURE__ */ (0, X.jsx)(y, {
 								tone: "error",
 								action: /* @__PURE__ */ (0, X.jsx)(i, {
@@ -2183,17 +2183,17 @@ function ua(e) {
 									size: "small",
 									...E(w.isPending),
 									onClick: () => w.mutate(d),
-									children: "立即重试"
+									children: "Retry now"
 								}),
-								children: `口味分析更新失败，当前显示 ${Be(D.computed_at)} 的结果。${D.error}`
-							}) : D.stale ? /* @__PURE__ */ (0, X.jsx)(ce, { label: `正在更新口味分析，当前显示 ${Be(D.computed_at)} 的结果` }) : null,
+								children: `Taste analysis update failed; showing the result from ${Be(D.computed_at)}. ${D.error}`
+							}) : D.stale ? /* @__PURE__ */ (0, X.jsx)(ce, { label: `Updating taste analysis, currently showing results from ${Be(D.computed_at)}` }) : null,
 							Oe ? /* @__PURE__ */ (0, X.jsx)(y, {
 								tone: "error",
 								children: Oe
 							}) : null,
 							S?.warnings?.length ? /* @__PURE__ */ (0, X.jsx)(y, {
 								tone: "warning",
-								children: S.warnings.join("；")
+								children: S.warnings.join("; ")
 							}) : null
 						]
 					}),
@@ -2207,7 +2207,7 @@ function ua(e) {
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 0,
 										icon: He,
-										term: "浏览记录",
+										term: "Browsing data",
 										figure: Number(O.history_visits || 0).toLocaleString(),
 										detail: xe(O),
 										detailTitle: `${Ie(O.range_start)}—${Ie(O.range_end)}`
@@ -2215,53 +2215,53 @@ function ua(e) {
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 1,
 										icon: we,
-										term: "口味维度",
+										term: "Taste dimensions",
 										figure: M.length.toLocaleString(),
-										detail: M[0]?.name || "尚无主维度"
+										detail: M[0]?.name || "No main dimension yet"
 									}),
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 2,
 										icon: Te,
-										term: "浏览线索",
+										term: "Browsing leads",
 										figure: _e.length.toLocaleString()
 									}),
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 3,
 										icon: be,
-										term: "浏览器书签",
+										term: "Browser bookmarks",
 										figure: Number(O.bookmarks || 0).toLocaleString(),
-										detail: `${Number(me.exports || 0).toLocaleString()} 份私有导出 · ${ye(me.bytes || 0)}`
+										detail: `${Number(me.exports || 0).toLocaleString()} private exports - ${ye(me.bytes || 0)}`
 									})
 								]
 							}),
 							/* @__PURE__ */ (0, X.jsxs)("section", {
 								className: N ? `${Ii} md:flex-row md:gap-6` : Ii,
-								"aria-label": "浏览器画像",
+								"aria-label": "Browser profile",
 								children: [/* @__PURE__ */ (0, X.jsxs)("div", {
 									className: N ? "flex shrink-0 flex-col gap-2 pb-5 md:w-80 md:pr-6 md:pb-0" : "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
 									children: [
 										/* @__PURE__ */ (0, X.jsx)("span", {
 											className: "text-caption-1-regular text-text-secondary",
-											children: "浏览器画像"
+											children: "Browser profile"
 										}),
 										N ? /* @__PURE__ */ (0, X.jsx)(ki, {
 											rows: M,
-											label: "主要口味维度"
+											label: "Main taste dimensions"
 										}) : null,
 										/* @__PURE__ */ (0, X.jsx)("small", {
 											className: "text-caption-1-regular text-text-secondary",
-											children: D.updated_at ? `更新于 ${Ie(D.updated_at)}` : "尚未采集浏览记录"
+											children: D.updated_at ? `Updated ${Ie(D.updated_at)}` : "Browsing data not collected yet"
 										})
 									]
 								}), /* @__PURE__ */ (0, X.jsx)("div", {
 									className: "flex min-w-0 grow flex-col",
 									children: M.length ? /* @__PURE__ */ (0, X.jsx)(Ai, {
 										rows: M,
-										label: "口味维度排名"
+										label: "Taste dimension ranking"
 									}) : /* @__PURE__ */ (0, X.jsx)(c, {
 										size: "compact",
 										icon: Te,
-										title: "暂无口味维度",
+										title: "No taste dimensions yet",
 										actions: /* @__PURE__ */ (0, X.jsx)(ta, {}),
 										children: Vi
 									})
@@ -2269,24 +2269,24 @@ function ua(e) {
 							}),
 							/* @__PURE__ */ (0, X.jsx)(Ke, {
 								activity: D.activity,
-								title: "浏览活跃时间",
-								dailyTitle: "每日活跃",
+								title: "'Browsing activity times'",
+								dailyTitle: "Daily activity",
 								words: {
-									unit: "口味网站访问",
-									series: "访问",
-									cellUnit: "次访问"
+									unit: "Taste site visits",
+									series: "Access",
+									cellUnit: "visits"
 								},
 								tone: 4,
-								empty: "还没有可用于分析的口味网站访问记录。"
+								empty: "No taste-analyzable site visits yet."
 							}),
 							/* @__PURE__ */ (0, X.jsx)(ji, { flows: D.creator_flows }),
 							/* @__PURE__ */ (0, X.jsx)(aa, {
-								label: "浏览器口味维度",
+								label: "Browser taste dimensions",
 								onSignal: o,
 								panels: [
 									{
 										id: "tags",
-										name: "标签",
+										name: "Tags",
 										props: {
 											rows: A.browser_tags || [],
 											kind: "tag",
@@ -2296,7 +2296,7 @@ function ua(e) {
 									},
 									{
 										id: "creators",
-										name: "创作者",
+										name: "Creators",
 										props: {
 											rows: A.browser_creators || [],
 											kind: "creator",
@@ -2306,17 +2306,17 @@ function ua(e) {
 									},
 									{
 										id: "performers",
-										name: "女优",
+										name: "Performers",
 										props: {
 											rows: A.browser_performers || [],
 											kind: "performer",
 											visual: "entity",
-											empty: "还没有与已建档女优关联的浏览记录。"
+											empty: "No browsing records linked to archived performers yet."
 										}
 									},
 									{
 										id: "domains",
-										name: "常访问网站",
+										name: "Frequently visited sites",
 										props: {
 											rows: A.domains || [],
 											kind: "",
@@ -2326,7 +2326,7 @@ function ua(e) {
 									},
 									{
 										id: "gaps",
-										name: "浏览线索",
+										name: "Browsing leads",
 										props: {
 											rows: _e,
 											kind: "",
@@ -2348,39 +2348,39 @@ function ua(e) {
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 0,
 										icon: le,
-										term: "Peach 看过",
+										term: "Peach watched",
 										figure: Number(O.peach_items || 0).toLocaleString(),
 										detail: Re(O.peach_seconds || 0)
 									}),
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 1,
 										icon: de,
-										term: "喜欢",
+										term: "Favorites",
 										figure: Number(O.liked || 0).toLocaleString()
 									}),
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 2,
 										icon: pe,
-										term: "不合口味",
+										term: "Not my taste",
 										figure: Number(O.disliked || 0).toLocaleString()
 									}),
 									/* @__PURE__ */ (0, X.jsx)($, {
 										accent: 3,
 										icon: we,
-										term: "有标签",
+										term: "Has tags",
 										figure: ve.toLocaleString()
 									})
 								]
 							}),
 							/* @__PURE__ */ (0, X.jsxs)("section", {
 								className: `${Ii} md:flex-row md:gap-6`,
-								"aria-label": "Peach 观看",
+								"aria-label": "Peach plays",
 								children: [/* @__PURE__ */ (0, X.jsxs)("div", {
 									className: "flex shrink-0 flex-col gap-0.5 pb-5 md:w-72 md:pr-6 md:pb-0",
 									children: [
 										/* @__PURE__ */ (0, X.jsx)("span", {
 											className: "text-caption-1-regular text-text-secondary",
-											children: "Peach 观看"
+											children: "Peach plays"
 										}),
 										/* @__PURE__ */ (0, X.jsx)("b", {
 											className: "text-display-4-medium tabular-nums text-text-primary",
@@ -2388,29 +2388,29 @@ function ua(e) {
 										}),
 										/* @__PURE__ */ (0, X.jsx)("span", {
 											className: "text-body-2-regular text-text-secondary",
-											children: "部作品有观看或评价记录"
+											children: " videos have watch or rating records"
 										})
 									]
 								}), /* @__PURE__ */ (0, X.jsxs)("div", {
 									className: "flex min-w-0 grow flex-col",
 									children: [/* @__PURE__ */ (0, X.jsx)(da, {
-										term: "有标签",
+										term: "Has tags",
 										value: ve,
 										rest: k.untagged || 0
 									}), /* @__PURE__ */ (0, X.jsx)(da, {
-										term: "有身份",
+										term: "Has identity",
 										value: Ee,
 										rest: k.unidentified || 0
 									})]
 								})]
 							}),
 							/* @__PURE__ */ (0, X.jsx)(aa, {
-								label: "Peach 口味维度",
+								label: "Peach taste dimensions",
 								onSignal: o,
 								panels: [
 									{
 										id: "tags",
-										name: "标签",
+										name: "Tags",
 										props: {
 											rows: A.peach_tags || [],
 											kind: "tag",
@@ -2420,7 +2420,7 @@ function ua(e) {
 									},
 									{
 										id: "creators",
-										name: "创作者",
+										name: "Creators",
 										props: {
 											rows: A.peach_creators || [],
 											kind: "creator",
@@ -2430,7 +2430,7 @@ function ua(e) {
 									},
 									{
 										id: "performers",
-										name: "女优",
+										name: "Performers",
 										props: {
 											rows: A.peach_performers || [],
 											kind: "performer",
@@ -2469,7 +2469,7 @@ function da({ term: e, value: t, rest: n }) {
 				className: "tabular-nums",
 				children: [t.toLocaleString(), /* @__PURE__ */ (0, X.jsx)("span", {
 					className: "ml-1.5 text-caption-1-regular text-text-secondary",
-					children: `${n.toLocaleString()} 项待补`
+					children: `${n.toLocaleString()} items to backfill`
 				})]
 			})]
 		}), /* @__PURE__ */ (0, X.jsx)(x, {
@@ -2482,4 +2482,4 @@ function da({ term: e, value: t, rest: n }) {
 }
 export { $i as TASTE_GUIDE_KEY, ua as TastePage };
 
-//# debugId=8b9a1248-bf4a-4f4d-b6e1-690a112365f6
+//# debugId=8788d995-d092-402f-9083-750c78f149f8

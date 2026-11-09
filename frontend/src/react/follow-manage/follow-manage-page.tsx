@@ -1,19 +1,20 @@
-/* 关注管理页：加来源、检查更新、移除来源与管理 JAV 订阅源。
+/* Follow management page: add sources, check updates, remove sources, and manage JAV subscription feeds.
  *
- * 来源凭据由 Peach 配置管理，想要清单位于 JAV 分区。
+ * Source credentials are managed by Peach configuration; the wanted list lives in the JAV section.
  *
- * 地址栏与个人偏好各管各的（ADR-0031「迁移桥接」）：
- * - `tab`、`page`、`sort`、`dir` 在地址栏上。判据是「外面链接得过来吗」——把一条关注列表
- *   的地址发给自己在另一台机器上打开，看到的要是同一批、同一顺序的那一页；排序决定了
- *   哪些来源落在第二页，所以它和页码是同一件事的两半，不能一个在地址栏一个不在。
- * - `pageSize`、`layout` 是这台浏览器的个人偏好，跟着 `appSettings` 走，由壳读写；它们
- *   换一个值不会改变「这一页是哪一批」的含义，挂到地址栏上只会让分享出去的链接把自己的
- *   习惯也一并带给对方。
- * 两边都只有一份真相：React 拿着实时状态，写回哪儿由 props 上的那两个回调说了算。
+ * Address bar and personal preferences each mind their own (ADR-0031, "migration bridging"):
+ * - `tab`, `page`, `sort`, `dir` live in the address bar. The criterion is "can this be linked from outside": sending a follow
+ *   list's address to yourself on another machine should show the same batch in the same order; sorting decides which sources
+ *   land on page two, so it and the page number are two halves of one thing and cannot live one in the address and one not.
+ * - `pageSize`, `layout` are this browser's personal preferences, following `appSettings`, read and written by the shell;
+ *   changing them does not change which batch this page is, and putting them in the address would make every shared link
+ *   carry the sender's habits along.
+ * Both sides have a single source of truth: React holds the live state, and the two callbacks on props decide where writes go.
  *
- * 版式判据来自 docs/reference-sources.json 的 vercel-report-design：要避开卡片套卡片、用
- * 边框补救层级、成排通栏空条、细小灰字加随意字号。所以分组靠标题和一条发丝分隔线，行与
- * 行之间也只用分隔线，不各自套框；字号只取 BoardUI 排好的那几档 token。 */
+ * Layout criteria come from docs/reference-sources.json's vercel-report-design: avoid cards inside cards, patching hierarchy
+ * with borders, rows of full-width empty bars, and tiny gray text at arbitrary sizes. So grouping relies on headings and one
+ * hairline divider, rows are separated only by dividers with no frames of their own, and font sizes only take BoardUI's
+ * established token tiers. */
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -53,8 +54,8 @@ export function FollowManagePage(props: FollowManageProps) {
   const [dir, setDir] = useState<SortDir>(() => resolveFollowSort(props.sort, props.dir).dir);
   const [layout, setLayout] = useState<Layout>(isLayout(props.layout) ? props.layout : 'default');
   const [pageSize, setPageSize] = useState(pageSizeOf(props.pageSize));
-  /* 勾选跨页也跨视图，身份是来源 ID：换页、换排序、从卡片切到表格，选中的仍是同一批。
-     它不进地址栏——那是这一刻手里的一批东西，不是这一页的身份。 */
+  /* Selection spans pages and views, keyed by source ID: after paging, re-sorting, or switching from cards to table, the same sources stay selected.
+     It stays out of the URL; that is this moment's batch, not this page's identity. */
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set<number>());
   const [feedSelected, setFeedSelected] = useState<ReadonlySet<number>>(new Set<number>());
 
@@ -62,13 +63,13 @@ export function FollowManagePage(props: FollowManageProps) {
   const credentials = useQuery({
     queryKey: FOLLOW_CREDENTIALS_KEY, queryFn: ({ signal }) => fetchCredentials(signal),
   });
-  /* 读数与 JAV 订阅表格共用一次读取。 */
+  /* The counts and the JAV subscription table share one read. */
   const feeds = useQuery({ queryKey: FEEDS_KEY, queryFn: ({ signal }) => fetchFeeds(signal) });
   const data: FollowData = follow.data || { sources: [] };
   const creds: CredentialData = credentials.data || { root: '', providers: [] };
   const sources = data.sources;
 
-  /* 删掉的来源不该还占着计数：清单换一份就把已经不在里面的 ID 丢掉。 */
+  /* Deleted sources should not keep holding counts: whenever the list is replaced, drop the IDs no longer in it. */
   useEffect(() => {
     setSelected((now) => {
       const next = keepSelected(now, sources);
@@ -76,8 +77,8 @@ export function FollowManagePage(props: FollowManageProps) {
     });
   }, [sources]);
 
-  /* 默认值传空串：哪一项算默认只有这一边知道（`DEFAULT_SORT` 与每一档的默认方向都在
-     数据层），壳照这个判据决定写不写进地址栏，不必在它那边再抄一份默认表。 */
+  /* Pass an empty string for defaults: only this side knows what counts as default (`DEFAULT_SORT` and every tier's default direction live in
+     the data layer), and the shell uses that to decide whether to write the URL, without keeping a second copy of the defaults table. */
   const go = (next: Partial<{ tab: TabKey; page: number; sort: SortKey; dir: SortDir }>) => {
     const nextSort = next.sort ?? sort;
     const nextDir = next.dir ?? dir;
@@ -94,25 +95,25 @@ export function FollowManagePage(props: FollowManageProps) {
   const enabled = sources.filter((source) => source.enabled).length;
   const pending = (creds.providers || []).filter(
     (row) => row.requirement === 'required' && !credentialDone(row)).length;
-  /* 按人数：一位女优常有本名页和旧艺名页两条源，订的是她这个人。没挂人物的源各算一位。 */
+  /* Counting by person: a performer often has two sources, a real-name page and a former stage-name page, both about the same person. Sources without a linked person each count as one. */
   const subscribed = new Set((feeds.data?.sources || []).map(
     (source) => source.entity_id ?? `source-${source.id}`)).size;
 
   return (
     <Page>
       {readOnly ? (
-        <Note tone="warning" title="本机只能浏览"
+        <Note tone="warning" title="This machine is browse-only"
           extra={writerUrl
             ? <p className="text-body-2-regular">
-                <ExternalLink href={writerUrl}>前往写入端管理关注</ExternalLink>
+                <ExternalLink href={writerUrl}>Go to the writer instance to manage follows</ExternalLink>
               </p>
             : undefined}>
           {readOnlyMessage}
         </Note>
       ) : null}
 
-      {/* 前四张是关注，后两张是 JAV 订阅源：订了几位、拉回来的新作还有几条没看。 */}
-      <div className={STAT_STRIP_SIX} aria-label="关注概览">
+      {/* The first four cards are follows, the last two are JAV subscription sources: how many are subscribed, and how many fetched new releases are still unwatched. */}
+      <div className={STAT_STRIP_SIX} aria-label="Follow overview">
         <MeasuredReading field="creators" figure={follow.data ? groups.length : undefined} failed={follow.isError} />
         <MeasuredReading field="enabled" figure={follow.data ? enabled : undefined} total={sources.length} failed={follow.isError} />
         <MeasuredReading field="failed" figure={follow.data ? broken : undefined} failed={follow.isError} />
@@ -123,7 +124,7 @@ export function FollowManagePage(props: FollowManageProps) {
 
       <div className="flex flex-col gap-6">
         <div data-section-nav>
-          <SortableBoardTabs group="follow" label="关注管理区域" value={tab} panelPrefix="follow" sectionItems
+          <SortableBoardTabs group="follow" label="Follow management area" value={tab} panelPrefix="follow" sectionItems
             tabs={TABS.map(([value, label]) => ({ value, label }))} className=""
             itemClassName="cursor-pointer whitespace-nowrap" onChange={next => {
               setSelected(new Set()); setFeedSelected(new Set()); setTab(next); go({ tab: next });
@@ -157,14 +158,14 @@ export function FollowManagePage(props: FollowManageProps) {
               setPage(1);
               savePreference({ pageSize: next });
               go({ page: 1 });
-            }} /> : follow.isError ? <Note tone="error">关注列表未取得</Note>
-            : <div role="status" aria-label="正在读取关注列表" data-skeleton="" className="skeleton-sheen h-32 rounded-lg" />}
+            }} /> : follow.isError ? <Note tone="error">Follow list not obtained</Note>
+            : <div role="status" aria-label="Reading the follow list" data-skeleton="" className="skeleton-sheen h-32 rounded-lg" />}
         </div> : null}
 
         {tab === 'add' ? <div role="tabpanel" id="follow-panel-add" aria-labelledby="follow-tab-add" className="flex flex-col gap-8">
           {credentials.data && follow.data ? <AddSource data={data} credentials={creds} readOnly={readOnly} toast={toast} />
-            : credentials.isError || follow.isError ? <Note tone="error">关注或凭据状态未取得</Note>
-            : <div role="status" aria-label="正在读取关注凭据" data-skeleton="" className="skeleton-sheen h-32 rounded-lg" />}
+            : credentials.isError || follow.isError ? <Note tone="error">Follow or credential state not obtained</Note>
+            : <div role="status" aria-label="Reading follow credentials" data-skeleton="" className="skeleton-sheen h-32 rounded-lg" />}
           <AddFeed readOnly={readOnly} toast={toast}
             onAdded={() => { void feeds.refetch(); setTab('list'); go({ tab: 'list' }) }} />
           {follow.data ? <AliasManager groups={data.author_aliases || []} readOnly={readOnly} toast={toast}
@@ -176,7 +177,7 @@ export function FollowManagePage(props: FollowManageProps) {
         </div> : null}
 
       </div>
-      <div><ButtonLink variant="secondary" href="/settings/subscriptions">来源与订阅设置{pending ? `（${pending}）` : ''}</ButtonLink></div>
+      <div><ButtonLink variant="secondary" href="/settings/subscriptions">Source and subscription settings{pending ? `(${pending})` : ''}</ButtonLink></div>
     </Page>
   );
 }

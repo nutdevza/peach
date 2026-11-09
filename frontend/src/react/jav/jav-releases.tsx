@@ -1,6 +1,6 @@
-/* JAV 页「新作」分区：订阅发现、还没入库的全部新作，按发行日期倒序分页。
- * 女优、厂牌两排与标签条只列这批新作里出现过的（`/api/jav/releases` 的 facets），点了在本分区里筛，
- * 不跳实体页；筛选与页码都写进地址栏。 */
+/* JAV page "New releases" section: everything discovered through follows that hasn't been added to the library yet, paginated by release date descending.
+ * The actress and label rows and the tag strip list only what appears in this batch of new releases (facets from `/api/jav/releases`); clicking filters within this section,
+ * no navigation to the entity page; both the filter and the page number are written to the address bar. */
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { RiRssLine } from '@remixicon/react';
@@ -38,7 +38,7 @@ import { useCatalogView } from '../catalog-grid/catalog-view';
 import { useVisibleJavWorks } from './jav-selection';
 
 type Facet = 'performer' | 'studio' | 'tag';
-/** 等数据时两排头像的占位，与路由骨架（`releasesFilterSkeleton`）同一份。 */
+/** The placeholder of two rows of avatars while waiting for data, the same copy as the route skeleton (releasesFilterSkeleton). */
 const TIER_PLACEHOLDERS = `<div data-catalog-tier="performers" data-skeleton="tiers">${tierPlaceholdersHtml('performer')}</div><div data-catalog-tier="studios">${tierPlaceholdersHtml('studio')}</div>`;
 
 const performerRing = (person: ReleaseFacetPerformer) =>
@@ -46,10 +46,10 @@ const performerRing = (person: ReleaseFacetPerformer) =>
     id: person.id, hasImage: person.has_image, version: person.image_version, style: facePos(person.avatar_focus),
     focus: person.avatar_focus, standIn: person.avatar_stand_in })}`;
 
-/** 按口味排时卡上那枚推荐档，与「发现」同一套分档。 */
+/** When sorted by taste, that recommendation tier on the card uses the same tiers as “Discover”. */
 function TasteChip({ value }: { value?: number | null }) {
   const recommendation = recommendationScore(value);
-  return <span data-jav-taste-score="" title={`口味 ${recommendation.score}`}><Chip color={recommendation.color}>{recommendation.label}</Chip></span>;
+  return <span data-jav-taste-score="" title={`Taste ${recommendation.score}`}><Chip color={recommendation.color}>{recommendation.label}</Chip></span>;
 }
 
 function StudioMark({ studio }: { studio: ReleaseFacetStudio }) {
@@ -72,7 +72,7 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
 }) {
   useEntityNames();
   const [filters, setFilters] = useState<ReleaseFilters>(() => releaseFilters(location.search));
-  /* 页头的 `IndexSearch` 停手 300 毫秒才交出文字，这里换了就回第 1 页重问服务端。 */
+  /* The page header's IndexSearch waits 300 ms of idle before emitting text; here when it changes, return to page 1 and ask the server again. */
   useEffect(() => {
     if (query === filters.q) return;
     setFilters(current => ({ ...current, q: query, page: 1 }));
@@ -95,15 +95,15 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
     writeJavQuery({ performer: '', studio: '', tag: '', page: '' });
     clearText();
   };
-  /* 点选中的那一枚翻方向；换一枚时番号默认正序，其余倒序（同「发现」）。 */
+  /* Clicking the selected one flips its direction; switching to a different one defaults the code to ascending and the rest to descending (same as “Discover”). */
   const sortBy = (key: ReleaseSort) =>
     setSort(key, key === filters.sort ? (filters.dir === 'asc' ? 'desc' : 'asc') : key === 'code' ? 'asc' : 'desc');
-  /* 列表模式的表头直接给出方向。 */
+  /* In list mode, the table header states the sort direction directly. */
   const setSort = (key: ReleaseSort, dir: DiscoveryDirection) => {
     setFilters(current => ({ ...current, sort: key, dir, seed: '', page: 1 }));
     writeJavQuery({ sort: key === 'release_date' ? '' : key, dir: dir === 'asc' ? 'asc' : '', seed: '', page: '' });
   };
-  /* 换一批：同一批新作按新种子重排，翻页时顺序不变；排序键都不再按下。 */
+  /* New batch: the same batch of new releases is reshuffled with a new seed, and the order stays the same when paging; the sort keys are no longer pressed. */
   const reshuffle = () => {
     const seed = Math.random().toString(36).slice(2, 10);
     setFilters(current => ({ ...current, sort: 'random', dir: 'desc', seed, page: 1 }));
@@ -117,7 +117,7 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
   const settings = appSettingsStore();
   useSyncExternalStore(settings.subscribe, settings.version, settings.version);
   const layout = javLayout();
-  /* 卡片／列表与馆藏同一个开关（`peach.catalog-view.v1`）：JAV 页的馆藏与新作一起切。 */
+  /* Card / list uses the same toggle as the library (peach.catalog-view.v1): the JAV page's library and new releases switch together. */
   const view = useCatalogView();
   const ratio = cardRatio(gridLayout({ active: true, home: false, portrait: false }));
   /* 新作列表只读：每问一次都把全部候选重算一遍，不拿它当进度轮询。还没读过来源资料的那几部由
@@ -162,7 +162,7 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
   }, [unread, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const action = useAction();
   const want = (item: Discovery) => { void action.run(String(item.id), signal => addWant({ code: item.code }, signal), () => {
-    receipt('已加入想要'); void invalidateWants(); void releases.refetch();
+    receipt('Added to wants'); void invalidateWants(); void releases.refetch();
   }) };
   const data = releases.data;
   useVisibleJavWorks(data?.items || []);
@@ -174,25 +174,25 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
     setFilters(current => ({ ...current, page: pages }));
     writeJavQuery({ page: pages > 1 ? String(pages) : '' });
   }, [data, releases.isPlaceholderData, filters.page, pages]);
-  return <section ref={section} aria-label="订阅新作" aria-busy={waiting || releases.isFetching} className="flex min-w-0 scroll-mt-24 flex-col gap-4">
+  return <section ref={section} aria-label="Subscribe to new releases" aria-busy={waiting || releases.isFetching} className="flex min-w-0 scroll-mt-24 flex-col gap-4">
     {waiting ? <div data-catalog-tiers="" aria-busy="true" dangerouslySetInnerHTML={{ __html: TIER_PLACEHOLDERS }} /> : null}
     {data && (data.facets.performers.length || data.facets.studios.length) ? <div data-catalog-tiers="" data-release-tiers="">
-      {data.facets.performers.length ? <div data-catalog-tier="performers" role="group" aria-label="按女优筛选">
+      {data.facets.performers.length ? <div data-catalog-tier="performers" role="group" aria-label="Filter by performer">
         {data.facets.performers.map(person => <button key={person.name} type="button" data-tier-performer=""
-          aria-pressed={filters.performer === person.name} title={`${entityDisplayName('performer', person.name, person.id)} · ${person.count} 部`}
+          aria-pressed={filters.performer === person.name} title={`${entityDisplayName('performer', person.name, person.id)} · ${person.count} titles`}
           onClick={() => choose('performer', person.name)}>
           <span data-tier-ring="" dangerouslySetInnerHTML={{ __html: performerRing(person) }} />
           <span data-tier-name="">{entityDisplayName('performer', person.name, person.id)}</span>
         </button>)}
       </div> : null}
-      {data.facets.studios.length ? <div data-catalog-tier="studios" role="group" aria-label="按厂牌筛选">
+      {data.facets.studios.length ? <div data-catalog-tier="studios" role="group" aria-label="Filter by studio">
         {data.facets.studios.map(studio => <button key={studio.name} type="button" data-tier-studio=""
-          aria-pressed={filters.studio === studio.name} title={`${studio.name} · ${studio.count} 部`} onClick={() => choose('studio', studio.name)}>
+          aria-pressed={filters.studio === studio.name} title={`${studio.name} · ${studio.count} works`} onClick={() => choose('studio', studio.name)}>
           <StudioMark studio={studio} />{studio.name}<span data-count-badge="">{studio.count}</span>
         </button>)}
       </div> : null}
     </div> : null}
-    <FilterGlassRows label="新作筛选" topLabel="新作标签" attrs={{ 'data-filter-frame': '', 'data-jav-filter': '', 'data-catalog-frame': '' }}
+    <FilterGlassRows label="New work filter" topLabel="New work tag" attrs={{ 'data-filter-frame': '', 'data-jav-filter': '', 'data-catalog-frame': '' }}
       busy={waiting} topClassName="gap-1.5 overflow-visible" bottomClassName="min-h-12" top={<div data-catalog-scroll="">
         <div data-catalog-tags="" dangerouslySetInnerHTML={waiting ? { __html: javTagSkeleton() } : undefined}>
           {waiting ? null : data?.facets.tags.map(row => <FilterPill key={row.name} data-catalog-tag={row.name} data-entity-press=""
@@ -201,30 +201,30 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
           </FilterPill>)}
         </div></div>} bottom={<>
         <span data-catalog-readout="">{waiting ? <span data-skeleton="count" aria-hidden className="relative inline-block h-3.5 w-37.5 rounded-md align-middle skeleton-sheen" />
-          : filtered ? `${data?.total || 0} / ${data?.candidate_total || 0} 部` : `${data?.total || 0} 部`}</span>
-        {filtered ? <GlassPill onPress={clear}>清除筛选</GlassPill> : null}
+          : filtered ? `${data?.total || 0} / ${data?.candidate_total || 0} works` : `${data?.total || 0} works`}</span>
+        {filtered ? <GlassPill onPress={clear}>Clear filters</GlassPill> : null}
         <span data-entity-sorts="">
           <Shuffle onPress={reshuffle} busy={filters.sort === 'random' && releases.isFetching} />
-          {view === 'cards' ? <Segments label="JAV 卡片版式" value={layout} options={JAV_LAYOUTS} onChange={storeJavLayout} /> : null}
+          {view === 'cards' ? <Segments label="JAV card layout" value={layout} options={JAV_LAYOUTS} onChange={storeJavLayout} /> : null}
           <CatalogViewToggle />
           <SortKeys sorts={RELEASE_SORTS.map(([key, label, ariaLabel]) => ({ key, label, ariaLabel, pressed: key === filters.sort, dir: filters.dir }))}
             onSort={key => sortBy(key as ReleaseSort)} />
         </span>
       </>} />
-    {waiting && view === 'cards' ? <div role="status" aria-label="正在读取新作" dangerouslySetInnerHTML={{ __html: javContentSkeleton('discover', layout) }} /> : null}
-    {releases.error ? <Note tone="error" title="新作未取得">{errorMessage(releases.error)}</Note> : null}
+    {waiting && view === 'cards' ? <div role="status" aria-label="Loading new works" dangerouslySetInnerHTML={{ __html: javContentSkeleton('discover', layout) }} /> : null}
+    {releases.error ? <Note tone="error" title="New work unavailable">{errorMessage(releases.error)}</Note> : null}
     {reading && metadata ? <div data-jav-metadata="" className="min-w-0"><TaskProgress
-      label={`正在读取作品资料 · ${metadata.completed} / ${metadata.total} 部`} value={metadata.completed} total={metadata.total} /></div> : null}
-    {readOnly ? null : <CoverQueue scope="本页" fetchOne={fetchReleaseCover}
+      label={`Reading video details · ${metadata.completed} / ${metadata.total}`} value={metadata.completed} total={metadata.total} /></div> : null}
+    {readOnly ? null : <CoverQueue scope="This page" fetchOne={fetchReleaseCover}
       codes={(data?.items || []).filter(item => item.cover_state === 'queued' && !item.cover_url).map(item => item.code)}
       settled={(got, total) => {
-        receipt(got === total ? `已取到 ${total} 部封面` : `已取到 ${got} / ${total} 部封面，没取到的在卡上写了原因`);
+        receipt(got === total ? `Fetched ${total} covers` : `Fetched ${got} / ${total} covers; the misses have their reasons on the card`);
         void releases.refetch();
       }} />}
-    {!waiting && !releases.error && !data?.items.length ? <EmptyState icon={RiRssLine} title={filtered ? '没有符合条件的新作' : '暂无未入库的新作'}
-      actions={filtered ? <Button size="small" onClick={clear}>清除筛选</Button>
-        : <ButtonLink size="small" href="/subscriptions?tab=add">添加订阅</ButtonLink>}>
-      {filtered ? '清除筛选后查看全部新作。' : '订阅女优或厂牌后，还没入库的新作会出现在这里。'}
+    {!waiting && !releases.error && !data?.items.length ? <EmptyState icon={RiRssLine} title={filtered ? 'No new works match the filter' : 'No new works not yet indexed'}
+      actions={filtered ? <Button size="small" onClick={clear}>Clear filters</Button>
+        : <ButtonLink size="small" href="/subscriptions?tab=add">Add subscription</ButtonLink>}>
+      {filtered ? 'Clear the filter to view all new works.' : 'After following a performer or studio, new works not yet indexed appear here.'}
     </EmptyState> : null}
     {action.error ? <Note tone="error">{action.error}</Note> : null}
     {view === 'list' ? waiting || data?.items.length ? <ReleaseTable items={data?.items || []} waiting={waiting} filters={filters}
@@ -237,8 +237,8 @@ export function Releases({ readOnly, receipt, resource, query, navigate, clearTe
         wanting={action.busy === String(item.id)} onWant={() => want(item)}
         onResource={() => resource(resourcePrefill(item))} badge={filters.sort === 'taste' ? <TasteChip value={item.taste_score} /> : undefined} />)}
     </div>}
-    {data ? <DataTableFooter label="新作" total={data.total}
+    {data ? <DataTableFooter label="New releases" total={data.total}
       pagination={{ pageIndex: filters.page - 1, pageSize: filters.size }} onChange={changePage}
-      unit="部作品" pageUnit="部" pageSizes={RELEASE_PAGE_SIZES} /> : null}
+      unit="videos" pageUnit="videos" pageSizes={RELEASE_PAGE_SIZES} /> : null}
   </section>;
 }

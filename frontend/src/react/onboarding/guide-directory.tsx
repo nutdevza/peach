@@ -30,7 +30,7 @@ export function ChapterIcon({ chapter, className = 'size-5' }: { chapter: string
   return <Icon aria-hidden className={cx(className, 'shrink-0')} />;
 }
 
-/** 三条学习路径共用同一标题、图标和行动区。 */
+/** The three learning paths share the same title, icon, and action area. */
 export function GuideBanner({ icon: Icon, title, description, children, completed = false }: {
   icon: Glyph; title: string; description: string; children: ReactNode; completed?: boolean;
 }) {
@@ -48,13 +48,13 @@ function ChapterRow({ chapter, progress, loading, start }: {
   return <button type="button" disabled={loading} data-guide-completed={completed || undefined} className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left outline-none hover:bg-background-tertiary-default focus-visible:ring-2 focus-visible:ring-border-focus-ring disabled:cursor-wait" onClick={() => start(chapter, resume)}>
     <span className="peach-guide-topic-icon"><ChapterIcon chapter={chapter.id} /></span>
     <span className="flex min-w-0 flex-1 flex-col gap-1"><strong className="text-body-medium text-text-primary">{chapter.title}</strong><span className="text-body-2-regular text-text-secondary">{chapter.summary}</span></span>
-    {completed ? <CompletedLabel /> : <span className="shrink-0 text-caption-1-regular tabular-nums text-text-secondary">{resume ? '继续 · ' : ''}{chapter.steps.length} 步</span>}
+    {completed ? <CompletedLabel /> : <span className="shrink-0 text-caption-1-regular tabular-nums text-text-secondary">{resume ? 'Continue · ' : ''}{chapter.steps.length} step</span>}
     <RiArrowRightSLine aria-hidden className="size-(--icon-inline) shrink-0 text-text-secondary" />
   </button>;
 }
 
 function CompletedLabel() {
-  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-notification-success-background px-2 py-1 text-caption-1-medium text-notification-success-foreground"><RiCheckboxCircleLine aria-hidden className="size-4" /><span data-copy-key="guide.chapter.completed">已完成</span></span>;
+  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-notification-success-background px-2 py-1 text-caption-1-medium text-notification-success-foreground"><RiCheckboxCircleLine aria-hidden className="size-4" /><span data-copy-key="guide.chapter.completed">Done</span></span>;
 }
 
 export function GuideDirectory({ kind, query, setQuery, context, progress, loading, start }: {
@@ -68,14 +68,14 @@ export function GuideDirectory({ kind, query, setQuery, context, progress, loadi
   const search = query.trim().toLowerCase();
   const matches = GUIDE_CHAPTERS.filter(item => item.kind === kind && `${item.title} ${item.summary} ${item.steps.map(step => `${step.title} ${step.body} ${(step.details || []).flat().join(' ')}`).join(' ')}`.toLowerCase().includes(search));
   return <div className="flex flex-col gap-4">
-    <GuideBanner completed={completed} icon={kind === 'interface' ? RiCompass3Line : RiSettings3Line} title={kind === 'interface' ? '先认识 Peach' : '按习惯调整 Peach'} description={kind === 'interface' ? '先用 4 步认识常用入口，其余功能用到时再看。' : '先了解外观与导航，其余设置按需要查看。'}>
-      {completed ? <CompletedLabel /> : <span className="text-body-2-regular text-text-secondary">{quick.steps.length} 步 · 随时可以退出</span>}
-      <Button variant={completed ? 'secondary' : 'primary'} disabled={loading} onClick={() => start(quick, resume)}><span data-copy-key={`guide.${kind}.${loading ? 'loading' : completed ? 'replay' : resume ? 'resume' : 'start'}`}>{loading ? '正在准备…' : completed ? '再看一遍' : kind === 'interface' ? resume ? '继续快速导览' : '开始快速导览' : resume ? '继续设置导览' : '了解常用设置'}</span></Button>
+    <GuideBanner completed={completed} icon={kind === 'interface' ? RiCompass3Line : RiSettings3Line} title={kind === 'interface' ? 'Meet Peach first' : 'Adjust Peach to your habits'} description={kind === 'interface' ? 'Four steps introduce the common entries; everything else can wait until you need it.' : 'Start with appearance and navigation; read the rest of the settings as needed.'}>
+      {completed ? <CompletedLabel /> : <span className="text-body-2-regular text-text-secondary">{quick.steps.length} step · you can exit anytime</span>}
+      <Button variant={completed ? 'secondary' : 'primary'} disabled={loading} onClick={() => start(quick, resume)}><span data-copy-key={`guide.${kind}.${loading ? 'loading' : completed ? 'replay' : resume ? 'resume' : 'start'}`}>{loading ? 'Preparing…' : completed ? 'Watch again' : kind === 'interface' ? resume ? 'Continue the quick tour' : 'Start the quick tour' : resume ? 'Continue the settings tour' : 'Learn the common settings'}</span></Button>
     </GuideBanner>
-    <TextField aria-label="搜索教程" value={query} onChange={setQuery}><InputBase type="search" placeholder={kind === 'settings' ? '搜索设置名称或用途' : '搜索功能或页面'} leadingIcon={RiSearchLine} /></TextField>
+    <TextField aria-label="Search the tours" value={query} onChange={setQuery}><InputBase type="search" placeholder={kind === 'settings' ? 'Search a setting\'s name or purpose' : 'Search features or pages'} leadingIcon={RiSearchLine} /></TextField>
     {!search ? <>
-      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-body-medium text-text-primary">按需了解</h3>
-        {context.kind === kind && context.id !== 'basics' ? <Button variant="ghost" size="small" disabled={loading} onClick={() => start(context, false)}>当前页面：{context.title}</Button> : null}
+      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-body-medium text-text-primary">Learn as needed</h3>
+        {context.kind === kind && context.id !== 'basics' ? <Button variant="ghost" size="small" disabled={loading} onClick={() => start(context, false)}>Current page: {context.title}</Button> : null}
       </div>
       <div className="peach-guide-topics">{GUIDE_TOPICS.filter(topic => topic.kind === kind).map(topic => {
         const Icon = ICONS[topic.id];
@@ -86,6 +86,6 @@ export function GuideDirectory({ kind, query, setQuery, context, progress, loadi
         </div>;
       })}</div>
     </> : matches.length ? <div className="peach-guide-chapters">{matches.map(item => <ChapterRow key={item.id} chapter={item} progress={progress} loading={loading} start={start} />)}</div>
-      : <EmptyState icon={RiSearchLine} title="没有匹配的教程" size="compact">试试功能名或设置名称。</EmptyState>}
+      : <EmptyState icon={RiSearchLine} title="No matching tour" size="compact">Try a feature name or a setting name.</EmptyState>}
   </div>;
 }

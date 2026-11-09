@@ -4,7 +4,7 @@ import { RiArrowDownLine, RiArrowUpLine } from '@remixicon/react';
 
 type Icon = ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
 
-/** 两枚图标保持挂载，共用 ui-kit 的换态过渡；也可由直属按钮的 data-icon-state 控制。 */
+/** Both icons stay mounted and share ui-kit's state-change transition; the direct button's data-icon-state can drive them too. */
 export function IconSwap({ a: First, b: Second, state, className }: {
   a: Icon; b: Icon; state?: 'a' | 'b'; className?: string;
 }) {
@@ -16,7 +16,7 @@ export function IconSwap({ a: First, b: Second, state, className }: {
   </span>;
 }
 
-/** BoardUI 按钮保留同一个 leadingIcon，方向状态归按钮。 */
+/** The BoardUI button keeps the same leadingIcon; direction state belongs to the button. */
 export function SortDirectionIcon({ className }: { className?: string }) {
   return <IconSwap a={RiArrowUpLine} b={RiArrowDownLine} className={className} />;
 }

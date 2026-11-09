@@ -22,12 +22,12 @@ import type { PageData } from '../page-data';
 import { FIRST_ACCESS_DENIED } from '../first-access';
 import { AccessSetup } from './access-setup';
 
-/** 口令不对时框下那句话。限流与参数错误的原因由服务端给。 */
-export const WRONG_PASSWORD = '访问密码不正确';
-export const WRONG_TOKEN = '访问口令不正确';
+/** The line under the field when the passphrase is wrong. Rate-limit and bad-parameter reasons come from the server. */
+export const WRONG_PASSWORD = 'Access password is incorrect';
+export const WRONG_TOKEN = 'The access passphrase is incorrect';
 
 const tokenHint = (docker: boolean) => (
-  <>在{docker ? '宿主机' : '运行 Peach 的环境中'}执行 <code className="wrap-anywhere">{docker ? 'docker compose exec peach peach token' : 'peach token'}</code> 查看。</>
+  <>在{docker ? 'The host machine' : 'In the environment where Peach runs'}Run <code className="wrap-anywhere">{docker ? 'docker compose exec peach peach token' : 'peach token'}</code> to view.</>
 );
 
 export function LoginPage({ data }: { data: PageData }) {
@@ -42,13 +42,13 @@ function LoginForm({ data }: { data: PageData }) {
     <AuthCard title="Peach">
       {data.mode === 'denied' ? <Note tone="warning">{FIRST_ACCESS_DENIED}</Note> : null}
       <form method="post" action="/login" aria-labelledby="auth-card-title" className="flex flex-col gap-6">
-        <Input id="login-token" label={token ? '访问口令' : '访问密码'} name="token" type="password" maxLength={256}
+        <Input id="login-token" label={token ? 'Access passphrase' : 'Access password'} name="token" type="password" maxLength={256}
           autoComplete="current-password" autoFocus={data.mode !== 'denied'} isRequired
           isInvalid={reason ? true : undefined} onChange={() => setReason('')}
           hint={reason ? <span role="alert">{reason}</span> : token ? tokenHint(data.mode === 'denied') : undefined} />
         <input type="hidden" name="next" value={data.next || '/'} />
-        <Checkbox name="days" value="30" defaultSelected>保持登录</Checkbox>
-        <Button type="submit" className="w-full">登录</Button>
+        <Checkbox name="days" value="30" defaultSelected>Keep me signed in</Checkbox>
+        <Button type="submit" className="w-full">Sign in</Button>
       </form>
     </AuthCard>
   );

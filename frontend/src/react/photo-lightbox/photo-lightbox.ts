@@ -1,11 +1,12 @@
-/* 图片灯箱（ADR-0031 第 10f 步）：数据形状、Swiper 的按需加载与缩放条的换算。
+/* The image lightbox (ADR-0031 step 10f): data shapes, Swiper's lazy loading and the zoom slider's conversion.
  *
- * 灯箱服务资料页的照片墙（本地图片与番号样张）和关注页的在线图集。每个调用方把自己的
- * 形状换成 `LightboxSlide` 再交进来；三边共用信息面板，动作不同：本地图可按 asset id
- * 定位源文件，样张和在线图只展示来源、序号、尺寸和可取得的大小。 */
+ * The lightbox serves the profile page's photo wall (local images and code stills) and the follows page's online image sets.
+ * Each caller converts its shape into `LightboxSlide` and hands it in; the three sides share the info panel with different
+ * actions: local images can locate the source file by asset id, while stills and online images only show source, index, size
+ * and fetchable size. */
 import { fmtSize, LOC } from '@peach/legacy/core';
 
-/** 本地图片在数据库里的那几样。定位只把 `id` 交给服务端，路径绝不进浏览器。 */
+/** The fields a local image keeps in the database. Locating hands only the `id` to the server; paths never enter the browser. */
 export interface LightboxAsset {
   id: number;
   name?: string;
@@ -14,29 +15,29 @@ export interface LightboxAsset {
   [field: string]: unknown;
 }
 
-/** 灯箱里的一张。`src` 是大图，`thumb` 是缩略图条那一格，大图取不到时也退到它。 */
+/** One slide in the lightbox. `src` is the large image and `thumb` is the thumbnail strip cell; the large image also falls back to it when unavailable. */
 export interface LightboxSlide {
   src: string;
   thumb: string;
   name?: string;
-  /** 本地图片才有；有它才出「在资源管理器中显示」。 */
+  /** Only local images have it; only with it does "Show in Explorer" appear. */
   asset?: LightboxAsset | null;
-  /** 没有 asset 时信息面板第一段：站名或「官方样张」，缺省是「在线图片」。 */
+  /** The info panel's first line when there is no asset: the site name or "official samples", defaulting to "online images". */
   source?: string;
   size?: number;
 }
 
-/** 灯箱要回壳办的事。定位成功由壳发回执，失败回一句原因，写在按钮下面。 */
+/** What the lightbox asks the shell to do. A successful locate gets its receipt from the shell; failure returns a one-line reason shown under the button. */
 export interface LightboxHost {
   revealSource(id: number): Promise<string>;
 }
 
-/* ── Swiper ──
- * 大图轮播、底部缩略图条和键盘左右键都是 Swiper 自带的模块，没必要自己写一遍；但它只有
- * 看照片时才用得上，不该进首屏。只用它的核心 API，不用它的 React 封装：那一层自带一套
- * 渲染，和这里「DOM 由 React 画、Swiper 只接管位移与状态类」的分工对不上。 */
+/* -- Swiper --
+ * The large-image carousel, bottom thumbnail strip, and keyboard arrows are all Swiper's built-in modules; no need to rewrite them. But it is only
+ * useful when viewing photos and should not enter the first screen. Only its core API is used, not its React wrapper: that layer brings its own
+ * rendering, which does not fit the division of labor here of "DOM painted by React, Swiper only owning panning and state classes". */
 
-/** 用到的那一截 Swiper 实例接口。 */
+/** The slice of the Swiper instance API that is used. */
 export interface SwiperInstance {
   activeIndex: number;
   destroyed: boolean;
@@ -52,7 +53,7 @@ export type SwiperConstructor = new (el: HTMLElement, options: Record<string, un
 const SWIPER = '/vendor/swiper/14.4.0/';
 let loader: Promise<SwiperConstructor> | null = null;
 
-/** 样式与脚本一起等：样式晚到一拍，所有 slide 会先当普通块元素同时画出来。 */
+/** Styles and script wait together: if the styles arrive a beat late, every slide paints at once as plain block elements. */
 export const loadSwiper = (): Promise<SwiperConstructor> => loader ??= Promise.all([
   new Promise<void>((resolve, reject) => {
     const href = `${SWIPER}swiper-bundle.min.css`;
@@ -76,23 +77,23 @@ export const loadSwiper = (): Promise<SwiperConstructor> => loader ??= Promise.a
   }),
 ]).then(([, Swiper]) => Swiper).catch((error: unknown) => { loader = null; throw error });
 
-/* ── 缩放条 ──
- * 显示相对原图像素的百分比，而不是相对「适应窗口」的变换倍数。因此大图初始可能是 34%，
- * 原大小才是 100%；Swiper 14 的 zoom.in(number) 能直接接收目标倍数，既可低于 1 也可高于 1。 */
+/* -- Zoom bar --
+ * Shows the percentage relative to the original image's pixels, not the transform multiplier relative to "fit to window". So a large image may start at 34%,
+ * with original size at 100%; Swiper 14's zoom.in(number) accepts the target multiplier directly, below or above 1. */
 export const PHOTO_ZOOM_MIN = 10;
 export const PHOTO_ZOOM_MAX = 400;
 export const PHOTO_ZOOM_STEP = 10;
 
 export interface PhotoZoom {
-  /** `'fit'` 是适应窗口；数字是目标百分比，夹在上下限之间。 */
+  /** `'fit'` means fit to window; a number is the target percentage, clamped between the bounds. */
   apply(raw: number | 'fit'): void;
-  /** 灯箱量过一次尺寸：按上一次的目标重算。 */
+  /** The lightbox has measured once: recompute from the previous target. */
   resize(): void;
-  /** 一张大图到了：是当前这张就按目标重算，适应窗口的百分比要等它的自然尺寸。 */
+  /** A large image arrived: if it is the current one, recompute against the target; the fit-to-window percentage must wait for its natural size. */
   loaded(img: HTMLImageElement): void;
 }
 
-/** `box` 是灯箱本身，它不在文档里了（已经关掉）就什么都不做；`show` 把百分比交给读数与滑杆。 */
+/** `box` is the lightbox itself; once it is out of the document (already closed) this does nothing. `show` hands the percentage to the readout and the slider. */
 export function photoZoom(box: Element, main: SwiperInstance, show: (percent: number) => void): PhotoZoom {
   let target: number | 'fit' = 'fit';
   const image = () => main.slides?.[main.activeIndex]?.querySelector('img');
@@ -122,22 +123,22 @@ export function photoZoom(box: Element, main: SwiperInstance, show: (percent: nu
   };
 }
 
-/* ── 信息面板 ── */
+/* ── Info panel ── */
 
-/** 一千字节以下也写 1 KB；数和单位之间是不换行空格，窄面板里不拆成两行。 */
+/** Writes 1 KB even below a thousand bytes; a non-breaking space sits between the number and the unit, so it never splits into two lines in a narrow panel. */
 export const fmtPhotoSize = (raw: unknown): string => {
   const size = Number(raw) || 0;
-  if (!size) return '大小未知';
+  if (!size) return 'Unknown size';
   return (size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : fmtSize(size)).replace(' ', ' ');
 };
 
-export const photoTitle = (slide: LightboxSlide): string => (slide.asset?.name || slide.name) || '未命名图片';
+export const photoTitle = (slide: LightboxSlide): string => (slide.asset?.name || slide.name) || 'Untitled image';
 
-/** 面板第二行。本地图是来源与大小；别的是来源、分辨率（大图到了才有）和大小。第几张只有底栏那一个编号。 */
+/** The panel's second row. Local images show source and size; the others show source, resolution (only once the full image arrives), and size. Which image it is exists only as the single counter in the bottom bar. */
 export function photoMeta(slide: LightboxSlide, natural: readonly [number, number] | undefined): string {
   const asset = slide.asset;
-  if (asset) return [LOC[asset.location ?? ''] || asset.location || '来源未知', fmtPhotoSize(asset.size)].join(' · ');
+  if (asset) return [LOC[asset.location ?? ''] || asset.location || 'Source unknown', fmtPhotoSize(asset.size)].join(' · ');
   const resolution = natural?.[0] && natural[1] ? `${natural[0]} × ${natural[1]}` : '';
-  return [slide.source || '在线图片', resolution, slide.size ? fmtPhotoSize(slide.size) : '']
+  return [slide.source || 'Online images', resolution, slide.size ? fmtPhotoSize(slide.size) : '']
     .filter(Boolean).join(' · ');
 }

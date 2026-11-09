@@ -1,4 +1,4 @@
-/* 「应用与维护」的前半段：版本更新与开机自启。版本状态最常看，排在整组最前，自动更新的档位紧跟其后。 */
+/* First half of "app and maintenance": version updates and auto-start on boot. Version status is looked at most, so it leads the group with the auto-update tier right behind it. */
 import { useState, type FormEvent } from 'react';
 
 import { SettingsRow } from '@/components/application/settings/settings-rows';
@@ -30,28 +30,28 @@ export function StartupSettings({ startup, receipt }: { startup: StartupState; r
   const [silent, setSilent] = useState(startup.silent);
   const [desktop, setDesktop] = useState(startup.desktop);
   const action = useAction();
-  // 桌面快捷方式只有 Windows 有，桌面上已经摆着另一份安装的图标时也不给动；两种情况后端
-  // 都在 desktop_message 里说了原因，所以按它有没有内容判禁用，不在前端判平台。
+  // Desktop shortcuts exist only on Windows, and they stay put when another install's icon is already on the desktop; the backend explains both cases
+  // in desktop_message, so disabled is judged by whether it has content, not by platform checks in the frontend.
   const desktopReady = startup.available && !startup.desktop_message;
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!startup.available) return;
     void action.run('save', (signal) => apiSend('/api/configuration/startup', { enabled, silent, desktop }, 'POST', signal),
-      () => receipt('已保存配置'));
+      () => receipt('Configuration saved'));
   };
 
   return (
-    <Section guide="startup" title="开机自启" onSubmit={submit}>
+    <Section guide="startup" title="Start at sign-in" onSubmit={submit}>
       <Rows>
-        <SettingsRow label="开机后启动 Peach">
-          <Switch aria-label="开机后启动 Peach" isSelected={enabled} isDisabled={!startup.available} onChange={setEnabled} />
+        <SettingsRow label="Start Peach after sign-in">
+          <Switch aria-label="Start Peach after sign-in" isSelected={enabled} isDisabled={!startup.available} onChange={setEnabled} />
         </SettingsRow>
-        <SettingsRow label="只启动托盘，不打开网页" description="开机后在后台运行，需要时从托盘打开页面。">
-          <Switch aria-label="只启动托盘，不打开网页" isSelected={silent} isDisabled={!startup.available || !enabled} onChange={setSilent} />
+        <SettingsRow label="Start the tray only, without opening the web app" description="Runs in the background at startup; open the page from the tray when needed.">
+          <Switch aria-label="Start the tray only, without opening the web app" isSelected={silent} isDisabled={!startup.available || !enabled} onChange={setSilent} />
         </SettingsRow>
-        <SettingsRow label="在桌面创建快捷方式" description={startup.desktop_message || undefined}>
-          <Switch aria-label="在桌面创建快捷方式" isSelected={desktop} isDisabled={!desktopReady} onChange={setDesktop} />
+        <SettingsRow label="Create desktop shortcut" description={startup.desktop_message || undefined}>
+          <Switch aria-label="Create desktop shortcut" isSelected={desktop} isDisabled={!desktopReady} onChange={setDesktop} />
         </SettingsRow>
       </Rows>
       {startup.message || action.error ? (
@@ -61,7 +61,7 @@ export function StartupSettings({ startup, receipt }: { startup: StartupState; r
         </Stack>
       ) : null}
       <Footer>
-        <Button type="submit" disabled={!startup.available} {...busyProps(action.busy === 'save')}>保存配置</Button>
+        <Button type="submit" disabled={!startup.available} {...busyProps(action.busy === 'save')}>Save configuration</Button>
       </Footer>
     </Section>
   );

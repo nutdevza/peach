@@ -12,8 +12,8 @@ import {
   type LibraryProcessingData, type ProcessingControlCommand,
 } from './library-processing';
 
-/** 控制只作用于快照里的任务号；状态由服务端确认后交给所有入口。
- * 与任务中心的取消是同一个动作：同一枚图标、同一套说法，先确认再发。 */
+/** The control acts only on task ids in the snapshot; state is handed to all entry points once the server confirms.
+ * Same action as cancel in the task center: same icon, same wording, confirm before sending. */
 export function ProcessingControls({ state, disabled = false }: {
   state: LibraryProcessingData; disabled?: boolean;
 }) {
@@ -21,8 +21,8 @@ export function ProcessingControls({ state, disabled = false }: {
   const confirming = useRef(false);
   const active = processingActive(state);
   const stopping = state.status === 'stopping';
-  const controlLabel = state.status === 'paused' ? '继续' : state.status === 'pausing' ? '正在暂停' : '暂停';
-  const cancelLabel = stopping ? '正在取消' : '取消任务';
+  const controlLabel = state.status === 'paused' ? 'Continue' : state.status === 'pausing' ? 'Pausing' : 'Paused';
+  const cancelLabel = stopping ? 'Cancelling' : 'Cancel task';
   const change = (command: ProcessingControlCommand) => {
     if (disabled || action.busy) return;
     void action.run(command.action, signal =>
@@ -36,9 +36,9 @@ export function ProcessingControls({ state, disabled = false }: {
     if (!jobId || disabled || action.busy || confirming.current) return;
     confirming.current = true;
     void confirmModal({
-      title: '取消任务「扫描与采集」',
-      body: '将停止这一轮剩余的处理。已登记的影片、取得的资料和预览会保留。这一轮取消后不能继续，需要时重新同步。',
-      confirmLabel: '取消任务',
+      title: 'Cancel task “Scan and collect”',
+      body: 'This will stop the remaining processing for this round. Already-registered videos, retrieved resources, and previews are preserved. This round cannot continue after cancellation; re-sync when needed.',
+      confirmLabel: 'Cancel task',
       danger: true,
     }).then(({ confirmed }) => { if (confirmed) change({ action: 'cancel', job_id: jobId }) })
       .finally(() => { confirming.current = false });

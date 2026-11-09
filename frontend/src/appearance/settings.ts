@@ -1,7 +1,8 @@
-/* 界面偏好的默认值、启动归一化与唯一 store（peach.settings.v1）。
- * Application、设置面板、侧栏与配色弹层通过共享源码读写同一个对象。
- * 首次 appSettingsStore() 从 localStorage 读取、归一化并创建实例，启动阶段同步就位。
- * 存量只接受形状与范围合法的值，单项非法时取该项默认值。 */
+/* UI preferences' defaults, startup normalization and single store (peach.settings.v1).
+ * Application, the settings panel, sidebar and color popover read and write one object through shared source.
+ * The first appSettingsStore() reads from localStorage, normalizes and creates the instance, in place synchronously during
+ * startup.
+ * Legacy values are accepted only when shape and range are legal; an illegal item takes that item's default. */
 import { api } from '@peach/legacy/core';
 
 import { isInterfaceLanguageChoice, matchInterfaceLanguage, type InterfaceLanguage, type InterfaceLanguageChoice } from '../i18n';
@@ -17,17 +18,17 @@ import { SORT_ALIASES, SORT_KEYS } from '../sort-preferences';
 import { DEFAULT_ACCENT, DEFAULT_HOME_GLOW, normalizeAccent, normalizeHomeGlow, type HomeGlow } from './home-glow';
 
 export { SETTINGS_KEY };
-/* 主题三档，键名与 <html> 上的 data-theme 同一套写法：web/css/01-base.css 的色板
-   已经按 `prefers-color-scheme` 和 `[data-theme]` 两条路径写好，这里只负责选哪一条。
-   跟随系统是默认档，选它等于不写属性。 */
+/* Three theme tiers, key names written the same way as `data-theme` on <html>: web/css/01-base.css's palette
+   is already written along both the `prefers-color-scheme` and `[data-theme]` paths; this only picks which one.
+   Follow system is the default tier; choosing it means not writing the attribute. */
 export const THEME_CHOICES: readonly string[] = ['system', 'light', 'dark'];
-/** 关注首次采集往回取多少天；与数据库那一份同一张表。 */
+/** How many days back the first follows collection reaches; the same table as the database copy. */
 export const FOLLOW_INITIAL_DAYS: readonly number[] = [0, 7, 30, 90];
-/* 新作那一行收不收合集由服务端按数据库里的设置筛（列表、未读数、补封面同一份），这里只是
-   镜像：开关的真相在 `/api/settings`。默认收起大合集与切片、单人合集照列。 */
+/* Whether the new releases row includes compilations is filtered server-side from the database setting (one source for the list, unread counts and cover backfill); this page only
+   mirrors it: the switch's truth lives in `/api/settings`. By default large compilations and clips are collapsed, while solo compilations stay listed. */
 export const FEED_COMPILATION_KEYS = ['feedHideGroupCompilations', 'feedHideSoloCompilations', 'feedHideExcerpts'] as const;
 
-/** 归一化之后一定在的那几项。对象上还有别的字段（壳与各岛按需写入），这里不一一列出。 */
+/** The fields guaranteed present after normalization. The object carries other fields too (written on demand by the shell and the islands), not listed one by one here. */
 export interface AppSettings {
   [key: string]: unknown;
   batchSize: number;
@@ -81,19 +82,19 @@ export const DEFAULT_SETTINGS = {
   libraryOrder: [],
 } as const;
 
-/** 白名单里的值原样给回，否则给 `fallback`。 */
+/** Whitelisted values are returned as-is, otherwise `fallback`. */
 export const allowedSetting = <T>(value: unknown, allowed: readonly T[], fallback: T): T =>
   allowed.includes(value as T) ? value as T : fallback;
 
-/** 读回的那份存量归一化成完整的偏好对象。`migrated` 为真表示改写了旧键，要落一次盘。 */
+/** The persisted legacy copy read back, normalized into a full preferences object. `migrated` true means an old key was rewritten and one write to disk is due. */
 export function normalizeAppSettings(raw: unknown): { settings: AppSettings; migrated: boolean } {
   const saved = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   const settings = { ...DEFAULT_SETTINGS, ...saved } as Record<string, unknown>;
   settings.followInitialDays = FOLLOW_INITIAL_DAYS.includes(+(settings.followInitialDays as number))
     ? +(settings.followInitialDays as number) : 30;
   delete settings.rotateMinutes;
-  /* 迁移只碰默认值本身：把界面上已经不存在的键换成当前键，用户主动选过的排序不动。
-     不迁移的话白名单会把它静默打回随机。 */
+  /* Migration touches only the default value itself: swap keys that no longer exist in the UI for current keys, leaving user-chosen sort orders alone.
+     Without migration the whitelist would silently knock it back to random. */
   let migrated = false;
   const version = +(settings.sortDefaultsVersion as number) || 0;
   if (version < 2 && settings.defaultSort === 'new') { settings.defaultSort = 'seed'; migrated = true }
@@ -133,16 +134,16 @@ export function normalizeAppSettings(raw: unknown): { settings: AppSettings; mig
   return { settings: settings as AppSettings, migrated };
 }
 
-/** 从 `storage` 读回并归一化；存的不是合法 JSON 时当作什么都没存。 */
+/** Reads back from `storage` and normalizes; stored text that is not valid JSON counts as nothing stored. */
 export function readAppSettings(storage: Pick<Storage, 'getItem'>): { settings: AppSettings; migrated: boolean } {
   let raw: unknown = {};
-  try { raw = JSON.parse(storage.getItem(SETTINGS_KEY) || '{}') } catch { /* 坏掉的存量按空的算 */ }
+  try { raw = JSON.parse(storage.getItem(SETTINGS_KEY) || '{}') } catch { /* Broken legacy entries count as empty */ }
   return normalizeAppSettings(raw);
 }
 
 let store: SettingsStore<AppSettings> | null = null;
 
-/** 整页那一份偏好 store。第一次调用时读回、归一化；改写过旧键就当场落一次盘。 */
+/** The page-wide preference store. Reads back and normalizes on first call; if it rewrote an old key it persists to disk right away. */
 export function appSettingsStore(): SettingsStore<AppSettings> {
   if (store) return store;
   const { settings, migrated } = readAppSettings(localStorage);
@@ -151,10 +152,10 @@ export function appSettingsStore(): SettingsStore<AppSettings> {
   return store;
 }
 
-/** 数据库那一份要求某个壳侧效果跟着做时报的名字（同设置面板的效果名）。 */
+/** The name reported when the database copy requires a shell-side effect to follow (the same names as the settings panel's effects). */
 export type SyncedEffect = 'searchHistoryLimit' | 'performerNameLanguage' | 'interfaceLanguage';
 
-/** 搜索记录条数在 `/api/settings` 上的形状：还没定过时是 null。 */
+/** The shape of the search history limit on `/api/settings`: null until it has ever been set. */
 export interface SyncedSettings {
   performerNameLanguage?: unknown;
   interfaceLanguage?: unknown;
@@ -170,9 +171,9 @@ export interface SyncedSettings {
   libraryOrder?: unknown;
 }
 
-/* 数据库那一份落进本地缓存。启动时壳取一次、设置面板每次打开再取一次，都交到这里；开着的面板与
-   侧栏经 store 通知跟上：侧栏顺序变了，它当场按新顺序重排。搜索记录条数变了要推给搜索岛，那一下
-   由 `changed` 交回壳。 */
+/* The database's copy lands in local cache. The shell fetches once at startup and the settings panel fetches again on each open, both handed here; the open panel and
+   sidebar follow via store notices: when the sidebar order changes, it reorders on the spot. A change in search history count must reach the search island; that handoff
+   goes back to the shell via `changed`. */
 export function applySyncedSettings(
   remote: SyncedSettings | null | undefined, changed: (effect: SyncedEffect) => void,
   target: SettingsStore<AppSettings> = appSettingsStore(),
@@ -200,7 +201,7 @@ export function applySyncedSettings(
     if (typeof remote?.[key] !== 'boolean' || remote[key] === settings[key]) continue;
     settings[key] = remote[key] as boolean; target.save();
   }
-  /* 数据库里还没有条数时，这台设备本地改过的那个数替所有访问端先定下来，只送这一次。 */
+  /* When the database has no count yet, this device's locally changed number settles it for all clients up front, sent just this once. */
   const limit = remote && remote.searchHistoryLimit;
   if (Number.isInteger(limit) && (limit as number) >= 0 && (limit as number) <= 50) {
     if (limit !== settings.searchHistoryLimit) {
@@ -231,7 +232,7 @@ export function applySyncedSettings(
   target.save();
 }
 
-/** 把本地那个搜索记录条数送上数据库；失败不报，下次对账再送。 */
+/** Ships the local search history count to the database; failures are silent and retried at the next reconciliation. */
 export function postSearchHistoryLimit(target: SettingsStore<AppSettings> = appSettingsStore()): Promise<unknown> {
   return api('/api/settings', {
     method: 'POST', body: JSON.stringify({ searchHistoryLimit: target.value.searchHistoryLimit }),

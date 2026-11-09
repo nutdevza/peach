@@ -13,8 +13,8 @@ function CloudIcon({ className }: { className?: string }) {
 }
 export const providerIcon = (source: string) => sourceIcons[sourceLocation(source)] ?? CloudIcon;
 
-/** 站点标识经本站缓存读取。javdb 与 dmm 是采集来源，用随应用提供的站标；文字放不下时截断，
- *  不压到后面的外链图标上。 */
+/** Site badges are read through this site's cache. javdb and dmm are collection sources and use the site badges shipped with the app; text that does not fit is truncated,
+ *  not pushed onto the external-link icon behind it. */
 export function SiteLabel({ site, label }: { site: string; label: string }) {
   const [failed, setFailed] = useState(false);
   const source = site === 'javdb' || site === 'dmm' ? `/site-mark?source=${site}`
@@ -25,7 +25,7 @@ export function SiteLabel({ site, label }: { site: string; label: string }) {
   </span>;
 }
 
-/** 网盘与本地来源共用已登记的标识。 */
+/** Cloud drive and local sources share the registered identifiers. */
 export function SourceLabel({ source, label }: { source: string; label: string }) {
   const location = sourceLocation(source);
   return <span className="inline-flex min-w-0 items-center gap-1.5">

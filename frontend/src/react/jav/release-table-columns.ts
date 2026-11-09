@@ -1,4 +1,4 @@
-/* JAV 新作列表的列定义与本机列偏好的存放位置。不依赖 React：路由骨架与列表读同一份。 */
+/* The column definitions for the JAV new-releases list and where local column preferences are stored. No React dependency: the route skeleton and the list read the same copy. */
 import { tableSnapshot, type TableSnapshot } from '../catalog-grid/catalog-table-columns';
 import type { ReleaseSort } from './discovery-sorts';
 
@@ -16,14 +16,14 @@ const sizes: Record<string, { width: number; min: number; max: number }> = {
   actions: { width: 184, min: 184, max: 320 },
   code: { width: 128, min: 112, max: 320 },
 };
-const labels: Record<string, string> = { name: '作品', people: '艺人', studio: '厂牌', tags: '标签', code: '番号',
-  dur: '时长', score: '来源评分', release: '发行时间', actions: '操作' };
+const labels: Record<string, string> = { name: 'Videos', people: 'Artists', studio: 'Labels', tags: 'Tags', code: 'Code',
+  dur: 'Duration', score: 'Source rating', release: 'Release date', actions: 'Actions' };
 
-/** 表头点了能排序的列，对应到新作接口的排序键；其余列不排。 */
+/** The header columns that are sortable map to the New Releases API's sort keys; the other columns aren't sortable. */
 export const RELEASE_SORT_COLUMNS: Record<string, ReleaseSort> = { code: 'code', dur: 'duration', score: 'source_score', release: 'release_date' };
 
-/* 列的先后：作品、艺人、厂牌、标签，再是新作最常按它挑的发行时间、时长、来源评分，操作收尾；番号标题里已有，
- * 默认收起。默认显示的这几列 1440 宽下正好放下。 */
+/* Column order: works, artists, labels, tags, then release date, duration, and source score (the most common sorts for new releases), with actions last; the code is already in the title,
+ * so it is collapsed by default. The default columns fit exactly at 1440 width. */
 export const releaseColumns = ['name', 'people', 'studio', 'tags', 'release', 'dur', 'score', 'actions', 'code']
   .map(id => ({ id, label: labels[id]!, ...sizes[id]!, flex: id === 'name', required: id === 'name', visible: id !== 'code' }));
 

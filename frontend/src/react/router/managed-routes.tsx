@@ -1,15 +1,21 @@
-/* 由路由画的那几页、页面里的页面内组件与常驻组件：登记键到首屏取数与画法的对照表，七张；另有旧直达地址的
- * 改写表 `REDIRECT_ROUTES` 和沉浸模式的 `IMMERSE_ROUTES`，只挂元素。
+/* The pages rendered by the router, the in-page components inside them, and the resident components: a table of registration
+ * key to first-screen fetch and render style, seven tables; plus the legacy direct-address rewrite table `REDIRECT_ROUTES` and
+ * immersive mode's `IMMERSE_ROUTES`, which only mount elements.
  *
- * `MANAGED_ROUTES` 是管理区那几页（画进 `#stats`），键是精确路径，每条带页面组按匹配挂上的元素；
- * `BROWSE_ROUTES` 是同样画进 `#stats` 的播放列表页与关注页；`INDEX_ROUTES` 是索引页、`ENTITY_ROUTES` 是资料页（都画进 `#index`），资料页按模式登记
- * （`/performers/*`），种类与名字跟着打开走；`CATALOG_ROUTES` 是画进 `#grid` 的目录网格与垃圾队列，按页面
- * 分键；`SURFACE_ROUTES` 是页面里的页面内组件，`RESIDENT_ROUTES` 是不跟某一页走的常驻组件，都按名字登记，不是地址、
- * 不进 `<Routes>`。每次打开交进来的 `open`（管理区由页面元素算，其余由壳算）只带那一次才算得出的值（地址上的分类与页签、只读状态、引导标记、一次性预填、刷新代次），`#grid` 那两页
- * 与页面内组件是壳那一整份 props；回执与换到还归壳的那几屏走 `ShellActions`。
- * 管理区几页之间的跳转走 `go`：落在 `MANAGED_ROUTES` 上的交给 React Router 的 `navigate`，其余交壳。另外
- * 四张表的页面不走 `go`：它们在页内写地址一律由壳认领（`routeIndex`、资料页与关注页的 `actions.route`、
- * 目录的换筛选、垃圾队列的换分类），跨页也交壳，打开次数同壳自己打开。 */
+ * `MANAGED_ROUTES` is the management pages (rendered into `#stats`), keyed by exact path, each entry carrying the element the
+ * page group mounts on match; `BROWSE_ROUTES` is the playlists and follows pages, rendered into `#stats` the same way;
+ * `INDEX_ROUTES` is the index pages and `ENTITY_ROUTES` is the profile page (both rendered into `#index`), with the profile
+ * page registered by pattern (`/performers/*`), kind and name following the open; `CATALOG_ROUTES` is the catalog grid and
+ * junk queue rendered into `#grid`, keyed per page; `SURFACE_ROUTES` is the in-page components and `RESIDENT_ROUTES` the
+ * resident components that are not tied to a page, both registered by name, not address, and not inside `<Routes>`. The
+ * `open` handed in on each open (computed by the page element for management, by the shell for the rest) carries only the
+ * values computable for that open (the category and tab on the address, read-only state, onboarding flags, one-shot prefill,
+ * refresh generation); the two `#grid` pages and the in-page components get the shell's whole props; receipts and switching to
+ * screens still owned by the shell go through `ShellActions`.
+ * Jumps between management pages go through `go`: entries landing on `MANAGED_ROUTES` go to React Router's `navigate`, the
+ * rest go to the shell. The other four tables' pages do not use `go`: their in-page address writes are all claimed by the
+ * shell (`routeIndex`, the profile and follows pages' `actions.route`, the catalog's filter change, the junk queue's category
+ * change), cross-page jumps also go to the shell, and open counts match the shell's own opens. */
 import type { ReactElement } from 'react';
 import type { ConfigurationPath } from '@peach/history';
 
@@ -71,7 +77,7 @@ import type {
 interface ManagedRoute<P> {
   prefetch(open: P, signal: AbortSignal): Promise<void>;
   page(open: P, actions: ShellActions, go: (path: string) => void): ReactElement;
-  /** 页面组里这条路由的元素：按地址打开这一页（`pages/`）。没有的那几页仍由壳打开。 */
+  /** The element for this route in the page group: opens this page by address (`pages/`). The pages that do not exist are still opened by the shell. */
   element?: ReactElement;
 }
 
@@ -82,12 +88,12 @@ type EntityRouteTable = { [Path in EntityRoutePath]: ManagedRoute<EntityPageProp
 type CatalogRouteTable = { [Path in CatalogPagePath]: ManagedRoute<CatalogOpenProps[Path]> };
 type SurfaceRouteTable = { [Name in SurfaceName]: ManagedRoute<SurfaceOpenProps[Name]> };
 type ResidentRouteTable = { [Name in ResidentName]: ManagedRoute<ResidentOpenProps[Name]> };
-/** 路由树画的全部页面与面：管理区那几页、播放列表页与关注页、索引页与资料页、目录网格，加上页面内组件与常驻组件的名字。 */
+/** All pages and panels the route tree renders: the managed-area pages, the playlists and follows pages, index and profile pages, the catalog grid, plus the names of in-page and resident components. */
 export type RoutedPath =
   ManagedPath | BrowseRoutePath | IndexRoutePath | EntityRoutePath | CatalogPagePath | SurfaceName | ResidentName;
 
-/* 低频页的代码不在入口里（ADR-0118）：首屏取数与 chunk 并行装载，两样都落地才画页。数据先回来时等代码，
- * 代码先到时等数据；任何一样失败照旧交给 `openManagedRoute`，中止就是用户已经走开。 */
+/* Low-frequency pages' code is not in the entry bundle (ADR-0118): first-screen fetches and chunk loads run in parallel, and the page paints when both land. Data first means waiting for code,
+ *  code first means waiting for data; either failing still goes to `openManagedRoute`, and aborting just means the user moved on. */
 async function withPage(chunk: RouteChunk<unknown>, data: Promise<void>): Promise<void> {
   const [code, first] = await Promise.allSettled([chunk.preload(), data]);
   if (first.status === 'rejected') throw first.reason;
@@ -112,7 +118,7 @@ const followManagePage = routeChunk(() => import('../follow-manage/follow-manage
 const playlistsPage = routeChunk(() => import('../playlists/playlists-page'));
 const repairCenterPage = routeChunk(() => import('../settings/repair-center'));
 
-/* 数据管理页读数卡的去处里，只有重复文件不按管理区身份找：它报的是数据管理的身份。 */
+/* Among the data management page's readout card destinations, only duplicate files is not looked up by its manage-area identity: it reports the data management identity. */
 function openCleanupSection(section: DataCleanupSection, actions: ShellActions, go: (path: string) => void) {
   if (section === 'duplicates') { go('/duplicates'); return }
   const path = actions.managePath(section);
@@ -120,8 +126,8 @@ function openCleanupSection(section: DataCleanupSection, actions: ShellActions, 
   else actions.openManage(section);
 }
 
-/* 第一帧在宿主放进 `#stats` 的同一个任务里同步画完（`router.tsx` 的 `ManagedSurface`）：壳画完这一页
- * 紧接着就读它画出来的结构（配置页按地址里的 `#peachProxy` 滚过去，那一刻选中的页签已经是「网络与访问」）。 */
+/* The first frame paints synchronously in the same task the host enters `#stats` (`router.tsx`'s `ManagedSurface`): right after the shell paints this page it reads the structure it painted
+ * (the config page scrolls to `#peachProxy` from the address, and at that moment the selected tab is already "Network and access"). */
 const configurationRoute = (path: ConfigurationPath): ManagedRoute<ManagedOpenProps['/settings/library']> => ({
   element: <ManagedMatch path={path} />,
   prefetch: (_open, signal) => {
@@ -131,7 +137,7 @@ const configurationRoute = (path: ConfigurationPath): ManagedRoute<ManagedOpenPr
   page: (open, actions) => {
     const { ConfigurationPage, DiagnosticsPage } = configurationPage.get();
     return <ConfigurationPage receipt={message => actions.receipt(message)}
-      reopenTutorial={actions.reopenTutorial} section={path === '/settings/diagnostics' ? '系统诊断' : open.section ?? ''}
+      reopenTutorial={actions.reopenTutorial} section={path === '/settings/diagnostics' ? 'System diagnostics' : open.section ?? ''}
       diagnostics={<DiagnosticsPage openItem={actions.openItem} receipt={message => actions.receipt(message)} />} />;
   },
 });
@@ -164,7 +170,7 @@ export const MANAGED_ROUTES: ManagedRouteTable = {
   '/stats': {
     element: <ManagedMatch path="/stats" />,
     prefetch: (_open, signal) => withPage(statsPage, prefetchStats(signal)),
-    /* 点一个内容标签是「回目录并按它筛选」，整页换成目录仍归壳。 */
+    /* Clicking a content tag means 'back to the catalog, filtered by it'; swapping the whole page to the catalog still belongs to the shell. */
     page: (_open, actions) => {
       const { StatsPage } = statsPage.get();
       return <StatsPage tagLabel={tagLabel} onTag={actions.openTag} />;
@@ -172,16 +178,16 @@ export const MANAGED_ROUTES: ManagedRouteTable = {
   },
   '/taste': {
     element: <ManagedMatch path="/taste" />,
-    /* 首屏取的是「全部时间」那一份：分析范围是组件状态，每次进这一页都从它开始。 */
+    /* The first screen fetches the 'all time' dataset: the analysis window is component state, and every visit to this page starts from it. */
     prefetch: (_open, signal) => withPage(tastePage, prefetchTaste(DEFAULT_WINDOW, signal)),
-    /* 总结里的下一步动作按路径走（`taste_history.py` 给的），路由树里没有的交壳的路由表。 */
+    /* The next actions in the summary navigate by path (as given by `taste_history.py`); the ones missing from the route tree go to the shell's route table. */
     page: (open, actions, go) => {
       const { TastePage } = tastePage.get();
       return <TastePage onSignal={actions.openTasteSignal} navigate={go} toast={(message) => actions.receipt(message)}
         onboarding={open.onboarding} />;
     },
   },
-  /* ADR-0018 的确定项已由扫描与资料处理任务落库；复核页只读取剩下的判断题。 */
+  /* ADR-0018's decided items were already written to the database by the scan and profile processing jobs; the review page reads only the remaining judgment calls. */
   '/review': {
     element: <ManagedMatch path="/review" />,
     prefetch: (_open, signal) => withPage(reviewPage, prefetchReview(signal)),
@@ -191,7 +197,7 @@ export const MANAGED_ROUTES: ManagedRouteTable = {
         revealSource={actions.revealSource} toast={(message) => actions.receipt(message)} />;
     },
   },
-  /* 首页只展开日常扫描；维护工具各自预取自己的二级页数据。 */
+  /* The home page only expands the daily scan; maintenance tools each pre-fetch their own second-level page data. */
   '/data-cleanup': {
     element: <ManagedMatch path="/data-cleanup" />,
     prefetch: (_open, signal) => withPage(dataCleanupPage, prefetchDataCleanup(signal)),
@@ -251,8 +257,8 @@ export const MANAGED_ROUTES: ManagedRouteTable = {
       return <ActivityPage />;
     },
   },
-  /* 首屏只取来源清单与凭据状态，地址栏指着「订阅源」时连它一起取。检查更新与查找那两趟
-     后台任务的快照不在首屏里：它们常年躺着上一趟的回执，等它们只会让首屏多一个往返。 */
+  /* The first screen fetches only the source list and credential status, plus feeds when the URL points at "Feeds". Snapshots of the update-check and lookup background
+     tasks are not in the first screen: they sit on the previous run's receipt all the time, and waiting for them would only add a round trip. */
   '/subscriptions': {
     element: <ManagedMatch path="/subscriptions" />,
     prefetch: (_open, signal) => withPage(followManagePage, prefetchFollowManage(signal)),
@@ -264,25 +270,27 @@ export const MANAGED_ROUTES: ManagedRouteTable = {
   },
 };
 
-/** 管理区那几页之间的跳转判据：只认 `MANAGED_ROUTES` 的精确路径。索引页不算：它们换 search 要由壳
- *  认领，跨进来也是壳写地址再自己打开。 */
+/** The criterion for navigation between managed-area pages: only exact paths from `MANAGED_ROUTES` count. Index pages do not: their search changes are claimed by the shell,
+ *  and crossing into them is also the shell writing the URL and opening them itself. */
 export const isManagedPath = (path: string): path is ManagedPath => Object.hasOwn(MANAGED_ROUTES, path);
 
-/** 旧直达地址：页面组按匹配挂上元素，元素把地址改写到别的页面上，自己不画。 */
+/** Legacy direct addresses: the page group mounts elements by match, the elements rewrite the address onto another page and render nothing themselves. */
 export const REDIRECT_ROUTES: Readonly<Record<string, { element: ReactElement }>> = {
   '/resource-sync': { element: <ResourceSyncRedirect /> },
 };
 
-/** 沉浸模式：页面组按匹配挂上元素（`pages/immerse.tsx`），元素交壳打开常驻组件 `immerse`，自己不画。 */
+/** Immersive mode: the page group mounts the element on match (`pages/immerse.tsx`), and the element hands the shell the open of the resident component `immerse`, drawing nothing itself. */
 export const IMMERSE_ROUTES: Readonly<Record<string, { element: ReactElement }>> = {
   '/immerse': { element: <ImmerseMatch /> },
 };
 
-/* 两页都由元素按匹配打开（`pages/follow.tsx`）。播放列表页：首屏每次都向服务端重取（首页刚存的 Mix 进来就要
-   看得到）。停在这一页时壳要求重读，元素经 `updateManagedRoute` 推一个新的 `revision`，页面只重取、不重挂。点开
-   一份进舞台、翻页门槛与回执都归壳。
-   关注页：首屏是列表第一页与凭据两趟并行，挂上就是最终样子；之后换筛选、换一批、选择模式与照片版式都由
-   壳经 `updateManagedRoute` 推进来，页面按新键只重取列表、不重挂。 */
+/* Both pages are opened by their elements on match (`pages/follow.tsx`). Playlists page: the first screen refetches from the
+   server every time (a Mix just saved on home must be visible on arrival). While on the page, when the shell asks for a
+   reread the element pushes a new `revision` via `updateManagedRoute`, and the page only refetches without remounting.
+   Opening one into the stage, the paging threshold and receipts belong to the shell.
+   Follows page: the first screen is the list's first page and credentials in parallel, final on mount; later filter changes,
+   Shuffle, selection mode and photo layout are pushed in by the shell via `updateManagedRoute`, and the page refetches only
+   the list per the new key without remounting. */
 export const BROWSE_ROUTES: BrowseRouteTable = {
   '/playlists': {
     element: <PlaylistsMatch />,
@@ -301,8 +309,8 @@ export const BROWSE_ROUTES: BrowseRouteTable = {
 };
 const isBrowsePath = (path: string): path is BrowseRoutePath => Object.hasOwn(BROWSE_ROUTES, path);
 
-/* 索引页：地址栏上的四项由元素从地址读出、跟着这一次打开交进来；页内换档经 `routeIndex` 由壳写地址并认领，
-   不重挂（后退前进到同一页的另一份 search 时领新的页面打开序号，元素按地址重开一次）。首屏只取第一页。 */
+/* Index page: the address bar's four items are read from the address by the element and handed in with this open; in-page state changes go through `routeIndex` where the shell writes the address and claims it,
+   without remounting (back/forward to another search copy of the same page takes a new page-open epoch, and the element reopens once by address). The first screen fetches only the first page. */
 const indexRoute: ManagedRoute<IndexOpenProps> = {
   element: <IndexMatch />,
   prefetch: (open, signal) => prefetchIndex(open, signal),
@@ -356,8 +364,8 @@ export const CATALOG_ROUTES: CatalogRouteTable = {
 };
 const isCatalogPage = (path: string): path is CatalogPagePath => Object.hasOwn(CATALOG_ROUTES, path);
 
-/* 扫描与采集提供数据管理卡片和紧凑任务面。两边读同一个
- * `queryKey`，所以同时挂着时它们看的是同一份快照，Query 也只发一份轮询。 */
+/* Scan and scrape provides both the data management card and a compact task panel. The two read the same
+ * `queryKey`, so when mounted together they see the same snapshot and Query sends only one poll. */
 const LibraryProcessing = (props: LibraryProcessingProps) => (
   props.mode === 'notice' ? <LibraryProcessingNotice {...props} /> : <LibraryProcessingCard {...props} />
 );
@@ -378,7 +386,7 @@ export const SURFACE_ROUTES: SurfaceRouteTable = {
     prefetch: (_open, signal) => prefetchLibraryProcessing(signal),
     page: (open) => <LibraryProcessing {...open} />,
   },
-  /* 输入框是壳的，下拉只接它的事件、画下拉栏里的内容。 */
+  /* The input box belongs to the shell; the dropdown only hooks its events and draws the dropdown's contents. */
   search: {
     prefetch: async () => {},
     page: (open) => <SearchPage {...open} />,
@@ -386,12 +394,14 @@ export const SURFACE_ROUTES: SurfaceRouteTable = {
 };
 const isSurfaceName = (key: string): key is SurfaceName => Object.hasOwn(SURFACE_ROUTES, key);
 
-/* 常驻组件，按名字登记：壳启动时经 `openResidentSurface` 各开一次，一直算当前页，没有首屏取数，宿主就是壳的
-   那个节点。从不收，只有错误边界会卸它的组件，宿主照旧留在文档里。打开不带 props：壳经命令式句柄推内容，
-   组件订阅自己模块里的 store，句柄里的绘制同步做完。管理区页头与侧栏的宿主里先有壳的启动骨架，打开时由
-   `place` 在画出首帧的同一个任务里清掉；沉浸与舞台的宿主不在壳的页面里，第一次打开时新建，由 `place` 在画出首帧
-   （沉浸是藏着的外框，舞台是小窗节点）的同一个任务里挂到 body 末尾；设置面板的宿主在第一次打开时才有，由 `place`
-   在同一个任务里放进 body 末尾。 */
+/* Resident components, registered by name: the shell opens each once via `openResidentSurface` at startup, always counting as
+   the current page, with no first-screen fetch, the host being the shell's node. Never torn down; only an error boundary
+   unmounts their component while the host stays in the document. Opening carries no props: the shell pushes content through
+   the imperative handle, the component subscribes to its own module's store, and the handle's renders complete synchronously.
+   The management header and sidebar's hosts already hold the shell's startup skeleton, cleared by `place` in the same task as
+   the first frame on open; immersive and stage hosts are not in the shell's pages, are created on first open, and are mounted
+   at the end of body by `place` in the same task as the first frame (immersive's hidden outer frame, stage's mini player
+   node); the settings panel's host exists only on first open, placed at the end of body by `place` in the same task. */
 export const RESIDENT_ROUTES: ResidentRouteTable = {
   'batch-dock': {
     prefetch: async () => {},
@@ -423,16 +433,16 @@ export const RESIDENT_ROUTES: ResidentRouteTable = {
   },
 };
 const isResidentName = (key: string): key is ResidentName => Object.hasOwn(RESIDENT_ROUTES, key);
-/** 画着 `#grid` 那两页时地址可能落在的路径：首页、三个筛选态、回收站与垃圾文件。只进 `<Routes>` 的声明，
- *  不当槽里的键。 */
+/** Paths the address may land on while the two `#grid` pages are drawn: home, the three filter states, trash, and junk files. Only goes into the `<Routes>` declaration,
+ *  not used as a slot key. */
 export const CATALOG_PATHS = ['/', '/wall', '/unseen', '/watch-later', '/flagged', '/trash', '/junk-files'] as const;
 
-/** `<Routes>` 声明的路径：前四张表的键，加上 `#grid` 那两页画着时地址可能落在的路径。 */
+/** The paths declared in `<Routes>`: the keys of the first four tables, plus the paths the URL can land on while the two `#grid` pages render. */
 export const ROUTED_PATHS: readonly string[] = [
   ...Object.keys(MANAGED_ROUTES), ...Object.keys(BROWSE_ROUTES), ...Object.keys(INDEX_ROUTES),
   ...Object.keys(ENTITY_ROUTES), ...CATALOG_PATHS,
 ];
-/** 路由树画得了这一页吗：首屏取数与画页按槽里记的登记键查，`#grid` 那两页只认页面键，页面内组件与常驻组件只认名字。 */
+/** Can the route tree render this page: first-screen fetch and page paint look up by the registration key recorded in the slot; the two `#grid` pages accept only page keys, while in-page and resident components accept only names. */
 export const isRoutedPath = (path: string): path is RoutedPath => (
   isManagedPath(path) || isBrowsePath(path) || Object.hasOwn(INDEX_ROUTES, path) || Object.hasOwn(ENTITY_ROUTES, path)
   || isCatalogPage(path) || isSurfaceName(path) || isResidentName(path));
@@ -447,13 +457,13 @@ function routeOf(path: RoutedPath): ManagedRoute<object> {
   return ENTITY_ROUTES[path as EntityRoutePath] as ManagedRoute<object>;
 }
 
-/** 首屏取数（`openManagedRoute` 经 `connectManagedRoutes` 调它）。 */
+/** First-screen fetch (`openManagedRoute` calls it through `connectManagedRoutes`). */
 export function prefetchManagedRoute(path: string, open: object, signal: AbortSignal): Promise<void> {
-  if (!isRoutedPath(path)) return Promise.reject(new Error(`路由树里没有这一页：${path}`));
+  if (!isRoutedPath(path)) return Promise.reject(new Error(`No page in the route tree for ${path}`));
   return routeOf(path).prefetch(open, signal);
 }
 
-/** 画这一页。 */
+/** Render this page. */
 export function managedPage(path: RoutedPath, open: object, actions: ShellActions, go: (path: string) => void) {
   return routeOf(path).page(open, actions, go);
 }

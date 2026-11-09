@@ -5,7 +5,7 @@ import { createFollowDetailActions } from '../react/follow-detail/follow-detail-
 import { checkReceipt } from '../react/follow-manage/follow-manage';
 import { followScrollY } from '../shell';
 import { pageNavigationReady, rememberPageState } from '../history/page-navigation';
-/* follow 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* follow domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { receiptsState } from './receipts.js';
 import { managedEntry, releaseManagedRoute, updateManagedRoute } from './../history/managed';
 import { $, entityPath } from '../core';
@@ -32,7 +32,7 @@ export function followCheckToast(report){
   const failed=rows.filter(r=>!r.ok).length;
   receiptsState.toast({text:checkReceipt(report)},
     {warn:!!failed,timeout:failed?8000:6000,sound:failed?'warning':'success',
-     action:{label:'查看',run:()=>enterFollow(true)}});
+     action:{label:'View',run:()=>enterFollow(true)}});
 }
 
 export function followViewPath(){return pathForFollow(followView())}
@@ -80,11 +80,11 @@ export async function openFollowDetail(id,push=true,mediaIndex=null,preserveRetu
   id=+id;
   const entering=!location.pathname.startsWith('/posts/');
   if(push&&entering&&!preserveReturn)writeShell({followDetailReturnPath:location.pathname+location.search});
-  /* 后退前进进来按条目记的来处（带筛选的那一份列表）；冷启动与没记背景的条目回 `/follow`。 */
+  /* Entering via back and forward uses the origin recorded on the entry (the filtered copy of the list); cold starts and entries without a recorded background return to `/follow`. */
   if(!push&&!preserveReturn)writeShell({followDetailReturnPath:takeOverlayReturn()||'/follow'});
-  // 条目的背景另记：从列表进来记列表这一页（带筛选），组内换条沿用上一条的。
+  // The entry's background is tracked separately: coming from a list records that list page (with its filters), and switching entries within a group reuses the previous one.
   if(push)holdOverlayBackground();
-  // 换详情不进小窗；小窗里放着别的条目也让位（舞台岛判），两个播放器不同时出声。关注详情开着时原地换条。
+  // Switching details does not enter the mini player; if the mini player holds another item it yields anyway (decided by the stage island), so two players never sound at once. While follow details are open, items swap in place.
   if(stageApi()?.showing()!=='follow')disposeStage(false,false,{miniplayer:false});
   if(push)navigationState.route(`/posts/${id}`,false,overlayState('follow'));
   const stage=await loadStage(mediaState.stageHost);
@@ -98,7 +98,7 @@ export async function closeFollowDetail(){
   await stageExit();
   disposeStage(false,false,{miniplayer:false});clearOverlayBackground();
   navigationState.route(followDetailReturnPath||'/follow');
-  /* 从资料页在线视图点进来的：资料页一直画在下面，筛选、已加载的几页与滚动位置原样接着看，不从头重开。 */
+  /* Entered from the profile page's online view: the profile page stays rendered underneath, and filters, the loaded pages, and the scroll position carry on as-is instead of starting over. */
   if(entityState.entityPageView&&entityState.entityPageCurrent()&&!$('#index').hidden)return;
   if(location.pathname!=='/follow'){writeShell({pageOpens:pageOpens+1});return}
   if(!followFeedLive()){writeShell({pageOpens:pageOpens+1});return}
@@ -127,16 +127,16 @@ followState.followFeedActions = {
   checkReport:report=>followCheckToast(report),
 };
 followState.followFeedShell = {
-  skeleton:()=>followState.followSkeletonHtml('正在读取关注内容'),
-  /* 关注详情底下没画着列表（深链进来，或后退前进落到压在列表上的详情、中间去过别的页）：让出 `#stats`，
-     不画列表，等关掉详情再按地址打开。关注详情已经开着（组内换条）就不动。 */
+  skeleton:()=>followState.followSkeletonHtml('Reading followed content'),
+  /* No list is drawn beneath the follow details (deep link, or back/forward landing on details stacked over the list after visiting other pages in between): yield `#stats`,
+     draw no list, and reopen by URL once the details close. When follow details are already open (switching entries within the group), leave it alone. */
   ground:()=>{
     if(stageApi()?.showing()==='follow')return;
     releaseHoverPreviews();disposeStage(false);enterManagementSurface();
     if(followFeedLive())return;
     navigationState.claimSurface(navigationState.surfacePath());
     showManagementBody({manage:false});
-    // 管理区那一页还挂在 `#stats` 上时先把它卸掉，直接清空会留下一棵管着已不在页面上的节点的根。
+    // If the manage-area page is still mounted on `#stats`, unmount it first: clearing directly would leave a root governing nodes no longer on the page.
     if($('#stats').querySelector('.peach-react'))releaseManagedRoute($('#stats'));
     $('#stats').replaceChildren();
   },

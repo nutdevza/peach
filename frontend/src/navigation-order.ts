@@ -1,24 +1,24 @@
 /** 导航保存稳定 ID；显示名称、默认次序与固定首项集中维护。 */
 export const NAVIGATION_GROUPS = {
-  review: { label: '复核分类', items: [
-    ['metadata_fields', '元数据字段'], ['creator_tags', '创作者标签'], ['code_creators', '番号目录存疑'],
-    ['western_identity', '西方身份回配'], ['performer_avatars', '女优头像'], ['studio_logos', '厂牌 Logo'],
-    ['fc2_markings', 'FC2 评论标记'], ['fc2_similarity', 'FC2 跨号相似'], ['video_endcards', '片尾/出处证据'],
+  review: { label: 'Review classification', items: [
+    ['metadata_fields', 'Metadata fields'], ['creator_tags', 'Creator tags'], ['code_creators', 'Code directory questionable'],
+    ['western_identity', 'Western identity backfill'], ['performer_avatars', 'Performer avatars'], ['studio_logos', 'Label logo'],
+    ['fc2_markings', 'FC2 comment marks'], ['fc2_similarity', 'FC2 cross-code similarity'], ['video_endcards', 'End credits / source evidence'],
   ] },
-  configuration: { label: 'Peach 配置', items: [
-    ['library', '媒体库与入库'], ['sources', '来源与订阅'], ['downloads', '下载渠道'],
-    ['network', '网络与访问'], ['maintenance', '应用与维护'], ['diagnostics', '系统诊断'],
+  configuration: { label: 'Peach configuration', items: [
+    ['library', 'Library and imports'], ['sources', 'Sources and subscriptions'], ['downloads', 'Download channels'],
+    ['network', 'Network & access'], ['maintenance', 'App and maintenance'], ['diagnostics', 'System diagnostics'],
   ] },
-  favorites: { label: '我的收藏', items: [
-    ['all', '全部'], ['filters', '保存的筛选'], ['performer', '艺人'], ['creator', '创作者'],
-    ['tag', '标签'], ['series', '系列'], ['studio', '片商与厂牌'], ['agency', '事务所'],
+  favorites: { label: 'My favorites', items: [
+    ['all', 'All'], ['filters', 'Saved filters'], ['performer', 'Artists'], ['creator', 'Creators'],
+    ['tag', 'Tags'], ['series', 'Series'], ['studio', 'Studios and labels'], ['agency', 'Agency'],
   ] },
-  jav: { label: 'JAV 分区', items: [['library', '馆藏'], ['wants', '想要'], ['releases', '新作'], ['discover', '发现']] },
-  follow: { label: '关注管理', items: [['list', '关注列表'], ['add', '添加关注'], ['tags', '标签管理']] },
-  tags: { label: '标签词表', items: [['local', '本地'], ['online', '在线']] },
-  preferences: { label: '个人设置', items: [
-    ['appearance', '外观与导航'], ['browsing', '浏览与播放'], ['jav', 'JAV 与新作'],
-    ['search', '搜索与推荐'], ['content', '内容显示'],
+  jav: { label: 'JAV section', items: [['library', 'Library'], ['wants', 'Want'], ['releases', 'New work'], ['discover', 'Discover']] },
+  follow: { label: 'Manage follows', items: [['list', 'Follows list'], ['add', 'Add follow'], ['tags', 'Manage tags']] },
+  tags: { label: 'Tag vocabulary', items: [['local', 'Local'], ['online', 'Online']] },
+  preferences: { label: 'Personal settings', items: [
+    ['appearance', 'Appearance & navigation'], ['browsing', 'Browsing & playback'], ['jav', 'JAV & new releases'],
+    ['search', 'Search & recommendations'], ['content', 'Content display'],
   ] },
 } as const;
 

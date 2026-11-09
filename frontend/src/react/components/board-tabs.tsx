@@ -1,4 +1,4 @@
-/* 页面分区 Tabs：中性填充选中态，支持方向键与窄屏横向滚动。 */
+/* Page section tabs: neutral-filled selected state, with arrow key support and horizontal scrolling on narrow screens. */
 import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { PillTabList } from './pill-tabs';
 
@@ -10,7 +10,7 @@ import type { NavigationGroup } from '../../navigation-order';
 export interface BoardTab<V extends string> {
   value: V;
   label: string;
-  /** 遗留雪碧图里的字形名，只在它指向对象（厂牌、事务所、本地、订阅源）时给。 */
+  /** A glyph name from the legacy sprite sheet, given only when it points at an object (label, agency, local, subscription feed). */
   symbol?: string;
   badge?: ReactNode;
 }
@@ -31,8 +31,8 @@ export interface BoardTabsProps<V extends string> {
   orderGroup?: NavigationGroup;
 }
 
-/** 页签与分组标题后面挂的那个计数徽标（遗留层 `.ui-board-tab-count` 的同款）：12/16 半档字重、主文字色
- *  10% 的底，整块降到五成，是附注不是读数。口径由调用方给，徽标自己不算数。 */
+/** The count badge hanging after tab and group titles (the legacy layer's `.ui-board-tab-count` twin): 12/16 semi-bold, primary text at 10%
+ *  backing, the whole block at fifty percent; a footnote, not a reading. The criteria come from the caller; the badge does not count by itself. */
 export function TabCount({ value }: { value: number }) {
   return (
     <span data-tab-count=""
@@ -62,7 +62,7 @@ export function BoardTabs<V extends string>(
     const measure = () => {
       const selected = host.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
       if (!selected || !selected.offsetWidth) return;
-      /* 窄屏这一排横着滚：选中那一枚落在可见区外时把这一排挪到它露全，只动这一排，不动页面。 */
+      /* On narrow screens this row scrolls horizontally: when the selected chip falls outside the visible area the row shifts to reveal it fully, moving only the row, never the page. */
       const left = selected.offsetLeft, right = left + selected.offsetWidth;
       if (left < host.scrollLeft) host.scrollLeft = left;
       else if (right > host.scrollLeft + host.clientWidth) host.scrollLeft = right - host.clientWidth;
@@ -70,8 +70,8 @@ export function BoardTabs<V extends string>(
     measure();
   }, [value]);
 
-  /* 左右键在同一排里挪，Home／End 到两头，挪到哪一枚就是选了哪一枚：这一排每一枚都是一个
-     地址，焦点停在哪儿、页面就摆哪儿，和侧栏导航同一个说法。 */
+  /* Left and right arrows move within the row, Home/End jump to the ends, and landing on a key selects it: every key in this row is a URL,
+     and where focus rests is where the page goes, the same rule as sidebar navigation. */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (disabled || event.altKey || event.ctrlKey || event.metaKey) return;
     const focused = (event.target as HTMLElement).closest<HTMLElement>('[data-tab]')?.dataset.tab ?? value;

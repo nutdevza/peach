@@ -1,4 +1,4 @@
-/* 管理区正文居中，宽度使用 `max-w-board` 对应的 `--board-content`；页面标题由页头独立布局。 */
+/* Managed-area body is centered at the `--board-content` width matching `max-w-board`; the page title is laid out independently by the page header. */
 import type { ReactNode } from 'react';
 
 export function Page({ children }: { children: ReactNode }) {

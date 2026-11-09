@@ -1,35 +1,35 @@
-/* 沉浸模式（常驻组件 `immerse`，`immerse-island.tsx`）对壳的契约：壳只拿命令式入口，片单、每一格的播放器、
- * 手势、动作键与作者标题都在 `peach-app.js` 里。地址栏、首页筛选、头像拼法与「关掉之后去哪儿」归壳。 */
+/* Immersive mode (resident component `immerse`, `immerse-island.tsx`) contract with the shell: the shell only takes the imperative entry; the film list, each cell's player,
+ * gestures, action keys, and the work title all live in `peach-app.js`. The address bar, home filters, avatar spelling, and "where to go after closing" belong to the shell. */
 
 export interface ImmerseHost {
-  /** 首页当前的筛选（壳的 `state`）：片单按它随机抽样，画幅不算。 */
+  /** The home page's current filters (the shell's `state`): playlists sample randomly by them, aspect excluded. */
   filters(): Record<string, string | number | null | undefined>;
-  /** 双击左右半区快退快进的秒数（`appSettings.seekSeconds`）。 */
+  /** Seconds for double-click rewind/forward on the left and right halves (`appSettings.seekSeconds`). */
   seekSeconds(): number;
-  /** 来源脱盘：这样的片子拉不到流，进了片单就是一条黑屏加载中。 */
+  /** Source dropped off disk: such a video cannot pull a stream and shows up in the playlist as a black screen stuck loading. */
   sourceOffline(location: string): boolean;
-  /** 标题那一行的纯文本（遗留层 `javDisplayName`）。 */
+  /** Plain text of the title line (the legacy layer's `javDisplayName`). */
   displayName(item: Record<string, unknown>): string;
-  /** 每换一条：壳用 replace 把 `/immerse?id=` 写进地址栏，刷新落回同一条。 */
+  /** On every switch: the shell writes `/immerse?id=` into the address bar with replace, so a refresh lands back on the same item. */
   route(id: number): void;
-  /** 沉浸模式关掉之后：壳回首页。 */
+  /** After immersive mode is turned off: the shell goes back to home. */
   closed(): void;
   openItem(id: number): void;
   openEntity(kind: 'performer' | 'creator', name: string): void;
   openUnowned(): void;
-  /** 操作回执；给了 `undo` 就带一颗撤销键。 */
+  /** The operation receipt; when `undo` is provided, an undo button comes with it. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
-  /** 带提示音的警告（片单为空）。 */
+  /** A warning with a sound cue (empty playlist). */
   warn(message: string): void;
   failure(action: string, error: unknown): void;
 }
 
 export interface ImmerseApi {
-  /** 打开沉浸模式；`startId` 不在这一批随机抽样里时取它的详情插到最前。 */
+  /** Opens immersive mode; when `startId` is not in this random sample its detail is fetched and inserted at the front. */
   open(startId: number | null): Promise<void>;
-  /** 关闭键与 Escape 走的那一条：拆掉所有格、按会话取消读取，然后交给壳的 `closed`。 */
+  /** The path the close key and Escape take: tear down all cells, cancel reads per session, then hand off to the shell's `closed`. */
   close(): void;
   isOpen(): boolean;
-  /** 该响应播放快捷键的 video：当前出画的那一格。 */
+  /** The video that responds to playback shortcuts: the cell currently on screen. */
   activeVideo(): HTMLVideoElement | null;
 }

@@ -1,13 +1,15 @@
-/* 播放统计：缓冲读数、加载速度与统计面板的小图。
+/* Playback stats: buffering readout, load speed and the stats panel's small chart.
  *
- * 渐进下载（HTTP Range）量不到网络：浏览器用一条长连接边下边播，请求在播放期间不结束，
- * resource timing 里就一直不出现新条目。实测本地 MP4 播到 37 秒时仍只有挂载那两条、字节数停在
- * 862 KB，面板于是显示「— · 0 请求」。HLS 是另一回事，每个分片都是一次独立完成的请求，VHS
- * 自己也报 bandwidth，resource timing 那套口径只对它成立。
- * 渐进源改看缓冲前沿的推进：每秒新推进的秒数 × 平均码率就是字节速率。码率要有文件大小才算得
- * 出来，关注条目的大小由 `/follow-qualities` 回源 HEAD 带回；连上游都不给 content-length 时没有
- * 任何办法把秒换成字节，角标改报还能往前放多久。缓冲吃满后浏览器停拉，增量归零，此时保留上一次
- * 读数而不是跳回 0——那不是速度掉了，是没有在下载。 */
+ * Progressive download (HTTP Range) cannot measure the network: the browser plays off one long-lived connection whose requests
+ * do not finish during playback, so no new resource timing entries appear. Measured: a local MP4 at 37 seconds still showed
+ * only the two mount entries with bytes stuck at 862 KB, so the panel displayed "- 0 requests". HLS is different: every
+ * segment is an independently completed request, and VHS reports bandwidth itself, so the resource timing basis only holds
+ * there.
+ * Progressive sources watch the buffer front's advance instead: seconds newly advanced per second times average bitrate is
+ * the byte rate. Bitrate needs the file size, and follow entries get theirs from `/follow-qualities`'s origin HEAD; when even
+ * upstream gives no content-length there is no way to convert seconds to bytes, and the badge reports how much longer it can
+ * play instead. Once the buffer fills, the browser stops pulling and the delta goes to zero; the last readout is kept rather
+ * than jumping back to 0, because that is not a speed drop, it is simply not downloading. */
 import { esc, icon, realDuration } from '@peach/legacy/core';
 
 import type { VjsPlayer } from './types';
@@ -20,8 +22,8 @@ export function bufferedAhead(video: HTMLVideoElement): number {
   return 0;
 }
 
-/* 缓冲前沿：当前播放位置所在那段缓冲的末端。看的是前沿而不是缓冲区总长——播放时浏览器会驱逐
-   播过的部分，总长几乎恒定，拿它当下载量会得出「一直是 0」。 */
+/* The buffer frontier: the end of the buffered range containing the current playback position. Watch the frontier, not total buffered length; during playback the browser evicts
+   played ranges, so the total stays nearly constant and using it as downloaded amount would read "always 0". */
 function bufferedFrontier(video: HTMLVideoElement): number {
   const at = video.currentTime || 0;
   for (let i = 0; i < video.buffered.length; i++) {
@@ -58,11 +60,11 @@ export function createBufferMeter(bitrate: number): BufferMeter {
       const at = performance.now(), frontier = bufferedFrontier(video), ct = video.currentTime || 0;
       if (last) {
         const gap = (at - last.at) / 1000;
-        /* seek 会把前沿整段挪走，那不是这一秒下载了几十分钟；判据是播放位置自己跳了。 */
+        /* A seek moves the leading edge wholesale, which is not dozens of minutes downloaded in one second; the criterion is the playback position jumping on its own. */
         const seeked = Math.abs(ct - last.ct) > gap * 4 + 1;
         const step = frontier - last.frontier;
         if (!seeked && step > 0) advanced += step;
-        /* 面板和角标都关着时没人采样，再打开时两点隔了几分钟，窗口要重新起算。 */
+        /* With both the panel and the badge closed nobody samples, so on reopen the two points are minutes apart and the window must start over. */
         if (gap * 1000 > BUFFER_METER_WINDOW_MS * 2) samples.length = 0;
       }
       last = { at, frontier, ct };
@@ -83,8 +85,8 @@ export function pushPlayerStat(samples: number[], value: number): void {
   if (samples.length > PLAYER_STATS_HISTORY) samples.splice(0, samples.length - PLAYER_STATS_HISTORY);
 }
 
-/** 设置面板和播放统计都盖在画面上，同时开就互相遮挡。开哪个都往 document 广播一次，另一个
- *  自己收起：两块面板挂在不同的作用域里，共享一个事件名比互相持有引用干净。 */
+/** The settings panel and playback stats both cover the picture and occlude each other when open together. Opening either broadcasts once on document, and the other
+ *  collapses itself: the two panels live in different scopes, and sharing an event name is cleaner than holding references to each other. */
 export const PLAYER_PANEL_EVENT = 'peach-player-panel';
 
 export function playerStatsPlot(samples: number[], kind: 'speed' | 'activity' | 'buffer', ceiling: number, label: string): string {
@@ -99,10 +101,10 @@ export function playerStatsPlot(samples: number[], kind: 'speed' | 'activity' | 
   return `<span data-player-stats-plot="${kind}" role="img" aria-label="${esc(label)}">${bars}</span>`;
 }
 
-/** 统计键、加载速度角标与统计面板。作品详情与关注详情共用这一组；挂载在 Video.js 包住
- *  `<video>` 之前插到它前面，Video.js 一包，`video` 的父级就换成它自己的那层了。 */
+/** Stats keys, the playback speed badge, and the stats panel. Video details and follows details share this set; mounted inserted before Video.js wraps
+ *  `<video>`, and once Video.js wraps, `video`'s parent becomes its own layer. */
 export function playerStatsOverlayHtml(): string {
-  return `<button data-player-stats-button="" id="playerStatsBtn" aria-label="播放统计" title="播放统计" aria-pressed="false" hidden>${icon('chart')}</button>
+  return `<button data-player-stats-button="" id="playerStatsBtn" aria-label="Playback stats" title="Playback stats" aria-pressed="false" hidden>${icon('chart')}</button>
        <div data-player-net="" id="playerNet" role="status" aria-live="polite" hidden></div>
        <div data-player-stats="" id="playerStats" role="status" hidden></div>`;
 }
@@ -123,21 +125,21 @@ export function streamSpeedBits(id: number, session = ''): number {
 
 export function playerSpeedBits(player: VjsPlayer | null, id: number, session = '', meter: BufferMeter | null = null): number {
   let bandwidth = 0;
-  try { bandwidth = Number(player?.bandwidth?.()) || 0 } catch { /* 播放引擎没有带宽读数 */ }
+  try { bandwidth = Number(player?.bandwidth?.()) || 0 } catch { /* The playback engine has no bandwidth reading */ }
   if (bandwidth > 0) return bandwidth;
-  /* 传了 meter 就是渐进源：它的 resource timing 本来就量不到，不能拿别的条目顶上。 */
+  /* A meter present means a progressive source: its resource timing cannot be measured to begin with, and no other entry may stand in for it. */
   return meter ? Number(meter.bits) || 0 : streamSpeedBits(id, session);
 }
 
 export function fmtSpeed(bits: number): string {
-  if (!Number.isFinite(bits) || bits <= 0) return '加载中…';
+  if (!Number.isFinite(bits) || bits <= 0) return 'Loading…';
   const bytes = bits / 8;
   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB/s` : `${Math.max(1, Math.round(bytes / 1024))} KB/s`;
 }
 
-/** 码率未知时字节速率无从换算，退回已经缓冲的秒数：那是这种情况下唯一还能直接用的读数
- *  ——现在断网还能往前放多久。 */
+/** With an unknown bitrate, byte speed cannot be converted, so fall back to buffered seconds: the only directly usable reading in that case,
+ *  i.e. how much longer playback can continue offline right now. */
 export function fmtLoadRate(bits: number, ahead: number): string {
   if (bits > 0) return fmtSpeed(bits);
-  return ahead > 0 ? `已缓冲 ${Math.round(ahead)} 秒` : fmtSpeed(0);
+  return ahead > 0 ? `Buffered ${Math.round(ahead)} sec` : fmtSpeed(0);
 }

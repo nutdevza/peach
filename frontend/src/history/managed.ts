@@ -24,52 +24,54 @@
 
 import { rememberPageState, restoredPageState } from './page-navigation';
 
-/** 画在某个容器里的那一页（或一面）。`host` 是页面 portal 进去的那个 `.peach-react` 宿主。 */
+/** The page (or panel) rendered inside some container. `host` is the `.peach-react` host the page portals into. */
 export interface ManagedEntry {
-  /** 登记键：页面的路径，或页面内组件的名字。 */
+  /** The registration key: the page's path, or a component's name within the page. */
   path: string;
   props: object;
   revision: number;
-  /** 壳的容器（`#stats`、`#index`、`#grid` 或某个页面内组件的容器）。 */
+  /** The shell's container (`#stats`, `#index`, `#grid`, or a component container inside a page). */
   container: Element;
   host: HTMLElement;
-  /** 常驻组件：宿主是壳的节点，收起与抛错时只卸组件、不撤宿主。 */
+  /** A resident component: the host is the shell's node, and on collapse or error only the component unmounts while the host stays. */
   resident: boolean;
 }
 
-/** 路由树交给这里的首屏取数：按登记键取，中止后抛 `AbortError`。 */
+/** The first-screen fetch the route tree hands here: fetches by registered key and throws `AbortError` once aborted. */
 export type ManagedPrefetch = (path: string, props: object, signal: AbortSignal) => Promise<void>;
 
 export interface ManagedOpenOptions {
-  /** 页面画进的容器。 */
+  /** The container the page renders into. */
   container: Element;
-  /** 壳的换页判据：取数期间用户走开了，就不画。 */
+  /** The shell's page-change rule: if the user walked away during the fetch, do not render. */
   isCurrent: () => boolean;
-  /** 首屏已取齐，和内容提交在同一任务里切换壳的可见面。 */
+  /** The first screen is fully loaded; switching the shell's visible face happens in the same task as the content commit. */
   beforePlace?: () => void;
-  /** 同类页面复用宿主与组件，只更新属性。 */
+  /** Same-kind pages reuse the host and component, updating only props. */
   reuse?: boolean;
-  /** 壳自己排好的框架：取齐首屏的那一刻由它把框架换进容器，返回页面画进去的宿主。不给就清空容器、
-   *  放进一个新的 `.peach-react`。资料页要这个：浮层吸顶要它的父盒就是 `#index`，新作那一行是遗留层
-   *  卡片、不进 `.peach-react`，所以框架的四块由壳排，页面只占其中一块，再经 portal 画进另外三块。 */
+  /** The frame the shell lays itself: at the moment the first screen is fetched it swaps the frame into the container and
+ *  returns the host the page renders into. When not given, it empties the container and puts in a new `.peach-react`. The
+ *  profile page needs this: the overlay's stickiness requires its parent box to be `#index`, and the new-releases row is a
+ *  legacy-layer card outside `.peach-react`, so the shell lays the frame's four blocks and the page takes one, portaling into
+ *  the other three. */
   place?: (container: Element) => HTMLElement;
-  /** 常驻组件（`openResidentSurface` 打开的那几座）：宿主归壳，收起与抛错时只卸组件、不撤宿主。 */
+  /** Resident components (the ones opened via `openResidentSurface`): the host belongs to the shell; on collapse or throw only the component unmounts and the host stays. */
   resident?: boolean;
 }
 
-/** 订阅者收到的是此刻各个容器里的页面。`sync` 为真时要当场画完：壳在同一个任务里刚换上或撤掉宿主，
- *  晚一拍就是一帧空白。为假是就地更新，照常排进下一次渲染。 */
+/** Subscribers receive what the containers hold at that moment. With `sync` true it must finish rendering on the spot: the shell just swapped or removed hosts within the same task,
+ *  and being a beat late means a blank frame. With false it updates in place and queues into the next render as usual. */
 type ManagedListener = (entries: readonly ManagedEntry[], sync: boolean) => void;
 
-/* `page`：登记键是路径，这一趟是换页；页面内组件与常驻组件的取数不算。 */
+/* `page`: the registration key is the path, and this run is a page change; data fetching by in-page and persistent components doesn't count. */
 interface Pending { revision: number; controller: AbortController; page: boolean }
 
-/* 路由树接上取数之前，打开都等在这里；接上的那一份装载失败时，等着的打开跟着失败。 */
+/* Before the route tree is wired to fetching, opens wait here; if the wired copy fails to load, the waiting opens fail with it. */
 let connect: (ready: Promise<ManagedPrefetch>) => void = () => {};
 const prefetcher = new Promise<ManagedPrefetch>((resolve) => { connect = resolve });
 prefetcher.catch(() => {});
-/* 首次打开时调用应用登记的就绪入口，让搜索下拉与首屏筛选条等待路由树连接后取数。
- * 页面代码已在主包中，就绪入口只调用一次。 */
+/* On first open, call the app's registered ready hook so the search dropdown and the first-screen filter bar wait for the route tree to connect before fetching.
+ * Page code is already in the main bundle, and the ready hook is called only once. */
 let preload: (() => void) | null = null;
 export function preloadManagedRoutes(load: () => void): void {
   preload = load;
@@ -81,16 +83,16 @@ const listeners = new Set<ManagedListener>();
 const loadingListeners = new Set<(loading: boolean) => void>();
 let loading = false;
 
-/** 有一页还在取首屏：换页进度条（`navigation-progress.ts`）读它。 */
+/** A page is still fetching its first screen: the page-switch progress bar (navigation-progress.ts) reads it. */
 export const managedLoading = (): boolean => loading;
 
-/** 订阅「有一页还在取首屏」的变化，只在真假翻转时通知。 */
+/** Subscribe to changes in “a page is still fetching its first screen”, notifying only on a true/false flip. */
 export function listenManagedLoading(listener: (loading: boolean) => void): () => void {
   loadingListeners.add(listener);
   return () => { loadingListeners.delete(listener) };
 }
 
-/* `pending` 每次增删之后调。 */
+/* `pending` is called after every add or remove. */
 function settleLoading(): void {
   const next = [...pending.values()].some((inflight) => inflight.page);
   if (next === loading) return;
@@ -98,24 +100,24 @@ function settleLoading(): void {
   for (const listener of [...loadingListeners]) listener(loading);
 }
 
-/** 路由树装载时接上取数。只认第一次。 */
+/** Hooks up fetching when the route tree loads. Only the first time counts. */
 export function connectManagedRoutes(ready: Promise<ManagedPrefetch>): void {
   connect(ready);
 }
 
-/** 此刻画在这个容器里的那一页；还在取首屏或已经收起时是 null。 */
+/** The page currently rendered in this container; null while the first screen is still loading or after it is collapsed. */
 export function managedEntry(container: Element): ManagedEntry | null {
   return entries.get(container) ?? null;
 }
-/** 这个容器归路由树：已经画着，或首屏还在取。壳据此判断要不要再开一次：在途时再开会把那一趟中止、
- *  重取一遍，画着时再开会先收起再重画，内容根本没变时那一下只是一次白白的布局塌陷。 */
+/** This container belongs to the router tree: either already rendered or first screen still loading. The shell uses that to decide whether to open again: opening while in flight aborts that request
+ *  and refetches; opening while rendered tears it down and redraws, and when the content has not changed that is nothing but a wasted layout collapse. */
 export function managedTaken(container: Element | null): boolean {
   return !!container && (entries.has(container) || pending.has(container));
 }
-/** 此刻画着的全部页面，路由树按它画 portal。 */
+/** Every page being drawn right now; the route tree renders portals from it. */
 export const managedEntries = (): readonly ManagedEntry[] => [...entries.values()];
 
-/** 路由树订阅：每次换页、收起或就地更新都同步通知。 */
+/** The route tree subscription: every page change, collapse or in-place update notifies synchronously. */
 export function listenManagedEntry(listener: ManagedListener): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener) };
@@ -126,7 +128,7 @@ function notify(sync: boolean): void {
   for (const listener of [...listeners]) listener(shown, sync);
 }
 
-/** 打开一页并等首屏落地。画上了回 true；期间被收起、被重开或壳已换页回 false。 */
+/** Open a page and wait for its first screen to land. Returns true once painted; false if it was collapsed, reopened, or the shell switched pages meanwhile. */
 export async function openManagedRoute(path: string, props: object, options: ManagedOpenOptions): Promise<boolean> {
   const { container } = options;
   pending.get(container)?.controller.abort();
@@ -154,7 +156,7 @@ export async function openManagedRoute(path: string, props: object, options: Man
       await prefetch(path, props, mine.controller.signal);
     }
   } catch {
-    // 中止就是用户已经走开。其余失败照画：原因和重试的节律都在页面自己手里。
+    // Aborting means the user has walked away. Other failures render as usual: the reason and retry cadence stay in the page's hands.
     if (mine.controller.signal.aborted) return false;
   }
   if (pending.get(container) !== mine) return false;
@@ -170,22 +172,27 @@ export async function openManagedRoute(path: string, props: object, options: Man
   return true;
 }
 
-/** 打开一座常驻组件（常驻表 `RESIDENT_ROUTES` 里的名字）：一直算当前页，宿主就是壳交来的节点本身，组件直接画成
- *  它的子节点，所以 DOM 与这座面自己建根时一样。没有首屏取数，路由树接上就画；画上了回 true。
+/** Opens a resident component (a name in the resident table `RESIDENT_ROUTES`): it always counts as the current page, the host
+ *  is the node the shell hands over itself, and the component renders directly as its child, so the DOM matches what the
+ *  surface would have built with its own root. No first-screen fetch; it renders as soon as the route tree connects; returns
+ *  true once rendered.
  *
- *  `place` 在画首帧的同一个任务里把宿主交给路由树，返回的仍须是这个节点本身；不给就原样交出。宿主里先有
- *  壳的启动骨架时（管理区页头、侧栏），由它清掉骨架：骨架一直留到首帧画上的那一刻，中间没有一帧空白。宿主是
- *  新建、还不在文档里的节点时（沉浸模式、设置面板），由它挂进文档，节点与首帧一起出现。
+ *  `place` hands the host to the route tree in the same task as the first frame, and must return that node itself; when not
+ *  given, hand it back unchanged. When the shell's startup skeleton is already inside the host (management header, sidebar),
+ *  `place` clears it: the skeleton survives until the first frame renders, with no blank frame in between. When the host is a
+ *  new node not yet in the document (immersive mode, settings panel), `place` mounts it into the document so node and first
+ *  frame appear together.
  *
- *  每座只在壳启动（或第一次用到）时打开一次。之后壳经它的命令式句柄推内容，组件订阅自己的 store；
- *  抛错后错误边界只卸组件，这一面空到刷新为止，句柄照旧可调、不抛。 */
+ *  Each opens once, at shell startup (or first use). After that the shell pushes content through its imperative handle and the
+ *  component subscribes to its own store; after a thrown error the boundary unmounts only the component, the surface stays
+ *  empty until refresh, and the handle remains callable without throwing. */
 export function openResidentSurface(
   name: string, container: HTMLElement, place: (container: HTMLElement) => HTMLElement = () => container,
 ): Promise<boolean> {
   return openManagedRoute(name, {}, { container, isCurrent: () => true, place: () => place(container), resident: true });
 }
 
-/* token、Preflight 与焦点规则都作用在 `.peach-react` 上；容器归壳，所以另建一个，收起时连它一起撤掉。 */
+/* Token, Preflight, and focus rules all act on `.peach-react`; the container belongs to the shell, so build another one and remove it together with the collapse. */
 function defaultHost(container: Element): HTMLElement {
   const host = container.ownerDocument.createElement('div');
   host.className = 'peach-react';
@@ -193,8 +200,8 @@ function defaultHost(container: Element): HTMLElement {
   return host;
 }
 
-/** 把壳的开关合进此刻画着的那一页：代次不变，页面就地重渲染，不重挂、不重取。那个容器里还没画上
- *  （还在取首屏或已经收起）时是空操作，打开时交进去的那一份照旧。 */
+/** Folds the shell's toggle into the page currently on screen: the generation is unchanged, the page rerenders in place, no remount, no refetch. When that container has not rendered yet
+ *  (first screen still loading or already collapsed) it is a no-op, and the copy handed in on open still stands. */
 export function updateManagedRoute(container: Element | null, patch: object): void {
   const shown = container ? entries.get(container) : undefined;
   if (!shown) return;
@@ -202,10 +209,12 @@ export function updateManagedRoute(container: Element | null, patch: object): vo
   notify(false);
 }
 
-/** 收起这几个容器里的页面：中止在途的首屏取数，卸掉页面并撤掉宿主，一次通知。没有页面的容器是空操作。
- *  容器逐个点名，没有「全部收起」：壳换页认领表面时收 `#stats` 与 `#index`，`#grid` 在目录各路径与回收站
- *  之间一直画着，只在离开目录时由壳单独收；页面内组件由壳按各自的路由判据收。常驻组件的宿主是壳的节点，
- *  这里只卸组件、不撤宿主。 */
+/** Tears down the pages in these containers: aborts first-screen fetches in flight, unmounts pages and withdraws hosts, one
+ *  notification. Containers with no page are a no-op.
+ *  Containers are named one by one, with no "collapse all": when the shell claims a surface on page change it tears down
+ *  `#stats` and `#index`, `#grid` keeps rendering across the catalog's paths and trash and is torn down only on leaving the
+ *  catalog, and in-page components are torn down by the shell per their own route criteria. Resident components' hosts are
+ *  the shell's nodes, so only the component unmounts and the host is not withdrawn. */
 export function releaseManagedRoute(container: Element, ...more: Element[]): void {
   const removed: ManagedEntry[] = [];
   for (const target of new Set([container, ...more])) {
@@ -226,20 +235,23 @@ export function releaseManagedRoute(container: Element, ...more: Element[]): voi
   for (const shown of removed) if (!shown.resident) shown.host.remove();
 }
 
-/** 应用卸载收起全部登记，并中止尚未成为页面的首屏请求。 */
+/** Unmounting the app collapses every registration and aborts first-screen requests that never became a page. */
 export function releaseAllManagedRoutes(): void {
   const [first, ...rest] = new Set([...entries.keys(), ...pending.keys()]);
   if (first) releaseManagedRoute(first, ...rest);
 }
 
-/** 某一面渲染抛错、路由树的错误边界接住之后调：只撤这一面的登记与宿主，别的面照画。之后
- *  `managedTaken` 回 false、`updateManagedRoute` 对它是空操作，壳下一次打开就重开。代次对不上（这一格
- *  已经收起或重开过）是空操作：过期的那一面不能撤掉壳刚开的新一面。常驻组件的宿主是壳的节点，只卸组件、
- *  不撤宿主；壳不会再打开它，这一面空到刷新为止。
+/** Called after a surface's render threw and the route tree's error boundary caught it: withdraws only that surface's
+ *  registration and host, leaving other surfaces rendering. Afterwards `managedTaken` returns false and `updateManagedRoute`
+ *  is a no-op for it, and the shell's next open reopens. A generation mismatch (the cell already torn down or reopened) is a
+ *  no-op: an expired surface must not withdraw the new one the shell just opened. Resident components' hosts are the shell's
+ *  nodes; only the component unmounts, not the host; the shell will not open it again, and the surface stays empty until
+ *  refresh.
  *
- *  删登记与撤宿主当场做，通知延到微任务：这里在 React 的提交阶段里（错误边界的 `componentDidCatch`），
- *  通知会让路由树重渲染。抛错出在打开那一次的首帧时，打开照样回 true，只是回来的那一刻登记已经撤了，
- *  壳紧接着推的补丁是空操作。 */
+ *  Deleting the registration and withdrawing the host happen on the spot, and notification waits for a microtask: this runs
+ *  inside React's commit phase (the error boundary's `componentDidCatch`), and notifying would re-render the route tree. When
+ *  the throw happens on an open's first frame, open still returns true, only the registration is already withdrawn by the time
+ *  it returns, and the patch the shell pushes next is a no-op. */
 export function failManagedRoute(container: Element, failed: number): void {
   const shown = entries.get(container);
   if (shown?.revision !== failed) return;

@@ -4,7 +4,7 @@ import { siteMarkUrl } from '@peach/legacy/core';
 
 const MARK = 'size-(--icon-inline) shrink-0';
 
-/** 站标图片：行内档尺寸、方角，没登记或取不到时换成同尺寸的地球。采集来源与关注来源共用这一枚。 */
+/** Site favicon image: inline-tier size and square corners, swapped for a same-size globe when unregistered or unfetchable. Scraping sources and follow sources share this one. */
 export function MarkImage({ src }: { src: string }) {
   const [failed, setFailed] = useState('');
   if (!src || failed === src) return <RiGlobalLine aria-hidden className={MARK} />;
@@ -12,7 +12,7 @@ export function MarkImage({ src }: { src: string }) {
     className={`${MARK} rounded-none object-contain`} />;
 }
 
-/** 采集来源的站标由本站缓存或随应用提供的静态资源承载。 */
+/** Scraped source site logos are carried by this site's cache or by static assets shipped with the app. */
 export function SiteMark({ source, linkId }: { source: string; linkId?: never } | { linkId: number | undefined; source?: never }) {
   if (source === 'makers') return <RiBuildingLine aria-hidden className={MARK} />;
   if (linkId === undefined && !source) return <MarkImage src="" />;

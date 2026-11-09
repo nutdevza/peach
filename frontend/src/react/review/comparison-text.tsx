@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { diffChars } from 'diff';
 
-/** 差异只影响展示；保留来源文字、空白和 Unicode 字符，不参与采用资料的请求。 */
+/** Differences affect display only; source text, whitespace and Unicode characters are preserved and take no part in the adopt-details request. */
 export function ComparisonText({ value, reference }: { value: string; reference?: string }) {
   const parts = useMemo(() => reference
     ? diffChars(reference, value).filter(part => !part.removed)

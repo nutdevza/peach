@@ -1,5 +1,5 @@
-/* JAV 新作分区的列表模式。表格骨架、列偏好、显示列与拖宽手柄同馆藏作品列表那一套，格子沿用它的
- * 名称格、艺人格与媒体库格标记（`catalog-list.css`）。分页与排序在分区里：表头点得开的四列对应新作接口的排序键。 */
+/* List mode for the JAV new-releases section. The table skeleton, column preferences, visible columns, and drag-resize handles are the same set as the library work list, and the cells reuse its
+ * name, artist, and media library cell markers (`catalog-list.css`). Pagination and sorting live in the section: the four columns the header opens on map to the new-releases endpoint's sort keys. */
 import { useState, type MouseEvent } from 'react';
 import { Button } from '@/components/base/buttons/button';
 import { Checkbox } from '@/components/base/checkbox/checkbox';
@@ -24,7 +24,7 @@ import '../catalog-grid/catalog-list.css';
 
 const KEYS = { widths: RELEASE_COLUMN_WIDTHS_KEY, visibility: RELEASE_COLUMN_VISIBILITY_KEY };
 
-/** 厂牌格的标识：装了方形图标就用它，否则画首字。 */
+/** The studio cell's badge: use the square icon if one is set, otherwise draw the first character. */
 function StudioMark({ studio }: { studio: ReleaseFacetStudio | undefined; }) {
   const [broken, setBroken] = useState(false);
   return studio?.has_logo && !broken
@@ -58,11 +58,11 @@ export function ReleaseTable({ items, waiting, filters, studios, javImage, readO
             <span data-list-picture="">{artwork
               ? <ArtSlot artwork={{ kind: 'cover', html: artwork }} relayout={root => relayoutCovers(root, 'small')} />
               // 缩略格只放得下状态字，原因放进悬停说明；当场取的键在卡片模式与分区顶上那条提示里。
-              : <span title={item.cover_reason || undefined}>{item.cover_state ? COVER_STATE_TITLE[item.cover_state] : '无封面'}</span>}</span>
+              : <span title={item.cover_reason || undefined}>{item.cover_state ? COVER_STATE_TITLE[item.cover_state] : 'No cover'}</span>}</span>
           </button>
           <span data-list-text="">
-            <button type="button" data-list-name="" title={`${item.code} · ${item.title || '标题未取得'}`} aria-label={`查看 ${item.code} 详情`}
-              onClick={open(item)}><b>{item.code}</b> {item.title ? <span lang={textLang(item.title)}>{item.title}</span> : '标题未取得'}</button>
+            <button type="button" data-list-name="" title={`${item.code} · ${item.title || 'Title unavailable'}`} aria-label={`View ${item.code} details`}
+              onClick={open(item)}><b>{item.code}</b> {item.title ? <span lang={textLang(item.title)}>{item.title}</span> : 'Title not fetched'}</button>
           </span>
         </div>;
       }
@@ -70,7 +70,7 @@ export function ReleaseTable({ items, waiting, filters, studios, javImage, readO
         return name ? <div data-list-people=""><DiscoveryFaces item={item} />
           {item.performer_refs?.[0]?.id ? <a data-media-who="" href={entityPath('performer', name)}><span>{name}</span></a>
             : <span data-media-who=""><span>{name}</span></span>}
-          {(item.performer_refs?.length || 0) > 1 ? <span data-media-who-more="">等 {item.performer_refs!.length} 人</span> : null}
+          {(item.performer_refs?.length || 0) > 1 ? <span data-media-who-more="">and {item.performer_refs!.length} people</span> : null}
         </div> : '—';
       case 'studio':
         return item.studio ? <span data-list-library="" title={item.studio}><StudioMark studio={logos.get(item.studio)} /><span>{item.studio}</span></span> : '—';
@@ -84,24 +84,24 @@ export function ReleaseTable({ items, waiting, filters, studios, javImage, readO
       case 'score': return item.source_score != null ? `${item.source_score.toFixed(2)} / 5` : '—';
       case 'release': return item.release_date || '—';
       default:
-        /* 行里只放两个动作；作品来源链接在详情页。 */
+        /* A row holds only two actions; the work source link is on the detail page. */
         return <div data-release-actions="" className="flex gap-2">
           <Button size="small" variant="ghost" disabled={readOnly || item.wanted || !!item.asset_id} {...busyProps(wanting(item))}
-            onClick={() => onWant(item)}>{item.wanted ? '已想要' : '想要'}</Button>
-          <Button size="small" variant="secondary" onClick={() => onResource(item)}>查找资源</Button>
+            onClick={() => onWant(item)}>{item.wanted ? 'Wanted' : 'Want'}</Button>
+          <Button size="small" variant="secondary" onClick={() => onResource(item)}>Find resources</Button>
         </div>;
     }
   };
   return <div data-catalog-table="" data-release-table="" className="flex min-w-0 flex-col gap-4">
-    <div className="flex flex-wrap justify-end gap-2" role="toolbar" aria-label="新作列表工具栏">
-      <div data-toolbar-actions=""><TableColumnControls preferences={preferences} label="新作列表" /></div>
+    <div className="flex flex-wrap justify-end gap-2" role="toolbar" aria-label="New work list toolbar">
+      <div data-toolbar-actions=""><TableColumnControls preferences={preferences} label="New work list" /></div>
     </div>
     <DataTableFrame follow preferences={preferences}>
-      <Table aria-label="新作列表" size="sm"
+      <Table aria-label="New work list" size="sm"
         sortDescriptor={active ? { column: active, direction: filters.dir === 'asc' ? 'ascending' : 'descending' } : undefined}
         onSortChange={next => { const key = RELEASE_SORT_COLUMNS[String(next.column)]; if (key) onSort(key, next.direction === 'ascending' ? 'asc' : 'desc') }}>
-        <TableHeader>{selection?.mode ? <TableColumn id="selection" width={44} aria-label="选择作品">
-          <Checkbox slot={null} aria-label="全选本页作品" isSelected={selection.all} isIndeterminate={selection.mixed}
+        <TableHeader>{selection?.mode ? <TableColumn id="selection" width={44} aria-label="Select works">
+          <Checkbox slot={null} aria-label="Select all videos on this page" isSelected={selection.all} isIndeterminate={selection.mixed}
             isDisabled={waiting || !items.length} onChange={selection.selectPage} />
         </TableColumn> : null}{shown.map(column => <TableColumn key={column.id} id={column.id} isRowHeader={column.id === 'name'}
           allowsSorting={column.id in RELEASE_SORT_COLUMNS} {...preferences.columnProps(column.id)}>
@@ -111,16 +111,16 @@ export function ReleaseTable({ items, waiting, filters, studios, javImage, readO
             <TableColumnResizer preferences={preferences} id={column.id} />
           </>}
         </TableColumn>)}
-          <TableColumn id="remaining-space" aria-label="行空白区域" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
+          <TableColumn id="remaining-space" aria-label="Row empty space" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
         </TableHeader>
-        <TableBody renderEmptyState={() => '没有符合条件的新作'}>
-          {/* 等数据时在真实表格里画骨架行，格子与路由骨架同一份。 */}
+        <TableBody renderEmptyState={() => 'No new works match the filter'}>
+          {/* While waiting for data, draw skeleton rows in the real table; the cells share the route skeleton. */}
           {waiting ? Array.from({ length: 6 }, (_, index) => <TableRow key={`skeleton-${index}`} id={`skeleton-${index}`} data-list-skeleton-row="" aria-hidden="true">
             {selection?.mode ? <TableCell /> : null}
             {shown.map(column => <TableCell key={column.id}><span dangerouslySetInnerHTML={{ __html: catalogListSkeletonCellHtml(column.id) }} /></TableCell>)}
             <TableCell data-table-space="" />
           </TableRow>) : items.map(item => <TableRow key={item.id} id={String(item.id)} data-catalog-row="" data-release-row="">
-            {selection?.mode ? <TableCell><Checkbox slot={null} aria-label={`选择 ${item.code}`}
+            {selection?.mode ? <TableCell><Checkbox slot={null} aria-label={`Select ${item.code}`}
               isSelected={selection.selected.has(item.code)} onChange={() => selection.toggle(item)} /></TableCell> : null}
             {shown.map(column => <TableCell key={column.id}>{cell(column.id, item)}</TableCell>)}
             <TableCell data-table-space="" />

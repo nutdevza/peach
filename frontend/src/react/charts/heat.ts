@@ -1,22 +1,22 @@
-/* 热力图的数据形状与折算。统计页的播放时间与口味页的浏览时间是同一个形状，
- * 服务端分别由 `web_stats.q_stats` 的 `play_activity` 与口味分析的 `activity` 给出。 */
+/* The heatmap's data shape and folding. The stats page's play time and the taste page's browse time share one shape,
+ * given server-side by `web_stats.q_stats`'s `play_activity` and taste analysis' `activity`. */
 
-/** 按天与按「星期 × 钟点」的计数。`weekday` 0 是周一，`timezone` 形如 `UTC+08:00`。 */
+/** Counts by day and by "weekday × hour". `weekday` 0 is Monday, and `timezone` looks like `UTC+08:00`. */
 export interface ActivityCounts {
   timezone?: string;
   days?: { date: string; count: number }[];
   hours?: { weekday: number; hour: number; count: number }[];
 }
 
-/** 热力图里的一格。`share` 是这一格相对最忙那一格的浓度，0 到 1。 */
+/** One cell in the heatmap. `share` is the cell's intensity relative to the busiest cell, 0 to 1. */
 export interface HeatCell { key: string; label: string; count: number; share: number }
 
-export const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/** 有计数的格子至少留一成浓度：一次和一次都没有必须看得出差别。 */
+/** A cell with any count keeps at least 10% intensity: one hit and zero hits must be visibly different. */
 const shareOf = (count: number, max: number) => (count ? Math.max(0.12, count / max) : 0);
 
-/** 星期 × 小时的 168 格。越界或负数的记录当作没有。 */
+/** A 168-cell weekday x hour grid. Out-of-range or negative records count as absent. */
 export function hourGrid(activity: ActivityCounts | undefined): { cells: HeatCell[]; total: number } {
   const counts = Array.from({ length: 7 }, () => Array<number>(24).fill(0));
   for (const item of activity?.hours || []) {
@@ -34,7 +34,7 @@ export function hourGrid(activity: ActivityCounts | undefined): { cells: HeatCel
   return { cells, total: flat.reduce((sum, count) => sum + count, 0) };
 }
 
-/** 最近 91 天的日历。末尾那天由数据说了算，往前数 90 天，中间没有记录的那些补 0。 */
+/** A calendar of the last 91 days. The final day is decided by the data, counting 90 days back, with 0 filled in for days without records. */
 export function dayCalendar(activity: ActivityCounts | undefined):
 { cells: HeatCell[]; total: number; start: string; end: string } {
   const days = (activity?.days || [])

@@ -1,6 +1,6 @@
-/* 主界面内部的常驻组件配置接口，类型契约见 `bundle.d.ts`。
- * 页面与常驻组件由 Application 的同一棵路由树画；Toaster 的独立根由应用生命周期清理。
- * 共享缓存、减弱动效与弹出层容器见 `providers.tsx`。 */
+/* Resident component config interfaces inside the main UI; type contracts in `bundle.d.ts`.
+ * Pages and resident components are painted by Application's single route tree; the Toaster's independent root is cleaned up by the app lifecycle.
+ * Shared cache, reduced motion, and popover container: see `providers.tsx`. */
 import './styles.css';
 
 export { configureBatchDock } from './batch-dock/batch-dock-island';

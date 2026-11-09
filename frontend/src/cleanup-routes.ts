@@ -12,7 +12,7 @@ export const CLEANUP_TOOL_PATHS = {
 export type CleanupToolKey = keyof typeof CLEANUP_TOOL_PATHS;
 export type CleanupToolPath = typeof CLEANUP_TOOL_PATHS[CleanupToolKey];
 
-/** 已分享的锚点仍能进入对应工具；扫描与采集继续留在首页。 */
+/** Shared anchors can still reach their corresponding tools; scanning and collection remain on the home page. */
 export const CLEANUP_HASH_REDIRECTS: Readonly<Record<string, CleanupToolPath>> = {
   '#organize': CLEANUP_TOOL_PATHS.organize,
   '#mediaRepair': CLEANUP_TOOL_PATHS['media-repair'],

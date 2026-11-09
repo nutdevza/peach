@@ -1,9 +1,9 @@
-/* 图片落地之后的取景：头像按人脸放大，封面按人脸与正封框取景，过小的图原尺寸摆，加载中的
- * 框铺微光。
+/* Framing after images land: avatars zoom by face, covers frame by face and front-cover box, undersized images place at
+ * native size, and loading frames carry the shimmer.
  *
- * 这些图都是模板字符串拼出来的（`./markup.ts`），没法逐张挂监听，所以由 `installCardArt`
- * 在 document 上挂一组捕获监听和一个 MutationObserver 统一接管。监听只能有一份：这个模块
- * 由 Application 与 React 页面共享源码，启动时只安装一次。 */
+ * These images are all interpolated from template strings (`./markup.ts`) and cannot take per-image listeners, so
+ * `installCardArt` hangs one group of capture listeners and one MutationObserver on the document to take over uniformly. The
+ * listeners can have only one copy: Application and the React pages share this module's source, and startup installs once. */
 import { gateSweep, releaseSweep, SKELETON_REVEAL_DELAY } from '@peach/legacy/ui';
 
 import { PANEL_ASPECT, WIDE_PANEL_ASPECT, WIDE_SLEEVE_RATIO_MIN, WIDE_SLEEVE_RATIO_MAX, panelFrame, relayoutJavImages, type JavLayout } from '../jav-artwork';
@@ -12,27 +12,28 @@ import { faceSourceScale, markClamp, nativeImageFit } from './native-image';
 
 const devicePixels = () => window.devicePixelRatio || 1;
 
-/* 圆框里那张图按人脸取景。放大靠改 img 自己的尺寸和偏移，不用 transform：
-   `object-position` 只能在 cover 裁掉的那部分里挪，方图根本没得挪，而 transform
-   缩放会连圆框的描边一起放大。元素撑到「图按 cover 缩放再乘倍数」那么大，再用负偏移
-   把脸心拉到框心，圆框的 `overflow:hidden` 负责裁——和不放大时是同一套几何。 */
+/* The image in the round frame frames by face. Zooming changes the img's own size and offset instead of using transform:
+   `object-position` can only pan within the part cover already crops, and a square image has nothing to pan, while a
+   transform scale would enlarge the round frame's border too. The element stretches to "the image at cover scale times the
+   factor", then negative offsets pull the face's center to the frame's center, with the frame's `overflow:hidden` doing the
+   cropping: the same geometry as when not zoomed. */
 export function avatarFrame(img: HTMLImageElement): void {
   const ring = img.parentElement;
   if (!ring) return;
   ['position', 'right', 'bottom', 'left', 'top', 'width', 'height', 'max-width', 'max-height']
     .forEach(name => img.style.removeProperty(name));
-  // 取景完才露面（`09-skeleton.css`）：本函数同步写完样式，先标上；只有等框布局那条路撤掉。
+  // Appears only once framing is done (`09-skeleton.css`): this function writes the styles synchronously and marks it up front; the only path taken away is the wait-for-frame-layout one.
   img.dataset.faceFramed = '';
   if (ring.dataset.nativeSmall === 'true') return;
   const rect = ring.getBoundingClientRect();
-  /* 图加载完时框还没布局，是真会发生的一整类情况：面板隐藏、`display:none` 的页签、
-     缓存直出。那一刻框是 0×0，算出来的倍数只能是 1，而 `load` 不会再来第二次——
-     放大于是静默地永不生效，页面上看不出和「这张图不需要放大」有任何区别。
-     实测在资料页复现过：框已经 160×160、图也 complete，style 里却只有平移。
-     等到框拿到尺寸再算一次，等不到就维持不放大。 */
+  /* The frame not yet laid out when the image finishes loading is a whole real class of cases: hidden panel, a `display:none`
+     tab, served straight from cache. At that moment the frame is 0×0, the computed factor can only be 1, and `load` will not
+     come a second time, so the zoom silently never applies, indistinguishable on screen from "this image needs no zoom".
+     Measured reproducing on the profile page: the frame already 160×160 and the image complete, yet the style held only the
+     pan. So it computes once more when the frame has its size, and if that never comes, it stays unzoomed. */
   if (!(rect.width > 0 && rect.height > 0)) {
     if (typeof ResizeObserver !== 'function') return;
-    // 框是 0×0 时本来也看不见；等它量到尺寸、取完景再露面。
+    // A 0x0 box would not be visible anyway; wait until it has a measured size and a finished crop before showing it.
     delete img.dataset.faceFramed;
     const watch = new ResizeObserver(() => {
       const now = ring.getBoundingClientRect();
@@ -44,9 +45,9 @@ export function avatarFrame(img: HTMLImageElement): void {
     return;
   }
   const [cx = NaN, cy = NaN, faceW = NaN, imgW = NaN, imgH = NaN] = String(img.dataset.facebox).split(' ').map(Number);
-  /* 索引页取的是实体图的派生件，边车记的是原件像素：等比缩过的仍是同一张图，按比例
-     换算就对得上。脸心是归一化的，不跟着缩；脸框和图的像素一起乘，`faceZoom` 里那条
-     无损上限才问得到手上这张真有多少像素。比例为 0 是换成了别的图，那时退回几何居中。 */
+  /* The index page fetches derived copies of entity images, while the sidecar records the originals' pixels: proportionally scaled copies are still the same image, so
+     converting by ratio lines up. Face centers are normalized and do not scale with the image; face boxes multiply with the image's pixels, so the
+     lossless cap in `faceZoom` can then ask how many pixels this actual image has. A ratio of 0 means a different image was swapped in; fall back to geometric centering then. */
   const scale = faceSourceScale(img.naturalWidth, img.naturalHeight, imgW, imgH);
   if (!scale) {
     img.style.objectPosition = '50% 50%';
@@ -54,28 +55,30 @@ export function avatarFrame(img: HTMLImageElement): void {
   }
   const frame = faceFrame({ cx, cy, faceW: faceW * scale, imgW: imgW * scale, imgH: imgH * scale },
     { w: rect.width, h: rect.height }, devicePixels());
-  // 放不大就一个字都不写：留下的是 CSS 里那份几何，`object-position` 照旧生效。
+  // When it cannot be enlarged, write nothing at all: what remains is the geometry in the CSS, and `object-position` keeps working as before.
   if (!frame) return;
   const s = img.style;
-  // `inset:0` 定了 right/bottom，和这里的 left+width 过约束；显式撤掉，不靠浏览器取舍。
+  // `inset:0` sets right/bottom, over-constrained against the left+width here; remove them explicitly instead of trusting the browser to pick.
   s.position = 'absolute'; s.right = 'auto'; s.bottom = 'auto';
   s.left = `${frame.left}%`; s.top = `${frame.top}%`;
   s.width = `${frame.width}%`; s.height = `${frame.height}%`;
-  /* 宽常常超过框宽。React 岛的 Tailwind 预检给每张 img `max-width:100%`，会把宽夹回框宽、
-     高照样放大，脸偏到左边、右侧露出底色；内联撤掉，图落在哪个容器里都不用再各补一条。 */
+  /* Width often exceeds the frame. React islands' Tailwind preflight gives every img `max-width:100%`, which clamps width to the frame while
+     height still enlarges, pushing the face left and exposing backing on the right; remove it inline so no container needs its own patch. */
   s.maxWidth = 'none'; s.maxHeight = 'none';
 }
 
-/* 官方封面有三种形态，实测过：整张封套约 1.48（左侧是剧照拼贴，右侧才是正封），
-   竖版正封约 0.70（本身就是正封，没有左半边可裁），16:9 官方剧照约 1.78（整幅
-   都是画面，没有「正封那一块」可推）。所以取景不能写死「取右边」，得等图片加载后
-   按它自己的宽高比分流——服务端没存这个比例，也不该为此再存一份。
-   剧照必须自成一档：把 1.78 归进 front 就会按写死的 50% 取横向中段，人偏在一侧
-   就整个被切掉，而大图容器比所有封面都竖、纵向锚点在那里根本不生效。 */
+/* Official covers come in three shapes, measured: a full sleeve is about 1.48 (stills collage on the left, the front cover
+   only on the right), a portrait front cover is about 0.70 (already the front cover, no left half to crop), and 16:9 official
+   stills are about 1.78 (the whole frame is the picture, with no "front cover region" to infer). So framing cannot be
+   hard-coded to "take the right"; it must branch by the image's own aspect ratio after load. The server does not store this
+   ratio, nor should it store one more copy for this.
+   Stills must be their own tier: folding 1.78 into front would cut the horizontal middle at the hard-coded 50%, cutting away
+   a person standing off to one side entirely, and the large-image container is more portrait than every cover, so vertical
+   anchoring does nothing there. */
 export function coverAnchor(img: HTMLImageElement, ratio?: number): void {
   const r = img.naturalWidth / img.naturalHeight;
-  /* 容器比例在写任何样式之前读：先写再读，`getComputedStyle` 就得把刚弄脏的样式当场重算。
-     调用方手里已经有这个数（播放墙每格自己写 `--card-ratio`）就直接传进来，一次也不读。 */
+  /* Read the container ratio before writing any styles: writing first and reading after makes `getComputedStyle` recompute the just-dirtied styles on the spot.
+     If the caller already has the number (the playback wall's each cell writes its own `--card-ratio`), pass it in and skip the read entirely. */
   const car = r ? ratio ?? coverRatio(img) : 0;
   img.closest<HTMLElement>('.pic,[data-media-pic]')?.style.removeProperty('--cover-blur');
   if (!r) return;
@@ -83,16 +86,17 @@ export function coverAnchor(img: HTMLImageElement, ratio?: number): void {
   ['--panel-aspect', '--panel-clip', '--panel-left', '--panel-top', '--panel-height', '--cover-x', '--cover-y']
     .forEach(name => img.style.removeProperty(name));
   const code = img.dataset.coverCode || new URL(img.currentSrc || img.src, location.href).searchParams.get('code') || '';
-  // FC2 封面是整幅画面，横向取景跟随人脸；宽高比不代表有 DVD 正封。
+  // FC2 covers are full-frame images with landscape framing following the face; the aspect ratio does not imply a DVD front cover.
   img.dataset.frame = img.dataset.coverLayout === 'still' || /^FC2(?:-PPV)?-/i.test(code) ? 'still' : wideSleeve(img) ? 'sleeve' : r >= 1.65 ? 'still' : r > 1.2 ? 'sleeve' : 'front';
-  /* `object-position` 的百分比说的是「图片上这个点对齐可见窗口的同一个百分比位置」，
-     不是「这个点落到窗口正中」。所以人脸中心原样当锚点只能保证脸还在画面里：0.81
-     那种偏右的脸会贴着窗口右缘，图片右边还剩一截永远露不出来。可见窗口占图片 w 时，
-     让人脸落到正中的锚点是 (face - w/2) / (1 - w)。夹回 0–1 是因为脸离图片边缘不足
-     半个窗口时窗口已经顶到边，再往外推只会把图片外面推进来。 */
+  /* `object-position`'s percentages say "this point on the image aligns with the same percentage position of the visible
+     window", not "this point lands in the window's center". So using the face center as the anchor as-is only guarantees the
+     face stays in frame: a face at 0.81 would hug the window's right edge with a strip of image on the right never showing.
+     When the visible window occupies w of the image, the anchor that centers the face is (face - w/2) / (1 - w). Clamping to
+     0-1 exists because when the face is less than half a window from the image edge, the window has already hit the edge, and
+     pushing further out would only bring what is outside the image in. */
   const center = (name: string, face: number | null, visible: number) => {
-    // 只给被裁的那个轴算。`object-fit:cover` 一次只裁一个轴，另一个轴整幅可见
-    // （visible>=1），那里的 object-position 是死值，算了也不生效。
+    // Compute only for the cropped axis. `object-fit:cover` crops one axis at a time; the other axis shows the full image
+    // (visible>=1); the object-position there is a hard-coded value, so computing it has no effect.
     if (face == null || !(visible > 0 && visible < 1)) return;
     const pct = Math.min(1, Math.max(0, (face - visible / 2) / (1 - visible)));
     img.style.setProperty(name, `${Math.round(pct * 100)}%`);
@@ -100,25 +104,25 @@ export function coverAnchor(img: HTMLImageElement, ratio?: number): void {
   center('--cover-x', coverFace(img, 'cx'), car / r);
   center('--cover-y', coverFace(img, 'cy'), r / car);
   posterPanel(img, car);
-  // 传统封面的整图与竖版正封保持完整，比例不同处用同图补底；整幅大封保持纯色底。
+  // The traditional cover's full image and the portrait front cover stay intact, with the same image padding the mismatched ratio; the full-width large cover keeps a solid background.
   if (img.dataset.frame !== 'still' && (img.classList.contains('whole') || img.dataset.frame === 'front')
     && Math.abs(r / car - 1) > .02) coverBackdrop(img);
 }
 
-/* 只把折痕右边那块正封摆进卡片，封底一个像素都不露。折痕位置在 `data-posterbox` 里，
-   换算要的容器比例只有页面知道，两边在这里才凑齐。 */
+/* Only the front cover to the right of the fold goes into the card, with not one pixel of back cover showing. The fold position lives in `data-posterbox`,
+   and the container ratio the conversion needs is known only to the page; the two meet here. */
 export function posterPanel(img: HTMLImageElement, ratio: number): void {
   if (img.dataset.frame === 'front' || img.dataset.coverLayout === 'still') return;
   let [x0 = NaN, imgW = NaN, imgH = NaN, y0 = NaN, x1 = NaN, y1 = NaN] = String(img.dataset.posterbox || '').split(' ').map(Number);
-  /* 没有框的双页封套按先验从右缘量回去，与服务端折痕找不到时的比例框一致。 */
+  /* A frameless double-page sleeve is measured back from the right edge by prior, matching the ratio frame the server uses when it cannot find the crease. */
   if (!img.dataset.posterbox && img.dataset.frame === 'sleeve') {
     imgW = img.naturalWidth; imgH = img.naturalHeight;
     x0 = Math.round(imgW - (wideSleeve(img) ? WIDE_PANEL_ASPECT : PANEL_ASPECT) * imgH); y0 = 0; x1 = imgW; y1 = imgH;
   }
-  /* 框是按那一版源图的像素算的，而封面会被更大的那张原子替换。尺寸对不上就说明
-     框描述的是另一张图，落在这张上是一块错位的区域——而错位在页面上和「本来就该
-     这么取景」看不出区别，所以宁可退回回退值。 */
-  // 卡片先取的是等比缩小的派生档，框的百分比在等比缩放下不变，所以认缩小，不认别的图。
+  /* The frame is computed against that edition's source pixels, but the cover gets atomically replaced by a larger one. A size mismatch means
+     the frame describes another image, and landing on this one is a misaligned region; and misalignment is indistinguishable on the page from
+     "framed that way on purpose", so falling back to the default is the safer call. */
+  // Cards first take the proportionally downscaled derived tier, and frame percentages stay constant under proportional scaling, so only the downscaled image is recognized, not any other.
   if (!faceSourceScale(img.naturalWidth, img.naturalHeight, imgW, imgH)) return;
   const panelAspect = (x1 - x0) / (y1 - y0);
   const sourceAspect = imgW / imgH;
@@ -137,7 +141,7 @@ export function posterPanel(img: HTMLImageElement, ratio: number): void {
     && Math.abs(panelAspect / ratio - 1) > .02) coverBackdrop(img);
 }
 
-/** 传统正封的留白使用同图模糊补底，优先复用已加载的派生档。 */
+/** The whitespace beside a traditional full cover is filled with a blur of the same image, preferring an already-loaded derivative. */
 function coverBackdrop(img: HTMLImageElement): void {
   const src = (img.dataset.thumbSrc || img.currentSrc || img.src).replace(/"/g, '%22');
   img.closest<HTMLElement>('.pic,[data-media-pic]')?.style.setProperty('--cover-blur', `url("${src}")`);
@@ -151,12 +155,13 @@ function wideSleeve(img: HTMLImageElement): boolean {
     && ratio >= WIDE_SLEEVE_RATIO_MIN && ratio < WIDE_SLEEVE_RATIO_MAX;
 }
 
-/* 卡片先取封面的派生档（`/cover?thumb=2` 或 `thumb=1`，见 `cardCoverUrl`）：高清原件一张
-   解码 38 MB，一页几十张挤爆解码缓存，来回滚动时滚走的被清掉、滚回来现解，那一段是空白。
-   取景落定之后量这张图在屏幕上铺开多大：一个源像素要占不止一个设备像素，就是这一档不够
-   清楚，往上换一档——800 那档换 1600 那档，1600 那档换原件。换上的那张加载完会再量一次。
-   单列、大图这些真用得上像素的地方最后落到原件，多列时屏幕本来就放不下那么多像素。
-   `thumbSrc` 只记第一张派生档：模糊补底复用已经到手的那张小图。 */
+/* Cards fetch the cover's derived tier first (`/cover?thumb=2` or `thumb=1`, see `cardCoverUrl`): decoding one HD original
+ * costs 38 MB, and dozens on a page would blow the decode cache; scrolling away gets them evicted and scrolling back re-decodes
+ * on the spot, a stretch of blank. After framing settles, measure how large this image spreads on screen: when one source
+ * pixel must cover more than one device pixel, this tier is not sharp enough, so step up: 800 becomes 1600, 1600 becomes the
+ * original. The swapped image is measured again once it loads. Single column and large images, the places that genuinely use
+ * the pixels, end at the original; with multiple columns the screen cannot hold that many pixels anyway.
+ * `thumbSrc` records only the first derived tier: the blur underlay reuses the small image already at hand. */
 export function upgradeCover(img: HTMLImageElement): void {
   const tier = /[?&]thumb=([12])(?=&|$)/.exec(img.src)?.[1];
   if (!tier || !img.naturalWidth) return;
@@ -170,12 +175,12 @@ export function upgradeCover(img: HTMLImageElement): void {
     : img.src.replace(/[?&]thumb=1(?=&|$)/, '');
 }
 
-/* 容器比例只有 `.pic` 的 `--card-ratio` 知道：竖屏开关、JAV 大图和普通卡片各写一个
-   值，在这里按 layout 重算迟早会和它分叉。自定义属性会继承，直接从图片上读；
-   `aspect-ratio` 允许 `16/9` 这种写法，所以两种形式都得认。
-   卡片框自己的行内样式写着这个值时直接读行内：框与图之间那一层不另设比例，读到的就是计算值，
-   而 `getComputedStyle` 赶上刚插进来的一批卡片会先把整棵样式树重算一遍。框上没写的（比例
-   写在更外层的网格上）才读计算样式。 */
+/* Only `.pic`'s `--card-ratio` knows the container ratio: the portrait switch, JAV large-image and normal cards each write
+   one value, and recomputing it here per layout would fork from it sooner or later. Custom properties inherit, so read it
+   straight off the image; `aspect-ratio` allows forms like `16/9`, so both spellings must be recognized.
+   When the card frame's own inline style carries the value, read inline: no ratio is set on the layer between frame and
+   image, so the read is the computed value, and `getComputedStyle` on freshly inserted cards would first recalculate the
+   whole style tree. Only when the frame has none (the ratio written on an outer grid) does it read computed styles. */
 export function coverRatio(img: HTMLImageElement): number {
   const inline = img.closest<HTMLElement>('.pic,[data-media-pic]')?.style.getPropertyValue('--card-ratio').trim();
   const parts = (inline || getComputedStyle(img).getPropertyValue('--card-ratio').trim()).split('/').map(Number);
@@ -188,19 +193,20 @@ export function coverFace(img: HTMLImageElement, axis: 'cx' | 'cy'): number | nu
   return Number.isFinite(face) ? face : null;
 }
 
-/* 封面与头像的加载态，和换头像那一格同一形态：图还在路上时框上铺一层微光，到手后
-   微光淡出并糊掉（`09-skeleton.css` 的 `.imgwait`）。图是模板字符串拼进来的，逐张挂
-   监听做不到，所以在插进页面时看一眼：已经 `complete` 的（缓存里直接解码的那种）
-   什么都不标，页面每次重绘都不会闪一下微光。标上之后 `load` 一定会来——图已经挂在
-   文档上，捕获阶段的监听收得到；取不到图的 `error` 同样收尾，不让微光盖住首字母。
-   收尾后类名一并摘掉：没到门槛就到手的直接摘，淡出过的等淡出完再摘，封面上平时不留
-   那层 `::after`。React 索引页的头像框（`[data-person-ring]`）与资料卡的大位、同台艺人
-   （`[data-entity-portrait]`、`[data-hero-ring]`）里那张图同样由这一层拼，插进页面时照样
-   被这里看见。 */
+/* Loading states for covers and avatars, same shape as the avatar-swap cell: while the image is in flight a shimmer coats the
+   frame, and on arrival it fades out and blurs away (`.imgwait` in `09-skeleton.css`). Images are interpolated from template
+   strings, so per-image listeners are impossible; instead each insertion is inspected: images already `complete` (the
+   cache-decoded kind) are marked nothing, so no re-render flashes the shimmer. Once marked, `load` is guaranteed to arrive,
+   because the image is already in the document and capture-phase listeners receive it; a failed `error` also wraps up, so the
+   shimmer never covers the initial letter. After wrapping up the class names come off together: images that arrived before
+   the threshold are stripped directly, ones that faded wait for the fade to finish, and covers keep no `::after` layer in
+   normal state. The avatar frames of the React index page (`[data-person-ring]`) and the profile card's large slot and
+   co-performers (`[data-entity-portrait]`, `[data-hero-ring]`) assemble their images through this layer too and are likewise
+   seen at insertion. */
 const PENDING_IMAGES = '.pic>img.poster,[data-media-art]>img,.ring>img,[data-tier-ring]>img,[data-person-ring]>img,[data-entity-portrait]>img,[data-hero-ring]>img';
 const pendingSince = new WeakMap<Element, number>();
 
-/** 插进页面时还没到手的图，在框上标 `imgwait`。 */
+/** An image not yet in hand when inserted into the page is marked `imgwait` on the frame. */
 export function watchPendingImages(node: Element): void {
   const found = node.matches(PENDING_IMAGES) ? [node] : node.querySelectorAll(PENDING_IMAGES);
   for (const img of found) {
@@ -211,7 +217,7 @@ export function watchPendingImages(node: Element): void {
   }
 }
 
-/** 图到手或取不到：收掉框上那层微光。等得不够久的直接摘，否则淡出完再摘。 */
+/** The image arrived or failed to load: take the shimmer off the frame. If it has not been up long enough, remove it right away; otherwise remove it after the fade-out completes. */
 export function settleImage(img: HTMLImageElement): void {
   const box = img.parentElement;
   if (!box?.classList.contains('imgwait')) return;
@@ -224,13 +230,13 @@ export function settleImage(img: HTMLImageElement): void {
     box.removeEventListener('transitionend', drop); clearTimeout(timer); box.classList.remove('ui-imgdone');
   };
   box.addEventListener('transitionend', drop);
-  // 兜底：面板藏在后台或动效归零时 `transitionend` 不会来。
+  // Fallback: `transitionend` never arrives when the panel is hidden in a background tab or animations are zeroed out.
   timer = setTimeout(drop, 1000);
 }
 
-/* 缓存图插进页面的第一帧就画出来了，`load` 却排在下一个任务里：不在这里先取景，那一帧
-   要么藏着（`09-skeleton.css`），要么是几何居中。观察回调是微任务，赶在绘制之前。
-   不限于 `PENDING_IMAGES` 那几种框：带脸框的头像散在各页，哪里的都一样要先取景。 */
+/* A cached image paints in the very first frame it is inserted, but `load` queues into the next task: without framing here first, that frame
+   is either hidden (`09-skeleton.css`) or geometrically centered. The observation callback is a microtask, beating paint.
+   Not limited to the `PENDING_IMAGES` frame types: face-framed avatars are scattered across pages, and they all need framing first wherever they are. */
 export function frameCachedImages(node: Element): void {
   const framed = 'img.cover,img[data-facebox]';
   const found = node.matches(framed) ? [node] : node.querySelectorAll(framed);
@@ -242,20 +248,21 @@ export function frameCachedImages(node: Element): void {
   }
 }
 
-/* 图比框还小时不再拉伸：原尺寸居中摆，空出来的一圈拿同一张图放大模糊补底。
-
-   厂牌标识实测从 42 px 到 1378 px 都有。`/logo?variant=large` 已经先挑过这个厂牌
-   最清晰的一份，剩下的是本来就没有大图的厂牌——把 112 px 的那张拉满 180 px 的格子
-   只是把糊放大给人看，而摆在原尺寸上，它至少是清楚的。
-
-   度量只能在 `load` 之后做：图没加载完时 `naturalWidth` 读到的是 0。换过回落图后
-   `load` 会再来一次，这里读的 `currentSrc` 也就跟着是当前真正显示的那张。
-   允许适度放大；明显过小的图片才按源尺寸补底。 */
+/* Images smaller than the frame are no longer stretched: placed centered at native size, with an enlarged, blurred copy of
+ * the same image filling the empty ring.
+ *
+ * Label logos measured from 42 px to 1378 px. `/logo?variant=large` already picked the sharpest copy for this label; what
+ * remains are labels with no large image at all: stretching a 112 px image across a 180 px cell only magnifies the blur,
+ * while at native size it is at least crisp.
+ *
+ * Measuring can only happen after `load`: before the image finishes, `naturalWidth` reads 0. After a fallback image swaps in,
+ * `load` fires again, and the `currentSrc` read here is then whichever image is actually displayed.
+ * Moderate upscaling is allowed; only clearly undersized images get the native-size underlay. */
 export function fitNativeImage(img: HTMLImageElement): void {
   const box = img.closest<HTMLElement>('[data-fit-native]');
   if (!box || !img.naturalWidth) return;
-  /* 超扁、超高的标识另走一条：短边撑到下限、长边两头裁掉（`[data-native-clamp]` 换成 cover），
-     不补底——那一圈模糊放大的是一道线，只会糊成一大块。 */
+  /* Extremely flat or extremely tall logos take another path: the short edge stretched to its floor and the long edge cropped at both ends (`[data-native-clamp]` switches to cover),
+     with no backing; the blur would magnify a single line into one big smear. */
   const clamp = box.dataset.fitNative === 'mark'
     ? markClamp(img.naturalWidth, img.naturalHeight, box.clientWidth, box.clientHeight) : null;
   box.dataset.nativeClamp = String(!!clamp);
@@ -266,7 +273,7 @@ export function fitNativeImage(img: HTMLImageElement): void {
     box.style.setProperty('--markbg', 'none');
     return;
   }
-  // 版式切换会改变框的大小，每次按屏幕像素密度重新判断。
+  // Layout switches change the frame size, so re-evaluate by device pixel ratio every time.
   const { small, width, height } = nativeImageFit(img.naturalWidth, img.naturalHeight, box.clientWidth, box.clientHeight, devicePixels());
   box.dataset.nativeSmall = String(small);
   box.style.setProperty('--markw', small ? width + 'px' : '100%');
@@ -275,7 +282,7 @@ export function fitNativeImage(img: HTMLImageElement): void {
   box.style.setProperty('--markbg', small ? `url("${src}")` : 'none');
 }
 
-/** 已经加载完的图不会再发 `load`，容器换了尺寸就得自己重量一遍。 */
+/** An already-loaded image will not fire `load` again, so a resized container has to measure itself once more. */
 export function refitNativeImages(root?: ParentNode | null): void {
   (root || document).querySelectorAll<HTMLImageElement>('[data-fit-native] img').forEach(img => {
     fitNativeImage(img);
@@ -283,36 +290,36 @@ export function refitNativeImages(root?: ParentNode | null): void {
   });
 }
 
-/** 封面格换版式：格里的番号封面原地换取景类名，已经到手的按新卡片比例重新取景，派生档
- *  不够清楚的换回原件。 */
+/** Cover cell layout switch: the code cover in the cell swaps its framing class in place, covers already in hand are reframed to the new card ratio, and a
+ *  derived tier that is not sharp enough falls back to the original. */
 export function relayoutCovers(root: ParentNode, layout: JavLayout): void {
   for (const img of relayoutJavImages(root, layout)) { coverAnchor(img); upgradeCover(img); }
 }
 
 let installed = false;
 
-/** 取景与微光的那组全站监听。壳启动时调一次；重复调用不会再挂第二份。 */
+/** The site-wide listeners for framing and shimmer. Called once at shell startup; repeat calls never mount a second copy. */
 export function installCardArt(): void {
   if (installed) return;
   installed = true;
-  /* 封面是模板字符串拼出来的，没法逐张挂监听；内联 `onload` 属性只能调全局函数，而
-     模块里的取景函数在那里取不到——页面会每张图报一次 ReferenceError，封面全部按回落
-     取景。`load` 不冒泡，但捕获阶段照样收得到。 */
+  /* Covers are assembled from template strings, so listeners cannot be attached per image; an inline `onload` attribute can only call global functions, and
+     the module's framing function is unreachable there; the page would report a ReferenceError per image and every cover would frame by fallback.
+     `load` does not bubble, but the capture phase still receives it. */
   document.addEventListener('load', event => {
     const img = event.target;
     if (!(img instanceof HTMLImageElement)) return;
     settleImage(img);
     fitNativeImage(img);
     if (img.classList.contains('cover')) { coverAnchor(img); upgradeCover(img); }
-    // 头像走同一条路，理由也同一个：倍数要等图和框都落地才算得出来。
+    // Avatars take the same path for the same reason: the factor is only computable once both image and box have landed.
     else if (img.dataset.facebox) avatarFrame(img);
   }, true);
   new MutationObserver(records => {
     for (const record of records) for (const node of record.addedNodes)
       if (node.nodeType === Node.ELEMENT_NODE) { watchPendingImages(node as Element); frameCachedImages(node as Element); }
   }).observe(document.body, { childList: true, subtree: true });
-  // 挂在 document 上，比 body 上那条兜底链先收到：图被摘掉之前框还找得到。兜底链里还有
-  // 下一张时微光留着，换上的那张到手才收。
+  // Mounted on document, so it receives the event before the fallback chain on body: the frame is still findable before the image is removed. The fallback chain also has
+  // The shimmer stays while the next image loads; clear it only when the replacement arrives.
   document.addEventListener('error', event => {
     const img = event.target;
     if (img instanceof HTMLImageElement && !img.dataset.fallbacks) settleImage(img);

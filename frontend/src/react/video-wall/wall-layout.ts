@@ -1,5 +1,5 @@
-/* 矩形块拼贴参考 Folia 的 blockTemplates/layout，AGPL-3.0，固定 revision
- * 9a01e788ed52d25ea01b1f0d37934e5e371ae82b。Peach 按浏览位置接续馆藏。 */
+/* The rectangular block collage references Folia's blockTemplates/layout, AGPL-3.0, pinned revision
+ * 9a01e788ed52d25ea01b1f0d37934e5e371ae82b. Peach continues the library from the browsing position. */
 import { getBlockTemplate, getBlockReflow } from './folia/blockTemplates';
 import type { MediaItem } from '../catalog-grid/types';
 export interface WallRect { x: number; y: number; width: number; height: number }
@@ -28,12 +28,12 @@ function blockSlot(column: number, row: number, slot: number): WallRect {
     width: w * PITCH - GAP, height: h * PITCH - GAP };
 }
 
-/** 只接受有实际封面引用的视频；缩略图设置不改变入墙资格。 */
+/** Only videos with an actual cover reference are accepted; the thumbnail setting does not change wall eligibility. */
 export function wallHasCover(item: MediaItem): boolean {
   return (!item.medium || item.medium === 'video') && !!item.has_cover && !!(item.cover_key || item.code);
 }
 
-/** 按实例键定位，不依赖视口裁剪结果，展开播放器可留在屏外。 */
+/** Locate by instance key instead of relying on viewport-clipped results, so an expanded player may stay off screen. */
 export function wallTileAt(count: number, finite: boolean, key: string): WallTile | null {
   if (!count) return null;
   const [column,row,slot] = key.split(':').map(Number);
@@ -48,14 +48,14 @@ export function wallTileAt(count: number, finite: boolean, key: string): WallTil
   return { ...rect, index:rank % count, key };
 }
 
-/** 有限墙队列选择落到作品的唯一位置。 */
+/** Finite wall queue selection lands on the video's unique position. */
 export function finiteWallTile(count: number, index: number): WallTile | null {
   if (index < 0 || index >= count) return null;
   const block = Math.floor(index / SLOTS);
   return wallTileAt(count, true, `${block % 3}:${Math.floor(block / 3)}:${index % SLOTS}`);
 }
 
-/** Folia 原始让位表：展开成 6×6，所在块的另外十一格同步换位。 */
+/** Folia's original yield table: expanded to 6x6, with the other eleven cells of its block swapping in sync. */
 export function expandedWallTiles(_count: number, _finite: boolean, active: WallTile): Map<string, WallRect> {
   const [column,row,slot] = active.key.split(':').map(Number);
   const reflow = getBlockReflow(column!, row!, slot!);
@@ -73,7 +73,7 @@ export function wallExtent(count: number): WallSize {
     width = Math.max(width, rect.x + rect.width);
     height = Math.max(height, rect.y + rect.height);
   }
-  // 满行的宽度不会因最后一行只占一块而缩回去。
+  // A full row's width does not shrink back because the last row holds only one item.
   return { width: count >= SLOTS * 3 ? 3 * BLOCK_W - GAP : width, height };
 }
 
@@ -84,7 +84,7 @@ export function clampWall(camera: WallCamera, viewport: WallSize, extent: WallSi
   return { ...camera, x: clamp(camera.x, extent.width, viewport.width), y: clamp(camera.y, extent.height, viewport.height) };
 }
 
-/** 视口每边多铺的磁贴范围（屏幕像素），镜头按它决定何时重新发布。 */
+/** The extra tile range beyond each viewport edge (screen pixels); the lens uses it to decide when to republish. */
 export const WALL_CULL_PAD = 180;
 
 export function visibleWallTiles(count: number, finite: boolean, camera: WallCamera, viewport: WallSize): WallTile[] {
@@ -111,7 +111,7 @@ export function visibleWallTiles(count: number, finite: boolean, camera: WallCam
   return result;
 }
 
-/** 按浏览顺序分配作品，续页不改变已分配位置；全范围耗尽才循环。 */
+/** Videos are assigned in browsing order; further pages do not move already assigned positions, and cycling starts only when the full range is exhausted. */
 export class WallExploration {
   private readonly positions = new Map<string, number>();
   private readonly used = new Set<number>();

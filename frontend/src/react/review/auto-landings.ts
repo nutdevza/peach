@@ -76,8 +76,8 @@ export const writeTime = (item: AutoLandingWrite) =>
   item.at === null ? '' : localTime(new Date(item.at * 1000).toISOString());
 
 export const workLabel = (row: AssetRef) =>
-  row.code || row.name || (row.asset_id ? `#${row.asset_id}` : '未知作品');
-const shown = (value: string) => (value ? `「${value}」` : '空');
+  row.code || row.name || (row.asset_id ? `#${row.asset_id}` : 'Unknown work');
+const shown = (value: string) => (value ? `"${value}"` : 'empty');
 
 /** 这一条写下了什么：覆盖是新值，并集是补上的标签。 */
 export const writtenText = (item: AutoLandingWrite) =>
@@ -85,36 +85,36 @@ export const writtenText = (item: AutoLandingWrite) =>
 
 /** 写入前的样子：覆盖写原值，并集写「只增不删」。 */
 export const previousText = (item: AutoLandingWrite) => item.tags.length
-  ? '原有标签保留'
-  : `原为 ${item.previous.length ? item.previous.map(shown).join('、') : '空'}`;
+  ? 'Original tags kept'
+  : `Was ${item.previous.length ? item.previous.map(shown).join(', ') : 'empty'}`;
 
 /** 确认弹层里逐条列出的改动：改回的值、删掉的标签，最后是不动的那几条。 */
 export function previewLines(preview: AutoLandingPreview): string[] {
   return [
-    ...preview.restores.map((row) => `${workLabel(row)} ${row.field}：${shown(row.current)} 改回 ${shown(row.previous)}`),
-    ...preview.tags.map((row) => `${workLabel(row)} 删除标签「${row.tag}」`),
+    ...preview.restores.map((row) => `${workLabel(row)} ${row.field}: ${shown(row.current)} restored to ${shown(row.previous)}`),
+    ...preview.tags.map((row) => `${workLabel(row)} removed tag "${row.tag}"`),
     ...preview.changed.map((row) => row.gone
-      ? `${workLabel(row)} ${row.field}：作品已不在账本中，跳过`
-      : `${workLabel(row)} ${row.field}：之后已被修改，保留现值`),
+      ? `${workLabel(row)} ${row.field}: the work is no longer in the ledger, skipping`
+      : `${workLabel(row)} ${row.field}: edited since, keeping the current value`),
   ];
 }
 
 export function previewBody(preview: AutoLandingPreview): string {
   const parts = [
-    preview.restores.length ? `改回 ${preview.restores.length} 条资料` : '',
-    preview.tags.length ? `删除 ${preview.tags.length} 个自动补上的标签` : '',
+    preview.restores.length ? `Restored ${preview.restores.length} entries` : '',
+    preview.tags.length ? `Removed ${preview.tags.length} auto-added tags` : '',
   ].filter(Boolean);
   return [
-    `将撤回 ${preview.decisions} 条自动写入：${parts.join('，') || '没有要改的资料'}。`,
-    preview.changed.length ? `${preview.changed.length} 条资料写入后被修改过或作品已删除，不改动。` : '',
-    '撤回前会自动备份账本。下一轮资料处理仍按同一判据判断，可能再次写入。',
+    `Will withdraw ${preview.decisions} auto-writes: ${parts.join(', ') || 'nothing to change'}.`,
+    preview.changed.length ? `${preview.changed.length} entries were edited after the write or the work is gone; leaving them as they are.` : '',
+    'The ledger is backed up automatically before a withdrawal. The next metadata pass applies the same rules and may write again.',
   ].filter(Boolean).join('');
 }
 
 export function resultText(result: AutoLandingResult): string {
   const parts = [
-    result.restored ? `改回 ${result.restored} 条资料` : '',
-    result.removed_tags ? `删除 ${result.removed_tags} 个标签` : '',
+    result.restored ? `Restored ${result.restored} entries` : '',
+    result.removed_tags ? `Removed ${result.removed_tags} tags` : '',
   ].filter(Boolean);
-  return `已撤回 ${result.decisions} 条自动写入${parts.length ? `：${parts.join('，')}` : ''}`;
+  return `Withdrew ${result.decisions} auto-writes${parts.length ? `: ${parts.join(', ')}` : ''}`;
 }

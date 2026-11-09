@@ -24,30 +24,30 @@ import {
 import { useAction } from './use-action';
 
 const STATES: Record<string, [string, StatusTone]> = {
-  done: ['已完成', 'success'], succeeded: ['已完成', 'success'], complete: ['已完成', 'success'],
-  running: ['进行中', 'progress'], pending: ['等待执行', 'neutral'], waiting: ['等你确认', 'warning'],
-  failed: ['需要重试', 'error'], none: ['无需处理', 'neutral'],
+  done: ['Completed', 'success'], succeeded: ['Completed', 'success'], complete: ['Completed', 'success'],
+  running: ['In progress', 'progress'], pending: ['Waiting to run', 'neutral'], waiting: ['Waiting for you', 'warning'],
+  failed: ['Needs retry', 'error'], none: ['Nothing to do', 'neutral'],
 };
 const number = (value = 0) => value.toLocaleString();
 const stamp = (seconds: number) => new Date(seconds * 1000).toLocaleString('zh-CN', {
   year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-const reclaimable = (item: RepairItem) => `${number(item.files)} 个文件 · ${fmtSize(item.bytes || 0)}`;
+const reclaimable = (item: RepairItem) => `${number(item.files)} files · ${fmtSize(item.bytes || 0)}`;
 /** 在跑且知道总量的项画进度条；件数写在条旁边，右侧只留状态，手机宽度下才不挤说明列。 */
 const progressing = (item: RepairItem) => item.state === 'running' && !!item.total;
 /** 页面开着时要跟进的后台进度：在跑的项与还在统计的删除类确认项。补测要跑几天，正因为久才要看得到进度。 */
 const inFlight = (item: RepairItem) => !!item.estimating || item.state === 'running';
 
 function reading(item: RepairItem) {
-  if (item.estimating) return '正在统计';
+  if (item.estimating) return 'Measuring';
   if (item.state === 'failed' && item.error) return item.error;
   // 行里只写体积，手机宽度下才不挤说明列；文件数在确认弹层里点名。
-  if (item.files) return `可回收 ${fmtSize(item.bytes || 0)}`;
-  if (item.state === 'waiting') return item.pending ? `${number(item.pending)} 部待补测` : '';
+  if (item.files) return `Reclaimable ${fmtSize(item.bytes || 0)}`;
+  if (item.state === 'waiting') return item.pending ? `${number(item.pending)} videos pending recheck` : '';
   if (progressing(item)) return '';
   if (item.total) return `${number(item.done)} / ${number(item.total)}`;
   if (item.mode === 'confirm') return '';
-  return item.changed ? `改动 ${number(item.changed)} 项` : '';
+  return item.changed ? `${number(item.changed)} changes` : '';
 }
 
 function Row({ title, description, progress, children }: {
@@ -67,7 +67,7 @@ function Row({ title, description, progress, children }: {
 
 function ItemProgress({ item }: { item: RepairItem }) {
   return <div className="flex items-center gap-3">
-    <div className="min-w-0 flex-1"><Progress label={`${item.title}进度`} value={item.done || 0} max={item.total} /></div>
+    <div className="min-w-0 flex-1"><Progress label={`${item.title} progress`} value={item.done || 0} max={item.total} /></div>
     <span className="shrink-0 text-caption-1-regular text-text-secondary tabular-nums">
       {number(item.done)} / {number(item.total)}</span>
   </div>;
@@ -87,26 +87,26 @@ export function RepairCenterPage() {
   const start = (item: RepairItem) => item.files === undefined
     ? void action.run(item.id, signal => post(item, signal), update)
     : void confirmModal({
-      title: `删除${item.title}`,
-      body: `将删除 ${reclaimable(item)}，删除后不能恢复。每个关注来源最近 3 份快照和条目引用的快照会保留。`,
-      confirmLabel: '删除快照', danger: true,
+      title: `Delete ${item.title}`,
+      body: `Will delete ${reclaimable(item)}; deletion cannot be undone. The latest 3 snapshots per followed source and snapshots referenced by entries are kept.`,
+      confirmLabel: 'Delete snapshots', danger: true,
       onConfirm: async () => update(await post(item)),
     });
   const backupNote = (row: RepairHistory) => !row.backups.length ? null : row.backups.some(backup => backup.exists)
-    ? <LinkButton href="/settings/maintenance#ledgerBackups" size="small" trailingIcon={RiArrowRightLine}>修复前的账本备份</LinkButton>
-    : <span className="text-body-2-regular text-text-tertiary">修复前的备份已清理</span>;
+    ? <LinkButton href="/settings/maintenance#ledgerBackups" size="small" trailingIcon={RiArrowRightLine}>The pre-repair ledger backup</LinkButton>
+    : <span className="text-body-2-regular text-text-tertiary">The pre-repair backup was cleared</span>;
   const failure = action.error || (query.error ? query.error.message : '');
 
   return <Page>
     {failure ? <Note tone="error">{failure}</Note> : null}
     <section aria-labelledby="repair-items" className="flex flex-col gap-4">
-      <SectionHeading id="repair-items">修复项目</SectionHeading>
+      <SectionHeading id="repair-items">Repair items</SectionHeading>
       {!data
         // 预取失败后在页内重取：画与路由骨架同一份占位，不留一张空卡。
-        ? <div className="contents" data-skeleton="" aria-busy="true" aria-label="正在读取修复项目"
+        ? <div className="contents" data-skeleton="" aria-busy="true" aria-label="Reading repair items"
             dangerouslySetInnerHTML={{ __html: repairCenterPanelSkeleton() }} />
         : !data.items.length
-        ? <p className="text-body-2-regular text-text-secondary">这台机器上没有要修复或迁移的内容。</p>
+        ? <p className="text-body-2-regular text-text-secondary">Nothing on this machine needs repairing or migrating.</p>
         : <div className={RESULT_PANEL}>
         {data.items.map(item => {
           const [label, tone] = STATES[item.state] || STATES.none;
@@ -129,7 +129,7 @@ export function RepairCenterPage() {
       <div className={RESULT_PANEL}>
         {data.history.map(row => (
           <Row key={row.id} title={row.title}
-            description={`${stamp(row.at)} · ${row.changed ? `改动 ${number(row.changed)} 项` : '无改动'}`}>
+            description={`${stamp(row.at)} · ${row.changed ? `${number(row.changed)} changes` : 'No changes'}`}>
             {backupNote(row)}
           </Row>
         ))}

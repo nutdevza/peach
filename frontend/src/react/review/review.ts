@@ -1,13 +1,14 @@
-/* 人工复核页的数据契约、分组分页纯函数与写操作。三条端点在 `frontend/src` 里都只在这里
- * 声明一次（`tests/test_frontend_build.py` 盯着）。
+/* The manual review page's data contract, group/page pure functions and write operations. The three endpoints are each
+ * declared once in `frontend/src`, here only (`tests/test_frontend_build.py` watches this).
  *
- * `['review']` 是整条复核队列。接口一次给出全部分类的可复核行，不重复传候选 CSV 的
- *   JSON 字符串；各分类合在一个响应里，所以也只用一个 `queryKey`：分类切换是翻这一份的
- *   不同段落，不是另一份真相。判定写回来时只把那几行从缓存里摘掉（`dropReviewRows`），
- *   不为一次判定把整条队列重取一遍。
+ * `['review']` is the whole review queue. The endpoint returns reviewable rows for all categories at once, without repeating
+ * the candidate CSV's JSON string; all categories arrive in one response, so one `queryKey` suffices: switching category is
+ * paging through different sections of this copy, not another truth. When judgments write back, only those rows are plucked
+ * from the cache (`dropReviewRows`); one judgment does not refetch the whole queue.
  *
- * 分组、筛选、分页都是纯函数：工具条上的计数说的是整条队列，卡片只画当前这一页，两边
- * 用同一套判据算，各写一份迟早对不上。 */
+ * Grouping, filtering and pagination are pure functions: the toolbar's counts describe the whole queue while cards render
+ * only the current page; both must be computed by the same criteria, and writing them separately would drift sooner or
+ * later. */
 import { apiGet, apiSend } from '../../api';
 import { clampPage, pageCount } from '../../pagination';
 import { selectRange } from '../../selection';
@@ -18,20 +19,20 @@ export const REVIEW_URL = '/api/review';
 export const REVIEW_DECISION_URL = '/api/review/decision';
 export const REVIEW_GENRE_URL = '/api/review/genre';
 
-/** 整条复核队列。 */
+/** The whole review queue. */
 export const REVIEW_KEY = ['review'] as const;
 
-/** 复核分类与它们在界面上的名字。次序就是页签次序。 */
+/** The review categories and their on-screen names. The order is the tab order. */
 export const REVIEW_LABELS = {
-  metadata_fields: '元数据字段',
-  creator_tags: '创作者标签',
-  code_creators: '番号目录存疑',
-  western_identity: '西方身份回配',
-  performer_avatars: '女优头像',
-  studio_logos: '厂牌 Logo',
-  fc2_markings: 'FC2 评论标记',
-  fc2_similarity: 'FC2 跨号相似',
-  video_endcards: '片尾/出处证据',
+  metadata_fields: 'Metadata fields',
+  creator_tags: 'Creator tags',
+  code_creators: 'Code directory questionable',
+  western_identity: 'Western identity backfill',
+  performer_avatars: 'Performer avatars',
+  studio_logos: 'Label logo',
+  fc2_markings: 'FC2 comment marks',
+  fc2_similarity: 'FC2 cross-code similarity',
+  video_endcards: 'End credits / source evidence',
 } as const;
 
 export type ReviewCategory = keyof typeof REVIEW_LABELS;
@@ -43,9 +44,9 @@ export const DEFAULT_CATEGORY: ReviewCategory = 'metadata_fields';
 export const isReviewCategory = (value: unknown): value is ReviewCategory =>
   typeof value === 'string' && Object.hasOwn(REVIEW_LABELS, value);
 
-/** 主体是实体而不是单条作品的分类，值就是实体 kind。这张表与 `web_review.py` 的
- *  `ENTITY_REVIEW_KINDS` 必须逐字一致：这边判成 creator、取图按 performer，
- *  就是标志说有图而请求照样 404。 */
+/** Categories whose subject is an entity rather than a single video; the value is the entity kind. This table and `web_review.py`'s
+ *  `ENTITY_REVIEW_KINDS` must match verbatim: if this side judges creator but images are fetched by performer,
+ *  the flag says images exist while the request still 404s. */
 export const ENTITY_REVIEW_KINDS: Partial<Record<ReviewCategory, string>> = {
   creator_tags: 'creator', western_identity: 'creator',
 };
@@ -55,7 +56,7 @@ export const REVIEW_PAGE_SIZE = 20;
 
 export interface CatalogEvidence { display_value?: string; warnings?: string[] }
 
-/** 一个来源给出的候选值。选中它就是把 `display_value` 写进数据库。 */
+/** A candidate value from one source. Choosing it writes `display_value` into the database. */
 export interface ReviewCandidate {
   candidate_key: string;
   source?: string;
@@ -64,13 +65,13 @@ export interface ReviewCandidate {
   provider_id?: string;
   display_value?: string;
   warnings?: string[];
-  /** 同一来源顺带交回来的其它字段，只作判断依据。 */
+  /** Other fields the same source returned along the way, used only for decisions. */
   catalog_evidence?: Record<string, CatalogEvidence>;
-  /** 静态词表还没收录的 genre。 */
+  /** A genre not yet in the static vocabulary. */
   unmapped_genres?: string[];
 }
 
-/** 卡片上那几张图背后的作品。 */
+/** The videos behind the images on the card. */
 export interface ReviewAsset {
   id: number;
   name?: string;
@@ -79,8 +80,8 @@ export interface ReviewAsset {
   has_preview?: boolean;
 }
 
-/** 队列里的一行。字段以 `src/peach/web_review.py` 的 `_review_rows` 为准，各分类共用这一份
- *  形状，用不上的项缺席。 */
+/** One row of the queue. Fields follow `_review_rows` in `src/peach/web_review.py`; all categories share this
+ *  shape, and inapplicable fields are simply absent. */
 export interface ReviewRow {
   item_key: string;
   queue_order?: number;
@@ -99,9 +100,9 @@ export interface ReviewRow {
   name?: string;
   board?: string;
   source?: string;
-  /** 数据库规范名当标题时，来源自己的写法留在这里。 */
+  /** When the database canonical name serves as the title, the source's own spelling is kept here. */
   source_name?: string;
-  /** 竖线分隔的候选标签。 */
+  /** Candidate tags separated by vertical bars. */
   tags?: string;
   reason?: string;
   evidence?: string;
@@ -130,7 +131,7 @@ export interface ReviewRow {
   profile_url?: string;
 }
 
-/** 只读端读到的是写入端队列的镜像，页面要说清这一份是实时的还是缓存的。 */
+/** What the reader side sees is a mirror of the writer's queue, and the page must say whether this copy is live or cached. */
 export interface ReviewMirror {
   state?: string;
   origin?: string | null;
@@ -142,10 +143,10 @@ export interface ReviewMirror {
 export const REVIEW_QUEUES = ['pending', 'later', 'ignored'] as const;
 export type ReviewQueue = typeof REVIEW_QUEUES[number];
 export const REVIEW_QUEUE_LABELS: Record<ReviewQueue, string> = {
-  pending: '待处理', later: '稍后处理', ignored: '已忽略',
+  pending: 'Pending', later: 'Handle later', ignored: 'Ignored',
 };
 export const REVIEW_DECISION_LABELS: Record<string, string> = {
-  approved: '已通过', rejected: '已忽略', skipped: '稍后处理',
+  approved: 'Approved', rejected: 'Ignored', skipped: 'Handle later',
 };
 export const reviewQueueOf = (value: unknown): ReviewQueue =>
   value === 'later' || value === 'ignored' ? value : 'pending';
@@ -157,7 +158,7 @@ export interface ReviewQueueData {
 
 export interface ReviewData extends ReviewQueueData {
   queues: Record<Exclude<ReviewQueue, 'pending'>, ReviewQueueData>;
-  /** 收录 genre 时的候选词表：静态表已经投影到的那批内容标签。 */
+  /** Candidate terms when including a genre: the content tags the static table has already projected. */
   genre_tags?: string[];
   mirror?: ReviewMirror | null;
 }
@@ -170,25 +171,25 @@ function mapReviewQueues(data: ReviewData, transform: (snapshot: ReviewQueueData
     queues: { later: transform(data.queues.later), ignored: transform(data.queues.ignored) } };
 }
 
-/* ── 分组、筛选、分页 ── */
+/* ── Grouping, filtering, paging ── */
 
 export type ReviewGrouping = 'candidates' | 'source' | 'field';
 
 export interface ReviewGroup { key: string; title: string; rows: ReviewRow[] }
 
-/** 这一批队列能按什么分组。按来源、按字段两档要队列里真有那一项才出现。 */
+/** What this queue batch can group by. The by-source and by-field tiers only appear when the queue actually holds such entries. */
 export function reviewGroupingOptions(rows: ReviewRow[], metadata: boolean): [ReviewGrouping, string][] {
   const options: [ReviewGrouping, string][] = [
-    ['candidates', metadata ? '按来源数量' : '不分组'],
+    ['candidates', metadata ? 'By source count' : 'No grouping'],
   ];
   if (rows.some((row) => row.source || row.candidates?.some((candidate) => candidate.source))) {
-    options.push(['source', '按来源']);
+    options.push(['source', 'By source']);
   }
-  if (rows.some((row) => row.field)) options.push(['field', '按字段']);
+  if (rows.some((row) => row.field)) options.push(['field', 'By field']);
   return options;
 }
 
-/** 按来源组合分组，每个作品字段只出现一次。 */
+/** Grouped by source combination, with each video field appearing only once. */
 export function groupReviewRows(rows: ReviewRow[], by: ReviewGrouping): ReviewGroup[] {
   const groups = new Map<string, ReviewGroup>();
   for (const row of rows) {
@@ -196,15 +197,15 @@ export function groupReviewRows(rows: ReviewRow[], by: ReviewGrouping): ReviewGr
     let title: string;
     if (by === 'field') {
       key = row.field || '__unspecified_field';
-      title = row.field_label || row.field || '未标注字段';
+      title = row.field_label || row.field || 'Field not labeled';
     } else if (by === 'source') {
       const sources = [...new Set((row.candidates?.map((candidate) => candidate.source || '')
         || [row.source || '']).filter(Boolean))].sort();
       key = JSON.stringify(sources);
-      title = sources.join(' / ') || '未标注来源';
+      title = sources.join(' / ') || 'Source not labeled';
     } else {
       key = row.candidates ? (row.candidates.length === 1 ? 'single' : 'multiple') : 'pending';
-      title = key === 'single' ? '单一来源' : key === 'multiple' ? '需选择来源' : '资料';
+      title = key === 'single' ? 'Single source' : key === 'multiple' ? 'Select a source' : 'Profile';
     }
     if (!groups.has(key)) groups.set(key, { key, title, rows: [] });
     groups.get(key)!.rows.push(row);
@@ -212,7 +213,7 @@ export function groupReviewRows(rows: ReviewRow[], by: ReviewGrouping): ReviewGr
   return [...groups.values()];
 }
 
-/** 先按分组筛，再切页。顺序反过来的话，筛选说的就成了「这一屏里符合的那几条」。 */
+/** Filter by group first, then paginate. Reversed, the filter would mean "the matching few on this screen". */
 export function filterReviewRows(
   rows: ReviewRow[], by: ReviewGrouping, filter: string,
 ): ReviewRow[] {
@@ -233,8 +234,8 @@ export function reviewWindow(rows: ReviewRow[], page: number, pageSize = REVIEW_
   };
 }
 
-/** 所选项目都有、且各自只出现一次的来源。统一选来源只能在这些里选：同一来源在一行里
- *  给了两个值时，「统一选 javdb」就没有唯一答案。 */
+/** Sources that every selected item has and that appear only once per item. Setting a uniform source can only pick from these: when the same source gives two values in one row,
+ *  "uniformly choose javdb" has no unique answer. */
 export function commonReviewSources(rows: ReviewRow[]): string[] {
   if (!rows.length) return [];
   return [...new Set(rows.flatMap((row) => row.candidates?.map((candidate) => candidate.source || '') || []))]
@@ -242,7 +243,7 @@ export function commonReviewSources(rows: ReviewRow[]): string[] {
       (row) => row.candidates?.filter((candidate) => candidate.source === source).length === 1));
 }
 
-/** Shift 按当前显示顺序扩展选择，与馆藏页同一套语义。返回新的锚点。 */
+/** Shift extends the selection in current display order, same semantics as the library page. Returns the new anchor. */
 export function selectReviewRange(
   selected: Set<string>, keys: string[], anchor: string | null,
   key: string, range: boolean, checked: boolean,
@@ -250,16 +251,16 @@ export function selectReviewRange(
   return selectRange(selected, keys, anchor, key, range, checked);
 }
 
-/* ── 一行能做什么 ── */
+/* ── What a row can do ── */
 
-/** 这一行能不能通过。元数据字段要有候选；创作者标签只判 `candidate` 状态的那些。 */
+/** Whether this row can pass. Metadata fields need candidates; creator tags only judge the ones in the `candidate` state. */
 export function canApprove(category: ReviewCategory, row: ReviewRow): boolean {
   if (category === 'metadata_fields') return (row.candidates?.length || 0) > 0;
   if (category === 'creator_tags') return String(row.status || '').trim() === 'candidate';
   return true;
 }
 
-/** 这一行的标题读作「问的是什么」。字段名是问题本身，作品标识只是它问的对象。 */
+/** This row's title reads as 'what is being asked'. The field name is the question itself; the video id is only what it asks about. */
 export function rowSubject(category: ReviewCategory, row: ReviewRow): string {
   if (category === 'metadata_fields') return String(row.query || row.code || '');
   return String(row.creator || row.studio || row.current_name || row.name || row.item_key);
@@ -280,14 +281,14 @@ export const rowEvidence = (row: ReviewRow): string =>
 export const rowTags = (row: ReviewRow): string[] =>
   String(row.tags || '').split('|').filter(Boolean);
 
-/** 这一行等着被收录的 genre。同一个词在几个来源里各出现一次时只问一遍。 */
+/** A genre on this row waiting to be added. When the same word shows up once in several sources, it is asked only once. */
 export const pendingGenres = (row: ReviewRow): string[] =>
   [...new Set((row.candidates || []).flatMap((candidate) => candidate.unmapped_genres || []))];
 
-/** 一行此刻的选择：选了哪个来源值、勾了哪几条作品。 */
+/** The row's current selection: which source value is picked and which videos are checked. */
 export interface RowChoice { candidateKey: string; assets: number[] }
 
-/** 还没动过的行按默认值算：只有一个候选时它就是选中的那个，作品样本默认全勾。 */
+/** Untouched rows count as their defaults: with a single candidate that one is selected, and video samples are all checked by default. */
 export function defaultChoice(row: ReviewRow): RowChoice {
   const candidates = row.candidates || [];
   return {
@@ -298,10 +299,10 @@ export function defaultChoice(row: ReviewRow): RowChoice {
 
 export type DecisionStatus = 'approved' | 'rejected' | 'skipped' | 'restore';
 
-/** 交给 `/api/review/decision` 的那一份。
+/** The payload handed to `/api/review/decision`.
  *
- *  乐观并发只在这一行钉死了一条资产时带上：按番号命中多条的组没有单一 revision 可报，
- *  硬报一个只会在同番号分卷上换来一串假冲突。 */
+ *  Optimistic concurrency is attached only when this row pins down one asset: a group matched by code across multiple entries has no single revision to report,
+ *  and forcing one only buys a string of fake conflicts across same-code volumes. */
 export function decisionPayload(
   category: ReviewCategory, row: ReviewRow, status: DecisionStatus, choice: RowChoice,
 ): Record<string, unknown> {
@@ -322,16 +323,16 @@ export function decisionPayload(
 }
 
 export const decisionReceipt = (status: DecisionStatus): string => ({
-  approved: '已通过资料', rejected: '已忽略资料', skipped: '已移至稍后处理', restore: '已恢复待处理',
+  approved: 'Profile approved', rejected: 'Profile ignored', skipped: 'Moved to handle later', restore: 'Restored to pending',
 })[status];
 
-/* ── 取数与写操作 ── */
+/* ── Fetches and writes ── */
 
 export async function fetchReview(signal?: AbortSignal): Promise<ReviewData> {
   const data = await apiGet<ReviewData>(REVIEW_URL, signal);
   for (const key of ['later', 'ignored'] as const) {
     if (!data.queues?.[key]?.sections || !data.queues[key].counts) {
-      throw new Error(`${REVIEW_QUEUE_LABELS[key]}状态未取得，请刷新或更新写入端`);
+      throw new Error(`${REVIEW_QUEUE_LABELS[key]} status not obtained; refresh or update the writer`);
     }
   }
   return data;
@@ -362,30 +363,30 @@ export async function submitDecision(payload: Record<string, unknown>): Promise<
   return result;
 }
 
-/** 批量队列保留行身份；并发凭据来自共享缓存里的最新回执。 */
+/** The batch queue preserves row identity; concurrent credentials come from the latest receipt in the shared cache. */
 export function currentReviewRow(category: ReviewCategory, row: ReviewRow): ReviewRow {
   const data = queryClient.getQueryData<ReviewData>(REVIEW_KEY);
   return data ? REVIEW_QUEUES.flatMap(key => reviewQueueData(data, key).sections[category] || [])
     .find(item => item.item_key === row.item_key) || row : row;
 }
 
-/** 收录一个 genre（给中文名）或把它判成非内容（`tag` 留空）。 */
+/** Adds a genre (provide the Chinese name) or judges it non-content (leave `tag` empty). */
 export const recordGenre = (genre: string, tag: string) =>
   apiSend<DecisionResult>(REVIEW_GENRE_URL, { genre, tag });
 
-/** 首屏只读复核队列。符合 ADR-0018 的候选已在扫描与资料处理结束时落库。 */
+/** The first screen reads only the review queue. Candidates matching ADR-0018 were already written to the database when scanning and profile processing ended. */
 export async function prefetchReview(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({ queryKey: REVIEW_KEY, queryFn: () => fetchReview(signal) });
 }
 
-/** 判过的行从缓存里摘掉并同步计数。留在队列里的话，看起来就像这一次判定没生效。
+/** Reviewed rows are pulled from the cache and the counts synced. Leaving them in the queue would look like the review never took effect.
  *
- *  失败的那几条不动：它们还要留在屏幕上供重试。 */
+ *  Failed rows stay untouched: they remain on screen for retry. */
 export function dropReviewRows(category: ReviewCategory, keys: string[]): void {
   settleReviewRows(category, keys, 'approved');
 }
 
-/** 一份响应内移动状态，三个队列的行与计数同时更新；失败的行保持原位。 */
+/** Move state within one response: rows and counts of all three queues update together; failed rows keep their position. */
 export function settleReviewRows(category: ReviewCategory, keys: string[], status: DecisionStatus): void {
   const gone = new Set(keys);
   if (!gone.size) return;
@@ -408,17 +409,17 @@ export function settleReviewRows(category: ReviewCategory, keys: string[], statu
   });
 }
 
-/** 收录一个 genre 改的是词表，不是某一条候选：服务端按新词表重新折一遍整条队列
- *  （`_fold_genre_decisions`），所以这里重取队列而不是在前端自己折。同一份判据写两遍
- *  迟早对不上，而对不上的表现是「页面上标签多了一个，批准写下去的还是旧的」。 */
+/** Including a genre changes the vocabulary, not one candidate: the server refolds the whole queue against the new vocabulary
+ *  (`_fold_genre_decisions`), so refetch the queue here rather than folding client-side. Writing the same criteria twice
+ *  will eventually disagree, and the disagreement shows as "one more tag on the page while the approved write still used the old one". */
 export const reloadReview = (): Promise<void> =>
   queryClient.invalidateQueries({ queryKey: REVIEW_KEY, exact: true });
 
-/** 只读端那句话：实时镜像、缓存快照，还是连镜像都没取到。 */
+/** The read-only side's line: a live mirror, a cached snapshot, or no mirror fetched at all. */
 export function mirrorText(
   mirror: ReviewMirror | null | undefined, readOnlyMessage: string,
 ): string {
-  if (mirror?.state === 'live') return '正在显示写入端的实时复核队列';
-  if (mirror?.state === 'cached') return `写入端暂时不可达，显示 ${localTime(mirror.fetched_at)} 的缓存`;
+  if (mirror?.state === 'live') return 'Showing the writer\'s live review queue';
+  if (mirror?.state === 'cached') return `The writer is temporarily unreachable, showing the cache from ${localTime(mirror.fetched_at)}`;
   return mirror?.error || readOnlyMessage;
 }

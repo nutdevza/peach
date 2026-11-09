@@ -1,15 +1,17 @@
-/* 批量条（ADR-0031 第 11g 步）：目录、回收站、垃圾文件与关注页多选时底部那块浮条。
+/* Batch bar (ADR-0031 step 11g): the floating bar at the bottom during multi-select on catalog, trash, junk files and the
+ * follows page.
  *
- * 常驻组件 `batch-dock`（`router/managed-routes.tsx` 的常驻表）：路由树把它画进壳常驻在 `body` 末尾的
- * `[data-batch-dock]`，宿主就是那个节点本身。壳只拿 `configureBatchDock` 给的命令式入口：每次重画选中态
- * 推一份计数与语境，句柄把它写进本模块的 store 再 `flushSync` 通知，返回时浮条已经画好——壳紧接着就
- * 补扫玻璃贴图（`syncGlassOptics`）。浮条外壳是共用的 `SelectionDock`（复核、标签页、关注管理同一块），
- * 它要 `.peach-react` 作用域里的 token 与 Preflight，所以组件外面包一层 `display: contents` 的
- * `.peach-react`，不占盒子。
+ * Resident component `batch-dock` (the resident table in `router/managed-routes.tsx`): the route tree renders it into the
+ * shell's resident `[data-batch-dock]` at the end of body, the host being that node itself. The shell only gets the imperative
+ * entry `configureBatchDock` provides: each re-render of selection state pushes a count and context; the handle writes them
+ * into this module's store and notifies via `flushSync`, so the bar is rendered by the time the call returns and the shell can
+ * immediately refresh the glass optics (`syncGlassOptics`). The bar's shell is the shared `SelectionDock` (review, tags page
+ * and follow management use the same one), which needs the tokens and Preflight of the `.peach-react` scope, so the component
+ * wraps itself in a `display: contents` `.peach-react` that takes no box.
  *
- * 浮条上的键是透明 `<button>`：尺寸、描边、字号与 17px 字形照 ADR-0031 的迁移前基线，全部写在
- * `batch-dock.css`；BoardUI `Button` 的 medium 档是 20px 字形、8px 内边距，对不上。危险键挂
- * `data-danger`，红色读 `../styles.css` 里全站那一份危险键规则。 */
+ * The keys on the bar are transparent `<button>`s: size, border, font size and the 17px glyphs follow ADR-0031's pre-migration
+ * baseline, all in `batch-dock.css`; BoardUI `Button`'s medium tier is a 20px glyph with 8px padding and does not match. Danger
+ * keys carry `data-danger`, and their red reads the site-wide danger-key rule in `../styles.css`. */
 import { useLayoutEffect, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 
@@ -30,33 +32,33 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/* 这一面抛错、被错误边界卸掉之后没人订阅，推进来的只写进 store，不画、不抛。 */
+/* After this surface throws and is unmounted by the error boundary nobody subscribes: pushed updates only land in the store, unpainted and unthrown. */
 const api: BatchDockApi = {
   render(next) { props = next; flushSync(notify) },
 };
 
-/** 接上壳给的宿主，拿回批量条的命令式入口。只调一次；壳的 `loadBatchDock` 接着在路由树里打开这一面。 */
+/** Attach the shell's host and take back the batch bar's imperative entry. Called once; the shell's `loadBatchDock` then opens this panel in the route tree. */
 export function configureBatchDock(next: BatchDockHost): BatchDockApi {
   host = next;
   return api;
 }
 
-/** 常驻表里的那一面：读本模块的 store，宿主还没接上时不画。 */
+/** The resident table's face: reads this module's store and renders nothing until the host is attached. */
 export function BatchDockSurface() {
   const view = useSyncExternalStore(subscribe, () => props);
   return host ? <BatchDock host={host} props={view} /> : null;
 }
 
 function BatchDock({ host: at, props: view }: { host: BatchDockHost; props: BatchDockProps }) {
-  /* 浮条在不在由 `<body>` 上的 `data-batch-dock-open` 说给样式表（`batch-dock.css` 给网格与详情底部
-   * 让位）。写成 `body:has(...)` 的话，播放墙平移、卡片插进页面时每批节点都让整棵 body 子树重算样式，
-   * 实测一次 40–60ms。 */
+  /* Whether the dock bar is up is told to the stylesheet by `data-batch-dock-open` on `<body>` (`batch-dock.css` makes room for the grid and the details bottom).
+   * Written as `body:has(...)`, wall panning and cards being inserted would force a full body subtree style recompute per batch of nodes;
+   * measured once at 40-60ms. */
   const open = view.count > 0;
   useLayoutEffect(() => { document.body.toggleAttribute('data-batch-dock-open', open) }, [open]);
   useLayoutEffect(() => () => { document.body.removeAttribute('data-batch-dock-open') }, []);
   return (
     <div className="peach-react" data-batch-scope="" data-context={view.context}>
-      <SelectionDock label="所选项目操作" visible={view.count > 0} count={`已选 ${view.count.toLocaleString()} 项`}>
+      <SelectionDock label="Actions for selected items" visible={view.count > 0} count={`Selected ${view.count.toLocaleString()} items`}>
         {batchActions(view.context, view.junkDismissed).map((action) => (
           <button key={`${action.group}:${action.operation}`} type="button" data-batch-group={action.group}
             data-batch-action={action.operation} data-danger={action.danger ? '' : undefined}

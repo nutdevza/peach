@@ -1,12 +1,14 @@
-/* 首页上方那一整块：两排头像（女优、厂牌），加一块两排的玻璃浮层（上排四枚视图与标签，下排读数、
- * 换一批、卡片版式与排序键），再加正文里网格上面那条交集条。
+/* The whole block above the home grid: two avatar rows (performers, labels) plus a two-row glass overlay (top: four view keys
+ * and tags; bottom: readout, Shuffle, card layout and sort keys), plus the intersection bar above the grid in the body.
  *
- * 状态全在壳里：筛选、当前视图、排序、成员与读数都当 props 递进来，点下去的动作回壳，壳在发请求之前
- * 先推一份新的按下态，所以 `aria-pressed` 与滑动玻璃当场就到位，不等这一趟取数。
+ * All state lives in the shell: filters, current view, sort, members and readouts arrive as props; clicks return to the shell,
+ * and the shell pushes a new pressed state before sending the request, so `aria-pressed` and the sliding glass are in place
+ * immediately, without waiting for this fetch.
  *
- * 加一条筛选不重画这几排：成员（`tiers.key` 与标签的顺序）不变，React 只改按下态，人横着续到第
- * 六十枚、停在第 600 像素上的那一排原样留着。换了口径或换了一批，壳给新的 `tiers.key`，两排从头摆。
- * 详情浮窗打开期间壳不推任何东西，关掉回来还是同一批节点（`buildBars` 那段注释讲了为什么）。 */
+ * Adding a filter does not re-render these rows: members (`tiers.key` and the tag order) are unchanged, React only changes
+ * pressed states, and a row scrolled to its sixtieth person and parked at pixel 600 stays as it is. When the basis changes or
+ * a new batch arrives, the shell provides a new `tiers.key` and both rows lay out from the start. While the details popover is
+ * open the shell pushes nothing, and closing returns to the same batch of nodes (why is explained in the `buildBars` comment). */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { entityDisplayName } from '../../core/entity-names';
@@ -29,8 +31,8 @@ import {
 export function CatalogFilterPage(props: CatalogFilterProps) {
   const loading = !props.tiers;
   const combo = useComboHost(props.comboHost);
-  /* 收起时（资料页、索引页与管理页）只留两排头像：回到同一口径的首页时那一批原样还在，不重摆、不重取图。
-     浮层那两排和资料页、索引页的浮层是同一组组件、同一组属性，藏着一份在页面上，就是两套同名的控件。 */
+  /* When collapsed (profile, index, and manage pages) only the two avatar rows remain: returning to the home page of the same scope keeps that batch as is, without re-laying or re-fetching images.
+     The overlay's two rows and the profile/index pages' overlays are the same components with the same props; keeping a hidden copy on the page means two same-named control sets. */
   return (
     <div data-catalog-root="" data-loading={loading || undefined} data-refreshing={props.refreshing || undefined}
       className="contents">
@@ -41,7 +43,7 @@ export function CatalogFilterPage(props: CatalogFilterProps) {
   );
 }
 
-/** 玻璃浮层两排：上排四枚视图与标签，下排读数、换一批、版式与排序键。 */
+/** The glass overlay's two rows: the top row holds four views and tags, the bottom row holds the readout, shuffle, layout and sort buttons. */
 function Glass(props: CatalogFilterProps) {
   const { actions, helpers } = props;
   const pane = useRef<HTMLSpanElement>(null);
@@ -52,8 +54,8 @@ function Glass(props: CatalogFilterProps) {
   const [singleRow, setSingleRow] = useState(false);
   const glide = useViewGlide(pane, viewRow, '[data-catalog-view][aria-pressed="true"]', props.state);
 
-  /* 标签那一格是 `overflow-x:auto` 加隐藏滚动条，鼠标够不着，所以登记全站横向行那套拖动加滚轮。
-     窄屏下滚的是外面那层（视图跟着一起走），两层都登记；下排窄屏下整条横滚，同一套。 */
+  /* The tags cell is `overflow-x:auto` with a hidden scrollbar, out of the mouse's reach, so it registers the site-wide horizontal-row drag-and-wheel mapping.
+     On narrow screens the outer layer scrolls (the view moves with it) and both layers register; the bottom row scrolls as one strip on narrow screens, same setup. */
   useEffect(() => {
     helpers.wireDrag(tagRow.current);
     helpers.wireScroller(scroll.current);
@@ -63,7 +65,7 @@ function Glass(props: CatalogFilterProps) {
   const loading = !props.tiers;
   const tags = usePaged(tagRow, props.tags, props.tiers?.key ?? '', props.tagFirst);
   useLayoutEffect(() => {
-    // 首次加载按两行占位；已有内容刷新时沿用已测量的排布，不拿骨架宽度重新合行。
+    // First load uses a two-row placeholder; refreshing with existing content reuses the measured layout, not re-wrapping lines at the skeleton width.
     if (loading) { setSingleRow(false); return }
     if (props.tiersPending || props.count === null) return;
     const frame = scroll.current?.closest<HTMLElement>('[data-catalog-frame]');
@@ -81,18 +83,18 @@ function Glass(props: CatalogFilterProps) {
     measure();
     return () => observer.disconnect();
   }, [loading, props.tiersPending, tags, props.count, props.layout, props.sorts]);
-  /* 计数徽标变了值的那几枚弹一下（遗留层 `popBadges`，按上一次的值判断，不按节点新不新）。 */
+  /* Only the count badges whose value changed pop (legacy layer `popBadges`, judged by the previous value, not by whether the node is new). */
   useLayoutEffect(() => { popBadges(tagRow.current, 'tagbar') }, [tags]);
 
   return (
-    <FilterGlassRows label="筛选与排序" topLabel="视图与标签"
+    <FilterGlassRows label="Filter and sort" topLabel="Views and tags"
       attrs={{ 'data-filter-frame': '', 'data-catalog-frame': '', ...(singleRow ? { 'data-single-row': '' } : {}) }}
       className="mx-4" topClassName="gap-1.5 overflow-visible" bottomClassName={props.trash ? 'hidden' : 'min-h-12'}
       bottomRef={bottomRow} busy={props.count === null || props.refreshing}
       panes={<span ref={pane} data-view-glide="" aria-hidden="true" />}
       top={
         <div ref={scroll} data-catalog-scroll="">
-          <div ref={viewRow} role="group" aria-label="视图" data-catalog-views="" onPointerLeave={glide.leave}>
+          <div ref={viewRow} role="group" aria-label="View" data-catalog-views="" onPointerLeave={glide.leave}>
             {props.views.map((view) => (
               <a key={view.k} href={view.href} data-catalog-view={view.k} data-entity-press=""
                 aria-pressed={props.state === view.k} onPointerEnter={glide.hover}
@@ -122,7 +124,7 @@ function TagPill({ tag, pending, onPress }: { tag: CatalogTag; pending: boolean;
   );
 }
 
-/** 两排头像。空的一排仍占 28px，画出来就是一条什么都没有的空带，所以没人就不画那一排。 */
+/** Two avatar rows. An empty row still takes 28px and renders as a bare empty band, so when there is nobody, that row is not drawn. */
 function Tiers(props: CatalogFilterProps) {
   useEntityNames();
   const { actions, helpers } = props;
@@ -132,11 +134,11 @@ function Tiers(props: CatalogFilterProps) {
   const performers = useRef<HTMLDivElement>(null);
   const studios = useRef<HTMLDivElement>(null);
   const more = useCallback((kind: TierKind) => () => actions.moreTops(kind), [actions]);
-  /* 占位那几排没有下一页可要。 */
+  /* The placeholder rows have no next page to fetch. */
   const shownPerformers = usePaged(performers, tiers.performers, tiers.key, ROW_FIRST,
     empty ? undefined : more('performers'));
   const shownStudios = usePaged(studios, tiers.studios, tiers.key, ROW_FIRST, empty ? undefined : more('studios'));
-  /* 取回之前照本机上次的结构画占位，壳骨架同一份记录。 */
+  /* Before the fetch lands, draw the placeholder against this machine's last structure, the same record as the shell skeleton. */
   const shape = useMemo(() => loading ? rememberedTiers() : null, [loading]);
   const hasPerformers = shape ? shape.performers : props.empty || tiers.performers.length > 0;
   const hasStudios = shape ? shape.studios : props.empty || tiers.studios.length > 0;
@@ -175,8 +177,8 @@ function Tiers(props: CatalogFilterProps) {
   );
 }
 
-/** 厂牌标识。兜底只剩「装了但读不出来」这一种：文件坏了，或归一漏掉、图小到看不出是什么；
- *  没装标识的壳根本不给地址，不出这张图。 */
+/** Label logo. The only remaining fallback is "installed but unreadable": the file is broken, or normalization missed it, or the image is too small to make out;
+ *  when no logo is installed the shell does not hand out an address at all, and this image never renders. */
 function StudioMark({ studio }: { studio: TierStudio }) {
   const [broken, setBroken] = useState(false);
   return (
@@ -189,7 +191,7 @@ function StudioMark({ studio }: { studio: TierStudio }) {
   );
 }
 
-/** 空馆藏的占位：每排六十四格，由容器裁到可用宽度。它不是控件，不接指针。 */
+/** The empty-library placeholder: 64 cells per row, clipped by the container to the available width. It is not a control and receives no pointer events. */
 function Placeholders({ kind }: { kind: 'performer' | 'studio' | 'tag' }) {
   const slots = Array.from({ length: EMPTY_SLOTS }, (_, index) => index);
   if (kind === 'tag') {
@@ -206,7 +208,7 @@ function Placeholders({ kind }: { kind: 'performer' | 'studio' | 'tag' }) {
   );
 }
 
-/** 下排：读数、换一批、版式与排序。回收站不出这一排。 */
+/** Bottom row: numbers, shuffle, layout and sort. Trash does not show this row. */
 function Head({ count, refreshing, layout, sorts, actions }: CatalogFilterProps) {
   const view = useCatalogView();
   const [shuffling, setShuffling] = useState(false);
@@ -219,7 +221,7 @@ function Head({ count, refreshing, layout, sorts, actions }: CatalogFilterProps)
       <span data-catalog-summary=""><Readout count={count} /><LibraryShortcuts currentHref={actions.currentHref} /></span>
       <span data-entity-sorts="">
         <Shuffle onPress={shuffle} busy={shuffling || refreshing} />
-        {/* 按名字换键：JAV 与首页各一组，React Aria 的单选组挂上之后不改 `name`。 */}
+        {/* Keys swapped by name: one group each for JAV and home, and React Aria's radio group does not change `name` once mounted. */}
         {layout && view === 'cards' ? <Segments key={layout.name} name={layout.name} label={layout.label} value={layout.value} options={layout.options}
           onChange={actions.setLayout} /> : null}
         <CatalogViewToggle />
@@ -231,9 +233,9 @@ function Head({ count, refreshing, layout, sorts, actions }: CatalogFilterProps)
 }
 
 
-/** 读数加载时只替换文字，筛选框和操作控件保持原位。 */
+/** While a reading loads, only the text is replaced; the filter box and action controls stay in place. */
 function Readout({ count }: { count: CatalogFilterProps['count'] }) {
-  const text = count ? `${count.total.toLocaleString()} 个符合 · 显示 ${count.shown.toLocaleString()}`
+  const text = count ? `${count.total.toLocaleString()} matches · showing ${count.shown.toLocaleString()}`
     : count === false ? '' : undefined;
   return <span data-catalog-readout="" data-count-readout="" role="status">
     <AsyncText text={text} busy={count === null} placeholder={<span data-skeleton="count" aria-hidden
@@ -241,7 +243,7 @@ function Readout({ count }: { count: CatalogFilterProps['count'] }) {
   </span>;
 }
 
-/** 交集条的宿主：`#combo` 里另建一层 `.peach-react`，样式作用域要它。卸载时撤掉，行本身还给壳。 */
+/** The intersection bar's host: another `.peach-react` layer built inside `#combo` because style scoping needs it. Removed on unmount, with the row itself handed back to the shell. */
 function useComboHost(row: Element | null): HTMLElement | null {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -257,9 +259,9 @@ function useComboHost(row: Element | null): HTMLElement | null {
 
 interface Page<T> { key: string; limit: number; fetched: T[]; drained: boolean }
 
-/** 一排先摆 `first` 枚，横滚到离右端 320px 就再续 12 枚，续到这一排真的溢出为止：宽屏上一批可能
- *  还填不满一行，而没溢出就滚不动，滚不动就再没有第二次 `scroll` 来接着续。手上这份用完再经
- *  `more` 要下一页，要回空的就是到底了。`key` 变了从头摆。 */
+/** A row lays out `first` cells, and after horizontally scrolling to within 320px of the right end appends 12 more, until this row truly overflows: on wide screens one batch
+ *  may not fill a line, and without overflow there is no scrolling, and without scrolling there is no second `scroll` event to continue appending. After the batch on hand runs out, request the next page via
+ *  `more`; an empty response means the end. When `key` changes, start over from the top. */
 function usePaged<T>(row: RefObject<HTMLElement | null>, items: T[], key: string, first: number,
   more?: () => Promise<unknown[]>): T[] {
   const initial = (): Page<T> => ({ key, limit: first, fetched: [], drained: !more });
@@ -281,8 +283,8 @@ function usePaged<T>(row: RefObject<HTMLElement | null>, items: T[], key: string
     }
     if (now.drained || !next || fetching.current === now.key) return;
     fetching.current = now.key;
-    /* 要下一页的这段时间里人还在滚，`fetching` 挡住同一份名单重入，免得同一页要两遍。按 `key` 记：
-     * 旧名单那一页还在路上时名单换了，新名单照样续页，不然旧请求回来被丢掉后这一排就停在第一页。 */
+    /* While waiting for the next page the person is still scrolling; `fetching` blocks re-entry with the same list so no page is requested twice. Recorded by `key`:
+     * when the list changes while the old list's page is still in flight, the new list still pages on, otherwise the old response returns, gets dropped, and the row stops at page one. */
     void next().catch(() => []).then((rows) => {
       if (fetching.current === now.key) fetching.current = null;
       setPage((p) => {
@@ -291,8 +293,8 @@ function usePaged<T>(row: RefObject<HTMLElement | null>, items: T[], key: string
       });
     });
   }, [row]);
-  /* 量宽度合到下一帧：提交后当场量、每个 `scroll` 事件当场量，都赶在刚写完的样式后面，
-   * 一次就是一遍整树重算；横滚时一帧来好几个 `scroll`，也只需要量一次。 */
+  /* Width measuring is coalesced into the next frame: measuring right after commit or on every `scroll` event lands right behind freshly written styles,
+   *  and each one forces a whole-tree recompute; horizontal scrolling fires several `scroll` events per frame, and one measurement is enough. */
   const frame = useRef(0);
   const schedule = useCallback(() => {
     if (!frame.current) frame.current = requestAnimationFrame(() => { frame.current = 0; fill() });

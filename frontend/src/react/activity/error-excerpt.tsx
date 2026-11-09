@@ -1,7 +1,7 @@
-/* 列表里的一段报错：平时只露一行（`errorHeadline`），「查看详情」展开全文。
+/* An error block in a list: normally one line shows (`errorHeadline`), and "View details" expands the full text.
  *
- * 后端回的常是整段 traceback 或整页 HTML，铺开会把一张卡撑成几屏高；只露一行又看不到全文，
- * 所以全文收在键后面，展开后保留原有换行、长 URL 就地折断，太长时在自己的框里滚。 */
+ * The backend often returns a whole traceback or a whole HTML page, and laying it out would stretch a card to several screens tall; showing one line hides the full text,
+ * so the full text lives behind the key, and when expanded it keeps the original line breaks, breaks long URLs in place, and scrolls in its own box when too long. */
 import { useId, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/base/buttons/button';
@@ -10,7 +10,7 @@ import { readableErrorHeadline } from './tasks';
 import { cardClass } from '../components/card';
 import { useOverlayScrollbar } from '../components/overlay-scrollbar';
 
-/** 完整报错共用限高容器与覆盖式滚动条。 */
+/** The full error shares the max-height container and the overlay scrollbar. */
 export function ErrorDetails({ children, label, id }: { children: ReactNode; label: string; id?: string }) {
   const scroll = useOverlayScrollbar<HTMLDivElement>();
   return <div data-error-details="" className={cardClass({ bordered: 'soft', radius: 'surface', padding: 'none',
@@ -32,12 +32,12 @@ export function ErrorExcerpt({ text, className = '' }: { text: string; className
   return (
     <div data-error-excerpt="" className={`flex min-w-0 max-w-full flex-col items-start gap-1 ${className}`}>
       {open
-        ? <ErrorDetails id={id} label="完整错误详情">{full}</ErrorDetails>
+        ? <ErrorDetails id={id} label="Full error details">{full}</ErrorDetails>
         : <p className="w-full wrap-anywhere">{head}</p>}
       {more
         ? <Button variant="ghost" size="small" data-error-details-toggle="" className="-ml-2" aria-expanded={open} aria-controls={open ? id : undefined}
             onClick={() => setOpen(!open)}>
-            {open ? '收起详情' : '查看详情'}
+            {open ? 'Collapse details' : 'View details'}
           </Button>
         : null}
     </div>

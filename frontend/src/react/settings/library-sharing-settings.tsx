@@ -32,8 +32,8 @@ export function LibrarySharingSettings({ initial, receipt }: {
   const action = useAction();
   const participation = value.participation;
   const deliveryNames: Record<string, string> = {
-    'not-attempted': '尚未发送', queued: '等待发送', accepted: '已发送',
-    failed: '发送失败', unknown: '结果未取得', blocked: '已拦截',
+    'not-attempted': 'Not sent yet', queued: 'Waiting to send', accepted: 'Sent',
+    failed: 'Send failed', unknown: 'Results not obtained', blocked: 'Blocked',
   };
   const participationTones: Record<string, StatusTone> = {
     queued: 'progress', accepted: 'success', failed: 'error', unknown: 'warning', blocked: 'warning',
@@ -42,7 +42,7 @@ export function LibrarySharingSettings({ initial, receipt }: {
     apiSend<LibrarySharingState>('/api/configuration/library-sharing', {
       enabled, schema: value.schema, consent: accepted, preview_token: preview?.token,
     }, 'POST', signal), (saved) => {
-    setValue(saved); setPreview(null); setAccepted(false); setReviewing(false); receipt('已保存馆藏与口味上传选项');
+    setValue(saved); setPreview(null); setAccepted(false); setReviewing(false); receipt('Saved library and taste upload options');
   });
   const downloadPreview = () => {
     const url = URL.createObjectURL(new Blob([previewText], { type: 'application/json' }));
@@ -54,62 +54,62 @@ export function LibrarySharingSettings({ initial, receipt }: {
     }
   };
   return <>
-    <Rows><SettingsRow label="上传馆藏与口味明细" description="每周分享馆藏、偏好与容量统计，需先预览并同意。">
-      <Switch aria-label="上传馆藏与口味明细" isSelected={value.enabled}
+    <Rows><SettingsRow label="Upload library and taste details" description="Shares library, preference and capacity statistics weekly; preview and agree first.">
+      <Switch aria-label="Upload library and taste details" isSelected={value.enabled}
         onChange={(enabled) => enabled ? setReviewing(true) : save(false)}
         {...busyProps(action.busy === 'save')} />
     </SettingsRow></Rows>
-    {!value.available ? <Stack divided><span className="self-start"><StatusLabel>上传服务未配置</StatusLabel></span></Stack> : null}
+    {!value.available ? <Stack divided><span className="self-start"><StatusLabel>Upload service not configured</StatusLabel></span></Stack> : null}
     {value.consent_state === 'needs-consent' ? <Stack divided>
-      <span className="self-start"><StatusLabel tone="warning">待重新同意</StatusLabel></span>
-      <Help>字段已更新，需重新预览并同意。</Help>
+      <span className="self-start"><StatusLabel tone="warning">Needs re-agreement</StatusLabel></span>
+      <Help>Fields updated; preview and agree again.</Help>
     </Stack> : null}
-    <Stack divided><Disclosure summary="馆藏统计字段与发送规则">
+    <Stack divided><Disclosure summary="Library statistics fields and sending rules">
       <ul className="list-disc space-y-2 pl-5">{value.fields.map(field => <li key={field}><Help>{field}</Help></li>)}</ul>
       <Help>{value.notice}</Help>
     </Disclosure></Stack>
     {participation ? <Stack divided>
-      <FactList><Fact term="参与状态"><StatusLabel aria-label="参与状态"
+      <FactList><Fact term="Participation state"><StatusLabel aria-label="Participation state"
         tone={participation.pending_state ? 'progress' : participationTones[participation.status] || 'neutral'}>
         {participation.pending_state
-        ? `待发送${participation.pending_state === 'disabled' ? '关闭' : '开启'}状态`
-        : deliveryNames[participation.status] || '结果未取得'}</StatusLabel></Fact></FactList>
-      {value.last_sent_at ? <Help>上次发送：{new Date(value.last_sent_at).toLocaleDateString()}</Help> : null}
+        ? `About to send the ${participation.pending_state === 'disabled' ? 'off' : 'on'} state`
+        : deliveryNames[participation.status] || 'Results not obtained'}</StatusLabel></Fact></FactList>
+      {value.last_sent_at ? <Help>'Last sent:'{new Date(value.last_sent_at).toLocaleDateString()}</Help> : null}
     </Stack> : null}
     {value.enabled && value.last_attempt?.status === 'failed'
-      ? <Stack divided><span className="self-start"><StatusLabel tone={value.last_attempt.attempted ? 'error' : 'warning'}>{value.last_attempt.attempted ? '上传失败' : '待重新准备'}</StatusLabel></span><ErrorText>{value.last_attempt.attempted
-        ? '馆藏与口味上传失败，本周不再发送。' : '馆藏与口味上传未完成，将自动重新准备。'}</ErrorText></Stack> : null}
+      ? <Stack divided><span className="self-start"><StatusLabel tone={value.last_attempt.attempted ? 'error' : 'warning'}>{value.last_attempt.attempted ? 'Upload failed' : 'Pending re-prep'}</StatusLabel></span><ErrorText>{value.last_attempt.attempted
+        ? 'Library and taste uploads failed; nothing more sends this week.' : 'Library and taste uploads did not finish and will re-prepare automatically.'}</ErrorText></Stack> : null}
     {value.enabled && value.last_attempt?.status === 'waiting-data'
-      ? <Stack divided><span className="self-start"><StatusLabel>等待数据</StatusLabel></span><Help>等待可分析的馆藏或偏好数据。</Help></Stack> : null}
+      ? <Stack divided><span className="self-start"><StatusLabel>Waiting for data</StatusLabel></span><Help>Waiting for library or preference data to analyze.</Help></Stack> : null}
     {value.enabled && value.last_attempt?.status === 'unknown'
-      ? <Stack divided><span className="self-start"><StatusLabel tone="warning">结果未取得</StatusLabel></span><Help>未取得上传结果，本周不再发送。</Help></Stack> : null}
+      ? <Stack divided><span className="self-start"><StatusLabel tone="warning">Result not fetched</StatusLabel></span><Help>No upload result received; not sending again this week.</Help></Stack> : null}
     {preview ? <Stack divided>
-      <Help>预览含 {preview.data.library.length} 部作品和 {preview.data.coverage.uncoded_items} 条无编号汇总，约 {(preview.bytes / 1024).toFixed(1)} KiB。</Help>
-      <Help>随机标识用于实例去重。状态每日一次；关闭后仅补发一次关闭状态。</Help>
-      <Disclosure summary="上传数据预览" defaultOpen>
-        <CodeBlock code={previewText} language="json" label="馆藏与口味上传预览" maxCharacters={24000} />
+      <Help>The preview includes {preview.data.library.length} works and {preview.data.coverage.uncoded_items} unnumbered summaries, about {(preview.bytes / 1024).toFixed(1)} ' KiB.'</Help>
+      <Help>'The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent.'</Help>
+      <Disclosure summary="'Upload data preview'" defaultOpen>
+        <CodeBlock code={previewText} language="json" label="Library and taste upload preview" maxCharacters={24000} />
       </Disclosure>
-      {previewText.length > 24000 ? <Help>显示前 24,000 个字符，下载可查看完整内容。</Help> : null}
-      <Button variant="secondary" onClick={downloadPreview}>下载完整预览</Button>
-      {!value.enabled ? <Checkbox isSelected={accepted} onChange={setAccepted}>我已查看上传预览，同意上传馆藏与口味明细</Checkbox> : null}
+      {previewText.length > 24000 ? <Help>Showing the first 24,000 characters; download to view the full content.</Help> : null}
+      <Button variant="secondary" onClick={downloadPreview}>Download the full preview</Button>
+      {!value.enabled ? <Checkbox isSelected={accepted} onChange={setAccepted}>I reviewed the upload preview and consent to uploading library and taste details</Checkbox> : null}
     </Stack> : null}
     {action.error ? <Stack divided><ErrorText>{action.error}</ErrorText></Stack> : null}
     <Footer>
       {reviewing && !value.enabled ? <Button variant="secondary" onClick={() => {
         setReviewing(false); setPreview(null); setAccepted(false);
-      }}>取消</Button> : null}
+      }}>Cancel</Button> : null}
       {participation ? <Button variant="secondary" onClick={() => void action.run('refresh',
         async signal => {
           const data = await apiGet<{ library_sharing?: LibrarySharingState }>('/api/configuration', signal);
-          if (!data.library_sharing) throw new Error('馆藏上传状态未取得');
+          if (!data.library_sharing) throw new Error('Library upload state not obtained');
           return data.library_sharing;
-        }, setValue)} {...busyProps(action.busy === 'refresh')}>刷新发送状态</Button> : null}
+        }, setValue)} {...busyProps(action.busy === 'refresh')}>Refresh the send state</Button> : null}
       <Button variant="secondary" onClick={() => { setReviewing(true); void action.run('preview',
         (signal) => apiGet<Preview>('/api/configuration/library-sharing/preview', signal),
         (data) => { setPreview(data); setAccepted(false) }) }}
-        {...busyProps(action.busy === 'preview')}>预览上传内容</Button>
+        {...busyProps(action.busy === 'preview')}>Preview the upload contents</Button>
       {!value.enabled && preview ? <Button variant="primary" disabled={!accepted} onClick={() => save(true)}
-        {...busyProps(action.busy === 'save')}>同意并开启上传</Button> : null}
+        {...busyProps(action.busy === 'save')}>Agree and enable upload</Button> : null}
     </Footer>
   </>;
 }

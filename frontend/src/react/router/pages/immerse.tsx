@@ -1,10 +1,12 @@
-/* 沉浸模式的页面元素（ADR-0031）：`/immerse` 在页面组里，不算覆盖、不带背景。
+/* Immersive mode's page element (ADR-0031): `/immerse` is in the page group, not an overlay and carries no background.
  *
- * 启动与没人认领的历史变化落在 `/immerse` 上时，从地址上的 `?id=` 那一条打开沉浸（`ShellActions.openImmerse`）；
- * 顶栏按钮认领写地址后也由元素打开。沉浸里每换一条由壳认领 replace 写 `?id=`，元素按页面打开序号挂 key，
- * 不重挂、不重开，条目数不变。
+ * When startup and unclaimed history changes land on `/immerse`, immersive opens on the entry named by the address's `?id=`
+ * (`ShellActions.openImmerse`); after the top bar button claims the address write, the element opens it too. Each entry
+ * switch inside immersive has the shell claim a replace write of `?id=`; the element keys by page-open epoch, so it neither
+ * remounts nor reopens, and the entry count stays.
  *
- * 卸下不收沉浸：后退离开 `/immerse` 时沉浸照旧开着，由 Escape 或关闭键收起，收起时壳回首页并写一条地址。 */
+ * Unmounting does not tear immersive down: navigating back away from `/immerse` leaves it open, dismissed by Escape or the
+ * close key, and on dismissal the shell returns home and writes an address. */
 import { useContext, type ReactNode } from 'react';
 
 import { peachHistory } from '@peach/history';
@@ -12,7 +14,7 @@ import { peachHistory } from '@peach/history';
 import { ShellActionsContext, useOpenEpoch } from '../router';
 import { useRouteOpen } from './overlay';
 
-/* 地址上的那一条：`?id=` 是数字才算，不然从头开始。 */
+/* The one on the address: `?id=` counts only when numeric, otherwise start from the top. */
 function startId(): number | undefined {
   const id = new URLSearchParams(peachHistory.navigation.location.search).get('id');
   return /^\d+$/.test(id || '') ? Number(id) : undefined;
@@ -24,7 +26,7 @@ function ImmerseOpen() {
   return null;
 }
 
-/** `/immerse` 的元素。 */
+/** The `/immerse` element. */
 export function ImmerseMatch(): ReactNode {
   return <ImmerseOpen key={useOpenEpoch()} />;
 }

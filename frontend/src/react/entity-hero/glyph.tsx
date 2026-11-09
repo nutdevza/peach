@@ -1,6 +1,6 @@
-/* 雪碧图（`web/index.html` 的 `#i-*` symbol）里的一枚字形，写法同遗留层 `icon()`：尺寸与描边
- * 由 `./entity-hero.css` 按位置给。横向的站点标识（JavDB 那枚是 326:111）viewBox 跟着 symbol
- * 的比例走，槽位按高定宽。 */
+/* One glyph from the sprite sheet (`#i-*` symbols in `web/index.html`), written like the legacy layer's `icon()`: size and stroke
+ * are given by `./entity-hero.css` per position. Horizontal site logos (JavDB's is 326:111) let the viewBox follow the
+ * symbol's ratio, with the slot sized by height. */
 import { iconGeometry } from '../../core/icon-geometry';
 
 export function Glyph({ name }: { name: string }) {

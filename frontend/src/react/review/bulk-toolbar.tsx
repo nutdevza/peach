@@ -1,8 +1,8 @@
-/* 复核筛选与批量动作：分组方式、分类筛选、全选本页留在吸顶栏，所选项目的判定动作
- * 使用首页同款底部悬浮框。
+/* Review filters and batch actions: grouping, category filter, and select-this-page stay in the sticky bar; decision actions for the selection
+ * use the same bottom floating bar as the home page.
  *
- * 分组方式和筛选项按**整条队列**算，卡片只画当前这一页：筛选里的计数说的是队列，不是
- * 这一屏。筛选条高度保持不变，勾选项目时不会把下滑后吸顶的内容往下推。 */
+ * Grouping and filter options are computed over the whole queue while cards only draw the current page: counts in the filters describe the queue, not
+ * this screen. The filter bar's height stays constant, so checking items does not push down the stuck content. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { RiCheckDoubleLine } from '@remixicon/react';
 
@@ -28,14 +28,14 @@ export interface BulkToolbarProps {
   groups: ReviewGroup[];
   filter: string;
   onFilter(next: string): void;
-  /** 当前这一页上的行，全选就是全选它们。 */
+  /** The rows on the current page; select all selects exactly these. */
   pageKeys: string[];
   selected: ReadonlySet<string>;
   onSelected(next: Set<string>): void;
-  /** 选中的那些行，用来算共同来源。 */
+  /** The selected rows, used to compute the common source. */
   selectedRows: ReviewRow[];
   metadata: boolean;
-  /** 所选项目里还能不能按下「通过所选」。 */
+  /** Whether "Approve selected" can still be pressed for the selected items. */
   approvable: boolean;
   busy: boolean;
   feedback: string;
@@ -53,7 +53,7 @@ export function BulkToolbar(props: BulkToolbarProps) {
   const allShown = shown.length > 0 && shown.length === pageKeys.length;
   const sources = commonReviewSources(selectedRows);
   const needsSource = metadata && selectedRows.some((row) => (row.candidates?.length || 0) > 1);
-  const sourceLabel = sources.length ? '统一选择来源' : '所选项目无共同来源';
+  const sourceLabel = sources.length ? 'Pick sources once for all' : 'Selected items share no source';
   const statePane = useRef<HTMLSpanElement>(null);
   const stateRow = useRef<HTMLDivElement>(null);
   const controlRow = useRef<HTMLDivElement>(null);
@@ -80,12 +80,12 @@ export function BulkToolbar(props: BulkToolbarProps) {
 
   return (
     <>
-      <FilterGlassRows label="复核筛选" topLabel="处理状态" attrs={{ 'data-review-filter': '' }}
+      <FilterGlassRows label="Review filter" topLabel="Processing state" attrs={{ 'data-review-filter': '' }}
         className="mb-0 flex-row flex-wrap" topClassName="max-w-full flex-none"
         bottomClassName={pageKeys.length ? 'min-h-12 max-w-full flex-none flex-wrap' : 'hidden'}
         bottomRef={controlRow}
         panes={<span ref={statePane} data-view-glide="" aria-hidden="true" />}
-        top={<div ref={stateRow} role="group" aria-label="复核状态" data-entity-states=""
+        top={<div ref={stateRow} role="group" aria-label="Review state" data-entity-states=""
           onPointerLeave={stateGlide.leave}>
           {REVIEW_QUEUES.map(key => <button key={key} type="button" data-entity-state={key} data-entity-press=""
             disabled={busy} aria-pressed={queueView === key} onPointerEnter={stateGlide.hover}
@@ -98,25 +98,25 @@ export function BulkToolbar(props: BulkToolbarProps) {
           <span data-entity-sep="" aria-hidden="true" className={joinedRows ? undefined : 'invisible'} />
         </div>}
         bottom={pageKeys.length ? <>
-        {metadata && fields.length ? <Select aria-label="筛选资料字段" size="sm"
-          prefix={<span data-copy-key="review.filter.field" className="pointer-events-auto">字段</span>}
+        {metadata && fields.length ? <Select aria-label="Filter detail fields" size="sm"
+          prefix={<span data-copy-key="review.filter.field" className="pointer-events-auto">Fields</span>}
           selectedKey={fieldFilter || '*'} isDisabled={busy}
           onSelectionChange={(key) => { if (key !== null) onFieldFilter(String(key) === '*' ? '' : String(key)) }}>
-          <SelectItem id="*">全部</SelectItem>
+          <SelectItem id="*">All</SelectItem>
           {fields.map(field => <SelectItem key={field.key} id={field.key}>
             {`${field.title} · ${field.rows.length}`}
           </SelectItem>)}
         </Select> : null}
-        <Select aria-label="筛选分组方式" size="sm" selectedKey={groupBy}
+        <Select aria-label="Filter grouping" size="sm" selectedKey={groupBy}
           onSelectionChange={(key) => { if (key !== null) onGroupBy(String(key) as ReviewGrouping) }}>
           {groupOptions.map(([key, name]) => <SelectItem key={key} id={key}>{name}</SelectItem>)}
         </Select>
-        {/* 只有一组时没什么可筛的：一个「全部分类」的下拉读起来像坏了。 */}
+        {/* With one group there is nothing to filter: a lone "All categories" dropdown reads like a bug. */}
         {groups.length > 1 ? (
-          <Select aria-label={groupBy === 'field' ? '筛选字段分类' : '筛选当前分类'} size="sm" prefix="分类"
+          <Select aria-label={groupBy === 'field' ? 'Filter field categories' : 'Filter the current category'} size="sm" prefix="Categories"
             selectedKey={filter || '*'}
             onSelectionChange={(key) => { if (key !== null) onFilter(String(key) === '*' ? '' : String(key)) }}>
-            <SelectItem id="*">全部</SelectItem>
+            <SelectItem id="*">All</SelectItem>
             {groups.map((group) => (
               <SelectItem key={group.key} id={group.key}>
                 {`${group.title} · ${group.rows.length}`}
@@ -126,13 +126,13 @@ export function BulkToolbar(props: BulkToolbarProps) {
         ) : null}
         {locked ? null : <Button variant="secondary" size="small" leadingIcon={RiCheckDoubleLine}
           aria-pressed={allShown} disabled={busy} onClick={toggleAll}>
-          {allShown ? '清空当前选择' : filter ? '全选当前分类' : '全选本页'}
+          {allShown ? 'Clear the current selection' : filter ? 'Select all in the current category' : 'Select this page'}
         </Button>}
         </> : null} />
 
-        <SelectionDock label="复核所选项目" visible={!locked && selected.size > 0} count={`已选 ${selected.size} 项`}>
+        <SelectionDock label="Review the selected items" visible={!locked && selected.size > 0} count={`${selected.size} items selected`}>
           {needsSource && queueView !== 'ignored' ? (
-            <Select aria-label="统一选择来源" size="sm" selectedKey=""
+            <Select aria-label="Pick sources once for all" size="sm" selectedKey=""
               isDisabled={busy || !sources.length}
               onSelectionChange={(key) => { if (key !== null && key !== '') onUnifySource(String(key)) }}>
               <SelectItem id="">{sourceLabel}</SelectItem>
@@ -140,15 +140,15 @@ export function BulkToolbar(props: BulkToolbarProps) {
             </Select>
           ) : null}
           {queueView !== 'ignored' ? <Button variant="ghost" size="small" disabled={busy || !selected.size}
-            onClick={() => onRun('rejected')}>忽略所选</Button> : null}
+            onClick={() => onRun('rejected')}>Ignore selected</Button> : null}
           {queueView === 'pending' ? <Button variant="secondary" size="small" disabled={busy || !selected.size}
-            onClick={() => onRun('skipped')}>稍后处理所选</Button> : <Button
+            onClick={() => onRun('skipped')}>Handle selected later</Button> : <Button
             variant={queueView === 'ignored' ? 'primary' : 'secondary'} size="small" disabled={busy || !selected.size}
-            onClick={() => onRun('restore')}>恢复所选</Button>}
+            onClick={() => onRun('restore')}>Restore selected</Button>}
           {queueView !== 'ignored' ? <Button variant="primary" size="small" disabled={busy || !selected.size || !approvable}
-            onClick={() => onRun('approved')}>通过所选</Button> : null}
+            onClick={() => onRun('approved')}>Approve selected</Button> : null}
           <Button variant="ghost" size="small" disabled={busy}
-            onClick={() => onSelected(new Set())}>取消选择</Button>
+            onClick={() => onSelected(new Set())}>Clear selection</Button>
           {feedback
             ? <p role="status" className="w-full text-body-2-regular text-text-secondary">{feedback}</p>
             : null}

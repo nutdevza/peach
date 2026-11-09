@@ -1,8 +1,8 @@
-/* 「SFW 快捷键」一行。平时用 BoardUI Kbd 胶囊提示当前绑定；点「更改」后换成一排拟物键帽：按住的键
- * 下沉亮起，还没按的位置用虚线空位占着，没过的一下描边变成错误色，录好变成成功色，片刻后收回胶囊。
+/* The "SFW shortcut" row. Normally it uses a BoardUI Kbd pill to show the current binding; after clicking "Change" it swaps to a row of skeuomorphic keycaps: the pressed key
+ * sinks down and lights up, not-yet-pressed slots are held by dashed empty spaces, a stroke that didn't register turns the error color, a recorded one turns the success color, and after a moment it retracts back to the pill.
  *
- * 录制期间在 window 捕获阶段收走每一次按键：同一下不能再落到壳的全局监听里切 SFW、关设置弹层
- * 或触发播放器快捷键。Esc 取消，焦点离开按钮也取消。规则与显示见 `../../keyboard-shortcut.ts`。 */
+ * During recording it swallows every keypress at the window capture phase: the same press can no longer fall through to the shell's global listener to toggle SFW, close the settings overlay,
+ * or trigger a player shortcut. Esc cancels, and focus leaving the button also cancels. Rules and display are in `../../keyboard-shortcut.ts`. */
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/base/buttons/button';
 import { Kbd } from '@/components/base/kbd/kbd';
@@ -12,7 +12,7 @@ import {
   type Modifiers, type Shortcut,
 } from '../../keyboard-shortcut';
 
-/** 录好之后键帽停留多久再收回胶囊。 */
+/** After a recording, how long the keycap stays before collapsing back into the capsule. */
 const SETTLE_MS = 600;
 const NONE: Modifiers = { ctrl: false, alt: false, shift: false, meta: false };
 const heldModifiers = (event: KeyboardEvent): Modifiers =>
@@ -21,9 +21,9 @@ const heldModifiers = (event: KeyboardEvent): Modifiers =>
 export function ShortcutSetting({ current, onChange }: { current: Shortcut; onChange(shortcut: Shortcut | null): void }) {
   const [recording, setRecording] = useState(false);
   const [problem, setProblem] = useState('');
-  /** 录制中正按着的键：只按了修饰键时 `code` 为 null；按了不能用的主键会留在这里，配着原因。 */
+  /** The key being held during recording: when only a modifier is pressed, code is null; an unusable main key stays here, with a reason. */
   const [pressed, setPressed] = useState<{ modifiers: Modifiers; code: string | null }>({ modifiers: NONE, code: null });
-  /** 刚录好的那一组，键帽亮一下再收回胶囊。 */
+  /** The just-recorded group: the keycap flashes briefly before collapsing into the capsule. */
   const [saved, setSaved] = useState<Shortcut | null>(null);
   const stop = () => { setRecording(false); setProblem(''); setPressed({ modifiers: NONE, code: null }) };
   useEffect(() => {
@@ -39,7 +39,7 @@ export function ShortcutSetting({ current, onChange }: { current: Shortcut; onCh
       if (result.state === 'invalid') setProblem(result.problem);
       if (result.state === 'done') { onChange(result.shortcut); setSaved(result.shortcut); stop() }
     };
-    // 松开修饰键时同步键帽；已经按过主键的那一组留着，让人看清是哪一下没过。
+    // Sync the keycap on modifier release; keep the group that already pressed the main key, so it's clear which press didn't go through.
     const keyup = (event: KeyboardEvent) => {
       event.stopPropagation();
       setPressed((last) => (last.code === null ? { modifiers: heldModifiers(event), code: null } : last));
@@ -62,23 +62,23 @@ export function ShortcutSetting({ current, onChange }: { current: Shortcut; onCh
   const keys: KeycapItem[] | null = saved ? caps(saved, saved.code, 'done')
     : !recording ? null
       : pressed.code ? caps(pressed.modifiers, pressed.code, problem ? 'invalid' : 'down')
-        : held ? [...caps(pressed.modifiers, null, 'down'), slot('键')] : [slot('修饰键'), slot('键')];
+        : held ? [...caps(pressed.modifiers, null, 'down'), slot('键')] : [slot('Modifier key'), slot('键')];
   const custom = serializeShortcut(current) !== DEFAULT_SFW_SHORTCUT;
-  const hint = saved ? `已改为 ${formatShortcut(saved, apple)}`
-    : recording ? (problem || '按下新的组合键，Esc 取消') : '输入框外随时开关。';
+  const hint = saved ? `Changed to ${formatShortcut(saved, apple)}`
+    : recording ? (problem || 'Press a new key combo, Esc to cancel') : 'Toggle anytime outside the input box.';
   return (
     <div data-setting-row="">
-      <span><b>SFW 快捷键</b><small id="sfwShortcutDescription" aria-live="polite">{hint}</small></span>
+      <span><b>SFW shortcut</b><small id="sfwShortcutDescription" aria-live="polite">{hint}</small></span>
       <div data-setting-shortcut="" className="peach-react">
         {keys ? <Keycaps keys={keys} plus={!apple} />
-          : <Kbd data-shortcut-keys="" aria-label={`当前快捷键 ${formatShortcut(current, apple)}`}>{formatShortcut(current, apple)}</Kbd>}
+          : <Kbd data-shortcut-keys="" aria-label={`Current shortcut ${formatShortcut(current, apple)}`}>{formatShortcut(current, apple)}</Kbd>}
         {custom && !recording && !saved ? (
-          <Button variant="secondary" size="small" onClick={() => onChange(null)}>恢复默认</Button>
+          <Button variant="secondary" size="small" onClick={() => onChange(null)}>Restore defaults</Button>
         ) : null}
         <Button variant={recording ? 'secondary' : 'primary'} size="small" aria-describedby="sfwShortcutDescription"
           onClick={() => { if (recording) stop(); else { setSaved(null); setRecording(true) } }}
           onBlur={stop}>
-          {recording ? '取消' : '更改'}
+          {recording ? 'Cancel' : 'Change'}
         </Button>
       </div>
     </div>

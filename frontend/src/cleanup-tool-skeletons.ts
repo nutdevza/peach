@@ -1,8 +1,8 @@
-/* 数据管理二级页（整理文件、资源同步、文件已丢失的记录、链接管理、批量删除）的首屏骨架。
- * 每页照自己那张 React 卡画：同一副 Fieldset 或数据表外框、同一列 `max-w-board` 正文宽度，
- * 标题、说明与表头是静态文案，直接写出来；条数、读数、库名与模板要等数据，只画占位。
- * 说明文字与 React 卡共用这里的常量，写两份的话骨架上那一段会比真卡短一截，接管时整张卡跳一次。
- * 只在跑过一趟任务后才出现的结果区（扫描结论、死链清单）不预画。 */
+/* The first-screen skeletons of the data-management second-level pages (organize files, resource sync, records of lost files, link management, bulk delete).
+ * Each page is drawn after its own React card: the same Fieldset or data-table frame, the same `max-w-board` content width;
+ * titles, descriptions, and headers are static text, written out directly; counts, readouts, library names, and templates wait on the data, so only draw placeholders.
+ * The description text shares these constants with the React card; writing two copies would make that section on the skeleton a bit shorter than the real card, and the whole card would jump once on takeover.
+ * Result sections that only appear after running a task (scan conclusion, dead-link list) are not pre-drawn. */
 import { followCheck, SORT_MARK } from './board-skeleton';
 import { islandButton, islandGlyph, islandSearchInput, islandSelect } from './island-skeleton';
 import type { CleanupToolKey } from './cleanup-tools';
@@ -25,19 +25,19 @@ const block = (width: number, height: number, round = false) =>
 const title = (label: string, gap: '' | 'mb-2' | 'mb-3') =>
   `<h3 class="text-title-2-medium text-text-primary${gap ? ` ${gap}` : ''}">${label}</h3>`;
 
-/** Board UI `Input` 中号的静止态：可带块级标签，框里是占位字或一截等数据的占位条。 */
+/** The Board UI Input medium size in its resting state: can carry a block-level label; the box shows placeholder text or a data-waiting placeholder bar. */
 const input = (content: string, { label = '', className = '' } = {}) => `<div data-input-size="medium" class="group flex h-max w-full flex-col items-start gap-1${className ? ` ${className}` : ''}">${
   label ? `<span class="flex items-center gap-0.5 text-body-medium text-text-primary">${label}</span>` : ''
 }<div class="relative flex w-full items-center rounded-2lg bg-background-tertiary-default text-foreground-icon-tertiary ring-2 ring-inset ring-transparent p-2"><div class="flex w-full items-center gap-2 min-w-0"><div class="flex flex-1 items-center gap-0.5 min-w-0"><span class="flex min-w-0 flex-1 items-center pl-1 font-sans text-body-regular text-text-tertiary">${content}&#8203;</span></div></div></div></div>`;
 
-/* 预设与参数是 `src/peach/organize.py` 的两张定长表，各九项；名字跟着数据来，键先按小号画出占位，
-   宽度照两张表的字数（参数键再算上等宽的 `{key}`）取，折行与真键落在同一处。 */
+/* Presets and parameters are two fixed-length tables in `src/peach/organize.py`, nine entries each; the names follow the data, keys are first drawn as placeholders at a small size,
+   and the width is taken from the character counts of the two tables (parameter keys additionally sized for the monospaced `{key}`), so the wrap point lands where the real key does. */
 const PRESET_WIDTHS = ['3em', '5em', '5em', '6em', '7em', '7em', '8em', '8em', '10em'];
 const PARAMETER_WIDTHS = ['5.8em', '6.4em', '7em', '7em', '7em', '8.1em', '5.8em', '9em', '9em'];
 const smallKey = (variant: 'secondary' | 'ghost', width: string) =>
   islandButton({ variant, size: 'small', label: text(width) });
 
-/* 骨架淡出那一拍与真卡同在页面上，所以不带 `id` 与测试认卡用的 `data-*`，只留决定样式的标记。 */
+/* In the beat where the skeleton fades out, it's on the page with the real card, so it carries no id or data-* used for test card recognition; only the markers that determine styling remain. */
 function organize(): string {
   return `<section class="${fieldsetClass('stack')}">
     <div class="${FIELDSET_BODY.stack}">${title(t('cleanup:organize.title'), 'mb-3')}
@@ -58,14 +58,14 @@ function organize(): string {
   </section>`;
 }
 
-/* 键名跟上一趟扫描走（检查文件／重新扫描），骨架画头一次进来的那一版。 */
+/* The key names follow the previous scan (Check files / Rescan); the skeleton draws the first-visit version. */
 const resourceSync = () => `<section class="flex scroll-mt-20 flex-col gap-4">
   <section class="${fieldsetClass('split')}"><div class="${FIELDSET_BODY.split}">${title(t('cleanup:tools.resourceSync'), 'mb-2')}
     <p class="max-w-190 text-body-2-regular leading-5 text-text-secondary">${RESOURCE_SYNC_TEXT}</p></div>
     <footer class="${FIELDSET_FOOT.split}">${islandButton({ glyph: 'git-compare', label: t('cleanup:resourceSync.checkFiles'), attrs: WAITING })}</footer></section>
 </section>`;
 
-/** 链接管理那张卡：四格读数（总数与三类链接）和三个主要站点等数据，键名同样画头一次的那一版。 */
+/** That card in link management: a four-tile reading (total and three link types) plus data like the three main sites, and the key names are likewise rendered as the first version. */
 const linkStat = (label: string, note = false) => `<div class="flex min-w-0 flex-col gap-0.5"><span class="text-caption-1-regular leading-5 text-text-secondary">${label}</span><b class="text-title-2-semibold font-bold leading-5 tabular-nums text-text-primary">${text('3em')}</b>${note ? `<small class="text-caption-1-regular leading-5 text-text-secondary">${text('14em')}</small>` : ''}</div>`;
 const links = () => `<section class="flex scroll-mt-20 flex-col gap-4">
   <section class="${fieldsetClass('stack')}"><div class="${FIELDSET_BODY.stack}">${title(t('cleanup:tools.links'), 'mb-2')}
@@ -75,9 +75,9 @@ const links = () => `<section class="flex scroll-mt-20 flex-col gap-4">
     <footer class="${FIELDSET_FOOT.stack}">${islandButton({ glyph: 'link', label: t('cleanup:links.checkLinks'), attrs: WAITING })}</footer></section>
 </section>`;
 
-/** `DataTable` 的等待态：填充卡里工具行、说明、表头与几行占位、分页行，列宽取列定义的缺省宽度。
- *  可调列宽的表是 `table-layout: fixed`：首列不写宽度，吃掉余下的宽度；整表最窄是各列缺省宽度之和，
- *  窄屏上同真表一样横向滚动。末尾那一格行空白压到 0；分页键要等总数才知道几页，不画。 */
+/** The loading state of `DataTable`: inside a skeleton card, a toolbar row, the description, the header and a few placeholder rows, and the pagination row; column widths take the column definitions' default widths.
+ *  Tables with resizable columns are `table-layout: fixed`: the first column has no width written and absorbs the remaining width; the table's minimum width is the sum of each column's default width,
+ *  and on narrow screens it scrolls horizontally just like the real table. The trailing cell's row whitespace is compressed to 0; the pagination keys wait on the total to know how many pages, so don't draw them. */
 interface TableColumn { label: string; width: number; cell: string }
 function dataTable({ title: name, description, search = '', columns, rows }:
   { title: string; description: string; search?: string; columns: TableColumn[]; rows: number }): string {
@@ -88,11 +88,11 @@ function dataTable({ title: name, description, search = '', columns, rows }:
   const searchBox = search ? `<div data-index-search class="ml-auto min-w-0 max-w-80 flex-1">${islandSearchInput('', '', search)}</div>` : '';
   return `<div data-data-table-panel class="${cardClass({ padding: 'none', className: 'flex flex-col gap-4 px-6 py-5 max-sm:px-4' })}">
     <div data-responsive-toolbar><div data-toolbar-heading>${title(name, '')}<span class="text-body-2-regular tabular-nums text-text-secondary">${text('4em')}</span></div>
-      <div data-toolbar-actions>${searchBox}<div class="flex flex-none gap-2">${islandButton({ variant: 'secondary', label: '显示列' })}${islandButton({ variant: 'secondary', label: '重置列宽' })}</div>
-        <span class="flex flex-none items-center gap-2">${islandSelect('默认顺序', { prefix: '排序' })}${islandButton({ variant: 'secondary', glyph: 'arrow-up', attrs: WAITING })}</span></div></div>
+      <div data-toolbar-actions>${searchBox}<div class="flex flex-none gap-2">${islandButton({ variant: 'secondary', label: 'Show columns' })}${islandButton({ variant: 'secondary', label: 'Reset column widths' })}</div>
+        <span class="flex flex-none items-center gap-2">${islandSelect('Default order', { prefix: 'Sort' })}${islandButton({ variant: 'secondary', glyph: 'arrow-up', attrs: WAITING })}</span></div></div>
     <p class="text-body-2-regular text-text-secondary">${description}</p>
     <div data-board-data-table data-resizable-table data-follow-table><div class="relative min-w-0"><div class="w-full overflow-x-auto"><table class="bui-table bui-table-sm" style="min-width:${least}px"><thead><tr>${head}</tr></thead><tbody>${row.repeat(rows)}</tbody></table></div></div></div>
-    <div data-table-pagination class="flex flex-wrap items-center justify-between gap-3"><span class="mr-auto text-body-2-regular tabular-nums text-text-secondary">${text('8em')}</span><div data-toolbar-actions>${islandSelect('每页 20 条', { size: 'sm' })}</div></div>
+    <div data-table-pagination class="flex flex-wrap items-center justify-between gap-3"><span class="mr-auto text-body-2-regular tabular-nums text-text-secondary">${text('8em')}</span><div data-toolbar-actions>${islandSelect('20 per page', { size: 'sm' })}</div></div>
   </div>`;
 }
 
@@ -125,7 +125,7 @@ const BODIES: Record<CleanupToolKey, { label: string; body: () => string }> = {
   'batch-delete': { label: t('cleanup:performerDelete.loadingLabel'), body: batchDelete },
 };
 
-/** 二级页骨架：外层是读屏的等待状态，里面那一列与 React `Page` 同宽同间距，整块 `inert`。 */
+/** Second-level page skeleton: the outer layer is the screen reader's waiting state; the inner column is the same width and spacing as the React Page, the whole block inert. */
 export function cleanupToolSkeletonHtml(key: CleanupToolKey): string {
   const { label, body } = BODIES[key];
   return `<div class="peach-react" data-skeleton="cleanup/${key}" aria-busy="true" role="status" aria-label="${label}"><div aria-hidden="true" inert class="mx-auto flex w-full max-w-board flex-col gap-8">${body()}</div></div>`;

@@ -1,10 +1,13 @@
-/* 媒体库来源色：颜色绑定 `library_id`，存在配置的 `media.library_catalog`（ADR-0116），默认不上色。
- * 卡片和列表行只挂 `data-library`，颜色由这里注入的一张样式表给 `--library-color`，
- * 每张卡不用各自重渲染。
+/* Media library source colors: a color binds to `library_id`, stored in configuration's `media.library_catalog`
+ * (ADR-0116), uncolored by default.
+ * Cards and list rows only carry `data-library`; the color comes from a stylesheet injected here setting `--library-color`,
+ * so each card need not re-render.
  *
- * 媒体库列表来自 `library-catalog`：壳每次加载取一次，这里不另发请求；只有壳不在的地方（测试、
- * 单独挂的岛）要显示媒体库名时才自己取。首屏先按本机缓存的上一次颜色铺色。
- * 色值不另写：每一档取 `[data-accent-ball=…]` 那组 `--color-accent-500`，与设置面板的取色球同源。 */
+ * The media library list comes from `library-catalog`: the shell fetches once per load and this module sends no requests of
+ * its own; only where the shell is absent (tests, standalone islands) does displaying a media library name fetch by itself.
+ * First screen colors from the machine's cached last colors.
+ * Color values are not re-declared: each tier takes that `[data-accent-ball=...]` group's `--color-accent-500`, same source as
+ * the settings panel's color balls. */
 import { useSyncExternalStore } from 'react';
 import { MEDIA_SOURCE_ICONS } from '@peach/legacy/ui';
 import { apiGet } from '../../api';
@@ -43,7 +46,7 @@ function publish(next: ReadonlyMap<string, LibraryTint>) {
   listeners.forEach(listener => listener());
 }
 
-// 图标名换成图形与侧栏媒体库切换器同一张表：来源名取来源标志，其余是雪碧图字形。
+// Icon names resolve through the same table as the sidebar's library switcher: source names take the source logo, the rest are sprite glyphs.
 const fromRows = (rows: readonly LibraryRow[]) => new Map(rows.map(row => [row.id, {
   id: row.id, name: row.name, icon: MEDIA_SOURCE_ICONS[row.icon || ''] || row.icon || 'database',
   location: row.roots?.[0]?.location || '', color: row.color || '',
@@ -68,7 +71,7 @@ function load() {
     .catch(() => { requested = false });
 }
 
-/** 设置页改色时先在本页试色；保存后服务端给的颜色接替。 */
+/** When changing color on the settings page, preview on this page first; after saving the server's color takes over. */
 export function previewLibraryColor(id: string, color: string) {
   const current = tints.get(id) ?? { id, name: '', icon: 'database', location: '', color: '' };
   publish(new Map([...tints, [id, { ...current, color }]]));
@@ -79,7 +82,7 @@ function subscribe(listener: () => void) {
   return () => { listeners.delete(listener) };
 }
 
-/** 按 `library_id` 读来源色。要显示媒体库名与站标的地方传 `names`，壳没给列表时才向 `/api/libraries` 取一次。 */
+/** Reads source color by `library_id`. Pass `names` where the library name and site badge are shown; only fetch `/api/libraries` once when the shell supplied no list. */
 export function useLibraryTints({ names = false }: { names?: boolean } = {}): ReadonlyMap<string, LibraryTint> {
   seed();
   if (names) load();

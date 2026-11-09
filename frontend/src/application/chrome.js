@@ -1,4 +1,4 @@
-/* chrome 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* chrome domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { applicationEffects } from './effects';
 import { MEDIA_SOURCE_ICONS, moveGlidePane, wireAnchoredMenu } from '../ui-kit';
 import { api, esc, icon } from '../core';
@@ -35,11 +35,11 @@ effects.own(()=>{
   drawer.inert=drawerInert;
   if(preferencesState.placeSidebarHead===placeBrand)preferencesState.placeSidebarHead=previousPlace;
 });
-/* Board 外壳：媒体库选择、侧栏底部、玻璃折射。 */
+/* Board shell: library selection, the sidebar footer, glass refraction. */
 document.documentElement.classList.toggle('board-high-contrast',localStorage.getItem('peach.high-contrast')==='true');
 const boardBrand=document.querySelector('#brandHome');
-boardBrand.setAttribute('aria-label','选择媒体库');
-const libraryPicker=document.createElement('div');libraryPicker.className='board-library-menu';libraryPicker.id='boardLibraryMenu';libraryPicker.hidden=true;libraryPicker.setAttribute('popover','manual');libraryPicker.setAttribute('role','dialog');libraryPicker.setAttribute('aria-label','媒体库');
+boardBrand.setAttribute('aria-label','Select library');
+const libraryPicker=document.createElement('div');libraryPicker.className='board-library-menu';libraryPicker.id='boardLibraryMenu';libraryPicker.hidden=true;libraryPicker.setAttribute('popover','manual');libraryPicker.setAttribute('role','dialog');libraryPicker.setAttribute('aria-label','Media library');
 document.body.append(libraryPicker);
 effects.own(()=>libraryPicker.remove());
 boardBrand.setAttribute('aria-haspopup','dialog');boardBrand.setAttribute('aria-controls',libraryPicker.id);
@@ -50,11 +50,13 @@ if(!boardBrand.querySelector('.board-library-chevron')){
 effects.handler(boardBrand, 'onclick', event=>{event.preventDefault()});
 const libraryFloating=wireAnchoredMenu(document.querySelector('#drawer'),boardBrand,libraryPicker,{side:true});
 effects.own(libraryFloating.dispose);
-/* 媒体库这一列跟侧栏导航那一列、筛选条那一排是同一件事：标出「当前是哪一个」，指到
-   哪儿就滑到哪儿，指针离开这一列再滑回真正选中的那一项。所以走同一块玻璃、同一段
-   位移，不在这里另写一份选中底色——那样这一处的手感会自己漂移成第四种。
-   `aria-pressed` 全程不动：移过去不是选中，读屏和键盘那边不该跟着变。
-   菜单收起时量不到尺寸（`offsetHeight` 是 0），玻璃先收起来，开的时候再落位。 */
+/* The media library column is the same thing as the sidebar's nav column and the filter bar's row: mark "which one is
+   current", slide wherever it points, and slide back to the truly selected item when the pointer leaves the column. So it
+   rides the same glass and the same translation, with no second selected-fill written here; otherwise this spot's feel would
+   drift into a fourth kind.
+   `aria-pressed` never moves: moving over is not selecting, and screen readers and the keyboard should not follow.
+   When the menu is closed its size cannot be measured (`offsetHeight` is 0), so the glass collapses first and lands when it
+   opens. */
 let libraryGlide=null,libraryGlideBox=null;
 function syncLibraryGlide(animate,target){
   const rows=libraryPicker.querySelector('.board-library-rows');
@@ -76,7 +78,7 @@ effects.listen(libraryPicker, 'keydown', event=>{if(event.key==='Escape'){event.
 api('/api/libraries',{signal:effects.signal}).then(data=>{
   if(!effects.isActive)return;
   publishLibraries(data.libraries);
-  const choices=[['','全部媒体库','database'],...data.libraries.map(row=>[row.id,row.name,row.icon||'database'])];
+  const choices=[['','All libraries','database'],...data.libraries.map(row=>[row.id,row.name,row.icon||'database'])];
   const selected=sessionStorage.getItem('peach.library')||'';
   if(!choices.some(row=>row[0]===selected)){
     const matching=data.libraries.filter(row=>row.name===selected);
@@ -85,17 +87,17 @@ api('/api/libraries',{signal:effects.signal}).then(data=>{
     sessionStorage.removeItem('peach.library-label');location.reload();return;
   }
   const current=sessionStorage.getItem('peach.library')||'';
-  const currentName=choices.find(row=>row[0]===current)?.[1]||'全部媒体库';
+  const currentName=choices.find(row=>row[0]===current)?.[1]||'All libraries';
   sessionStorage.setItem('peach.library-label',currentName);
   boardBrand.querySelector('h1').textContent=currentName;
   const libraryMark=glyph=>MEDIA_SOURCE_ICONS[glyph]?.startsWith('data:')?`<img src="${MEDIA_SOURCE_ICONS[glyph]}" alt="">`:icon(MEDIA_SOURCE_ICONS[glyph]||glyph);
   const mark=document.createElement('span');mark.className='mark';mark.setAttribute('aria-hidden','true');
   mark.innerHTML=libraryMark(choices.find(row=>row[0]===current)?.[2]||'database');boardBrand.querySelector('.mark').replaceWith(mark);
-  libraryPicker.innerHTML=`<p>媒体库</p><div class="board-library-rows">${choices.map(([id,name,glyph])=>`<button type="button" data-library="${esc(id)}" aria-pressed="${id===current}"><span class="board-library-avatar">${libraryMark(glyph)}</span><span>${esc(name)}</span></button>`).join('')}</div><footer><button type="button" class="geist-button primary" data-library-manage>管理媒体库</button></footer>`;
-  libraryPicker.querySelectorAll('[data-library]').forEach(button=>effects.handler(button, 'onclick', ()=>{sessionStorage.setItem('peach.library',button.dataset.library);sessionStorage.setItem('peach.library-label',choices.find(row=>row[0]===button.dataset.library)?.[1]||'全部媒体库');location.assign('/')}));
-  effects.handler(libraryPicker.querySelector('[data-library-manage]'), 'onclick', ()=>{libraryFloating.setOpen(false);openDrawer(false);openConfigurationSection('媒体库与入库')});
-  /* 委托在这一列上，不挂在每个按钮身上：菜单每次取回媒体库都整块重画。
-     `pointerover`／`pointerout` 而不是 enter／leave，后两个不冒泡，委托接不到。 */
+  libraryPicker.innerHTML=`<p>Media libraries</p><div class="board-library-rows">${choices.map(([id,name,glyph])=>`<button type="button" data-library="${esc(id)}" aria-pressed="${id===current}"><span class="board-library-avatar">${libraryMark(glyph)}</span><span>${esc(name)}</span></button>`).join('')}</div><footer><button type="button" class="geist-button primary" data-library-manage>Manage media libraries</button></footer>`;
+  libraryPicker.querySelectorAll('[data-library]').forEach(button=>effects.handler(button, 'onclick', ()=>{sessionStorage.setItem('peach.library',button.dataset.library);sessionStorage.setItem('peach.library-label',choices.find(row=>row[0]===button.dataset.library)?.[1]||'All libraries');location.assign('/')}));
+  effects.handler(libraryPicker.querySelector('[data-library-manage]'), 'onclick', ()=>{libraryFloating.setOpen(false);openDrawer(false);openConfigurationSection('Library and imports')});
+  /* Delegated on the column, not on each button: the menu repaints wholesale every time the media library is fetched.
+     `pointerover`/`pointerout` rather than enter/leave; the latter two do not bubble, so delegation never sees them. */
   const libraryRows=libraryPicker.querySelector('.board-library-rows');
   const libraryButtons=[...libraryRows.querySelectorAll('[data-library]')];
   const libraryStore=appSettingsStore();
@@ -122,25 +124,27 @@ const boardToggle=document.querySelector('#filterBtn'),toggleHome=document.creat
 effects.own(()=>toggleHome.remove());
 const boardFoot=document.createElement('div');boardFoot.className='board-sidebar-foot';
 effects.own(()=>boardFoot.remove());
-boardFoot.innerHTML=`<div class="board-theme-toggle" role="group" aria-label="明暗主题"><span class="board-theme-thumb" aria-hidden="true"></span><button type="button" data-board-theme="light" aria-label="浅色主题">${icon('sun')}</button><button type="button" data-board-theme="dark" aria-label="深色主题">${icon('moon')}</button></div>`;
-/* 光晕配色钮和设置钮归一组，明暗键单独一组。展开时从左到右、收起时从上到下
-   均按明暗、配色、设置排列，键盘焦点也沿用同一顺序。
-   字形直接引 `#ri-palette-line`，不走 `icon()`：那一枚是 Remix 的实心路径，`icon()` 拼的是
-   `#i-` 前缀的线条件。它和设置分区「界面」那一枚是同一个意思——这枚钮的弹层底部「详细
-   设置」开的正是那一页，两处说的都是外观，同一个意思本来就只该有一枚字形。 */
-boardFoot.insertAdjacentHTML('beforeend',`<div class="board-foot-actions"><button type="button" class="board-glow-toggle" id="boardGlowBtn" aria-label="光晕配色" aria-haspopup="dialog" aria-expanded="false" aria-controls="boardGlowMenu"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ri-palette-line"/></svg><span class="board-glow-mark" aria-hidden="true"><span class="board-glow-mark-glow"></span><span class="board-glow-mark-accent"></span></span></button></div>`);
+boardFoot.innerHTML=`<div class="board-theme-toggle" role="group" aria-label="Light/dark theme"><span class="board-theme-thumb" aria-hidden="true"></span><button type="button" data-board-theme="light" aria-label="Light theme">${icon('sun')}</button><button type="button" data-board-theme="dark" aria-label="Dark theme">${icon('moon')}</button></div>`;
+/* The glow color button and settings button form one group; the light/dark key stands alone. Both expanding left to right and
+   collapsing top to bottom order by light/dark, color, settings, and keyboard focus follows the same order.
+   The glyph references `#ri-palette-line` directly, not through `icon()`: that one is Remix's solid path, while `icon()`
+ * assembles `#i-`-prefixed outline forms. It means the same as the settings section "Appearance" one: this button's popover
+ * bottom "Detailed settings" opens exactly that page, both speak of appearance, and one meaning should carry one glyph. */
+boardFoot.insertAdjacentHTML('beforeend',`<div class="board-foot-actions"><button type="button" class="board-glow-toggle" id="boardGlowBtn" aria-label="Glow color" aria-haspopup="dialog" aria-expanded="false" aria-controls="boardGlowMenu"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ri-palette-line"/></svg><span class="board-glow-mark" aria-hidden="true"><span class="board-glow-mark-glow"></span><span class="board-glow-mark-accent"></span></span></button></div>`);
 boardFoot.querySelector('.board-foot-actions').append(document.querySelector('#settingsBtn'));
 document.querySelector('#drawer').append(boardFoot);
 boardFoot.querySelectorAll('[data-board-theme]').forEach(button=>effects.handler(button, 'onclick', ()=>{if(button.getAttribute('aria-pressed')==='true')return;transitionTheme(button,()=>{preferencesState.appSettings.theme=button.dataset.boardTheme;preferencesState.saveSettings();applyTheme()})}));
 applyTheme();
-/* 侧栏的光晕配色卡照 boardui.com 右下角那枚「Accent color」：钮上不画字形，画的就是它管的那两样——
-   左上一枚光晕色的圆、右下一枚强调色的圆叠在它上面（`appearance/glow.ts` 的 `paintGlowButton`）。
-   卡的外壳在这里建、由 `wireAnchoredMenu` 锚定与开合，材质与媒体库选择弹层同一条规则；卡里的内容归
-   常驻组件 `glow-picker`（`frontend/src/react/glow-picker/`），由路由树画进来。 */
+/* The sidebar's glow color card follows the "Accent color" button at boardui.com's bottom right: the button paints no glyph
+   but the two things it manages, a glow-color circle upper-left and an accent-color circle layered on it lower-right
+   (`appearance/glow.ts`'s `paintGlowButton`).
+   The card's shell is built here, anchored and opened/closed by `wireAnchoredMenu`, with material on the same rule as the
+   media library selection popover; the content inside belongs to the resident component `glow-picker`
+   (`frontend/src/react/glow-picker/`), rendered in by the route tree. */
 const glowPicker=document.createElement('div');
 glowPicker.className='popmenu board-glow-menu';glowPicker.id='boardGlowMenu';glowPicker.hidden=true;
 glowPicker.setAttribute('popover','manual');glowPicker.setAttribute('role','dialog');
-glowPicker.setAttribute('aria-label','配色');
+glowPicker.setAttribute('aria-label','Palette');
 document.body.append(glowPicker);
 effects.own(()=>glowPicker.remove());
 const glowButton=boardFoot.querySelector('#boardGlowBtn');
@@ -150,15 +154,15 @@ effects.own(wireGlowButton(glowButton));
 void loadGlowPicker({root:glowPicker,store:preferencesState.settingsStore,openDetails:()=>{
   if(!effects.isActive)return;
   glowFloating.setOpen(false);openDrawer(false);
-  void openSettings('外观与导航').then(panel=>{if(effects.isActive)panel.reveal('#homeGlowControls')});
+  void openSettings('Appearance & navigation').then(panel=>{if(effects.isActive)panel.reveal('#homeGlowControls')});
 }}).catch(error=>{if(effects.isActive&&error?.name!=='AbortError')console.error(error)});
-/* 品牌（媒体库选择）与开合键是壳里浮层的锚点，挪进侧栏标题行那个空槽：骨架画好时一次，路由树画上
-   侧栏、换掉骨架时（`attached`）再一次。手机上抽屉收着时开合键回到顶栏原位，抽屉整块不可聚焦。 */
+/* The brand (library select) and toggle keys are the shell overlay's anchors, moved into the empty slot in the sidebar's title row: once when the skeleton paints, and again when the route tree
+   paints the sidebar and swaps the skeleton (`attached`). On phones with the drawer closed the toggle returns to the top bar's original spot, and the drawer block is entirely unfocusable. */
 function placeBrand(){
   if(!effects.isActive)return;
   const head=document.querySelector('#drawerScroll > [data-sidebar-head]'),drawer=document.querySelector('#drawer');
   if(!head)return;
-  boardBrand.setAttribute('aria-label','选择媒体库');
+  boardBrand.setAttribute('aria-label','Select library');
   if(boardBrand.parentElement!==head)head.prepend(boardBrand);
   const expanded=drawer.classList.contains('open'),desktop=!narrowShell();
   if(desktop||expanded){if(boardToggle.parentElement!==head)head.append(boardToggle)}else if(boardToggle.parentElement!==toggleHome.parentElement)toggleHome.after(boardToggle);
@@ -190,18 +194,19 @@ if(/Chrome|Chromium|Edg\//.test(navigator.userAgent)){
     attached.clear();svg.remove();
     if(preferencesState.syncGlassOptics===sync)preferencesState.syncGlassOptics=previousOptics;
   });
-  /* 侧栏开合那 300ms 里（`body` 的 `padding-left` 与抽屉的 `width` 在过渡），抽屉和主区里的
-     玻璃宽度逐帧在变，贴图不跟着画：一张是几毫秒 JS 加一次 PNG 编码，写回 `--glass-optic`
-     又让排在后面的观察器每次读尺寸都强制重排一遍，关注页实测一次开合要画十到十六张，
-     观察器回调合计 95–126ms。过渡期间尺寸变了的那几块先退成同一档的纯模糊，全部停下来
-     再按终态尺寸补画一次。 */
+  /* During the sidebar's 300ms open/close (with `body`'s `padding-left` and the drawer's `width` in transition), the glass
+     widths in the drawer and main area change every frame, and the optics textures cannot keep up: one is a few milliseconds
+     of JS plus a PNG encode per frame, and writing back `--glass-optic` makes the observers later in line force a reflow on
+     every size read; measured on the follows page, one open/close painted ten to sixteen frames with observer callbacks
+     totaling 95 to 126ms. The panes whose size changed during the transition first fall back to that tier's plain blur, and
+     once everything stops, one repaint at final size. */
   let sizing=0;const stale=new Set();
   const sizingEvent=event=>(event.target===document.body&&event.propertyName==='padding-left')
     ||(attached.has(event.target)&&(event.propertyName==='width'||event.propertyName==='height'));
   effects.listen(document, 'transitionrun', event=>{if(sizingEvent(event))sizing++}, true);
   const settleSizing=event=>{
     if(!sizingEvent(event)||!sizing||--sizing)return;
-    // 过渡刚停，补画不等空闲：终态那一帧就该是终态尺寸的贴图。
+    // The transition just ended, so the repaint does not wait for idle: the final frame should already carry the final-size texture.
     stale.forEach(node=>pendingOptics.add(node));stale.clear();flushOptics(null);
   };
   effects.listen(document, 'transitionend', settleSizing, true);effects.listen(document, 'transitioncancel', settleSizing, true);
@@ -220,24 +225,24 @@ if(/Chrome|Chromium|Edg\//.test(navigator.userAgent)){
       const key=`${width}:${height}:${radius}`;if(previous===key)return;
       previous=key;
       map.setAttribute('href',edgeMap(width,height,radius));map.setAttribute('width',width);map.setAttribute('height',height);filter.setAttribute('x','0');filter.setAttribute('y','0');filter.setAttribute('width',width);filter.setAttribute('height',height);
-      /* 模糊排在位移前面：backdrop-filter 是一条流水线，先糊的是身后那片内容，
-         再由边缘法线场把已经糊掉的像素往外挤，边上那圈拉伸就带着颜色一起走。
-         反过来先位移再糊，折射出来的亮边会被第二步抹平，只剩一块均匀磨砂。 */
+      /* Blur comes before displacement: backdrop-filter is a pipeline, first blurring the content behind,
+         then the edge normal field pushes the already-blurred pixels outward, so the stretched rim carries color with it.
+         Displace first and blur second, and the refracted bright edge gets smoothed away by step two, leaving uniform frosted glass. */
       node.style.setProperty('--glass-optic',`blur(14px) url("#${id}")`);node.dataset.opticGlass='true';
     };
     const observer=effects.resize(draw);observer.observe(node);
     attached.set(node,{observer,filter,draw,paint,fallback,optic:node.style.getPropertyValue('--glass-optic'),priority:node.style.getPropertyPriority('--glass-optic'),flag:node.dataset.opticGlass});draw();
   }
-  /* 位移贴图只由宽、高、圆角决定：顶栏那几枚圆钮同一个尺寸，侧栏开合来回也只在两档之间换，
-     画过的按这三个数留着直接复用。 */
+  /* The displacement map depends only on width, height, and radius: the top bar's round buttons share one size, and the sidebar's open and close cycle between only two tiers,
+     so painted ones are kept keyed by these three numbers for direct reuse. */
   const edgeMaps=new Map();
   function edgeMap(width,height,radius){
     const key=`${width}:${height}:${radius}`;const cached=edgeMaps.get(key);
     if(cached){edgeMaps.delete(key);edgeMaps.set(key,cached);return cached}
     const ratio=Math.min(1,600/width,600/height);const w=Math.max(2,Math.round(width*ratio)),h=Math.max(2,Math.round(height*ratio));
-    /* 画布只拿来写一次像素、读一次 PNG，走 CPU 那一种：默认的 GPU 画布在 toDataURL 时要把
-       像素读回来，第一次还得先建 GPU 上下文，冷启动实测单这一下就是一百毫秒上下，之后的
-       重画也时不时要和合成抢 GPU 等几十毫秒。 */
+    /* The canvas is used only to write pixels once and read one PNG, so take the CPU kind: the default GPU canvas must read pixels back at toDataURL,
+       and the first time also has to build a GPU context; cold start measured that alone at about a hundred milliseconds, and later
+       repaints intermittently fight compositing for the GPU for tens of milliseconds. */
     const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{willReadFrequently:true});const pixels=ctx.createImageData(w,h);
     const distance=(x,y)=>{const qx=Math.abs(x-width/2)-(width/2-radius),qy=Math.abs(y-height/2)-(height/2-radius);return Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-radius};
     const depth=Math.min(24,Math.min(width,height)/3);
@@ -250,9 +255,9 @@ if(/Chrome|Chromium|Edg\//.test(navigator.userAgent)){
     edgeMaps.set(key,href);if(edgeMaps.size>24)edgeMaps.delete(edgeMaps.keys().next().value);
     return href;
   }
-  /* 贴图放到空闲时画，先把排队的几块玻璃的尺寸一起量完再统一写：边量边写的话，前一块写进
-     `--glass-optic` 弄脏的样式会让后一块读圆角时当场整树重算。空闲时间用完就把剩下的
-     留到下一段空闲；最多等 300ms，在那之前玻璃用样式表里的纯模糊。 */
+  /* Textures paint at idle: first measure the queued glass pieces' sizes together, then write uniformly; measuring and writing interleaved means a
+     previous piece's `--glass-optic` write dirties styles and the next piece's radius read forces a whole-tree recompute on the spot. Whatever is left when
+     idle time runs out waits for the next idle stretch; cap the wait at 300ms, before which the glass uses the stylesheet's plain blur. */
   const pendingOptics=new Set();let opticsHandle=0;
   const idle=typeof requestIdleCallback==='function';
   function scheduleOptics(){
@@ -280,9 +285,10 @@ if(/Chrome|Chromium|Edg\//.test(navigator.userAgent)){
     for(const [node,{observer,filter}] of attached){
       if(!node.isConnected){observer.disconnect();filter.remove();attached.delete(node)}
     }
-    /* 设置面板左栏那块 `[data-glass-pane]` 挂在 `<body>` 上、不在 `#main` 里，下面那个
-       观察器看不到它；岛第一次画出面板时经 `syncGlassOptics` 叫这里再扫一遍。面板收着时
-       宽高是零，`draw` 直接返回，等 `ResizeObserver` 在它露出来那一帧再画一次贴图。 */
+    /* The settings panel's left column's `[data-glass-pane]` hangs on `<body>` and not inside `#main`, so the observer below
+       cannot see it; the island's first panel render calls this through `syncGlassOptics` to scan again. While the panel is
+ * closed its width and height are zero and `draw` returns directly, waiting for `ResizeObserver` to paint the optics once
+ * more the frame it appears. */
     document.querySelectorAll('.board-filter-frame,.top>.ib,[data-sidebar-drawer],.reviewcontrols,.reviewgroupbar,[data-glass-pane]').forEach(attach);
   };
   preferencesState.syncGlassOptics=sync;

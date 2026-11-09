@@ -1,11 +1,12 @@
-/* 面板里沿用的三样共用控件：Geist Switch（`iconSwitchHtml`）、Geist Select（`selectFieldHtml`）与
- * 自绘拉条（`dialSliderHtml`）。
+/* The three shared controls reused inside panels: Geist Switch (`iconSwitchHtml`), Geist Select (`selectFieldHtml`) and the
+ * self-drawn slider (`dialSliderHtml`).
  *
- * 它们的模板、键盘与动效在 `src/ui-kit/` 一份，首页筛选条、卡片版式和配置页用的是
- * 同一套；这里只给每一枚一个容器，由助手把 HTML 写进去再接线。分段滑块由 `board-controls.ts`
- * 在 body 上的观察器看到新节点时自动接上。
+ * Their templates, keyboard and motion live once in `src/ui-kit/`; the home filter bar, card layout and configuration page
+ * use the same set. This module only gives each one a container; a helper writes the HTML in and wires it. The segmented
+ * slider is auto-wired by the observer `board-controls.ts` keeps on body when it sees new nodes.
  *
- * React 不进这几枚容器的子树：容器里只有 `ref`，没有 JSX 子节点，协调时不会去动助手写下的 DOM。 */
+ * React never enters these containers' subtrees: the containers hold only a `ref`, no JSX children, so reconciliation never
+ * touches the DOM the helper wrote. */
 import { useLayoutEffect, useRef } from 'react';
 
 import {
@@ -16,9 +17,9 @@ import type { Choice } from './settings-panel-api';
 
 const rows = (options: readonly Choice[]): Choice[] => options.map(([value, label, mark]) => mark ? [value, label, mark] : [value, label]);
 
-/** 一组互斥视图。`value` 与上一次画出来的不同、或者面板重新打开（`epoch` 换了）时整块重画：
- *  滑块按新的选中项重新量位置。点选本身不重画，DOM 已经是点完的样子。`variant` 是遗留模板
- *  `iconSwitchHtml` 认的那枚修饰类（主题那组的圆钮、封面那两组的文字档），样式在遗留表里。 */
+/** A set of mutually exclusive views. When `value` differs from what was painted last, or the panel reopens (`epoch` changed), the whole block repaints:
+ *  the slider re-measures its position against the new selection. A click itself does not repaint; the DOM is already in the clicked state. `variant` is the modifier class
+ *  the legacy template `iconSwitchHtml` recognizes (the round knobs of the theme group, the text tiers of the two cover groups); styles live in the legacy sheet. */
 export function IconSwitch({ id, name, legend, options, value, attr, variant, text = false, epoch, onChoose }: {
   id: string; name: string; legend: string; options: readonly Choice[]; value: string;
   attr: string; variant: string; text?: boolean; epoch: number; onChoose(value: string): void;
@@ -41,7 +42,7 @@ export function IconSwitch({ id, name, legend, options, value, attr, variant, te
   return <div id={id} ref={mount} />;
 }
 
-/** 一个下拉。触发器上那一格的内容可由 `decorate` 改写（排序方向那一格叠着两枚箭头）。 */
+/** A dropdown. The trigger cell's content can be rewritten by `decorate` (the sort direction cell stacks two arrows). */
 export function SelectField({ id, label, options, value, disabled = false, busy = false, hidden, describedBy, epoch, onPick, decorate }: {
   id: string; label: string; options: readonly Choice[]; value: string; disabled?: boolean; busy?: boolean;
   hidden?: boolean; describedBy?: string; epoch: number; onPick(value: string): void;
@@ -71,8 +72,8 @@ export function SelectField({ id, label, options, value, disabled = false, busy 
   return <div id={id} ref={mount} hidden={hidden} aria-describedby={describedBy} />;
 }
 
-/** 一行「标签 + 0–max 拉条」。拉条由助手接在标签后面，和标签同为这一行的直接子节点；React 只管
- *  标签那一格。拖动中每一步走 `onStep`，松手、键盘落键才走 `onSettle`。 */
+/** A row of "tag + 0-max slider". The slider attaches after the tag via the helper, a direct child of the row like the tag; React only owns
+ *  the tag cell. While dragging, every step goes through `onStep`; release and keyboard landing go through `onSettle`. */
 export function DialRow({ field, label, max, value, hidden, onStep, onSettle }: {
   field: string; label: string; max: number; value: number; hidden: boolean;
   onStep(value: number): void; onSettle(value: number): void;

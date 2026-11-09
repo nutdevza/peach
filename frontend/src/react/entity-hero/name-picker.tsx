@@ -1,16 +1,19 @@
-/* 名字右边那枚下拉：在这条实体已有的写法里挑一个当统称，或者添一个新的。
+/* The dropdown to the right of the name: pick one of this entity's existing spellings as the common name, or add a new one.
  *
- * 统称由用户自己定。同一个人在库里常有中文、日文、罗马字几种写法，哪一个该顶在标题上是他的
- * 偏好，数据库里没有能推出答案的字段。菜单按名称语言偏好归并已有艺名的写法，读音与损坏条目不列入。
- * 语言切换不触发统一名称操作。这枚下拉恒在，只有一个名字时也在——「她还叫过别的」要有入口，而恰恰是只剩一个
- * 名字的人最需要补。添别名是另一件事，隔一条线摆在末尾。
+ * The common name is the user's call. The same person is often in the library under Chinese, Japanese and romaji spellings,
+ * and which one tops the title is a preference with no field in the database to derive it from. The menu groups existing
+ * stage-name spellings by the name-language preference, excluding readings and corrupted entries. Switching the language
+ * preference does not trigger the unify-name action. The dropdown is always present, even with a single name: "she has gone
+ * by other names" needs an entry point, and precisely the people with only one name need it most. Adding an alias is a
+ * separate matter, set apart at the end behind a divider.
  *
- * 换统称写的是 `entity.canonical_name` 这个真相字段：确认、写回、回执与重进这一页都在壳里
- * （`actions.chooseName`），勾只在服务端换完、页面重画之后才挪。
+ * Changing the common name writes the truth field `entity.canonical_name`: confirm, write-back, receipt and re-entering the
+ * page all happen in the shell (`actions.chooseName`), and the check only moves after the server has changed it and the page
+ * re-rendered.
  *
- * 面板从按钮左缘往右开：往左开的话 260px 的菜单越过名字压在头像上（用户报过）。面板那身
- * 盒子取 BoardUI 的菜单面（`MENU_POPOVER_SURFACE`，同旧锚定菜单 `.popmenu` 的 16px 圆角、
- * 10px 内边距与投影），菜单项的几何写在 `./entity-hero.css`。 */
+ * The panel opens rightward from the button's left edge: opening leftward puts the 260px menu over the name and onto the
+ * avatar (reported by a user). The panel's box takes BoardUI's menu surface (`MENU_POPOVER_SURFACE`, same as the legacy
+ * anchored menu `.popmenu`'s 16px radius, 10px padding and shadow); menu item geometry lives in `./entity-hero.css`. */
 import { useEffect, useRef, useState } from 'react';
 import { Button, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 
@@ -26,18 +29,18 @@ export function NamePicker({ current, choices, onChoose, onAddAlias }: {
 }) {
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
-  /* title 给壳的提示条用（board-controls 只认 [title]），和旧资料卡那枚一样悬停就出字。
-     react-aria 的 Button 不收 title，挂载后直接写到节点上；提示条收起时会把它放回来。 */
-  useEffect(() => { toggle.current?.setAttribute('title', '名字与别名') }, []);
+  /* title is for the shell's tooltip (board-controls only recognizes [title]), showing text on hover like the old profile card's.
+     react-aria's Button does not accept title, so it is written onto the node directly after mount; the tooltip puts it back when dismissed. */
+  useEffect(() => { toggle.current?.setAttribute('title', 'Names and aliases') }, []);
   return (
     <MenuTrigger isOpen={open} onOpenChange={setOpen}>
-      <Button ref={toggle} data-namepick-toggle="" aria-label="名字与别名">
+      <Button ref={toggle} data-namepick-toggle="" aria-label="Names and aliases">
         <Glyph name="chevron-down" />
       </Button>
-      {/* 离按钮 8px：旧锚定菜单 wireAnchoredMenu 就是 anchor.bottom + 8，另两枚弹层也是 8。 */}
+      {/* 8px off the button: the old anchored menu wireAnchoredMenu uses anchor.bottom + 8, and the other two popovers use 8 as well. */}
       <Popover placement="bottom start" offset={8} containerPadding={8} className={MENU_POPOVER_SURFACE}
         data-namepick-menu="">
-        <Menu aria-label="名字与别名" data-namepick-list="">
+        <Menu aria-label="Names and aliases" data-namepick-list="">
           <MenuSection selectionMode="single" disallowEmptySelection selectedKeys={[current]}
             onSelectionChange={(keys) => {
               const chosen = [...(keys as Set<string>)][0];
@@ -51,8 +54,8 @@ export function NamePicker({ current, choices, onChoose, onAddAlias }: {
           </MenuSection>
           <Separator data-namepick-rule="" />
           <MenuSection>
-            <MenuItem id="alias" textValue="添加别名" data-namepick-alias="" onAction={onAddAlias}>
-              <Glyph name="plus" /><span>添加别名…</span>
+            <MenuItem id="alias" textValue="Add alias" data-namepick-alias="" onAction={onAddAlias}>
+              <Glyph name="plus" /><span>Add alias…</span>
             </MenuItem>
           </MenuSection>
         </Menu>

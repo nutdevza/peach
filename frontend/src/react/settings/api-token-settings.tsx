@@ -39,13 +39,13 @@ const URL = '/api/configuration/access/token/rotate';
 
 /** 确认框里那句后果：按这台的访问方式说清哪些设备要重新登录。 */
 export function rotationEffect(mode: AccessState['mode'], paired: boolean): string {
-  const scripts = '用旧口令的脚本和 API 调用会立即失效。';
+  const scripts = 'Scripts and API calls using the old token stop working immediately.';
   const sentence = mode === 'legacy'
-    ? `其他浏览器现在用这串口令登录，会全部退出，需要输入新口令重新登录；本机保持登录。${scripts}`
+    ? `Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.${scripts}`
     : mode === 'open'
-      ? `浏览器不需要登录，不受影响。${scripts}`
-      : `用访问密码登录的浏览器不受影响。${scripts}`;
-  return paired ? `${sentence}另一台电脑要换成同一份口令文件，两台之间才能继续互取复核结果。` : sentence;
+      ? `Browsers without sign-in are unaffected.${scripts}`
+      : `Browsers signed in with the access password are unaffected.${scripts}`;
+  return paired ? `${sentence}another computer needs the same token file for the two to keep exchanging review results.` : sentence;
 }
 
 export function ApiTokenSettings({ initial, mode, receipt }: {
@@ -57,43 +57,43 @@ export function ApiTokenSettings({ initial, mode, receipt }: {
   const queries = useQueryClient();
 
   const rotate = () => void confirmModal({
-    title: '更换访问口令',
+    title: 'Rotate the access token',
     body: rotationEffect(mode, state.paired),
-    confirmLabel: '更换口令',
+    confirmLabel: 'Change token',
     onConfirm: async () => {
       const next = await apiSend<Rotated>(URL, {});
       setState(next); setRotated(next);
       // 口令即登录凭据时设备记录整份清空，列表要重取。
       if (next.mode === 'legacy') void queries.invalidateQueries({ queryKey: ['access-sessions'] });
-      receipt(next.signed_out ? `已更换访问口令，${next.signed_out} 台设备需要重新登录` : '已更换访问口令');
+      receipt(next.signed_out ? `Access token rotated; ${next.signed_out} devices must sign in again` : 'Access token rotated');
     },
   });
 
   return (
-    <Section title="访问口令">
+    <Section title="Access token">
       <Stack>
-        <Help>脚本和 API 调用在 X-Token 请求头里携带访问口令。口令只存在这台电脑上，页面不显示。</Help>
+        <Help>Scripts and API calls carry the access token in the X-Token header. The token stays on this machine and is never shown on the page.</Help>
         {rotated ? (
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex min-w-0 flex-wrap items-end gap-2">
-              <Input className="min-w-0 flex-1" label="新访问口令" value={rotated.token} isReadOnly autoComplete="off" />
-              <Button variant="secondary" aria-label="复制新访问口令"
-                onClick={() => void copy.run('copy', () => navigator.clipboard.writeText(rotated.token), () => receipt('已复制口令'))}>
-                复制口令
+              <Input className="min-w-0 flex-1" label="New access token" value={rotated.token} isReadOnly autoComplete="off" />
+              <Button variant="secondary" aria-label="Copy the new access token"
+                onClick={() => void copy.run('copy', () => navigator.clipboard.writeText(rotated.token), () => receipt('Token copied'))}>
+                Copy token
               </Button>
             </div>
-            {copy.error ? <Help role="status">复制失败，请选中口令复制。</Help> : null}
-            <Note tone="info" title="新口令只显示这一次">
-              已经生效，不用重启。离开本页后不再显示，之后在终端运行 peach token 查看。
+            {copy.error ? <Help role="status">Copy failed; select the token and copy it manually.</Help> : null}
+            <Note tone="info" title="The new token is shown only once">
+              Takes effect immediately, no restart needed. It stops showing once you leave this page; afterwards run peach token in a terminal to see it.
             </Note>
           </div>
         ) : null}
-        {rotated?.relogin ? <Note tone="warning" title="本机需要重新登录">刷新页面后用新口令登录。</Note> : null}
+        {rotated?.relogin ? <Note tone="warning" title="This machine must sign in again">Refresh the page and sign in with the new token.</Note> : null}
         {state.rotatable ? null : <Help>{state.reason}</Help>}
       </Stack>
       {state.rotatable
-        ? <Footer status="更换后立即生效。">
-            <Button variant="secondary" onClick={rotate}>更换口令</Button>
+        ? <Footer status="Takes effect immediately.">
+            <Button variant="secondary" onClick={rotate}>Rotate token</Button>
           </Footer>
         : null}
     </Section>

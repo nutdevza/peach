@@ -1,4 +1,4 @@
-/* media 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* media domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { loadSourceStatus, preferencesState, wireDrag } from './preferences.js';
 import { receiptsState } from './receipts.js';
 import { followState, followViewPath, openFollowDetail } from './follow.js';
@@ -45,9 +45,9 @@ export function repaintDetailPoster(){stageApi()?.repaintPoster()}
 export function openQueue(kind,key,itemId,push,anchor=null,options={}){
   key=+key;
   const same=activeQueue?.kind===kind&&(kind==='playlist'?activeQueue.playlistId:activeQueue.seedId)===key;
-  /* 同一个队列里换条，来处保持打开队列那一刻的那一页：播放列表关掉回列表页并重读。 */
+  /* Switching items within the same queue keeps the origin page from the moment the queue was opened: closing a playlist returns to the list page and refetches. */
   if(push&&!same)writeShell({detailReturnPath:location.pathname+location.search});
-  /* 队列地址取完数才推（`present`），背景按此刻记；同队列换条在详情地址上，沿用上一条的背景。 */
+  /* The queue address is pushed only once its fetch completes (`present`), and the background is recorded at that moment; swapping items within the same queue stays on the details address and keeps the previous item's background. */
   if(push)holdOverlayBackground();
   const queue=kind==='playlist'?{kind,playlistId:key,fresh:true}:{kind,seedId:key,fresh:!same};
   if(options.autoplay)queue.autoplay=true;
@@ -92,14 +92,14 @@ export async function openItem(id,push=true,queue=null,anchor=null,queuePush=fal
   const returnSurfaceReady=hasReturnSurface();
   const needsReturnRestore=detailReturnNeedsRestore||(!push&&!returnSurfaceReady);
   const returnBars=barsContext.type==='item'?detailReturnBarsContext:entityState.cloneBarsContext(currentBarsContext());
-  /* 点进来记当前这一页；后退前进进来按条目记的来处，条目没记（冷启动、深链）就沿用上一次记的。
-     队列从详情里换条也以 push=false 进来（`queuePush`），来处已由 `openQueue` 定好，不在这里取。 */
+  /* On click, record the current page; on back/forward, use the origin the entry recorded, and if the entry recorded none (cold start, deep link) keep the last recorded one.
+     The queue switching entries from details also enters with push=false (`queuePush`), with the origin already set by `openQueue`, not fetched here. */
   if(push)writeShell({detailReturnPath:location.pathname+location.search});
   else if(!queuePush)writeShell({detailReturnPath:takeOverlayReturn()||detailReturnPath});
-  // 条目的背景另记：从页面点进来记这一页，从详情里点开另一条沿用上一条的背景，不嵌套。
+  // An entry's background is tracked separately: entering from a page records that page, opening another item from detail reuses the previous one's background, no nesting.
   if(push)holdOverlayBackground();
-  /* 换详情不进小窗；小窗里放着别的条目也让位（舞台岛判），两个播放器不同时出声。作品详情开着时
-     （队列换卷、相关作品）舞台原地换条，不拆。 */
+  /* Opening details does not enter the mini player; if the mini player holds another entry it yields (decided by the stage island), and the two players never sound at once. While video details is open
+     (queue volume switch, related videos) the stage swaps entries in place without tearing down. */
   if(stageApi()?.showing()!=='item')disposeStage(false,true,{miniplayer:false,preserveQueueRequest:queueRequest});
   writeShell({detailOriginAnchor:origin,detailOriginAbove:above,detailReturnNeedsRestore:needsReturnRestore});
   writeShell({detailReturnBarsContext:returnBars});
@@ -129,15 +129,15 @@ export async function closeItemDetail(){
   await stageExit();
   disposeStage(false,false,{miniplayer:false});writeShell({detailReturnBarsContext:null});clearOverlayBackground();
   writeShell({barsContext:restore||{type:'home',filters:state}});
-  /* 下面没有那一屏、要照地址重建时，管理区不认领写地址、领一个页面打开序号重开，其余认领写地址后要路由树从头重开。 */
+  /* When the screen below is missing and must be rebuilt from the URL, the manage area does not claim the address write, takes a page open counter, and reopens; the rest claim the address write and make the route tree reopen from the start. */
   if(restoreSurface&&navigationState.managedPagePath(new URL(returnPath,location.href).pathname)){navigationState.navigatePath(returnPath);return}
   navigationState.route(returnPath);
   if(restoreSurface)writeShell({pageOpens:pageOpens+1});
-  // 播放列表保留页面，只刷新续播位置和详情里修改的列表内容。
+  // The playlist keeps the page, refreshing only the resume position and the list content changed in the detail.
   else{buildBars();if(location.pathname==='/playlists')rereadPlaylists()}
 }
 
-/** 库外作品在同一个详情舞台打开，来处与关闭行为跟随覆盖条目。 */
+/** Out-of-library videos open in the same detail stage; origin and close behavior follow the overlay entry. */
 export async function openJavMovie(code,push=true){
   if(push){
     writeShell({detailReturnPath:location.pathname+location.search});
@@ -182,7 +182,7 @@ mediaState.stageHost = {
     loadSourceStatus:()=>loadSourceStatus(),offlineReason:key=>preferencesState.offlineReason(key),
   },
   sourceOffline:key=>preferencesState.sourceOffline(key),
-  /* 小窗里的「展开」：同一个播放器搬回这一条的详情，地址与来处照点卡片进来的那一条走。 */
+  /* "Expand" in the mini player: the same player moves back into this item's detail, with the address and origin following the item the card was clicked from. */
   expand:(kind,id,mediaIndex)=>{if(kind==='follow')void openFollowDetail(id,true,mediaIndex);else void openItem(id,true)},
   openItem:id=>void openItem(id),
 };
@@ -200,14 +200,14 @@ mediaState.itemDetailHelpers = {
   tagCandidates:()=>(mediaState.facets&&mediaState.facets.tags)||[],
   sourceOffline:key=>preferencesState.sourceOffline(key),
   offlineReason:key=>preferencesState.offlineReason(key),
-  relatedSkeletonHtml:()=>pageSkeletonHtml('正在读取推荐',{cards:true,className:'related-skeleton'}),
+  relatedSkeletonHtml:()=>pageSkeletonHtml('Loading recommendations',{cards:true,className:'related-skeleton'}),
   mixRelated:seedId=>mixRelated(seedId),
   wireDrag:el=>wireDrag(el),
   wireDragReorder:(root,options)=>wireDragReorder(root,options),
 };
 mediaState.itemDetailActions = {
   close:()=>closeItemDetail(),
-  /* 顶栏的实体上下文跟着画出来的这一条走；队列的地址也在这时推，停在哪一条要等岛定下来。 */
+  /* The top bar's entity context follows the item actually painted; the queue address is pushed at this moment too, while which item to settle on waits for the island. */
   present:item=>{
     writeShell({presentedItem:item});
     const returnBars=detailReturnBarsContext;
@@ -217,8 +217,8 @@ mediaState.itemDetailActions = {
     loadingState.syncPageTitle(location.href);
     buildBars();
   },
-  /* 取数时发现要换去别处：保存过的在线作品转关注详情，队列取不到退回普通详情，播放列表空了
-     回列表页，条目已不在就收起舞台。壳一换舞台，岛这一次挂载就作废。 */
+  /* When fetching reveals the destination lies elsewhere: saved online videos go to follow details, a queue that cannot load falls back to plain details, an emptied playlist
+     returns to the list page, and a gone entry collapses the stage. Once the shell swaps the stage, this island mount is void. */
   redirect:to=>{
     const push=!!pendingQueueRoute;
     if(to.kind==='follow'){
@@ -228,12 +228,12 @@ mediaState.itemDetailActions = {
       void openFollowDetail(to.id,false,null,true);return;
     }
     if(to.kind==='item'){void openItem(to.id,true);return}
-    // 队列地址还没推、人就停在播放列表页上：只重读那一页。
+    // The queue URL has not been pushed and the user is still on the playlist page: re-read only that page.
     if(to.kind==='playlists'){if(push||location.pathname!=='/playlists')openRoutedPage('/playlists');else rereadPlaylists();return}
     disposeStage(false);
   },
   openQueueItem:(queue,id,push=true)=>void openQueue(queue.kind,queue.kind==='playlist'?queue.playlistId:queue.seedId,id,push,null,{autoplay:queue.autoplay}),
-  // 盘回来了就按正常路径重开，不在半路挂播放器；开着的队列跟着留下。
+  // Once the drive is back, reopen through the normal path without mounting the player midway; the open queue stays in place.
   reopen:()=>{
     const it=presentedItem;
     if(!it)return;
@@ -242,7 +242,7 @@ mediaState.itemDetailActions = {
     else void openItem(it.id,false);
   },
   checkSource:async key=>(await loadSourceStatus())[key]!==false,
-  /* 直接进「已保存」这一档。关注页的筛选照地址推导，所以状态要先写进地址，光设全局会被推回未看。 */
+  /* Enter the "saved" tier directly. The follow page's filters are derived from the address, so the state must be written into the address first; setting only the global gets pushed back to unseen. */
   openSavedFollow:()=>{
     followState.followAuthors=new Set();followState.followProviders=new Set();followState.followTags=new Set();followState.followWorks=new Set();followState.followMediaView='videos';
     followState.followDurMin=followState.followDurMax=0;followState.followFilter='saved';openRoutedPage(followViewPath())},
@@ -256,8 +256,8 @@ mediaState.itemDetailActions = {
   openPlaylists:()=>openRoutedPage('/playlists'),
   reveal:id=>revealForIsland(id),
   sync:id=>syncForIsland(id),
-  /* 「垃圾文件」那一档（`state=ads`）按回收站状态列：移进回收站的这一条要从列表里消失，撤销
-     任何一次反馈之后列表也重读一遍。别的列表不受影响。 */
+  /* The "Junk files" tier (`state=ads`) lists by trash state: an entry moved to trash must disappear from the list, and undoing
+     any piece of feedback re-reads the list too. Other lists are unaffected. */
   trashChanged:async(disposal,undo)=>{
     if(state.state!=='ads')return;
     if(!undo&&disposal!=='trash')return;
@@ -272,7 +272,7 @@ mediaState.immerseHost = {
   seekSeconds:()=>preferencesState.appSettings.seekSeconds,
   sourceOffline:key=>preferencesState.sourceOffline(key),
   displayName:it=>javDisplayName(it),
-  /* 每换一条用 replace 写地址：每划一下都往历史里塞一条，后退键就废了。 */
+  /* Write the address with replace on every item change: one history entry per swipe would break the back key. */
   route:id=>navigationState.route('/immerse?id='+id,true),
   closed:()=>goHome(),
   openItem:id=>void openItem(id),

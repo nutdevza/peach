@@ -1,18 +1,18 @@
-/* 骨架：整块占位、索引占位、配置页占位，落进 DOM 后按实际尺寸补齐，过了显示门槛才露面，
-   到货时把占位换成真内容。由共享源码直接引用，随 `peach-app.js` 发出。 */
+/* Skeletons: whole-block, index and configuration-page placeholders; they fill in to actual size after entering the DOM, appear past the visibility threshold,
+   and swap for real content when data arrives. Referenced directly from shared source and shipped with `peach-app.js`. */
 import { esc } from '../core';
 import { tagSkeletonHtml } from '../tag-skeleton';
 
 /**
- * 占位换成真内容：旧的那一屏抬成盖在容器上的一层淡出，新内容同时从模糊里清晰起来。
+ * Swap the placeholder for real content: the old screen lifts into a layer over the container and fades out, while new content sharpens from blur.
  *
- * `write()` 负责把新内容写进 `container`。容器里没有骨架时直接写，不套这一层——
- * 翻页、筛选这类「内容换内容」不属于这条动效，套上去每换一次筛选整页都糊一下。
+ * `write()` is responsible for writing new content into `container`. Without a skeleton in the container, write directly and skip this layer;
+ * page changes and filtering, content-for-content swaps, do not belong to this effect, and wrapping them would blur the whole page on every filter change.
  */
 export function revealSkeleton(container:any,write:()=>void):void{
   if(!container)return;
-  /* 还没到显示门槛就已经取完：直接落内容。隐藏中的占位从未被人看见，不该为了它再
-     播一段「骨架退场」；这也让很快的本地请求完全没有骨架闪烁。 */
+  /* The fetch finished before the visibility threshold was reached: drop the content in directly. A placeholder that was never seen should not get
+     a "skeleton exit" animation; this also removes skeleton flicker entirely for fast local requests. */
   if(container.querySelector('.skeleton-awaiting')){write();return}
   const hasSkeleton=container.querySelector('.skeleton,[data-skeleton],.skeletoncard,.countskeleton');
   if(!hasSkeleton||!container.firstChild){write();return}
@@ -32,23 +32,23 @@ export function revealSkeleton(container:any,write:()=>void):void{
 }
 
 export function configurationSkeletonHtml():string{
-  const groups:[string,number][]=[['通用',2],['媒体',2],['下载',2],['网络与访问',3],['维护',3]];
-  return `<div class="ui-configpage" data-skeleton="configuration" role="status" aria-label="正在读取配置">${groups.map(([label,count])=>`<h2 class="ui-configgroup" aria-hidden="true">${label}</h2>${Array.from({length:count},()=>`<div class="configfieldset config-skeleton-card" aria-hidden="true"><div class="geist-fieldset-content"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div><footer class="geist-fieldset-footer"><span class="skeleton"></span></footer></div>`).join('')}`).join('')}</div>`;
+  const groups:[string,number][]=[['General',2],['Media',2],['Download',2],['Network & access',3],['Maintenance',3]];
+  return `<div class="ui-configpage" data-skeleton="configuration" role="status" aria-label="Loading configuration">${groups.map(([label,count])=>`<h2 class="ui-configgroup" aria-hidden="true">${label}</h2>${Array.from({length:count},()=>`<div class="configfieldset config-skeleton-card" aria-hidden="true"><div class="geist-fieldset-content"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div><footer class="geist-fieldset-footer"><span class="skeleton"></span></footer></div>`).join('')}`).join('')}</div>`;
 }
 
 /** Geist Skeleton: reserve a large content region while its structure is loading. */
-/* `count` 只对 cards 生效：块数是骨架说出口的结构预告，六块对上的是海报网格，
-   而行政界面往往只有两三个大区。多画的块加载完就消失，那不是占位是误报。
-   `cardRatio` 是卡片封面的宽高比，交给调用方按真卡的版式给：大图版式的正封是竖的，
-   骨架照 16:9 铺的话，内容一到整屏卡片都要被拉高一截。 */
-export function skeletonHtml(label='正在读取内容',{className='',variant='panel',count=6,fill=true,gridClass='',gridSize='',cardRatio=0}={}):string{
+/* `count` only applies to cards: the block count is a structural promise the skeleton makes out loud; six blocks correspond to the poster grid,
+   while admin screens often have only two or three large regions. Extra blocks vanish once loading finishes; that is not a placeholder but a false report.
+   `cardRatio` is the card cover's aspect ratio, given by the caller to match the real card layout: the front cover in the large-image layout is portrait;
+   if the skeleton lays out at 16:9, once content arrives every full-width card gets stretched taller. */
+export function skeletonHtml(label='Loading content',{className='',variant='panel',count=6,fill=true,gridClass='',gridSize='',cardRatio=0}={}):string{
   const kind=new Set(['panel','cards','dashboard']).has(variant)?variant:'panel';
   const body=kind==='cards'
     ?Array.from({length:Math.max(1,count)},
       ()=>`<span class="skeletoncard"><i></i><s></s><b></b><em></em><u></u></span>`).join('')
     :kind==='dashboard'
-      /* 指标带是统计与口味两页真正的第一屏内容，四格的位置和高度都是定死的。
-         骨架从大区开始画，等数据到货再从上面挤进一条 96px 的带子，整页往下跳一次。 */
+      /* The metrics band is the real first-screen content of both the statistics and taste pages, with the four cells' positions and heights fixed.
+         If the skeleton starts with the big sections and the 96px band squeezes in from the top when data arrives, the whole page jumps down once. */
       ?`<span class="ui-skeletondashstrip">${Array.from({length:4},
           ()=>`<span><i></i><b></b><em></em></span>`).join('')}</span>
         <span class="ui-skeletondashhero"><i></i><b></b></span>
@@ -58,8 +58,8 @@ export function skeletonHtml(label='正在读取内容',{className='',variant='p
       <span class="skeleton" style="width:100%"></span>
       <span class="skeleton" style="width:100%"></span>
       <span class="skeleton" style="width:72%"></span>`;
-  /* data-skeleton 是这张骨架的身份。深链启动先画一张、路由到位后各页再画一张，
-     整页刷新就会连闪两段动画；调用方拿这个键判断「已经是同一张了」，跳过重画。 */
+  /* data-skeleton is this skeleton's identity. A deep-link start draws one, then each page draws another once routing settles,
+     so a full reload would flash two animations in a row; callers use this key to recognize "already the same one" and skip the redraw. */
   return `<div class="skeletonpanel skeleton-${kind}${className?` ${esc(className)}`:''}"
     data-skeleton="${esc(kind)}${className?`/${esc(className)}`:''}"${kind==='cards'&&fill?' data-fill=""':''}
     role="status" aria-label="${esc(label)}"><span class="sr-only">${esc(label)}</span>
@@ -67,21 +67,21 @@ export function skeletonHtml(label='正在读取内容',{className='',variant='p
       kind==='cards'&&Number(cardRatio)>0?` style="--skeleton-card-ratio:${Number(cardRatio)}"`:''} aria-hidden="true">${body}</div></div>`;
 }
 
-/** 索引占位复用最终网格、头像和词表的尺寸。 */
-/** 索引页的占位：名册网格、字母表或标签云，尺寸取最终那一副。首屏和页内换档共用这一份。 */
+/** The index placeholder reuses the sizes of the final grid, avatars, and word list. */
+/** The index page placeholder: roster grid, alphabet, or tag cloud, sized to the final layout. The first screen and in-page switching share this one. */
 export function indexSkeletonHtml({kind,layout='big',mode='alphabet'}:{kind?:string;layout?:string;mode?:string}={}):string{
   if(kind==='tags')return tagSkeletonHtml({ mode });
   const company=kind==='studios'||kind==='agencies'||kind==='series';
   const cell='<span class="icell"><span class="ring skeleton"></span><span class="nm skeleton">&nbsp;</span><span class="n skeleton">&nbsp;</span></span>';
   const body=`<div class="igrid" data-cells="${company?'company':'people'}" data-layout="${esc(layout)}">${cell.repeat(12)}</div>`;
-  const label='正在读取索引';
+  const label='Loading the index';
   return `<div class="skeletonpanel index-skeleton" data-skeleton="index/${esc(kind)}/${esc(layout)}/${esc(mode)}" data-fill=""
     role="status" aria-label="${label}"><span class="sr-only">${label}</span><section aria-hidden="true">${body}</section></div>`;
 }
 
-/* 骨架的枚数由容器当下的宽度决定，不写死一个数：横向一行铺到右缘为止，网格补满
-   整行。写死的话宽屏最后一行留一截豁口，窄屏和手机端又多出一堆要横滑才看得见的
-   占位；算出来就不必再为断点各写一套。宽度序列只是让胶囊长短不一，像真词。 */
+/* The skeleton's count is decided by the container's current width, not hardcoded: a horizontal row lays to the right edge, and the grid fills
+   the whole row. Hardcoding would leave a gap in the last row on wide screens and a pile of placeholders on narrow screens and mobile that only appear by
+   horizontal scrolling; computing it spares per-breakpoint variants. The width sequence only varies the pills' lengths, like real words. */
 const SKELETON_SLOT:Record<string,(width:number)=>string>={
   av:()=>`<span class="av avskeleton"><span class="ring"></span><span class="nm">&nbsp;</span></span>`,
   brandpill:width=>`<span class="brandpill brandskeleton" style="width:${width}px"><span class="mk"></span></span>`,
@@ -95,9 +95,9 @@ const SKELETON_SLOT_WIDTHS:Record<string,number[]>={
   'filter-pill':[92,68,104,76,88,64,96,72,100,80,68,92,76,84],
 };
 
-/* 低于这一段的请求直接显示内容。Peach 的数据多在本机，立即把占位画出来会让几十毫秒的
-   正常读取看成一次闪烁；超过门槛才说明页面确实需要等待。只藏最外层占位，内部结构仍先
-   参与布局和 fit 计算，因此真正出现时不会再重排。 */
+/* Requests under this threshold show content directly. Peach's data is mostly local, and immediately painting a placeholder would make a tens-of-milliseconds
+   normal read look like a flicker; past the threshold means the page truly needs to wait. Only the outermost placeholder hides; the inner structure still
+   participates in layout and fit computation, so no reflow when it actually appears. */
 export const SKELETON_REVEAL_DELAY=180;
 const SKELETON_REVEAL_SELECTOR='[data-skeleton],[data-skeleton-tier],.countskeleton';
 function armSkeletonReveal(root:any){
@@ -106,14 +106,14 @@ function armSkeletonReveal(root:any){
     ...root.querySelectorAll(SKELETON_REVEAL_SELECTOR)];
   const targets=all.filter(node=>!all.some(parent=>parent!==node&&parent.contains(node)));
   for(const target of targets){
-    /* 主动导航立即反馈；冷启动仍沿用短请求不闪骨架的门槛。 */
+    /* Active navigation gives instant feedback; cold start still uses the short-request no-skeleton-flash threshold. */
     if(target.closest('[data-page-navigation-pending]')){
       target.dataset.skeletonReveal='shown';
       target.classList.remove('skeleton-awaiting');
       continue;
     }
-    /* 已经武装过的跳过这一枚就好。写 `return` 会让同一批里排在它后面的占位
-       一个都拿不到延迟标记，补进来的那半屏骨架直接闪出来。 */
+    /* For ones already armed, just skip this one. Writing `return` would leave every placeholder after it in the same batch
+       without the delay marker, and the backfilled half screen of skeleton would flash straight in. */
     if(target.dataset.skeletonReveal)continue;
     target.dataset.skeletonReveal='pending';
     target.classList.add('skeleton-awaiting');
@@ -126,12 +126,12 @@ function armSkeletonReveal(root:any){
 }
 
 const SKELETON_TIER_LIMIT=64;
-/* 横向骨架铺到溢出容器右缘为止。每量一次宽度就是一次整页布局，逐枚追加、逐枚量的话一排
-   要布局十几二十次，冷启动实测一排一百多毫秒。所以按轮来：先铺一轮宽度序列，量一次，按
-   量到的平均宽度把缺的那截一次补齐，再量一次确认。几排走同一轮，先全量再全写，合起来也
-   只布局这几次。上限只是死循环的护栏。 */
+/* Horizontal skeletons lay out only up to the overflow container's right edge. Every width measurement is a full page layout; appending and measuring one by one
+   would lay out one row a dozen-plus times, and cold start measured over a hundred milliseconds per row. So go by rounds: lay out one round of width sequence,
+   measure once, fill the missing stretch in one go using the measured average width, then measure once to confirm. Several rows share one round; measure-all then write-all,
+   so only these few layouts happen in total. The cap is only a runaway-loop guard. */
 function fillSkeletonTiers(jobs:any[]){
-  /* 同一排会再补一次（名单到了、容器改宽）：已经越过右缘的那排不再追加。空排不必先量。 */
+  /* The same row gets one more pass (the roster arrived, the container got wider): rows already past the right edge get no more appends. Empty rows skip measuring. */
   jobs=jobs.filter(job=>job.row&&SKELETON_SLOT[job.kind]&&(!job.row.children.length||job.row.scrollWidth<=job.row.clientWidth))
     .map(job=>({...job,start:job.row.children.length,added:0}));
   const add=(job:any,count:number)=>{
@@ -154,20 +154,20 @@ function fillSkeletonTiers(jobs:any[]){
 }
 export function fillSkeletonTier(row:Element|null,kind:string):void{fillSkeletonTiers([{row,kind}])}
 
-/** 骨架落进 DOM 之后按实际尺寸补齐：横向一行铺满，卡片网格补到整行且盖住视口余量。 */
+/** After the skeleton lands in the DOM it fills out to actual size: one full horizontal row, and the card grid extends to whole rows while covering the viewport remainder. */
 export function fitSkeleton(root:any):void{
   if(!root)return;
   const scoped=(selector:string):HTMLElement[]=>[...(root.matches?.(selector)?[root]:[]),...root.querySelectorAll(selector)];
   fillSkeletonTiers(scoped('[data-skeleton-tier]').map(row=>({row,kind:row.dataset.skeletonTier})));
   for(const grid of scoped('.skeletonpanel[data-fill]>div,.index-skeleton[data-fill]>section>div')){
     const first=grid.firstElementChild,style=getComputedStyle(grid);
-    /* 横排的推荐行不是网格，列数无从谈起，按整行补会把它裁成一张。 */
+    /* The horizontal recommendation row is not a grid, so column count is meaningless; padding by whole rows would collapse it into a single one. */
     if(!first||style.display!=='grid')continue;
     const columns=style.gridTemplateColumns.split(' ').filter(Boolean).length;
     const rowGap=parseFloat(style.rowGap)||0,cardHeight=first.getBoundingClientRect().height;
     if(!columns||!cardHeight)continue;
-    /* 骨架说的是「这块地方等下会被填满」，所以铺到视口下沿；四行是护栏，
-       再多也是一屏之外看不见的占位，白占动画。 */
+    /* The skeleton's message is "this area will be filled shortly", so it lays down to the viewport's bottom edge; four rows are the guardrail,
+       beyond that are invisible off-screen placeholders wasting animation. */
     const room=window.innerHeight-grid.getBoundingClientRect().top;
     const rows=Math.max(1,Math.min(4,Math.ceil((room+rowGap)/(cardHeight+rowGap))));
     const want=columns*rows;

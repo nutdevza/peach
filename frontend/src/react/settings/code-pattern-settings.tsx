@@ -1,9 +1,10 @@
-/* 「番号识别规则」：内置规则认不出的命名，由使用者写正则补上。
+/* "Code recognition rules": for naming the built-in rules cannot recognize, the user writes regexes.
  *
- * 一行一条，对完整文件名搜索，不分大小写；番号取命名组 `code`，没有就取第一个括号，
- * 再没有就取整段匹配。取出来的那段仍要是番号的样子（`catalog_rules.compile_code_patterns`）。
- * 规则跟着账本走（`/api/settings` 的 `codePatterns`），下一次「处理」时对还没有番号的视频生效。
- * 校验只在服务端：写错的那一条在保存时报回来，前端不复制一份正则判定。 */
+ * One per line, searched against the full file name, case-insensitive; the code is taken from the named group `code`, else
+ * the first parenthesized group, else the whole match. What is extracted must still look like a code
+ * (`catalog_rules.compile_code_patterns`). Rules follow the ledger (`/api/settings`'s `codePatterns`) and take effect on
+ * videos without a code at the next "Process". Validation is server-side only: a broken line is reported back on save, and
+ * the frontend keeps no regex judgment of its own. */
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -20,7 +21,7 @@ const PLACEHOLDER = '^\\+{3}\\s*(?<code>FC2-PPV-\\d+)\n\\[(?<code>[A-Z]+-\\d+)\\
 
 export function CodePatternSettings({ receipt }: { receipt(message: string): void }) {
   const settings = useQuery({ queryKey: SETTINGS_KEY, queryFn: ({ signal }) => fetchSettings(signal) });
-  /* 没动过时显示账本里那一份；改过就是本地草稿，保存成功后丢掉草稿、回到账本那一份。 */
+  /* Untouched shows the ledger copy; once edited it is a local draft, and after a successful save the draft is dropped in favor of the ledger copy. */
   const [draft, setDraft] = useState<string | null>(null);
   const action = useAction();
   const value = draft ?? (settings.data?.codePatterns ?? []).join('\n');
@@ -34,21 +35,21 @@ export function CodePatternSettings({ receipt }: { receipt(message: string): voi
       (saved) => {
         queryClient.setQueryData(SETTINGS_KEY, saved);
         setDraft(null);
-        receipt('已保存配置');
+        receipt('Configuration saved');
       });
   };
 
   return (
-    <Section guide="codes" title="番号识别规则" onSubmit={submit}>
+    <Section guide="codes" title="Code recognition rules" onSubmit={submit}>
       <Stack>
-        <Help>内置规则认不出番号时，按这里的规则从文件名里取。每行一条正则表达式，番号写在 (?&lt;code&gt;…) 里，没有命名组就取第一个括号。规则在下一次处理时对还没有番号的视频生效。</Help>
-        <Textarea id="codePatternSetting" aria-label="番号识别规则" rows={3} autoResize maxRows={12}
+        <Help>When the built-in rules cannot recognize a code, it is taken from the file name by the rules here. One regular expression per line; write the code in (?&lt;code&gt;...), and without a named group the first parenthesized group is used. Rules take effect on the next processing run, for videos that do not have a code yet.</Help>
+        <Textarea id="codePatternSetting" aria-label="Code recognition rules" rows={3} autoResize maxRows={12}
           spellCheck="false" autoComplete="off" placeholder={PLACEHOLDER} value={value}
           isDisabled={!settings.data} isInvalid={!!failure} hint={failure || undefined}
           onChange={setDraft} />
       </Stack>
       <Footer>
-        <Button type="submit" {...busyProps(action.busy === 'save')}>保存配置</Button>
+        <Button type="submit" {...busyProps(action.busy === 'save')}>Save configuration</Button>
       </Footer>
     </Section>
   );

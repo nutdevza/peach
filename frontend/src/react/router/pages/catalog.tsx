@@ -37,8 +37,8 @@ import { removeWallBootSkeleton } from '../../video-wall/wall-boot';
 
 const readOpens = () => pageOpens;
 
-/* 每一次历史变化认没认领、变化之前在哪一条路径上。模块一装载就听，排在路由根之前：路由根同步提交那一次读到的
-   已经是这一次。`initialSeq` 是装载那一刻的序号，挂上时序号还是它，说明路由根是装上那一下挂的这一页。 */
+/* Whether each history change was claimed, and which path it was on before the change. Listening starts at module load, ahead of the route root: what the route root's synchronous commit reads
+   is already this change. `initialSeq` is the sequence number at load; if the mounted sequence number still equals it, the route root mounted this very page on attach. */
 const initialSeq = peachHistory.navigation.seq;
 let epoch = peachHistory.navigation.openEpoch;
 let here = peachHistory.navigation.location.pathname;
@@ -49,11 +49,11 @@ peachHistory.listen((navigation) => {
   here = navigation.location.pathname;
 });
 
-/* 首页上的 `?state=ads` 改写成垃圾文件地址那一下：垃圾文件那一页的元素挂上时取走，整页打开。 */
+/* The moment the home page's `?state=ads` is rewritten into the junk files URL: taken away when the junk files page's element mounts, opening the full page. */
 let junkRedirect = false;
 
-/** 元素上一次处理到哪儿：序号、页面打开序号、重开次数，那一刻有没有详情压着、页面组画的是哪一份地址与哪一套筛选，
- *  这一页开过没有。 */
+/** Where the element last got to: its index, page-open sequence, reopen count, whether details was pressed over it at that moment, which address and which filter set the page group rendered,
+ *  and whether this page had been opened. */
 interface Seen {
   seq: number;
   epoch: number;
@@ -75,7 +75,7 @@ function seen(opened: boolean): Seen {
   };
 }
 
-/** 按地址重建的目录筛选，同壳启动时那一份的写法；回收站只钉死状态、清掉别的筛选。产地与缩略图不随地址重读。 */
+/** Catalog filters rebuilt from the URL, written the same way as the shell's startup copy; the trash pins the status only and clears the other filters. Origin and thumbnails are not refetched from the URL. */
 function filtersAt(pathname: string, search: string, entering: boolean, shell: CatalogShell): CatalogFilters {
   const previous: CatalogFilters = { ...state };
   const restored = restoredPageState<CatalogFilters>('catalog');
@@ -101,7 +101,7 @@ function filtersAt(pathname: string, search: string, entering: boolean, shell: C
   };
 }
 
-/** 点击后先展示目标骨架并按页面定位；历史恢复等已加载分页落地后再定位。 */
+/** After clicking, first show the target skeleton and position by page; for history restoration, position after the loaded pagination lands. */
 function openCatalog(load: () => void | Promise<void>): void {
   const seq = peachHistory.navigation.seq;
   rememberPageState('catalog', { ...state });
@@ -112,7 +112,7 @@ function openCatalog(load: () => void | Promise<void>): void {
   void Promise.resolve(loading).then(() => pageNavigationReady(current, results()));
 }
 
-/** 判断这一轮做哪一件，做掉；`mark` 换成这一刻。 */
+/** Which one this judgment round performs, and it performs it; `mark` becomes this moment. */
 function settle(mark: Seen, actions: ShellActions): void {
   const was = { ...mark };
   const now = seen(was.opened);
@@ -158,7 +158,7 @@ function CatalogOpen() {
     const own = live.current;
     own.mounted = true;
     const now = seen(!isOverlayPath(peachHistory.navigation.location.pathname));
-    /* 挂上这一刻就记下：之后壳在同一轮里要求重开（`pageOpens` 加一），微任务里比得出来。 */
+    /* Record at mount time: if the shell then asks for a reopen in the same round (`pageOpens` incremented), a microtask comparison can tell the two apart. */
     if (!now.covered && now.opens > 0) {
       if (junkRedirect || last.seq === initialSeq) now.opens = -1;
       else if (!last.claimed) now.epoch = -1;
@@ -168,7 +168,7 @@ function CatalogOpen() {
     return () => {
       own.mounted = false;
     };
-    // 每次挂上只登记一次；之后的变化由下面那一格排进微任务。
+    // Registers once per mount; later changes are queued into a microtask by the cell below.
   }, []);
   useEffect(() => {
     const own = live.current;
@@ -182,8 +182,8 @@ function CatalogOpen() {
   return null;
 }
 
-/** 目录六条路径共用的元素：首页、三个筛选态与回收站一个 key，垃圾文件另一个；页面组按背景匹配时取背景那一页。
- *  覆盖地址的参数不是数字（`/assets/abc`）时什么都不挂：那不是一条详情，下面也不补画。 */
+/** The element shared by the catalog's six paths: home, three filtered states, and trash share one key; junk files gets another; when the page group matches by background it takes the background's page.
+ *  When the address-override parameter is not numeric (`/assets/abc`), nothing mounts: that is not a details entry, and nothing is painted beneath either. */
 export function CatalogMatch() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
@@ -206,7 +206,7 @@ export function CatalogMatch() {
   </>;
 }
 
-/** JAV 页头常驻；壳在目标内容提交时切换显隐，路由取数期间不拆掉旧页头。 */
+/** The JAV header is persistent; the shell toggles its visibility when the target content commits, and the old header isn't torn down during routing fetches. */
 export function CatalogChrome() {
   const actions = useContext(ShellActionsContext);
   const host = document.getElementById('javLibraryHeader');

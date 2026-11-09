@@ -1,14 +1,14 @@
-/* 组件可提前绑定覆盖式滚动条；全站增量入口会接管未显式绑定的滚动区。 */
+/* Components can bind the overlay scrollbar early; the site-wide incremental entry takes over any scroll area not explicitly bound. */
 import { useEffect, useRef } from 'react';
 
 import { attachOverlayScrollbar } from '@peach/legacy/ui';
 
-/** 会滚的元素的 ref。普通内容区的轨道与容器同级，定位浮层的轨道由自身承载。 */
+/** Ref to the scrolling element. In plain content areas the track is a sibling of the container; a positioned overlay's track is carried by itself. */
 export function useOverlayScrollbar<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const owned = useRef<{ node: T; control: ReturnType<typeof attachOverlayScrollbar> } | null>(null);
-  /* 每次渲染都试一次，不给依赖数组：`attachOverlayScrollbar` 自带「已挂过」标记，
-     而这一块常常是内容到位的那一次渲染才出现在 DOM 里。 */
+  /* Try on every render, with no dependency array: `attachOverlayScrollbar` carries its own "already attached" flag,
+     and this block often only enters the DOM on the render where the content has landed. */
   useEffect(() => {
     if(owned.current?.node===ref.current)return;
     owned.current?.control?.destroy();

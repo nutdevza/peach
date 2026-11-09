@@ -1,7 +1,7 @@
-/* 媒体修复的数据层：任务快照与可选的媒体库，两份都进共用的 Query 缓存。
+/* Media repair's data layer: the task snapshot and optional libraries, both into the shared Query cache.
  *
- * 一轮要跑几十分钟到几小时，跑到哪一步由服务自己记，页面关掉再回来照样接得上。
- * 首屏两份一起取，卡片挂上去直接读缓存。 */
+ * One run takes tens of minutes to hours; the service records its own progress, and closing and returning to the page reconnects.
+ * First screen fetches both together, and the card reads the cache directly on mount. */
 import { apiGet } from '../../api';
 import { queryClient } from '../query';
 import { t } from '../../i18n';
@@ -28,7 +28,7 @@ export interface MediaRepairState {
 export interface RepairLibrary {
   id: string;
   name: string;
-  /** 媒体库图标：来源名（`115`、`pikpak`、`local`）或雪碧图字形名，与侧栏媒体库切换器同一份。 */
+  /** Library icon: a source name (`115`, `pikpak`, `local`) or a sprite glyph name, the same copy as the sidebar's library switcher. */
   icon: string;
   metered: boolean;
 }
@@ -50,12 +50,12 @@ export async function prefetchMediaRepair(signal: AbortSignal): Promise<void> {
 
 const count = (value: number) => Number(value).toLocaleString();
 
-/** 一句话说清此刻在干什么：扫描报进度，修复报进度加当前这部片。 */
+/** One sentence saying what is happening now: scanning reports progress, repair reports progress plus the current title. */
 export function statusLine(state: MediaRepairState): string {
   if (state.status === 'running') {
-    // 服务端偶尔报出超过总数的已查数，按总数封顶。
+    // The server occasionally reports a checked count above the total; cap it at the total.
     const where = state.total ? `${count(Math.min(state.checked || 0, state.total))} / ${count(state.total)}` : t('cleanup:mediaRepair.preparing');
-    return state.stage === '修复' && state.message
+    return state.stage === 'Repair' && state.message
       ? t('cleanup:mediaRepair.repairingProgress', { progress: where, name: state.message })
       : `${state.stage || t('cleanup:mediaRepair.scanStage')} ${where}`;
   }

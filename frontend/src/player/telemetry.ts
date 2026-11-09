@@ -1,5 +1,5 @@
-/* 观看上报：作品走 `/api/activity`，关注条目走 `/api/follow/activity`，都是十秒一次加暂停、结束
- * 与换源时各冲一次。 */
+/* Watch reporting: videos go to `/api/activity`, follow entries to `/api/follow/activity`, both every ten seconds plus a flush on pause, on end,
+ *  and on source change. */
 import { api, realDuration } from '@peach/legacy/core';
 
 import type { PlayerItem } from './types';
@@ -33,25 +33,26 @@ function lifecycle(video: HTMLVideoElement, flush: (ended: boolean) => void, sto
 }
 
 export interface TelemetryOptions {
-  /** 侧栏「离开位置」那条的三个节点（进度条、刻度与百分比）；不给就不画。 */
+  /** The three nodes of the sidebar's 'left off' row (progress bar, tick and percentage); nothing renders when they are missing. */
   watched?: string;
   mark?: string;
   ratio?: string;
-  /** 放完之后要做的事（沉浸模式接着放下一条）。 */
+  /** What to do after playback ends (immersive mode goes on to the next one). */
   onEnded?: () => void;
 }
 
-/** 作品的观看上报。
+/** Watch reporting for videos.
  *
- *  同一个 -1 哨兵：`it.duration||v.duration||0` 对 -1 求值仍是 -1，通过了真值判断，于是
- *  currentTime/-1 得到负比例，面板上就是「离开位置 -3320%」。后端 w_activity 有 `dur > 0` 守卫，
- *  脏比例不会进数据库；坏的只是显示。
+ *  The same -1 sentinel: `it.duration||v.duration||0` evaluated against -1 is still -1, which passes the truthiness check, so
+ *  currentTime/-1 yields a negative ratio and the panel shows a leave position of -3320%. The backend w_activity has a
+ *  `dur > 0` guard, so the dirty ratio never reaches the database; only the display was broken.
  *
- *  十秒一次的上报只有一个定时器。onplay 每次新起一个而只有 onpause 清的话，「播放→拖动→播放」
- *  这类不经过 pause 的序列会把定时器叠起来；更要紧的是离开详情时既不 pause 也不 ended，
- *  setInterval 连着已被销毁的 video 一直跑，每十秒往 /api/activity 打一发。所以 `emptied` 收尾，
- *  拆播放器时 `disposePlayer` 同步冲掉最后一段再整组摘掉。处理器挂在 `on*`
- *  属性上，播放器从舞台搬进小窗时表不停。 */
+ *  The ten-second report has one timer. If onplay started a new one each time and only onpause cleared it, sequences like
+ *  "play, seek, play" that never pass through pause would stack timers; more importantly, leaving details fires neither pause
+ *  nor ended, and the setInterval kept running against a destroyed video, hitting /api/activity every ten seconds. So
+ *  `emptied` wraps up, and `disposePlayer` synchronously flushes the last segment and removes the whole group when the player
+ *  is dismantled. Handlers hang on `on*` properties, so the report never stops while the player moves from stage into mini
+ *  player. */
 export function wireTelemetry(item: PlayerItem, video: HTMLVideoElement | null, options: TelemetryOptions = {}): void {
   if (!video) return;
   let last = 0, acc = 0, seeks = 0, timer: ReturnType<typeof setInterval> | null = null;
@@ -69,7 +70,7 @@ export function wireTelemetry(item: PlayerItem, video: HTMLVideoElement | null, 
     if (!acc && !ended && !seeks) return;
     (api('/api/activity', { method: 'POST', keepalive: true, body: JSON.stringify(
       { id: item.id, position: video.currentTime, duration, delta: acc, ended: !!ended, seeks }) }) as Promise<ActivityReceipt | null>)
-      .then((result) => { // 回填面板的真实观看率
+      .then((result) => { // Fill the panel's real watch rate back in
         if (result && typeof result.play_seconds === 'number') {
           const detail: PlaybackProgress = { id: item.id, play_seconds: result.play_seconds,
             ...(result.leave_ratio != null ? { leave_ratio: result.leave_ratio } : {}) };
@@ -93,7 +94,7 @@ export function wireTelemetry(item: PlayerItem, video: HTMLVideoElement | null, 
   paint();
 }
 
-/** 关注条目的观看上报；第一次开播另记一次播放，状态随回执改写在条目上。 */
+/** Watch reporting for follow entries; the first playback logs an extra play, and receipts rewrite the state onto the entry. */
 export function wireFollowTelemetry(item: PlayerItem & { status?: string | undefined }, video: HTMLVideoElement): void {
   let last = 0, acc = 0, started = false, timer: ReturnType<typeof setInterval> | null = null;
   const flush = (ended: boolean) => {

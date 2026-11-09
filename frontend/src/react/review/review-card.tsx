@@ -1,6 +1,6 @@
-/* 队列里的一张卡：问的是什么、凭什么判、以及三个结论。
+/* One card in the queue: what is being asked, what it is judged on, and the three verdicts.
  *
- * 待处理卡依次提供忽略、稍后处理、通过，主操作靠右；已忽略卡只提供恢复。 */
+ * Pending cards offer Ignore, Decide later, and Approve in that order, main action right-aligned; dismissed cards offer only Restore. */
 import { useRef } from 'react';
 
 import { avatarInner } from '@peach/card-art';
@@ -25,20 +25,20 @@ import {
   canApprove, ENTITY_REVIEW_KINDS, rowEvidence, rowFieldName, rowSubject, rowTags, rowTitle,
 } from './review';
 
-/* 卡面与管理页同层；来源选择是卡内唯一带单选边框的表单。 */
+/* The card face sits at the same level as the management page; source choice is the only form in the card with a radio border. */
 const CARD = cardClass({
   variant: 'filled', padding: 'none', className: 'flex flex-col overflow-hidden',
 });
 
-/* 卡头那一行的行高：字段名是一枚 caption Chip（12/16 加上下各 4），24px 由它定。标题、
-   勾选框和判定徽章各自在这 24px 里居中，谁的字号变了也还在同一条中线上。 */
+/* The card header row's line height: the field name is a caption Chip (12/16 plus 4 above and below), which sets the 24px. Title,
+   checkbox and verdict badge each center within those 24px, so even when a font size changes they stay on the same midline. */
 const HEADING_LINE = 'flex min-h-6 min-w-0 items-center';
 
-/** 实体类卡头最多露几部对照作品，同服务端给的条数。 */
+/** How many reference videos an entity card header shows at most; the same count the server provides. */
 const COMPARISON_SHOWN = 2;
 
-/* 一排卡等高，长出来的那部分在卡内滚。高度随内容走的话，一行里几张卡参差不齐，
-   眼睛要在每张卡上重新找「判定」在哪；身份回配那一类要放下来源图和样本列表，高一档。 */
+/** Cards in a row are equal height, with overflow scrolling inside the card. If height followed content, cards in a row would be ragged
+   and the eye would hunt for the "verdict" on every card; the identity rematch kind needs room for source images and sample lists, so it takes the taller tier. */
 const CARD_HEIGHT = (category: ReviewCategory) =>
   (category === 'western_identity' ? 'h-review-card-tall' : 'h-review-card');
 
@@ -72,10 +72,10 @@ export function ReviewCard(props: ReviewCardProps) {
     category, row, choice, onChoice, selected, onSelect, locked, busy, problem, genreTags,
     onDecide, handlers, queueView = 'pending',
   } = props;
-  /* Checkbox 的 `onChange` 只给新状态，Shift 要从触发它的那一下事件里取：按下先于变更，
-     键盘的空格也一样。 */
+  /* Checkbox's `onChange` only gives the new state; Shift must be read from the event that triggered it: keydown precedes the change,
+     same for the keyboard space bar. */
   const range = useRef(false);
-  /* 当前资料与候选共用一个滚动区，卡头和判断操作保持可见。 */
+  /* The current profile and the candidates share one scroll area, keeping the card head and judgment actions visible. */
   const body = useOverlayScrollbar<HTMLDivElement>();
   const metadata = category === 'metadata_fields';
   const subjectKind = ENTITY_REVIEW_KINDS[category] || '';
@@ -91,8 +91,8 @@ export function ReviewCard(props: ReviewCardProps) {
   const assets = row.preview_assets || [];
   const decisionLabel = REVIEW_DECISION_LABELS[row.decision || ''];
 
-  /* 对照作品排在不缩的卡头里：服务端给两条，再多也只露前两条，其余报一个数，
-     否则卡头会把动作条挤出卡外。 */
+  /* Comparison videos sit in the unshrunken card header: the server supplies two, and even with more only the first two show, the rest reported as a count,
+     otherwise the header squeezes the action bar out of the card. */
   const origin = comparison.length > 1
     ? <div className="flex flex-col gap-3">
         {comparison.slice(0, COMPARISON_SHOWN).map((asset) => (
@@ -100,7 +100,7 @@ export function ReviewCard(props: ReviewCardProps) {
         ))}
         {comparison.length > COMPARISON_SHOWN
           ? <p className="text-body-2-regular text-text-secondary">
-              {`另有 ${(comparison.length - COMPARISON_SHOWN).toLocaleString()} 部对照作品`}
+              {`${(comparison.length - COMPARISON_SHOWN).toLocaleString()} more comparison videos`}
             </p>
           : null}
       </div>
@@ -118,8 +118,8 @@ export function ReviewCard(props: ReviewCardProps) {
             asset={{ id: row.asset_id, name: row.asset_name, code: row.code, preview_url: row.asset_preview_url }} />
         : null;
 
-  /* 预览和判断依据是同一件事的两半：看这几帧，然后读这一句。候选表单和身份证据那两类
-     每一项自己就是一个框，不再套一层。 */
+  /* Preview and grounds are two halves of one thing: look at these frames, then read this line. The candidate form and identity evidence kinds
+     are each their own frame, with no extra nesting. */
   const preview = metadata
     ? <CandidateChoices row={row} fieldName={fieldName} value={choice.candidateKey}
         onChange={(next) => onChoice({ ...choice, candidateKey: next })} locked={locked} />
@@ -127,9 +127,9 @@ export function ReviewCard(props: ReviewCardProps) {
       ? (assets.length
         ? <AssetPicker assets={assets} picked={choice.assets} locked={locked}
             onPicked={(next) => onChoice({ ...choice, assets: next })} />
-        /* 空白一片会被当成界面坏了。真实原因是这些作品还没抽帧，说清楚比留白好。 */
-        : <EmptyState size="compact" icon={RiImageLine} title="这批作品尚未抽帧">
-            {`${row.video_count || ''} 条作品还没有可用预览；批准后仍会按所选资料写入标签。`}
+        /* A blank area reads as a broken UI. The real reason is these videos have no frames extracted yet, and saying so beats a blank. */
+        : <EmptyState size="compact" icon={RiImageLine} title="This batch of videos has no frames extracted yet">
+            {`${row.video_count || ''} videos have no usable preview yet; after approval, tags are still written from the selected details.`}
           </EmptyState>)
       : category === 'fc2_similarity'
         ? null
@@ -141,10 +141,10 @@ export function ReviewCard(props: ReviewCardProps) {
   const heading = asEntity
     ? origin
     : fieldName
-      /* 字段名是这张卡在问的问题（「这个作品的创作者填什么」），作品标识只是它问的对象。
-         写在标题末尾的话，一条无番号视频的文件名会先把它挤出省略号。 */
+      /* The field name is the question this card asks ("who is the creator of this video"), and the video identifier is only what it asks about.
+         Put at the end of the title, a code-less video's file name would push it out of the ellipsis first. */
       ? <h4 className={cx(HEADING_LINE, 'flex-wrap gap-2')}>
-          {/* Chip 自己不截断：外面套一层封顶的裁切框，超长的字段名不撑出卡外，全文在 title 里。 */}
+          {/* The Chip does not truncate itself: a capped clipping frame wraps it from outside, so overlong field names stay inside the card with the full text in the title. */}
           <span title={fieldName} className="flex max-w-full min-w-0 overflow-hidden rounded-md"><Chip variant="caption" color="neutral">{fieldName}</Chip></span>
           <span title={subject} className="min-w-0 truncate text-body-medium text-text-primary">{subject}</span>
         </h4>
@@ -157,12 +157,12 @@ export function ReviewCard(props: ReviewCardProps) {
       className={cx(CARD, CARD_HEIGHT(category))}>
       <header className="flex min-w-0 shrink-0 items-center gap-2 border-b border-separator-border px-5 py-4">
         {locked ? null : (
-          /* 勾选框只有 16px，标题那行 24px。两个都按 24px 各自居中，中线才落在一条上——
-             顶对顶排的话，读的人看到的是勾选框浮在标题上面一截。 */
+          /* The checkbox is only 16px, the title row 24px. Centering each within 24px is what puts their midlines on one line;
+             aligned top to top, the checkbox reads as floating above the title. */
           <span className={cx(HEADING_LINE, 'shrink-0')}
             onPointerDownCapture={(event) => { range.current = event.shiftKey }}
             onKeyDownCapture={(event) => { range.current = event.shiftKey }}>
-            <Checkbox isSelected={selected} aria-label={`选择 ${title}`}
+            <Checkbox isSelected={selected} aria-label={`Select ${title}`}
               onChange={(on) => onSelect(range.current, on)} />
           </span>
         )}
@@ -170,55 +170,55 @@ export function ReviewCard(props: ReviewCardProps) {
         {decisionLabel ? <Chip variant="caption" color="neutral">{decisionLabel}</Chip> : null}
       </header>
 
-      {/* 中段只长不缩：内容短时它吃掉剩下的高度，内容长时卡不变形，由这一段自己滚。
-          外面这一层只为放那条覆盖式滚动条的轨道：它按 `absolute` 铺，得有一个只裹着
-          滚动块本身的定位祖先，否则会跑到整页的右边缘去。 */}
+      {/* The middle section only grows, never shrinks: when content is short it takes the leftover height, and when long the card does not deform, this section scrolling itself.
+          The outer layer exists only to host the overlay scrollbar's track: it lays out with `absolute` and needs a positioned ancestor
+          wrapping only the scrolling block itself, otherwise it runs to the whole page's right edge. */}
       <div className="relative mx-5 flex min-w-0 min-h-0 flex-1 flex-col">
         <div ref={body} className="flex min-w-0 min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
-          {/* 数据库规范名当标题，抓取来源给的写法（多为罗马音）留作副标题。 */}
+          {/* The database's canonical name is the title; the scraped source's spelling (usually romaji) becomes the subtitle. */}
           {row.source_name
-            ? <p className="text-body-2-regular text-text-secondary">{`来源写法：${row.source_name}`}</p>
+            ? <p className="text-body-2-regular text-text-secondary">{`Source spelling: ${row.source_name}`}</p>
             : null}
-          {/* 实体类卡片的作品数已经写在创作者入口里，这里再写一遍就是同一个数字两处。 */}
+          {/* Entity-type cards already show the video count in the creator entry; writing it here too would put the same number in two places. */}
           {!asEntity && (row.board || row.assets)
             ? <p className="text-body-2-regular text-text-secondary">
-                {`对照文件：${Number(row.video_count || row.assets || 0).toLocaleString()}`}
+                {`Comparison files: ${Number(row.video_count || row.assets || 0).toLocaleString()}`}
               </p>
             : null}
           {!asEntity && origin ? origin : null}
-          {metadata && (evidence || row.current_value !== undefined) ? <div role="region" aria-label="当前信息"
+          {metadata && (evidence || row.current_value !== undefined) ? <div role="region" aria-label="Current info"
             className="flex min-w-0 flex-col gap-1 border-b border-separator-border pb-4">
             <div className="flex flex-wrap items-center gap-2">
-              <h5 data-copy-key="review.card.current_value" className="text-caption-1-medium text-text-secondary">当前值</h5>
+              <h5 data-copy-key="review.card.current_value" className="text-caption-1-medium text-text-secondary">Current value</h5>
               {row.current_owner?.startsWith('user:') || row.current_owner?.startsWith('review:')
-                ? <Chip variant="caption" color="neutral">人工确认</Chip> : null}
+                ? <Chip variant="caption" color="neutral">Manual confirmation</Chip> : null}
             </div>
             <p className="text-body-2-regular text-text-primary wrap-anywhere">
               {row.current_value === undefined ? evidence : row.current_value
                 ? <ComparisonText value={row.current_value}
                     reference={(row.candidates?.find(candidate => candidate.candidate_key === choice.candidateKey)
                       || row.candidates?.[0])?.display_value} />
-                : '尚无资料'}
+                : 'No details yet'}
             </p>
             {row.videos !== undefined ? <p className="text-caption-1-regular text-text-secondary">
-              {`${Number(row.videos).toLocaleString()} 个${row.asset_path ? '匹配文件' : '同番号文件'}`}
+              {`${Number(row.videos).toLocaleString()} ${row.asset_path ? 'matching files' : 'files with the same code'}`}
             </p> : null}
           </div> : null}
           {tags.length || category === 'creator_tags' ? (
             <div className="flex flex-wrap gap-1">
               {tags.length
                 ? tags.map((tag) => <Chip key={tag} variant="caption" color="soft">{tag}</Chip>)
-                : <small className="text-body-2-regular text-text-secondary">暂无待确认标签</small>}
+                : <small className="text-body-2-regular text-text-secondary">No tags pending confirmation</small>}
             </div>
           ) : null}
           {metadata ? <div className="flex flex-wrap items-center justify-between gap-2">
             <h5 className="text-caption-1-medium text-text-secondary">
-              <span data-copy-key="review.card.candidate_sources">候选来源</span>{` · ${row.candidates?.length || 0}`}
+              <span data-copy-key="review.card.candidate_sources">Candidate sources</span>{` · ${row.candidates?.length || 0}`}
             </h5>
             {row.current_value || (row.candidates?.length || 0) > 1 ? <span
               data-copy-key={row.current_value ? 'review.card.compare_current' : 'review.card.compare_sources'}
               className="text-caption-1-regular text-text-tertiary">
-              {row.current_value ? '与当前值比较' : '来源间差异'}
+              {row.current_value ? 'Compare with the current value' : 'Differences between sources'}
             </span> : null}
           </div> : null}
           {preview}
@@ -231,15 +231,15 @@ export function ReviewCard(props: ReviewCardProps) {
 
       <footer className={cx(FIELDSET_FOOT.stack, 'shrink-0')}>
         {queueView !== 'ignored' ? <LinkButton variant="secondary" size="small" className="me-auto" disabled={locked} {...busyProps(busy)}
-          onClick={() => onDecide('rejected')}>忽略</LinkButton> : null}
+          onClick={() => onDecide('rejected')}>Ignore</LinkButton> : null}
         {queueView === 'pending' ? <Button variant="secondary" size="small" disabled={locked} {...busyProps(busy)}
-          onClick={() => onDecide('skipped')}>稍后处理</Button> : <Button
+          onClick={() => onDecide('skipped')}>Handle later</Button> : <Button
           variant={queueView === 'ignored' ? 'primary' : 'secondary'} size="small" disabled={locked} {...busyProps(busy)}
-          onClick={() => onDecide('restore')}>恢复待处理</Button>}
+          onClick={() => onDecide('restore')}>Restore pending</Button>}
         {queueView !== 'ignored' ? <Button variant="primary" size="small" disabled={locked || !approvable} {...busyProps(busy)}
-          title={approvable ? undefined : '没有可采用的资料，可先保留或忽略'}
+          title={approvable ? undefined : 'No adoptable details; you can keep it for now or ignore'}
           onClick={() => onDecide('approved')}>
-          {approvable ? '通过' : '不可通过'}
+          {approvable ? 'Approve' : 'Never passes'}
         </Button> : null}
         {problem
           ? <p role="status" className="w-full text-body-2-regular text-text-error-primary">{problem}</p>

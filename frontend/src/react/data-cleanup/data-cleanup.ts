@@ -1,16 +1,16 @@
-/* 数据管理页的数据契约。
+/* The data management page's data contract.
  *
- * 这一页是「库里已经有的东西怎么收拾」的唯一入口。顶上一排读数各是一条内容在库里的经过：
- * 先把它说清楚（人工复核、高清版），再把不该留的挑出去（重复文件、垃圾文件），最后是删掉的
- * 东西还在哪儿（回收站）。
+ * This page is the only entry for "what to do with what is already in the library". The top row of readouts is each content
+ * type's journey in the library: first make it clear (manual review, quality upgrades), then pick out what should not stay
+ * (duplicates, junk files), and finally where deleted things still are (trash).
  *
- * 五份读数里有两份不归这一页所有：高清版读 `QUALITY_GOALS_KEY`、重复文件读 `DUPLICATES_KEY`，
- * 同一个数在两页上永远是同一份。这里只声明人工复核的计数、垃圾文件与回收站。
- * 复核计数不读 `REVIEW_KEY`：那一把是整条队列，这里只要 `?counts=1` 那几个数，响应形状不同，
- * 是另一份资源。
+ * Two of the five readouts are not owned here: quality upgrades read `QUALITY_GOALS_KEY` and duplicates read
+ * `DUPLICATES_KEY`, so the same number is the same copy on both pages. This module declares only the review count, junk files
+ * and trash. The review count does not read `REVIEW_KEY`: that one is the whole queue, and here only the `?counts=1` numbers
+ * are needed; the response shape differs, making it a different resource.
  *
- * 各卡各自失败各自算：复核接口出错不该把回收站那张卡也变成「读取失败」，所以是五个
- * `useQuery`，不是一次 `Promise.all`。 */
+ * Each card fails and computes on its own: the review endpoint failing must not turn the trash card into "read failed" too,
+ * so these are five `useQuery` calls, not one `Promise.all`. */
 import type { QueryKey } from '@tanstack/react-query';
 import type { CleanupToolKey } from '../../cleanup-tools';
 
@@ -34,15 +34,15 @@ import { t } from '../../i18n';
 export const REVIEW_COUNTS_URL = '/api/review?counts=1';
 export const REVIEW_COUNTS_KEY = ['review', 'counts'] as const;
 
-/** 垃圾文件：只要待判断的总数与分项，一条都不用取回来。 */
+/** Junk files: only the pending-judgment total and breakdown are needed; not a single record has to be fetched. */
 export const JUNK_URL = '/api/ads?limit=1';
 export const JUNK_KEY = ['junk-summary'] as const;
 
-/** 回收站：目录那张网格的同一条端点，钉死 `state=trash` 只为拿总数与占用。 */
+/** Trash: the same endpoint as the catalog grid, pinned to `state=trash` only to fetch the total count and disk usage. */
 export const TRASH_URL = '/api/items?state=trash&limit=1';
 export const TRASH_KEY = ['trash-summary'] as const;
 
-/** 垃圾判断的分类与界面上的名字。次序就是分项那一行的次序（遗留层 `JUNK_KIND_OPTIONS`）。 */
+/** Junk classifications and their on-screen names. The order matches the breakdown row (legacy `JUNK_KIND_OPTIONS`). */
 export const JUNK_KINDS: [string, string][] = [
   ['video', t('cleanup:junk.kindVideos')], ['image', t('cleanup:junk.kindImages')], ['archive', t('cleanup:junk.kindArchives')],
   ['audio', t('cleanup:junk.kindAudio')], ['url', t('cleanup:junk.kindUrls')], ['other', t('cleanup:junk.kindOther')],
@@ -60,8 +60,8 @@ export interface TrashSummary { total: number; bytes: number }
 
 export const fetchReviewCounts = (signal?: AbortSignal) => apiGet<ReviewCounts>(REVIEW_COUNTS_URL, signal);
 export const fetchJunkSummary = (signal?: AbortSignal) => apiGet<JunkSummary>(JUNK_URL, signal);
-/** 回收站计数跟着侧栏选中的媒体库走，和目录网格同一个口径：遗留层 `api()` 取 `/api/items`
- *  时会补上 `library=`，`apiGet` 不补，这里自己接上。 */
+/** The trash count follows the library selected in the sidebar, same scope as the catalog grid: the legacy `api()` adds `library=` when fetching `/api/items`,
+ *  `apiGet` does not, so this adds it itself. */
 export const fetchTrashSummary = (signal?: AbortSignal) => {
   const library = sessionStorage.getItem('peach.library');
   const url = library ? `${TRASH_URL}&library=${encodeURIComponent(library)}` : TRASH_URL;
@@ -70,7 +70,7 @@ export const fetchTrashSummary = (signal?: AbortSignal) => {
 
 const count = (value: number | undefined) => Number(value || 0).toLocaleString();
 
-/** 复核那张卡：总数与前三类，剩下的合成「其余 N」——卡片是入口，不是复核队列本身。 */
+/** The review card: total plus the top three categories, the rest merged into "other N". The card is an entry point, not the review queue itself. */
 export function reviewSummary(data: ReviewCounts | undefined): { figure: string; meta: string } {
   const labels = REVIEW_LABELS as Record<string, string>;
   const counts = Object.entries(data?.counts ?? {})
@@ -84,7 +84,7 @@ export function reviewSummary(data: ReviewCounts | undefined): { figure: string;
   return { figure: t('cleanup:overview.reviewPending', { count: total }), meta: top.join(' · ') };
 }
 
-/** 垃圾文件那张卡的分项：只列真的有东西的类别，已忽略的接在后面。 */
+/** The junk files card's breakdown: only categories that actually have items, with ignored ones appended after. */
 export function junkBreakdown(summary: JunkSummary | undefined): string {
   if (!summary) return '';
   const parts = JUNK_KINDS
@@ -94,7 +94,7 @@ export function junkBreakdown(summary: JunkSummary | undefined): string {
   return parts.join(' · ');
 }
 
-/** 状态摘要独立读取；某一份失败时只影响对应入口的读数。 */
+/** Status summaries read independently; one failing affects only that entry's reading. */
 const LAZY_QUERIES: [QueryKey, (context: { signal: AbortSignal }) => Promise<unknown>][] = [
   [REVIEW_COUNTS_KEY, ({ signal }) => fetchReviewCounts(signal)],
   [QUALITY_GOALS_KEY, ({ signal }) => fetchQualityGoals(signal)],
@@ -111,7 +111,7 @@ export async function prefetchDataCleanup(signal: AbortSignal): Promise<void> {
   void prefetchLibraryProcessing(signal).catch(() => {});
 }
 
-/** 进入维护工具时才读取它的状态、配置与结果。 */
+/** Only read its state, config, and results when entering a maintenance tool. */
 export async function prefetchDataCleanupTool(tool: CleanupToolKey, signal: AbortSignal): Promise<void> {
   switch (tool) {
     case 'organize': await prefetchOrganize(signal); break;

@@ -1,7 +1,7 @@
 import { initialCatalogFilters, resetCatalogFilters, homeCatalogState, homePath as pathForCatalog, onlineDefaultLoc as defaultLocations, resolveSort } from '../react/catalog-grid/catalog-state';
 import { CatalogController } from '../react/catalog-grid/catalog-controller';
 import { nextRating, ratingStars } from '../react/components/rating-values';
-/* catalog 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* catalog domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { censorOn, preferencesState, refreshAll, replaceCatalogAddress, sidebarFacets, wireDrag } from './preferences.js';
 import { nextSortState } from './../sort-preferences';
 import { $, STATE_ROUTES, api, esc, firstGrapheme, isCatalogPath, leadingGraphemes } from '../core';
@@ -89,11 +89,11 @@ export async function toggleWatchLater(it,onChange){
   try{
     const r=await api('/api/watch-later',{method:'POST',body:JSON.stringify({id:it.id})});
     it.watch_later=r.watch_later;onChange(!!r.watch_later);
-    receiptsState.actionReceipt(r.watch_later?'已加入稍后看':'已移出稍后看',{undo:async()=>{
+    receiptsState.actionReceipt(r.watch_later?'Added to Watch later':'Removed from Watch later',{undo:async()=>{
       const restored=await api('/api/watch-later',{method:'POST',body:JSON.stringify({id:it.id})});
       it.watch_later=restored.watch_later;onChange(!!restored.watch_later);
     }});
-  }catch(error){receiptsState.actionFailure('更新稍后看',error)}
+  }catch(error){receiptsState.actionFailure('Update Watch later',error)}
 }
 
 export async function runResourceOperation(it,operation){
@@ -101,12 +101,12 @@ export async function runResourceOperation(it,operation){
     await api('/api/batch',{method:'POST',body:JSON.stringify({ids:[it.id],operation})});
     await loadCatalog();
     const inverse=operation==='restore'?'dispose':'restore';
-    receiptsState.actionReceipt(operation==='restore'?'已还原':'已移入回收站',{undo:async()=>{
+    receiptsState.actionReceipt(operation==='restore'?'Restored':'Moved to trash',{undo:async()=>{
       await api('/api/batch',{method:'POST',body:JSON.stringify({ids:[it.id],operation:inverse,
         ...(inverse==='dispose'?{disposal_reason:it.disposal_reason??null}:{})})});
       await loadCatalog();
     }});
-  }catch(error){receiptsState.actionFailure('操作',error);throw error}
+  }catch(error){receiptsState.actionFailure('Actions',error);throw error}
 }
 
 export async function rateCatalogItem(it,star,onChange,signal){
@@ -117,20 +117,20 @@ export async function rateCatalogItem(it,star,onChange,signal){
   };
   try{
     const rating=await save(value,signal);
-    receiptsState.actionReceipt(rating?`已评 ${ratingStars(rating)} 星`:'已取消评分',{undo:()=>save(before)});
-  }catch(error){if(!signal?.aborted)receiptsState.actionFailure('评分',error);throw error}
+    receiptsState.actionReceipt(rating?`Rated ${ratingStars(rating)} stars`:'Rating removed',{undo:()=>save(before)});
+  }catch(error){if(!signal?.aborted)receiptsState.actionFailure('Rating',error);throw error}
 }
 
 export async function getBarsData(context){
-  // JAV 模式的顶部三层与筛选面板要跟着收窄，否则会列出只出现在创作者作品里的
-  // 女优和厂牌，点进去却是空的。口径进键，换了口径就是另一份。
+  // JAV mode's top three layers and the filter panel must narrow along with it, or the list would show videos that appear only in a creator's own works
+  // Performers and labels that open to an empty page. The criterion goes into the key; a different criterion is a different cache entry.
   const facetParams=new URLSearchParams();
   if(javActive())facetParams.set('jav','1');
   if(context.type==='entity'){
     facetParams.set('scope_kind',context.kind);facetParams.set('scope_name',context.name)
   }else if(context.type==='item')facetParams.set('id',String(context.id));
-  // 已标记/稍后看这类状态页也是一个更窄的集合。不传的话，上面那排头像和
-  // 标签条走的是全库口径，列出来的人和标签在本页一个作品都没有。
+  // Status pages like flagged and watch-later are also a narrower set. Without it, the row of avatars above and
+  // The tag strip uses whole-library terms: the people and tags it lists have zero videos on this page.
   if(context.type==='home'&&state.state)facetParams.set('state',state.state);
   if(context.type!=='item'){
     const filters=entityState.activeFilterState();
@@ -138,14 +138,14 @@ export async function getBarsData(context){
       if(filters[key])facetParams.set(key,filters[key]);
     });
   }
-  // 顶部三层跟着「换一批」的同一个种子走，刷新后才真的换人。
+  // The top three layers follow the shuffle's single seed; only a refresh actually changes the people.
   return fetchBars(facetParams.toString(),catalogState.topsQueryParams(context).toString());
 }
 
 export function applyFilterStateInPlace(filters){
-  // 资料页那一条的按下态由页面按地址上的筛选算，新的筛选已经经 `routeEntityPage` 推过去了。
+  // The profile page item's pressed state is computed by the page from the filters on the address; the new filters were already pushed through `routeEntityPage`.
   if(currentBarsContext().type!=='entity')paintCatalogFilter({tags:catalogTags(filters)});
-  // 侧栏那几组的按下态与时长两端由侧栏照这一份筛选画，成员不动。
+  // The pressed state and duration ends of the sidebar groups are drawn by the sidebar from this filter; the members do not move.
   paintSidebar({filters:{...filters}});
   renderCombo();
 }
@@ -155,25 +155,25 @@ export async function refreshFacetCounts(context){
   const [facetData]=await getBarsData(context);
   if(seq!==catalogState.facetCountsSeq)return;
   if(context.type==='home')mediaState.facets=facetData;
-  // 名单里没有的那几枚由岛记 0；「展开全部」也照这一份摊开。
+  // Entries missing from the roster are recorded as 0 by the island; 'Expand all' unfolds against this same copy.
   paintSidebar({latest:sidebarFacets(facetData,context)});
 }
 
 export function commitContextFilter(mutate){
   const context=currentBarsContext();
   if(context.type==='entity'){
-    // 标签是作品筛选，点了就回到作品视图：留在照片或名册里既不生效，标签条也会自相矛盾。
+    // Tags are video filters and tapping one returns to the video view: staying in photos or the roster would neither apply it nor keep the tag bar consistent.
     const filters={...context.filters};mutate(filters);
     routeEntityPage(context.kind,context.name,filters);
     applyFilterStateInPlace(filters);refreshFacetCounts(currentBarsContext());return
   }
   if(context.type==='item'){
-    // 从详情回到列表是换语境，不是换一条筛选：那几排本来就要照新语境重新画。
+    // Returning from detail to list is a context change, not a filter change: those rows would be redrawn for the new context anyway.
     const target=entityState.cloneBarsContext(detailReturnBarsContext);
     disposeStage(false);writeShell({detailReturnBarsContext:null});
     if(target&&target.type==='entity'){
       mutate(target.filters);
-      // 详情下面那一页通常还挂着，推新筛选就够；深链进的详情下面没有它，照新地址重开。
+      // The page beneath the details is usually still mounted, so pushing the new filters is enough; a deep-linked detail has nothing beneath it, so reopen from the new address.
       if(routeEntityPage(target.kind,target.name,target.filters))buildBars();
       else writeShell({pageOpens:pageOpens+1});
       return
@@ -196,15 +196,15 @@ export function syncCatalogFilterScreen(){if(catalogState.catalogFilterProps)pai
 
 export function paintCatalogFilter(patch){
   const host=$('#catalogFilter');
-  /* 收起时岛只留两排头像：浮层那两排与资料页、索引页的是同一组控件，藏着一份就是两套同名的，
-     等不来的读数微光也会一直挂在页面上。收起时同样不铺静态骨架。 */
+  /* When collapsed the island keeps only the two avatar rows: the overlay's rows and those on profile and index pages are one set of controls, and hiding a copy means two identical ones,
+     with readout shimmers that never arrive hanging on the page forever. When collapsed it likewise lays no static skeleton. */
   const offscreen=host.style.display==='none'||document.body.matches('.entity-open,.index-open');
   patch={...patch,offscreen};
   catalogState.catalogFilterProps={...(catalogState.catalogFilterProps||catalogFilterBase()),...patch};
   if(catalogState.catalogFilterMounting)return;
   if(managedTaken(host)){updateManagedRoute(host,patch);return}
   if(!host.firstChild&&!offscreen){host.innerHTML=catalogFilterSkeletonHtml(catalogState.catalogViews(),catalogState.catalogFilterProps.state,catalogHeadProps());fitSkeleton(host)}
-  /* 常驻：不随换页收，所以不判当前页。 */
+  /* Resident: it does not collapse on page change, so the current page is not checked. */
   catalogState.catalogFilterMounting=openManagedRoute('catalog-filter',catalogState.catalogFilterProps,{container:host,isCurrent:()=>true})
     .then(()=>updateManagedRoute(host,catalogState.catalogFilterProps))
     .finally(()=>{catalogState.catalogFilterMounting=null});
@@ -221,7 +221,7 @@ export function catalogFilterActions(){
       return href.pathname+href.search;
     },
     openEntity:(kind,name)=>openEntity(kind,name),
-    /* 按下去当场就推新的按下态，滑动玻璃跟着走，不等这一趟取数。 */
+    /* Pressing pushes the new pressed state on the spot and the sliding glass follows; it does not wait for this fetch. */
     setView:view=>{
       state.state=view;notifyShell();paintCatalogFilter({state:view});
       navigationState.route(homePath());buildBars();
@@ -236,8 +236,8 @@ export function catalogFilterActions(){
     },
     reshuffle:()=>refreshAll(),
     setLayout:value=>{if(javActive())setJavLayout(value);else setHomeLayout(value)},
-    /* 每排各记各的页号：两排的长度不一样，共用一个计数会让先到头的那排替另一排把页翻过去。
-       页号跟着这一份名单走，`buildBars` 换名单时从头数起。两排翻到同一页时由 `fetchTopsPage` 共用一次请求。 */
+    /* Each row records its own page number: the rows' lengths differ, and sharing one counter would let the row that reached its end flip the other row's pages.
+       Page numbers follow this list, counting from the start when `buildBars` swaps lists. When both rows reach the same page, `fetchTopsPage` shares one request. */
     moreTops:async kind=>{
       const pages=catalogState.catalogTopsPages;if(!pages)return [];
       const rows=(await fetchTopsPage(catalogState.topsQueryParams(pages.context,++pages[kind]).toString()))[kind]||[];
@@ -247,8 +247,8 @@ export function catalogFilterActions(){
 }
 
 export function catalogLayoutProp(){
-  if(javActive())return {name:'jav-layout',label:'JAV 卡片版式',value:javLayout(),options:JAV_LAYOUTS};
-  if(homeLayoutActive())return {name:'home-layout',label:'首页卡片版式',value:cardLayout(),options:JAV_LAYOUTS};
+  if(javActive())return {name:'jav-layout',label:'JAV card layout',value:javLayout(),options:JAV_LAYOUTS};
+  if(homeLayoutActive())return {name:'home-layout',label:'Home card layout',value:cardLayout(),options:JAV_LAYOUTS};
   return null;
 }
 
@@ -279,8 +279,8 @@ export function renderBarsLoading(filterState,requestSeq){
   paintCatalogFilter({tiers:null,tiersPending:true,state:filterState.state||''});
 }
 
-/* 两排头像只在真有一趟取数在路上时挂忙态：这一趟作废（换页把序号推走了）或失败，而后来的那一趟
-   没有接着取，忙态就由它撤掉；不取头像的页面（视频墙、作品页）从不挂。 */
+/* The two avatar rows show busy only when a fetch is genuinely in flight: if that round is invalidated (a page change pushed the sequence forward) or fails and no later round
+   picks the fetch back up, the busy state is cleared by it; pages that do not fetch avatars (video wall, video pages) never show it. */
 function releaseBarsPending(requestSeq){
   if(catalogState.barsPendingSeq!==requestSeq)return;
   catalogState.barsPendingSeq=0;
@@ -291,25 +291,25 @@ export async function buildBars(){
   const requestSeq=++catalogState.barsRequestSeq;
   paintSidebar();
   if(!sidebarHasCatalogContent(location.pathname))return;
-  /* 详情浮窗是盖住整页的模态：两排头像、标签条和抽屉在它开着的时候一格都看不见。
-     为它们另取一趟这一部作品口径的聚合，换来的只是把列表那份缓存挤掉——关掉详情时
-     整排头像连 `<img>` 一起重建，人看到的就是「点进去又退出来，页面自己刷新了一次」。
-     所以详情不碰表面的条，列表的口径和那份缓存原样留着等他回来。 */
+  /* The details overlay is a modal covering the whole page: while it is open, not one cell of the two avatar rows, tag bar, and drawers is visible.
+     Fetching another aggregate scoped to this one video just to serve them only evicts the list's cache; closing details
+     rebuilds the whole avatar row together with its `<img>` tags, and what the person sees is "clicked in and backed out, and the page refreshed itself".
+     So details never touch the surface's items; the list's scope and that cache stay as they are, waiting for them to come back. */
   if(barsContext.type==='item')return;
   const context=currentBarsContext(),filterState=entityState.activeFilterState();
   const signature=JSON.stringify([context,filterState,state.state||'',state.seed||'',javActive()]);
   renderBarsLoading(filterState,requestSeq);
-  // 两个聚合查询互不依赖。冷启动各需约 1 秒，串行会让手机首屏白等；
-  // 并行取回后再一次性绘制顶部与抽屉。
+  // The two aggregate queries are independent. Each takes about 1 second on a cold start; serializing them leaves the phone's first screen waiting for nothing;
+  // Fetch in parallel, then draw the top bar and the drawer in one pass.
   let bars;
   try{bars=await getBarsData(context)}catch(error){releaseBarsPending(requestSeq);throw error}
   const [facetData,tops]=bars;
   if(requestSeq!==catalogState.barsRequestSeq){releaseBarsPending(requestSeq);return}
-  /* 口径和数据都和上一次一样时，画出来的是同一串 HTML。照样赋一次 innerHTML 只换来
-     整排头像连 `<img>` 一起重建、重解一遍码，屏幕上就是白闪一下——这一排每一个都是
-     一张图。比数据不比时间：详情看上十分钟再回来，取回的多半还是同一份。 */
+  /* When scope and data match the last time, the painted HTML is the same string. Assigning innerHTML anyway only buys rebuilding the whole avatar row
+     together with its `<img>` tags and re-decoding, and on screen that is a white flash; every one in this row is an image. Compare data, not time: after ten minutes in details,
+     what comes back is most likely still the same copy. */
   const rendered=signature+'\n'+JSON.stringify([facetData,tops]);
-  /* 顶上那几排原样留着；侧栏在中途换过页面（详情开了又关）时已收回到只剩导航，同一份分组推回去。 */
+  /* The top rows stay as they are; when the sidebar switched pages midway (details opened and closed) it has already collapsed back to navigation only, and the same grouping is pushed back in. */
   if(rendered===catalogState.barsRendered){
     catalogState.barsPendingSeq=0;
     paintCatalogFilter({tiersPending:false});
@@ -320,20 +320,21 @@ export async function buildBars(){
   if(context.type==='home')mediaState.facets=facetData;
   const topTags=facetData.tags||[];
 
-  /* 顶部三层：女优圆头像 / 厂牌 / 内容标签。代表作表只收真能取到头像的那些，筛法见
-     `frontend/src/card-art/representatives.ts`。 */
+  /* The top three layers: performer round avatars / labels / content tags. The representatives table only includes those with a genuinely fetchable avatar; see
+     `frontend/src/card-art/representatives.ts` for the filter. */
   rememberRepresentatives(tops.performers);
   rememberRepresentatives(tops.studios);
-  // 「两排都空」现在只剩全库真的一个人都没有这一种：窄集合已经由 loadTops 退回全库口径。
+  // "Both rows empty" now only happens when the whole library truly has no one: narrow sets already fall back to the library-wide scope in loadTops.
   const emptyHome=context.type==='home'&&!javActive()&&!state.state&&!state.q&&!facetData.locations.some(row=>row.n>0);
   catalogState.catalogTopsPages={context,performers:0,studios:0};
-  /* 加上去的那几枚排在最前面，按加的先后。它们不一定在抽出来的这一批里，也可能压根不
-     在榜上——人是从卡片或详情页点进来的。这一排横着滚，一枚生效的标签落在第三十位跟没
-     画出来是一回事：要撤掉刚加的那一条，得先把整排推过去把它找回来。
-     第一屏其余的位置由那一批抽样填——「换一批」换的就是这批成员。续上去的是这一批之外
-     剩下的，照数量从多到少读下来：抽样只管开头露谁，后面的顺序不归它管。
-     标签后面带上这个标签下有多少，跟资料页那条筛选条同一个口径；生效的标签不在这一批里
-     时不印数字（`n` 为空）。 */
+  /* The ones you added lead the row, in the order added. They are not necessarily in the drawn batch and may not rank at all,
+     since people arrive from a card or details page. The row scrolls horizontally, and an applied tag at position thirty is as
+     good as invisible: to remove the one just added you would have to shove the whole row over to find it.
+     The rest of the first screen is filled by that batch's sample, and "Shuffle" shuffles exactly those members. What
+     continues past it is what remains outside the batch, read from most to fewest: the sample only decides who shows first,
+     and the order after that is not its business.
+     Tags carry how many this tag holds, on the same basis as the profile page's filter bar; an applied tag outside this batch
+     prints no number (`n` empty). */
   const appliedKeys=catalogState.tagList(filterState.tag);
   const byTagKey=new Map(topTags.map(row=>[row.k,row]));
   const appliedTags=appliedKeys.map(k=>byTagKey.get(k)||{k});
@@ -350,28 +351,28 @@ export async function buildBars(){
     views:catalogState.catalogViews(),state:filterState.state||'',
   });
   renderCombo();
-  /* 侧栏那几组换成这一份聚合：`key` 换了，岛按新的按下态重定各组开合，计数徽标按上一次的值判断弹不弹。 */
+  /* The sidebar's groups are swapped for this aggregation: `key` changes, the island re-derives each group's open state from the new pressed state, and the count badges use the previous value to decide whether to pop. */
   layoutState.sidebarCatalog={kind:'catalog',key:String(++layoutState.sidebarContentSeq),facets:sidebarFacets(facetData,context)};
   paintSidebar({content:layoutState.sidebarCatalog,filters:{...filterState},latest:null});
 }
 
 export function paintCatalogCount(nextTotal,n){
   mediaState.total=nextTotal;
-  /* 回收站的读数写在页头的说明行里（右端挂「清空回收站」），由页头岛画。 */
+  /* The trash's readout lives in the page header's caption line (with 'Empty trash' at the right end), drawn by the header island. */
   if(state.state==='trash')selectionState.trashCount={total: mediaState.total,shown:n};
   buildManageBar();
   paintCatalogFilter({count:{total: mediaState.total,shown:n}});
 }
 
 export function emptyTrash(){
-  return confirmModal({title:'清空回收站',body:'回收站中的全部文件和馆藏记录将永久删除，无法恢复。',confirmLabel:'清空回收站',danger:true,onConfirm:async()=>{
+  return confirmModal({title:'Empty trash',body:'All files and library records in trash will be permanently deleted and cannot be recovered.',confirmLabel:'Empty trash',danger:true,onConfirm:async()=>{
     try{
       const r=await api('/api/trash/empty',{method:'POST'});
-      /* 删不掉的文件（占用中、网盘离线）会连同数据库行一起留在回收站，必须说出来，
-         否则用户看到条目还在会以为清空又没生效。 */
-      if(r.blocked&&r.blocked.length)throw new Error(`已永久删除 ${r.purged} 项；${r.blocked.length} 项未能删除，仍在回收站：\n`
-        +r.blocked.slice(0,5).map(x=>`${x.path}（${x.reason}）`).join('\n'));
-      receiptsState.actionReceipt(`已永久删除 ${r.purged} 项`);
+      /* Files that cannot be deleted (in use, cloud drive offline) stay in trash together with their database rows; this must be stated,
+         otherwise seeing the entries still there makes the user think emptying failed again. */
+      if(r.blocked&&r.blocked.length)throw new Error(`Permanently deleted ${r.purged} items; ${r.blocked.length} could not be deleted and remain in trash:\n`
+        +r.blocked.slice(0,5).map(x=>`${x.path} (${x.reason})`).join('\n'));
+      receiptsState.actionReceipt(`Permanently deleted ${r.purged} items`);
     }finally{await loadCatalog()}
   }});
 }
@@ -382,8 +383,8 @@ export function comboItems(filters){
   const items=[];
   if(filters.creator)items.push({kind:'clear',key:'creator',label:`${catalogState.COMBO_LABELS.creator} ${filters.creator}`});
   if(filters.studio)items.push({kind:'clear',key:'studio',label:`${catalogState.COMBO_LABELS.studio} ${filters.studio}`});
-  if(filters.owner==='none')items.push({kind:'clear',key:'owner',label:`${catalogState.COMBO_LABELS.owner} 未归属`});
-  if(filters.year)items.push({kind:'clear',key:'year',label:`发行年份 ${filters.year.split(',').map(year=>year==='none'?'未知年份':year).join('、')}`});
+  if(filters.owner==='none')items.push({kind:'clear',key:'owner',label:`${catalogState.COMBO_LABELS.owner} unassigned`});
+  if(filters.year)items.push({kind:'clear',key:'year',label:`Release year ${filters.year.split(',').map(year=>year==='none'?'unknown year':year).join(', ')}`});
   catalogState.tagList(filters.tag).forEach(t=>items.push({kind:'untag',key:t,label:tagLabel(t)}));
   return items;
 }
@@ -394,12 +395,12 @@ export function renderCombo(){
 
 export async function loadCatalog(){
   const surface=navigationState.claimSurface(navigationState.surfacePath());
-  /* 新作那一行只在目录路径上出现：管理页、回收站这些页面回答的是别的问题，一行「外面出了
-     什么」摆在那里只是噪音。离开目录时要显式收起——它是 `#main` 的固定子节点，没人收就
-     一直挂在那儿。 */
+  /* The new releases row only appears on catalog paths: manage pages, trash, and the like answer other questions, and a row saying "what's new out there"
+     placed there is just noise. Leaving the catalog must explicitly retract it; it is a fixed child of `#main`, and nobody retracting means
+     it hangs there forever. */
   writeShell({barsContext:{type:'home',filters:state},detailReturnBarsContext:null});disposeStage(false);
   if(state.state==='ads')return loadJunk(surface);
-  // 卸掉垃圾队列要赶在铺骨架之前：它的计数行也在 `#count` 里，先铺就把它挂着的那一格冲掉了。
+  // Unmounting the junk queue must happen before the skeleton is laid: its count row also lives in `#count`, and laying first would wash away the cell it holds.
   if(catalogState.controller.page==='/junk-files')clearCatalogGrid();
   renderCatalogLoading();
   showHomeSurfaces();
@@ -436,7 +437,7 @@ export function paintGridPage(page,propsFor,surface,options={}) {
     const props=propsFor();
     if(!render.mount){pushGridPage(props);return render.settled}
     releaseHoverPreviews(grid);
-    // 取消信号撤销实际 managed 预取，不能只让晚到回调不绘制。
+    // The cancel signal revokes the actual managed prefetch; it is not enough to merely stop the late callback from painting.
     const abort=()=>releaseManagedRoute(grid);
     render.signal.addEventListener('abort',abort,{once:true});
     const painting=openManagedRoute(page,props,{...options,container:grid,isCurrent:()=>navigationState.surfaceCurrent(surface)&&render.isCurrent()});
@@ -448,10 +449,10 @@ export function paintGridPage(page,propsFor,surface,options={}) {
 
 export function catalogGridLayout(){
   const home=homeLayoutActive();
-  return gridLayout({active:javActive()||home,home,portrait:state.orient==='竖屏'});
+  return gridLayout({active:javActive()||home,home,portrait:state.orient==='Portrait'});
 }
 
-export function catalogSkeletonHtml(label='正在读取作品'){
+export function catalogSkeletonHtml(label='Loading videos'){
   return catalogContentSkeletonHtml(label,catalogCardRatio());
 }
 
@@ -480,15 +481,15 @@ export function catalogGridProps(){
     wireDrag,settled:settleCatalog,
     skeletonHtml:()=>catalogSkeletonHtml(),
     filters:{...state},batchSize:preferencesState.appSettings.batchSize,groupCollapse:preferencesState.appSettings.groupCollapse,
-    /* 只有首页默认列表排除竖屏——那里另有独立的竖屏带承接它们。搜索必须能搜到竖屏作品，
-       否则按名字找一条竖屏视频会得到 0 结果。JAV 模式恒不含竖屏：番号发行物本身就是横版。 */
+    /* Only the home page's default list excludes verticals, because a separate vertical strip there catches them. Search must reach vertical videos,
+       otherwise finding a vertical video by name returns 0 results. JAV mode never includes verticals: code releases are landscape by nature. */
     excludeVertical:(home&&path!=='/wall'&&!state.q&&!state.orient&&state.browse!=='folders')||state.jav==='1',
     mix:home&&path!=='/wall'&&!trash&&state.browse!=='folders',
-    /* JAV 模式不插竖屏带：主列表的 exclude_vertical 管不到它，它是独立请求、独立插入的。 */
-    shorts:home&&path!=='/wall'&&!javActive()&&state.orient!=='竖屏'&&!trash&&state.browse!=='folders',
+    /* JAV mode does not insert the vertical strip: the main list's exclude_vertical does not govern it; it is a separate request, inserted separately. */
+    shorts:home&&path!=='/wall'&&!javActive()&&state.orient!=='Portrait'&&!trash&&state.browse!=='folders',
     countRow:$('#count'),onCount:paintCatalogCount,onCountFailed:()=>paintCatalogFilter({count:false}),
     emptyHtml:({trash:inTrash,libraryEmpty})=>inTrash
-      ?preferencesState.emptyState('trash','回收站是空的','删掉的内容会先到这里；确认不再需要后再清空。')
+      ?preferencesState.emptyState('trash','Trash is empty','Deleted content lands here first; empty it only after confirming it is no longer needed.')
       :catalogEmptyHtml({jav:javActive()&&!libraryEmpty,configurable:runtimeConfigurable,filtered:!libraryEmpty}),
     canLoadMore:()=>$('#stats').hidden&&$('#index').hidden,
   };
@@ -498,10 +499,10 @@ export function loadJunk(surface){
   const count=$('#count');
   const live=catalogState.controller.page==='/junk-files'&&gridPainted()&&!catalogState.controller.pending
     &&count.querySelector(':scope > .peach-react:not([data-junk-count-skeleton])');
-  if(!live){clearCatalogGrid();renderCatalogLoading('正在读取垃圾文件')}
+  if(!live){clearCatalogGrid();renderCatalogLoading('Reading junk files')}
   showHomeSurfaces();
   renderCombo();
-  // 垃圾文件是逐项处置队列，计数只是当前队列说明，不是需要跟随浏览的排序工具。
+  // Junk files are a one-by-one disposition queue; the count only describes the current queue, it is not a sorting tool to browse along.
   count.classList.add('manage-static','junkcount');
   count.classList.remove('is-stuck');
   return paintJunkQueue(surface);
@@ -514,11 +515,11 @@ export async function runJunkOperation(it,operation){
       ...(disposed?{disposal_reason:'junk'}:{})})});
     await loadCatalog();
     const inverse=disposed?'restore':reconsidered?'dismiss-junk':'reconsider-junk';
-    receiptsState.actionReceipt(disposed?'已移入回收站':reconsidered?'已重新加入垃圾判断':'已标记为不是垃圾',{undo:async()=>{
+    receiptsState.actionReceipt(disposed?'Moved to trash':reconsidered?'Re-added to junk detection':'Marked as not junk',{undo:async()=>{
       await api('/api/batch',{method:'POST',body:JSON.stringify({ids,operation:inverse})});
       await loadCatalog();
     }});
-  }catch(error){receiptsState.actionFailure('操作',error);throw error}
+  }catch(error){receiptsState.actionFailure('Actions',error);throw error}
 }
 
 export function junkQueueProps(){
@@ -526,7 +527,7 @@ export function junkQueueProps(){
     ...junkRoute(location.search),helpers:catalogState.junkQueueHelpers,actions:catalogState.junkQueueActions,
     batchSize:preferencesState.appSettings.batchSize,revision:catalogState.controller.revision,selectMode,selected:new Set(selected),
     countRow:$('#count'),settled:settleCatalog,
-    skeletonHtml:()=>pageSkeletonHtml('正在读取垃圾文件',{cards:true,className:'catalog-skeleton postercard-skeleton'}),
+    skeletonHtml:()=>pageSkeletonHtml('Reading junk files',{cards:true,className:'catalog-skeleton postercard-skeleton'}),
     canLoadMore:()=>$('#stats').hidden&&$('#index').hidden,
   };
 }
@@ -581,7 +582,7 @@ catalogState.gridActions = {
   openMix:(seedId,anchor)=>openMix(seedId,seedId,true,anchor),
   openEntity:(kind,name)=>openEntity(kind,name),
   openUnowned:()=>goHome({owner:'none'}),
-  /* 卡片上的标签是「只看这个标签」，已经在筛它就取消。在哪一屏点就在哪一屏生效。 */
+  /* A card's tag means "only this tag", and tapping again cancels it when already filtering. It takes effect on whichever screen it was tapped on. */
   toggleTag:tag=>{
     commitContextFilter(filters=>{filters.tag=catalogState.tagPressed(filters.tag,tag)?'':tag});
   },
@@ -601,8 +602,8 @@ catalogState.topsQueryParams = (context,page=0)=>{
   return params;
 };
 catalogState.facetCountsSeq = 0;
-catalogState.VIEW_PILLS = [{k:'',label:'全部'},{k:'fresh',label:'没看过'},
-                  {k:'later',label:'稍后看'},{k:'flagged',label:'已标记'}];
+catalogState.VIEW_PILLS = [{k:'',label:'All'},{k:'fresh',label:'Not watched'},
+                  {k:'later',label:'Watch later'},{k:'flagged',label:'Marked'}];
 catalogState.catalogViews = ()=>catalogState.VIEW_PILLS.map(v=>({...v,href:v.k?STATE_ROUTES[v.k]:'/'}));
 catalogState.TAGS_FIRST = 26;
 applicationEffects.listen($('#catalogFilter'), 'click', event=>{
@@ -611,21 +612,21 @@ applicationEffects.listen($('#catalogFilter'), 'click', event=>{
   event.preventDefault();catalogFilterActions().setView(view.dataset.catalogView);
 });
 catalogState.catalogOnScreen = ()=>$('#index').hidden&&$('#stats').hidden;
-catalogState.COMBO_LABELS = {creator:'创作者',studio:'厂牌',owner:'归属'};
+catalogState.COMBO_LABELS = {creator:'Creators',studio:'Labels',owner:'Attribution'};
 catalogState.hideCatalogCombo = ()=>{if(catalogState.catalogFilterProps)paintCatalogFilter({comboHidden:true})};
 }
 
 export function installCatalog19() {
 catalogState.junkQueueHelpers = {badgeHtml:(location,cost)=>preferencesState.srcBadge(location,cost)};
 catalogState.junkQueueActions = {
-  /* 换分类、换视图：先收起多选，再改地址，由目录元素重读。 */
+  /* Switch category, switch view: collapse multi-select first, then change the address, and the catalog element re-reads. */
   navigate:path=>{if(selectMode)setSelectMode(false,true);navigationState.route(path)},
   toggleSelection:(id,range)=>toggleSelection(id,range),
   open:(it,anchor)=>it.junk_kind==='image'
     ?window.open('/photo?id='+it.id,'_blank','noopener'):openItem(it.id,true,null,anchor),
-  /* 定位成功由 Toast 报，卡上状态行留空；失败把原因写回状态行。 */
+  /* A successful locate is reported by Toast and the card's status line stays empty; failure writes the reason back to the status line. */
   reveal:async it=>{
-    try{await api('/api/reveal',{method:'POST',body:JSON.stringify({id:it.id})});receiptsState.toast({text:'已在资源管理器中显示'});return ''}
+    try{await api('/api/reveal',{method:'POST',body:JSON.stringify({id:it.id})});receiptsState.toast({text:'Revealed in File Explorer'});return ''}
     catch(error){return entityState.sourceHint(error.message)}
   },
   operate:(it,operation)=>runJunkOperation(it,operation),

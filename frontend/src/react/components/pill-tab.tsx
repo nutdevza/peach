@@ -1,6 +1,6 @@
 "use client";
 
-// BoardUI PillTab 的 Peach 适配：集合宿主通过 Portal 承载同一选中层；来源见 docs/reference-snapshots/boardui-settings-tabs.md。
+// Peach adaptation of the BoardUI PillTab: the set host carries the same selected layer through a Portal; see docs/reference-snapshots/boardui-settings-tabs.md for the source.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -69,7 +69,7 @@ type Thumb = {
 
 export interface PillTabListProps extends HTMLAttributes<HTMLDivElement> {
   ref?: Ref<HTMLDivElement>;
-  /** Peach：外部集合宿主承载装饰层，选项仍由 React Aria 管理。 */
+  /** Peach: the external collection host carries the decoration layer, while options stay managed by React Aria. */
   container?: HTMLDivElement | null;
 }
 

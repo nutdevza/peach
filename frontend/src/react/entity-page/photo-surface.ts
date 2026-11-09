@@ -1,6 +1,6 @@
 import type { FollowPhotoLayout, FollowPhotoSize } from '../follow-feed/follow-feed';
 
-/** 资料页视图由 painted 报告；异步墙未落 DOM 时也能正确选择大小图控件。 */
+/** The profile page view is reported by painted; the large/small control is chosen correctly even before the async wall lands in the DOM. */
 export interface PhotoSurfaceState {
   entityWall: boolean;
   entityCurrent: boolean;

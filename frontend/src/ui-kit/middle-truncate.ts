@@ -1,9 +1,9 @@
-/* Geist MiddleTruncate 的 Peach 原生适配层。
-
-   只复用已验证的行为：按容器宽度保留首尾、使用单个省略号、宽度变化后重算、复制与无障碍名称
-   仍提供完整原文。调用方只需给文件名、路径、URL 或 ID 加 data-middle-truncate；标题和说明继续
-   使用末尾省略。随 `peach-app.js` 发出，由 Application 启动与清理全文档的唯一观察者，
-   原生宿主与 React 子树写的属性都归它管。 */
+/* Peach's native adapter over Geist MiddleTruncate.
+ *
+ * Only verified behavior is reused: keep head and tail by container width, use a single ellipsis, recompute on width change,
+ * and still provide the full original for copy and accessible name. Callers only add data-middle-truncate to a file name,
+ * path, URL or ID; titles and descriptions keep tail ellipsis. Shipped with `peach-app.js`, with Application's startup and
+ * the document-wide single observer; attributes written by native hosts and the React subtree are all its business. */
 
 interface TruncateState { full: string; rendered: string }
 
@@ -22,14 +22,14 @@ const graphemes=(value:unknown)=>segmenter
   ? [...segmenter.segment(String(value??''))].map(part=>part.segment)
   : Array.from(String(value??''));
 
-/* 保留 kept 个字形时的显示文字，奇数位优先保留开头；kept 等于总数即原文。 */
+/* The display text when keeping kept glyphs, odd positions prefer keeping the start; when kept equals the total, it's the original text. */
 const keptText=(parts:string[],kept:number)=>{
   if(kept>=parts.length)return parts.join('');
   const head=Math.ceil(kept/2),tail=Math.floor(kept/2);
   return parts.slice(0,head).join('')+ELLIPSIS+(tail?parts.slice(-tail).join(''):'');
 };
 
-/* 二分寻找能放下的最长首尾组合，返回保留的字形数；全都放不下时为 0，只剩省略号。 */
+/* Binary search for the longest head-tail combination that fits, returning the number of glyphs kept; when nothing fits, it's 0, leaving only the ellipsis. */
 const longestKept=(parts:string[],fits:(candidate:string)=>boolean)=>{
   if(!parts.length||fits(parts.join('')))return parts.length;
   let low=0,high=parts.length-1,best=0;
@@ -40,16 +40,16 @@ const longestKept=(parts:string[],fits:(candidate:string)=>boolean)=>{
   return best;
 };
 
-/* 纯算法边界单独导出，Node 可直接实测，不需要伪造 DOM。fits(candidate) 由浏览器
-   测量层注入。 */
+/* The pure-algorithm boundary is exported separately so Node can test it directly, without faking a DOM. fits(candidate) is injected by the browser
+   measurement layer. */
 function middleTruncateText(value:unknown,fits:(candidate:string)=>boolean):string{
   const parts=graphemes(value);
   return keptText(parts,longestKept(parts,fits));
 }
 
-/* 页面开着 text-autospace：Chromium 在汉字、假名与拉丁字母、数字相邻处加 1/8 em 的间距，
-   全角标点还受 text-spacing-trim 挤压，Canvas 的 measureText 两样都不算。含这类字符的文字
-   拿 Canvas 读数（补上估算的间距）当起点，再由离屏 DOM 探针逐个确认；纯西文仍只用 Canvas。 */
+/* The page has text-autospace on: Chromium adds 1/8 em spacing where CJK characters, kana, and Latin letters and digits sit adjacent,
+   and full-width punctuation is also squeezed by text-spacing-trim; Canvas measureText accounts for neither. Text containing these characters
+   takes the Canvas reading (with estimated spacing added) as its starting point, then confirms each via an offscreen DOM probe; pure Latin text still uses Canvas only. */
 const WIDE=/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
 const IDEOGRAPH=/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const ALPHANUMERIC=/[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Nd}]/u;
@@ -71,8 +71,8 @@ const canvasWidth=(element:Element,mixed:boolean)=>{
   const style=getComputedStyle(element);
   const context=(canvas||(canvas=document.createElement('canvas'))).getContext('2d');
   if(!context)return ()=>Number.POSITIVE_INFINITY;
-  /* Chromium 会在 font-variant-numeric 等长数字开启时把计算后的 font 简写返回为空串；
-     直接赋值会让 Canvas 静默退回 10px sans-serif，进而低估中文文件名宽度。 */
+  /* Chromium returns the computed font shorthand as an empty string when font-variant-numeric's tabular figures are on;
+     assigning it directly would make Canvas silently fall back to 10px sans-serif, underestimating CJK filename widths. */
   context.font=style.font||`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
   const letterSpacing=parseFloat(style.letterSpacing),wordSpacing=parseFloat(style.wordSpacing);
   const autospace=style.getPropertyValue('text-autospace');
@@ -86,9 +86,9 @@ const canvasWidth=(element:Element,mixed:boolean)=>{
   };
 };
 
-/* 探针挂在 <html> 下、<body> 之外，量的时候不惊动正文的 MutationObserver；contain: strict
-   让改字只重排它自己。它继承不到 React 容器上的样式，排版相关的计算值逐项抄过去，同款样式
-   连续量时不重设。 */
+/* The probe sits under <html>, outside <body>, so measuring doesn't trip the body's MutationObserver; contain: strict
+   means changing text only reflows itself. It can't inherit styles from the React container, so the layout-relevant computed values are copied over item by item; the same style
+   measured repeatedly isn't reset. */
 const PROBE_STYLE=['font-family','font-size','font-weight','font-style','font-stretch',
   'font-variant-ligatures','font-variant-caps','font-variant-numeric','font-variant-east-asian',
   'font-variant-alternates','font-variant-position','font-feature-settings','font-variation-settings',
@@ -120,9 +120,9 @@ const probeGroup=(element:Element)=>{
 interface Fit { element:HTMLElement; state:TruncateState; available:number; parts:string[]; kept:number }
 interface Probing { fit:Fit; group:HTMLElement; fits:number; fails:number; tries:number[] }
 
-/* 每帧只排一次探针：所有待定元素的候选同时放进探针，读一遍宽度，再按结果收窄区间。
-   fits 是已确认放得下的最大保留数（0 只剩省略号，总能放下），fails 是已确认放不下的最小值。
-   首轮试 Canvas 种子与它的下一个，通常一轮定论；没定的再试区间两端与中间，几轮内收敛。 */
+/* Only one probe pass per frame: the candidates for all pending elements go into the probe at once, read the width once, then narrow the interval by the result.
+   fits is the largest confirmed-kept count (0 leaves only the ellipsis, always fits); fails is the smallest confirmed-unfit value.
+   The first round tries the Canvas seed and its next; usually settled in one round; unsettled ones retry the interval's ends and middle, converging within a few rounds. */
 const MAX_PROBE_ROUNDS=8;
 const probeAll=(pending:Probing[])=>{
   for(let round=0;pending.length&&round<MAX_PROBE_ROUNDS;round++){
@@ -149,7 +149,7 @@ const probeAll=(pending:Probing[])=>{
   }
 };
 
-/* 先按 Canvas 定下所有元素的结果；含中日文的再交探针批量确认。 */
+/* First decide all elements' results by Canvas; those containing Chinese/Japanese are then batch-confirmed by the probe. */
 const fitAll=(fits:Fit[])=>{
   const pending:Probing[]=[];
   for(const fit of fits){
@@ -163,9 +163,9 @@ const fitAll=(fits:Fit[])=>{
   probeAll(pending);
 };
 
-/* clientWidth 取整到整数。盒子按内容收缩（面包屑里带 max-width 的名字）时向下取整就比现有文字
-   窄一点，探针量得准，每一轮都判「放不下」再截短一个字。改取计算样式里的小数宽度，序列化只留
-   六位有效数字，补一个 LayoutUnit；向上取整时仍用 clientWidth，原来放得下的结果不变。 */
+/* clientWidth rounds to an integer. When the box shrinks to its content (a name with max-width in the breadcrumbs), flooring makes it slightly narrower than the existing text,
+   and the probe measures accurately — every round judges "doesn't fit" and trims one more character. Switch to the fractional width from the computed style, serializing to only
+   six significant digits, adding a LayoutUnit; ceiling still uses clientWidth, so results that originally fit are unchanged. */
 const clientWidth=(element:HTMLElement)=>{
   const style=getComputedStyle(element),width=parseFloat(style.width);
   if(!Number.isFinite(width))return element.clientWidth;
@@ -175,10 +175,11 @@ const clientWidth=(element:HTMLElement)=>{
   return Math.max(element.clientWidth,inner+1/64);
 };
 
-/* 可用宽度默认取元素自己的盒子。带 data-middle-truncate-within 的元素按内容收缩（后面紧跟着
-   别的东西，比如文件名后面的「最大」标记），自己的盒子就是当前文字的宽度——拿它当上限，
-   clientWidth 取整少掉的那不到一像素每一轮都让全文「放不下」，越截越短。这类元素改按父级
-   量：父级的内容宽减去所有兄弟和列间距，剩下的才是文字能占的。 */
+/* Available width defaults to the element's own box. Elements with data-middle-truncate-within shrink to fit content (with
+   something else right behind, like the "max" tag after a file name), so their own box is the current text's width; using it
+   as the ceiling, the sub-pixel rounding loss in clientWidth would declare "does not fit" every round, truncating shorter
+   each time. Such elements measure by the parent instead: the parent's content width minus all siblings and column gaps is
+   what the text can take. */
 const availableWidth=(element:HTMLElement)=>{
   if(element.dataset.middleTruncateWithin===undefined)return clientWidth(element);
   const box=element.parentElement;if(!box)return element.clientWidth;
@@ -194,8 +195,8 @@ const availableWidth=(element:HTMLElement)=>{
     -used-gap*Math.max(0,shown-1);
 };
 
-/* 一帧里先读完所有宽度、量完所有候选，最后统一写回：边读边写会让每个元素都触发一次整页重排，
-   几百个文件名时一次 resize 要排上几百遍。 */
+/* In one frame, read all widths and measure all candidates first, then write back together at the end: interleaving reads and writes makes every element trigger a full-page reflow;
+   with hundreds of filenames a single resize would reflow hundreds of times. */
 const paint=()=>{
   frame=0;
   const fits:Fit[]=[];
@@ -230,7 +231,7 @@ const bind=(element:Element)=>{
   if(!states.has(element))states.set(element,{full:element.textContent||'',rendered:element.textContent||''});
   if(!observed.has(element)){
     observed.add(element);
-    /* 按父级量的元素跟着父级的尺寸重算：它自己的盒子只会随文字变，不会随窗口变。 */
+    /* Elements measured against their parent recompute with the parent's size: their own box changes only with the text, never with the window. */
     if(element.dataset.middleTruncateWithin!==undefined&&element.parentElement)resizeObserver?.observe(element.parentElement);
     else resizeObserver?.observe(element);
   }

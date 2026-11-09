@@ -1,11 +1,15 @@
-/* 外观配色的纯数据层：光晕参数、预设、命名色板、强调色清单与存量规范化。
- * 当前设置与目标元素由 glow.ts、settings.ts 递进来，paintHomeGlow 只写目标元素。
- * @peach/appearance 直接解析到共享源码，主界面只发布一份预设表和规范化实现。
- * glowNumber 与 number-setting.ts 的 boundedPreference 都要求整数落在区间内，否则取默认值。
- * 光晕写在局部元素，避免拖动时触发整棵文档的样式重算；实测记录见 web/css/01-base.css。 */
+/* The pure data layer of appearance color: glow parameters, presets, named palette, accent color list and legacy
+ * normalization.
+ * Current settings and the target element are passed in by glow.ts and settings.ts; paintHomeGlow writes only the target
+ * element.
+ * @peach/appearance resolves directly to shared source, and the main UI ships one preset table and one normalization
+ * implementation.
+ * glowNumber and number-setting.ts's boundedPreference both require integers in range, else the default value.
+ * Glow is written to a local element to avoid a whole-document style recalc during drags; measurements recorded in
+ * web/css/01-base.css. */
 
 export interface GlowSpot { color: string; alpha: number }
-/** 一份光晕设置。 */
+/** One glow setting. */
 export interface HomeGlow {
   on: boolean; preset: string; strength: number; noise: number; speed: number; soften: number; size: number;
   spot1: GlowSpot; spot2: GlowSpot; spot3: GlowSpot;
@@ -14,157 +18,166 @@ type SpotKey = 'spot1' | 'spot2' | 'spot3';
 type GlowPalette = Pick<HomeGlow, SpotKey>;
 type GlowField = 'strength' | 'noise' | 'speed' | 'soften' | 'size';
 
-/* 一档配色就是三枚光晕的颜色与不透明度；开关、强度和颗粒不属于配色，换档时不动。
-   椭圆半轴和收边位置不在这里，只有 web/css/01-base.css 一份，用户不调、也不存；圆心
-   根本不存在——三枚光晕由 glowdrift 那两条动画一直推着走，那是侧栏玻璃自带的漂移。
-   这个形状借自 feralui.dev/gradients 的 JSON 导出（登记在 docs/HANDOFF.md），只借参数
-   模型，渲染仍是那三层纯 CSS 径向渐变，不引入 Canvas。
-   三枚光晕各自向 transparent 收边，落在侧栏那块玻璃上，所以每一枚都得自己亮得起来：
-   压暗的那种颜色在深色侧栏上等于没有，在浅色侧栏上是一团脏。
-   `ash` 是默认那一档，和 :root 上的默认值一字不差。
-   每一档还带一枚搭配的强调色：换配色是换整套外观，按钮、焦点环和链接跟着走才是一副面。
-   单点强调色可以把它覆盖掉，那一下只改强调色、不动光晕。 */
+/* One color scheme is the colors and opacities of three glows; the switch, intensity and grain are not part of the scheme and
+   do not move when it changes. The ellipse semi-axes and feather position are not here; web/css/01-base.css holds the only
+   copy, user-unadjusted and unstored; centers do not exist at all: the three glows are pushed along continuously by the
+   glowdrift animations, which are the sidebar glass's own drift.
+   This shape is borrowed from feralui.dev/gradients' JSON export (registered in docs/HANDOFF.md), the parameter model only;
+   rendering stays those three layers of pure CSS radial gradients, no Canvas.
+   Each glow feathers to transparent and lands on the sidebar's glass, so each one must be able to carry its own light: a
+   darkened color is invisible on the dark sidebar and a smear on the light one.
+   `ash` is the default scheme, matching the :root defaults to the letter.
+   Each scheme also carries one matching accent color: changing the scheme changes the whole look, and buttons, focus rings
+   and links following along is what makes it one face.
+   A single accent pick can override it; that click changes only the accent color and leaves the glow alone. */
 const HOME_GLOW_SPOTS:readonly SpotKey[]=['spot1','spot2','spot3'];
-const GLOW_SPOT_LABELS:readonly string[]=['光晕一','光晕二','光晕三'];
-/* 「玻璃原色」是每块玻璃自带的那两团反光，颜色由明暗主题给：深色近白、浅色一蓝一灰。
-   它不走光晕那一层——两团、各自的尺寸与轨迹全在 board.css 的 `--glass-drift-a/b` 里，
-   照着三枚光晕重画一遍只会得到一份形状不同的仿制品。选中这一档时光晕整层的强度算成 0，
-   同时不往根上写 `--glass-tint-*`，每块玻璃于是退回自己那一档主题色。
-   留着的这三枚颜色是模型里的填充，让「三枚光晕」在任何一档下都取得到合法值；这一档的
-   界面不显示它们。 */
+const GLOW_SPOT_LABELS:readonly string[]=['Glow 1','Glow 2','Glow 3'];
+/* "Glass original color" is each glass pane's own two reflections, colored by the light/dark theme: near-white in dark, one
+   blue and one gray in light.
+   It does not ride the glow layer: the two blobs, their sizes and paths all live in board.css's `--glass-drift-a/b`, and
+   repainting them after the three glows would produce a differently shaped imitation. With this scheme selected, the glow
+   layer's intensity computes to 0 and `--glass-tint-*` is not written to the root, so each pane falls back to its own theme
+   tier.
+   The three kept colors are the model's fill, so "three glows" has legal values under any scheme; this scheme's UI does not
+   display them. */
 const GLASS_NATIVE_PRESET='native';
-/* 默认那一档排在最前：灰雾配蓝。灰是最不挑主题的光晕，蓝是 BoardUI 自己的强调色，
-   两者一起就是这个壳没被改过时的样子；暖色那几档留给人自己挑。 */
-/** `[键, 名称, 三枚光晕, 搭配的强调色]`。 */
+/* The default tier sorts first: gray mist with blue. Gray is the glow least tied to a theme, and blue is BoardUI's own accent;
+   together they are how this shell looks untouched, with the warm tiers left for the user to pick. */
+/** `[key, name, three glows, paired accent color]`. */
 const HOME_GLOW_PRESETS:readonly (readonly [key:string,label:string,palette:GlowPalette,accent:string])[]=[
-  ['ash','灰雾',{
+  ['ash','Mist gray',{
     spot1:{color:'#8f98a4',alpha:52},spot2:{color:'#b6bcc4',alpha:38},spot3:{color:'#6f7783',alpha:50}},'blue'],
-  ['amber','钨丝暖阁',{
+  ['amber','Filament warmth',{
     spot1:{color:'#e08a2f',alpha:62},spot2:{color:'#c4544a',alpha:52},spot3:{color:'#a86a52',alpha:52}},'amber'],
-  ['plum','夜樱',{
+  ['plum','Night cherry',{
     spot1:{color:'#b455a0',alpha:64},spot2:{color:'#6a4fd0',alpha:54},spot3:{color:'#7a4f96',alpha:56}},'violet'],
-  ['pine','深林',{
+  ['pine','Deep forest',{
     spot1:{color:'#3f9e57',alpha:66},spot2:{color:'#7fae4a',alpha:48},spot3:{color:'#4f9463',alpha:56}},'emerald'],
-  /* 下面十二档照 feralui.dev/gradients 预设区那十二枚 chip 取色，逐档记在
-     docs/reference-snapshots/feralui-gradients-measured.md。它每档四枚色标，第一枚一律是
-     铺满画布的底色（十一档near-white、Midnight bloom 那档是近黑），Peach 没有底色层——
-     三枚光晕各自向 transparent 收边、身后就是页面自己的面，把那一枚搬过来在深色侧栏上
-     等于没有、在浅色侧栏上是一团脏。所以取的是第二、三、四枚，也就是它真正当光斑用的
-     那三枚。不透明度不跟着走：那是这块玻璃自己的浓淡，统一用默认档那一组。
-     档名中文自拟，按颜色取，不照抄英文名。 */
-  ['iris','琉璃霞',{
+  /* The twelve schemes below take their colors from the twelve chips in feralui.dev/gradients' preset area, recorded per
+     scheme in docs/reference-snapshots/feralui-gradients-measured.md. Each has four color stops, and the first is always the
+     canvas-filling base (near-white on eleven, near-black on Midnight bloom); Peach has no base layer: the three glows each
+     feather to transparent over the page's own surface, so importing that stop is invisible on the dark sidebar and a smear
+     on the light one. So the second, third and fourth stops are taken, the ones it actually uses as light blobs. Opacity
+     does not follow: that is this glass's own density, and the default scheme's set is used throughout.
+     Scheme names are coined by color, not copied from the English names. */
+  ['iris','Glass glow',{
     spot1:{color:'#1e50a2',alpha:62},spot2:{color:'#f09199',alpha:52},spot3:{color:'#895b8a',alpha:52}},'indigo'],
-  ['opal','蛋白石',{
+  ['opal','Opal',{
     spot1:{color:'#9be0e8',alpha:62},spot2:{color:'#c4b5f7',alpha:52},spot3:{color:'#f8b8d9',alpha:52}},'sky'],
-  ['lagoon','潟湖',{
+  ['lagoon','Lagoon',{
     spot1:{color:'#5ce3e6',alpha:62},spot2:{color:'#0f9cc2',alpha:52},spot3:{color:'#274a78',alpha:52}},'teal'],
-  ['jade','翡翠',{
+  ['jade','Jade',{
     spot1:{color:'#8fe3b0',alpha:62},spot2:{color:'#22c79a',alpha:52},spot3:{color:'#0b5f51',alpha:52}},'emerald'],
-  ['flare','耀斑',{
+  ['flare','Flare',{
     spot1:{color:'#ffc24b',alpha:62},spot2:{color:'#f4664d',alpha:52},spot3:{color:'#8a2e5e',alpha:52}},'orange'],
-  ['orchid','兰紫',{
+  ['orchid','Orchid',{
     spot1:{color:'#e794c9',alpha:62},spot2:{color:'#9678ce',alpha:52},spot3:{color:'#4a3894',alpha:52}},'violet'],
-  ['peach','桃晕',{
+  ['peach','Peach glow',{
     spot1:{color:'#ffc9a3',alpha:62},spot2:{color:'#f08a8c',alpha:52},spot3:{color:'#b65e8c',alpha:52}},'rose'],
-  ['tide','电蓝',{
+  ['tide','Electric blue',{
     spot1:{color:'#6fd8f2',alpha:62},spot2:{color:'#4c5be0',alpha:52},spot3:{color:'#2a2450',alpha:52}},'blue'],
-  ['sunset','落日',{
+  ['sunset','Sunset',{
     spot1:{color:'#ffae3f',alpha:62},spot2:{color:'#f0574d',alpha:52},spot3:{color:'#5d2a66',alpha:52}},'amber'],
-  ['mint','薄荷冰',{
+  ['mint','Mint ice',{
     spot1:{color:'#a8f0dc',alpha:62},spot2:{color:'#52cbb0',alpha:52},spot3:{color:'#147a5f',alpha:52}},'emerald'],
-  ['bloom','夜昙',{
+  ['bloom','Night bloom',{
     spot1:{color:'#4c3894',alpha:62},spot2:{color:'#b387e8',alpha:52},spot3:{color:'#f6c6e2',alpha:52}},'fuchsia'],
-  ['rosegold','玫瑰金',{
+  ['rosegold','Rose gold',{
     spot1:{color:'#fbc9ac',alpha:62},spot2:{color:'#e79ba7',alpha:52},spot3:{color:'#8e5a74',alpha:52}},'rose'],
-  [GLASS_NATIVE_PRESET,'玻璃原色',{
+  [GLASS_NATIVE_PRESET,'Glass native color',{
     spot1:{color:'#6686b8',alpha:52},spot2:{color:'#8f98a4',alpha:44},spot3:{color:'#6686b8',alpha:52}},'blue'],
 ];
-/** 「玻璃原色」那一档：没有三枚光晕，面上漂的是每块玻璃自带的两团反光。 */
+/** The 'glass original color' tier: no three glows; what drifts on the surface are each pane's own two highlights. */
 const isNativeGlass=(key:string):boolean=>key===GLASS_NATIVE_PRESET;
-/* 手调过颜色之后当前档就不再是任何一个预设，侧栏那一格和面板顶上的标识要如实说这件事，
-   不能继续顶着上一档的名字。 */
-const HOME_GLOW_CHOICES:readonly (readonly [key:string,label:string])[]=[...HOME_GLOW_PRESETS.map(([key,label])=>[key,label] as const),['custom','自定义']];
+/* After hand-tuning the color, the current tier is no longer any preset; the sidebar cell and the badge atop the panel must say so honestly,
+   and cannot keep wearing the previous tier's name. */
+const HOME_GLOW_CHOICES:readonly (readonly [key:string,label:string])[]=[...HOME_GLOW_PRESETS.map(([key,label])=>[key,label] as const),['custom','Custom']];
 const glowPresetName=(key:string):string=>(HOME_GLOW_CHOICES.find(([name])=>name===key)||HOME_GLOW_CHOICES[0]!)[1];
-/** 一档预设的三枚光晕（深拷贝）；认不出的键给默认那一档。 */
+/** A preset's three glows (deep copy); an unknown key falls back to the default preset. */
 const glowPalette=(key:string):GlowPalette=>structuredClone((HOME_GLOW_PRESETS.find(([name])=>name===key)||HOME_GLOW_PRESETS[0]!)[2]);
-/* 强调色是按钮、焦点环、链接和数据那一档色，走 BoardUI 的 accent 机制：十一级色阶整组
-   换掉，组件本身一个字不改（`frontend/src/react/boardui/styles/theme.css` 的 accent 段）。
-   这里只存档名，十一级的实际值在 `web/board.css` 里按 `:root[data-accent=…]` 一档一条；
-   把色阶抄进 JS 会得到两份必然走偏的色板，而圆球本身正是拿同一组变量画的。
-   十二档是 Tailwind v4 色板里绕色轮一圈取的十二个色相，六列两行正好铺满；中性色不收，
-   灰的链接和灰的焦点环在这套界面上读不出是「可点的东西」。 */
-/** `[键, 名称]`，十二档强调色。 */
-const ACCENTS:readonly (readonly [key:string,label:string])[]=[['red','红'],['orange','橙'],['amber','琥珀'],['lime','柠绿'],['emerald','翠绿'],['teal','青绿'],
-  ['sky','天蓝'],['blue','蓝'],['indigo','靛蓝'],['violet','紫罗兰'],['fuchsia','品红'],['rose','玫红']];
+/* The accent color is the button, focus ring, link and data tier; it rides BoardUI's accent mechanism: the eleven-step scale
+   swaps wholesale and the components change not a character (the accent section of
+   `frontend/src/react/boardui/styles/theme.css`). Only the scheme name is stored here; the eleven actual values live in
+   `web/board.css`, one rule per tier under `:root[data-accent=...]`. Copying the scale into JS would make two palettes bound to
+   drift, and the balls themselves are painted from these very variables.
+   The twelve schemes are twelve hues taken around the color wheel of Tailwind v4's palette; six columns by two rows fill it
+   exactly. Neutrals are not included: gray links and gray focus rings do not read as "clickable" in this UI. */
+/** `[key, name]`, the twelve accent color tiers. */
+const ACCENTS:readonly (readonly [key:string,label:string])[]=[['red','red'],['orange','orange'],['amber','Amber'],['lime','Lime'],['emerald','Emerald'],['teal','Teal green'],
+  ['sky','Sky blue'],['blue','blue'],['indigo','Indigo'],['violet','Violet'],['fuchsia','Magenta'],['rose','Rose red']];
 const DEFAULT_ACCENT:string='blue';
 const normalizeAccent=(value:unknown):string=>ACCENTS.some(([key])=>key===value)?value as string:DEFAULT_ACCENT;
-/** 一档预设搭配的强调色。 */
+/** The accent color paired with a preset tier. */
 const glowAccent=(key:string):string=>(HOME_GLOW_PRESETS.find(([name])=>name===key)||[])[3]||DEFAULT_ACCENT;
-/* 挑颜色的那张色板。名字按颜色本身取，不按它被用在哪儿——同一枚颜色换到另一枚光晕上
-   还是同一个名字。每一档预设用到的颜色全部落在这张表里，所以从侧栏选完预设再打开颜色
-   弹层，选中环指得出当前那一格；表里缺哪一枚，那一枚就永远是「没选中」。
-   前七个色系每系六档明度打底，其余是各档预设带进来的颜色，按色相归进对应色系，所以
-   各系不再一样长。青绿自成一系：feralui 那几档水色预设的主色都落在这一段，它在深色玻璃
-   上确实偏冷，但那是一种可以挑的冷，不是不能出现的颜色。 */
-/** `[色系, 名称]`，第一项是「全部」。 */
-const GLOW_SWATCH_FAMILIES:readonly (readonly [key:string,label:string])[]=[['all','全部'],['gray','灰'],['red','红'],['yellow','黄'],
-  ['green','绿'],['cyan','青'],['blue','蓝'],['purple','紫'],['brown','棕']];
-/** `[色系, 名称, #rrggbb]`。 */
+/* The palette that picks colors. Names follow the color itself, not where it is used: the same color on another glow keeps
+   the same name. Every preset's colors all land in this table, so after picking a preset in the sidebar and opening the color
+   popover, the selected ring can point at the current cell; any color missing from the table would forever read as
+   "unselected".
+   The first seven hue families carry six lightness tiers as the base, and the rest are colors the presets brought in, filed
+   by hue into the matching family, which is why the families differ in length. Teal is its own family: the water-toned
+   feralui presets' main colors all land here, and on dark glass it is indeed a cold hue, but a cold you can choose, not a
+   color that must not appear. */
+/** `[color family, name]`, the first item is "All". */
+const GLOW_SWATCH_FAMILIES:readonly (readonly [key:string,label:string])[]=[['all','All'],['gray','gray'],['red','red'],['yellow','yellow'],
+  ['green','green'],['cyan','cyan'],['blue','blue'],['purple','purple'],['brown','brown']];
+/** `[color family, name, #rrggbb]`. */
 const GLOW_SWATCHES:readonly (readonly [family:string,name:string,hex:string])[]=[
-  ['gray','云灰','#d8dade'],['gray','雾灰','#b6bcc4'],['gray','石灰','#8f98a4'],
-  ['gray','铁灰','#6f7783'],['gray','墨灰','#4a4e56'],['gray','深灰','#2e3138'],
-  ['red','樱红','#f08a8a'],['red','珊瑚','#e26a62'],['red','砖红','#c4544a'],
-  ['red','朱红','#b5322f'],['red','酒红','#8e2a2c'],['red','暗红','#6b2224'],
-  ['yellow','麦黄','#f2d48a'],['yellow','琥珀','#e8b451'],['yellow','钨丝','#e08a2f'],
-  ['yellow','金黄','#cf8a20'],['yellow','姜黄','#a9701c'],['yellow','栗黄','#7d5216'],
-  ['green','嫩芽','#a9cf7e'],['green','叶绿','#7fae4a'],['green','草绿','#5da34f'],
-  ['green','森绿','#3f9e57'],['green','苔绿','#4f9463'],['green','墨绿','#27563a'],
-  ['blue','天蓝','#9fc2e8'],['blue','湖蓝','#6a9fd8'],['blue','靛蓝','#4478c0'],
-  ['blue','宝蓝','#2f5ba3'],['blue','深蓝','#27467c'],['blue','夜蓝','#1c3358'],
-  ['purple','丁香','#c3a7e0'],['purple','品红','#b455a0'],['purple','薰衣草','#a67fd2'],
-  ['purple','葡萄','#6a4fd0'],['purple','茄紫','#7a4f96'],['purple','深紫','#432c6d'],
-  ['brown','沙棕','#d6b492'],['brown','陶棕','#bd8f68'],['brown','赭棕','#a86a52'],
-  ['brown','栗棕','#8c5340'],['brown','褐棕','#6d3f31'],['brown','深褐','#4e2d23'],
-  ['red','霞红','#f09199'],['red','藕粉','#f8b8d9'],['red','火红','#f4664d'],
-  ['red','桃红','#f08a8c'],['red','夕红','#f0574d'],['red','粉樱','#f6c6e2'],
-  ['red','玫粉','#e79ba7'],
-  ['yellow','阳黄','#ffc24b'],['yellow','橘黄','#ffae3f'],
-  ['green','玉绿','#8fe3b0'],['green','翠绿','#22c79a'],['green','深翠','#0b5f51'],
-  ['green','松绿','#147a5f'],
-  ['cyan','浅青','#9be0e8'],['cyan','碧波','#5ce3e6'],['cyan','孔雀','#0f9cc2'],
-  ['cyan','冰青','#6fd8f2'],['cyan','薄荷','#a8f0dc'],['cyan','碧绿','#52cbb0'],
-  ['blue','琉璃','#1e50a2'],['blue','藏蓝','#274a78'],['blue','电蓝','#4c5be0'],
-  ['purple','古紫','#895b8a'],['purple','紫藤','#c4b5f7'],['purple','梅紫','#8a2e5e'],
-  ['purple','兰粉','#e794c9'],['purple','兰紫','#9678ce'],['purple','靛紫','#4a3894'],
-  ['purple','莓紫','#b65e8c'],['purple','墨紫','#2a2450'],['purple','暮紫','#5d2a66'],
-  ['purple','夜紫','#4c3894'],['purple','淡紫','#b387e8'],['purple','玫紫','#8e5a74'],
-  ['brown','杏橙','#ffc9a3'],['brown','浅杏','#fbc9ac'],
-  /* 这一枚是玻璃自带那团蓝色反光在浅色主题下的颜色，另一团是上面灰系的石灰。「玻璃原色」
-     那一档的界面不显示颜色，但它在模型里仍有三枚合法色，同一条「预设用到的颜色都在表里」
-     因此也要对它成立。 */
-  ['blue','霁蓝','#6686b8'],
+  ['gray','Cloud gray','#d8dade'],['gray','Haze gray','#b6bcc4'],['gray','Limestone','#8f98a4'],
+  ['gray','Iron gray','#6f7783'],['gray','Ink gray','#4a4e56'],['gray','Dark gray','#2e3138'],
+  ['red','Cherry red','#f08a8a'],['red','Coral','#e26a62'],['red','Brick red','#c4544a'],
+  ['red','Vermilion','#b5322f'],['red','Wine red','#8e2a2c'],['red','Dark red','#6b2224'],
+  ['yellow','Wheat','#f2d48a'],['yellow','Amber','#e8b451'],['yellow','Filament','#e08a2f'],
+  ['yellow','Golden','#cf8a20'],['yellow','Ginger','#a9701c'],['yellow','Chestnut yellow','#7d5216'],
+  ['green','Sprout','#a9cf7e'],['green','Leaf green','#7fae4a'],['green','Grass green','#5da34f'],
+  ['green','Forest green','#3f9e57'],['green','Moss green','#4f9463'],['green','Ink green','#27563a'],
+  ['blue','Sky blue','#9fc2e8'],['blue','Lake blue','#6a9fd8'],['blue','Indigo','#4478c0'],
+  ['blue','Sapphire','#2f5ba3'],['blue','Deep blue','#27467c'],['blue','Midnight blue','#1c3358'],
+  ['purple','Lilac','#c3a7e0'],['purple','Magenta','#b455a0'],['purple','Lavender','#a67fd2'],
+  ['purple','Grape','#6a4fd0'],['purple','Eggplant','#7a4f96'],['purple','Deep purple','#432c6d'],
+  ['brown','Sand brown','#d6b492'],['brown','Clay brown','#bd8f68'],['brown','Ochre brown','#a86a52'],
+  ['brown','Chestnut brown','#8c5340'],['brown','Cocoa brown','#6d3f31'],['brown','Deep brown','#4e2d23'],
+  ['red','Rosy dawn','#f09199'],['red','Lotus pink','#f8b8d9'],['red','Fire red','#f4664d'],
+  ['red','Peach red','#f08a8c'],['red','Dusk red','#f0574d'],['red','Pink cherry','#f6c6e2'],
+  ['red','Rose pink','#e79ba7'],
+  ['yellow','Sunny yellow','#ffc24b'],['yellow','Tangerine','#ffae3f'],
+  ['green','Jade green','#8fe3b0'],['green','Emerald','#22c79a'],['green','Deep emerald','#0b5f51'],
+  ['green','Pine green','#147a5f'],
+  ['cyan','Light cyan','#9be0e8'],['cyan','Azure wave','#5ce3e6'],['cyan','Peacock','#0f9cc2'],
+  ['cyan','Ice cyan','#6fd8f2'],['cyan','Mint','#a8f0dc'],['cyan','Viridian','#52cbb0'],
+  ['blue','Lapis','#1e50a2'],['blue','Navy','#274a78'],['blue','Electric blue','#4c5be0'],
+  ['purple','Antique purple','#895b8a'],['purple','Wisteria','#c4b5f7'],['purple','Plum purple','#8a2e5e'],
+  ['purple','Orchid pink','#e794c9'],['purple','Orchid','#9678ce'],['purple','Violet indigo','#4a3894'],
+  ['purple','Berry purple','#b65e8c'],['purple','Ink purple','#2a2450'],['purple','Twilight purple','#5d2a66'],
+  ['purple','Night purple','#4c3894'],['purple','Pale purple','#b387e8'],['purple','Mauve','#8e5a74'],
+  ['brown','Apricot orange','#ffc9a3'],['brown','Light apricot','#fbc9ac'],
+  /* This one is the color of the glass's builtin blue reflection under the light theme; the other is the lime of the gray set above. The "glass native"
+     tier shows no color in the UI, but it still has three legal colors in the model, so "every color used by presets is in the table" must hold for it too. */
+  ['blue','Clear-sky blue','#6686b8'],
 ];
 const glowNumber=(value:number,min:number,max:number,fallback:number):number=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
-/** 合法的 `#rrggbb` 转成小写原样返回，否则给 `fallback`。 */
+/** A valid `#rrggbb` is returned lowercased as-is, otherwise `fallback` is given. */
 const glowColor=(value:unknown,fallback:string):string=>/^#[0-9a-f]{6}$/i.test(String(value))?String(value).toLowerCase():fallback;
 const glowRgba=(hex:string,alpha:number)=>`rgba(${[1,3,5].map(at=>parseInt(hex.slice(at,at+2),16)).join(',')},${(alpha/100).toFixed(2)})`;
-/* 速度、柔化和大小都存成 0–100 那一档的整数，换算成 CSS 要的倍率在 paintHomeGlow 里
-   一次算完：存倍率的话，「默认」在数据里就是 1、在界面上却要显示成中间那一格，两边迟早
-   会各按各的理解走。速度是个例外，它的中位是 100，上限 300——那一档拉满是三倍快，
-   而 0 就是停住。 */
+/* Speed, softening, and size are all stored as integers in the 0-100 tier, converted to the multiplier CSS needs inside paintHomeGlow in
+   one pass: storing the multiplier would make "default" be 1 in the data but have to display as the middle slot in the UI, and the two sides would
+   eventually each follow their own understanding. Speed is the exception: its midpoint is 100 and its cap 300; full tilt on that tier is three times as fast,
+   and 0 is stopped. */
 const GLOW_RANGES:Record<GlowField,[min:number,max:number,fallback:number]>={strength:[0,100,100],noise:[0,100,0],speed:[0,300,100],soften:[0,100,50],size:[0,100,50]};
 const DEFAULT_HOME_GLOW:HomeGlow={on:true,preset:'ash',strength:100,noise:0,speed:100,soften:50,size:50,
   ...glowPalette('ash')};
-/* 光晕参数整份来自 localStorage，形态和范围都不可信：颜色写成任意字符串会让那一层
-   渐变整条失效，百分比越界会把光晕糊成一整片或者缩没。逐项夹回区间、认不出就退回
-   默认那一档，而不是整份丢掉——一个坏掉的数不该把用户调好的其余几档一起清空。
-   只有一种情形要连颜色一起换掉：存着的档名已经不在清单里。那说明这一档被清退了，
-   留在旁边的三枚颜色正是被清退的那一版，按坏值逐项夹回去只会把它原样留在页面上。
-   自定义不在此列——那三枚颜色是用户自己挑的，档名认得出来，照样留着。
-   已经不存在的键不必单独清理：这里只按当前模型逐项取值，重建出来的对象里没有它们。
-   旧版本那套横躺在首页顶部的圆心与半轴就是这么掉的——几何现在只由 CSS 给，存过的那份
-   要是跟着夹回来，老用户看到的还是半截光。 */
-/** 读回存量时的规范化；给 null 得到出厂那一套。 */
+/* Glow parameters come whole from localStorage and neither shape nor range can be trusted: colors as arbitrary strings break
+   that gradient layer entirely, and out-of-range percentages smear the glow into a wash or shrink it to nothing. Each item
+   is clamped back into range and unrecognized ones fall back to the default scheme, rather than discarding the whole thing:
+   one broken number must not wipe out the other schemes the user tuned.
+   Only one situation swaps the colors too: the stored scheme name is no longer in the list. That means the scheme was
+   retired, the three colors sitting next to it are exactly that retired version's, and clamping them back item by item would
+   leave them on the page as-is.
+   Custom is exempt: those three colors were picked by the user, the scheme name is recognizable, and they stay.
+   Keys that no longer exist need no separate cleanup: values are read per the current model only, and the rebuilt object
+   simply does not contain them. The old version's centers and semi-axes sprawled across the top of the home page were lost
+   exactly this way: geometry now comes only from CSS, and if the stored copy had been clamped back in, long-time users would
+   still see half a glow. */
+/** Normalization when reading stored data back; passing null yields the factory set. */
 function normalizeHomeGlow(raw:unknown):HomeGlow{
   const stored:any=raw&&typeof raw==='object'?raw:{};
   const known=HOME_GLOW_CHOICES.some(([key])=>key===stored.preset);
@@ -180,24 +193,26 @@ function normalizeHomeGlow(raw:unknown):HomeGlow{
   }
   return glow;
 }
-/* 预设圆球那一圈：几枚颜色就等分成几段。写成函数是因为自定义档的颜色数和预设一样多，
-   却要在弹层里现算一遍。 */
+/* The preset ball ring: as many equal segments as there are colors. A function because the custom tier has exactly as many colors as the presets,
+   yet must compute them on the spot inside the popover. */
 const glowChipFill=(colors:readonly string[]):string=>`conic-gradient(from -90deg,${colors.map((color,index)=>
   `${color} ${(index*100/colors.length).toFixed(3)}% ${((index+1)*100/colors.length).toFixed(3)}%`).join(',')})`;
-/* 只写值，光晕怎么画留在 web/css/01-base.css 一份。关掉和「玻璃原色」那一档都让强度与
-   颗粒归零，`.glowlayer::before` 的不透明度按那句乘法算成 0，不另设一个「关」的分支——
-   否则「关着」「玻璃原色」和「强度 0」会是三条各自演化的路径。
+/* Writes values only; how glow is drawn stays in one place, web/css/01-base.css. Both the off state and the "glass original
+   color" preset zero out intensity and grain, `.glowlayer::before`'s opacity multiplies to 0, and no separate "off" branch
+   exists; otherwise "off", "glass original color" and "intensity 0" would be three independently evolving paths.
 
-   写之前先和上一次写进这枚元素的值比一遍。拖任意一条拉条时变的只有一个变量；不比就是
-   每一步把九个都重设一遍，中间那八次全是白写。
-   记账按元素分开存，多个壳各画各的那一层时不会互相把对方的值判成「已经写过」。
+   Before writing, compare against the last value written into this element. Dragging any one slider changes one variable;
+   without the comparison every step would rewrite all nine, and the eight in between would be wasted writes.
+   Bookkeeping is stored per element, so when multiple shells each paint their layer they do not mistake each other's values
+   for "already written".
 
-   三条几何参数在这里换算成倍率：柔化 0–100 落在 0.7–1.3，收边位置按它缩放；大小同理
-   落在 0.5–1.5，椭圆两根半轴同乘。速度是时长的倒数——拉条上的 100 是原速，所以倍率写成
-   `100/speed`；拉到 0 没有倒数可言，那一档直接把漂移那两条动画暂停，淡入那一条不跟着停，
-   否则整层会停在 opacity 0 上，看起来像光晕被关掉了。 */
+   Three geometric parameters convert to multipliers here: blur 0-100 maps to 0.7-1.3 with the feather position scaling by it;
+   size likewise maps to 0.5-1.5, multiplying both ellipse semi-axes. Speed is the inverse of duration: 100 on the slider is
+   original speed, so the multiplier is `100/speed`; at 0 there is no inverse, and that tier pauses the two drift animations
+   directly while the fade-in is not stopped with them, otherwise the whole layer would freeze at opacity 0 and look like the
+   glow was turned off. */
 const glowWritten=new WeakMap<HTMLElement,Map<string,string>>();
-/** 光晕那一层的变量写到 `el` 上（同值不重写）。 */
+/** The glow layer's variables are written onto `el` (unchanged values are not rewritten). */
 function paintHomeGlow(el:HTMLElement|null,glow:HomeGlow):void{
   if(!el)return;
   let written=glowWritten.get(el);
@@ -219,19 +234,22 @@ function paintHomeGlow(el:HTMLElement|null,glow:HomeGlow):void{
   });
 }
 
-/* 玻璃面上那两团慢漂反光的色相。侧栏那块玻璃交给光晕层，其余每一块（搜索框、顶栏图标
-   钮、筛选浮层、设置卡的分区导航、媒体库弹层、配色弹层、窄栏、选择工具条）仍旧走
-   `--glass-drift-a/b`，只是颜色不再写死：两团分别取第一枚和第二枚光晕的颜色，尺寸、
-   alpha 档位和那条李萨如轨迹一概不动，换的只有色相。
-   写的是根元素，这一点和光晕那一层相反——那几块玻璃分散在整棵树上，没有共同的宿主。
-   代价也因此照付：写一次根就是整棵树重算样式。所以这里只在点选配色、换档、开关和松开
-   速度那条拉条时被调用，拖动过程中一次都不写——拖动期间只有侧栏那一层跟着动。
-   跟着走的只有漂移速度。柔化和大小不跟：那两团的半轴和收边是按各个控件自己的尺寸量过的，
-   一个搜索框和一整条侧栏共用一个倍率，小的那个会先糊成一整片。
-   「玻璃原色」和整项关掉走同一条路：把两枚色相变量摘掉，每块玻璃退回样式表里自己那一档
-   主题色。摘掉而不是写回主题色，是因为主题色有两套、跟着明暗切换，写回去的那一套会在
-   切主题时僵在原地。速度不摘——原色那两团也在漂，停不停由用户那一条拉条说了算。 */
-/** 其余玻璃面那两团反光的色相写到 `el`（根元素）上。 */
+/* The hues of the two slowly drifting reflections on the glass surfaces. The sidebar's pane of glass is left to the glow
+   layer; every other pane (search box, top bar icon buttons, filter overlays, the settings card's section nav, media library
+   popover, color popover, narrow rail, selection toolbar) still runs on `--glass-drift-a/b`, only the color is no longer
+   hard-coded: the two blobs take the first and second glow's colors, while size, alpha tiers and the Lissajous path stay
+   untouched. Only the hue changes.
+   It writes the root element, the opposite of the glow layer, because those panes are scattered across the tree with no
+   common host. The cost is paid too: one root write is a style recalc of the whole tree. So this only fires on color picks,
+   preset changes, toggles and the release of the speed slider; never once during a drag. During a drag only the sidebar's
+   layer follows along.
+   Only drift speed follows. Blur and size do not: those blobs' semi-axes and feathering were measured per control's own
+   size; a search box and a whole sidebar sharing one multiplier would blur the small one into a wash first.
+   "Glass original color" and turning the item off take the same path: the two hue variables are removed, and each pane falls
+   back to its own theme tier in the stylesheet. Removing rather than writing the theme color back, because there are two
+   theme palettes that follow light/dark; the one written back would freeze in place across a theme switch. Speed is not
+   removed: the original-color blobs drift too, and whether they stop is the user's slider's call. */
+/** The hues of the two reflections on the remaining glass surfaces are written onto `el` (the root element). */
 function paintGlassFaces(el:HTMLElement|null,glow:HomeGlow):void{
   if(!el)return;
   const native=!glow.on||isNativeGlass(glow.preset);

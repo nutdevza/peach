@@ -1,8 +1,8 @@
-/* 后台任务仍在推进、但没有总量可言时的 Loading Dots（`peach-web-ui`）。
+/* Loading Dots (`peach-web-ui`) for a background job still advancing with no total to speak of.
  *
- * 不用 Spinner：Spinner 只反馈用户刚刚点下的那一下。也不画没有分母的进度条。
- * 三颗点的错相由 `../styles.css` 的 `dot-wave-*` 给，减少动效时全局规则关掉动画。
- * 点已经在动，`label` 不带省略号。 */
+ * Not a Spinner: a Spinner only answers the click the user just made. No denominator-free progress bar either.
+ * The three dots' stagger comes from `../styles.css`'s `dot-wave-*`, and reduce motion turns the animation off globally.
+ * The dots are already moving, so `label` carries no ellipsis. */
 
 export function LoadingDots({ label }: { label: string }) {
   return (

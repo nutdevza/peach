@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useState, type RefObject } from 'react';
 import { wireHorizontalScroller } from '../../ui-kit/scroll';
 
-/** 横向导航复用滚轮、边缘提示和卸载清理；ref 随条件渲染的节点一起绑定。 */
+/** Horizontal navigation reuses the wheel handling, edge hints and unmount cleanup; refs bind along with the conditionally rendered node. */
 export function useHorizontalScroller<T extends HTMLElement>(
   forward?: RefObject<T | null> | ((node: T | null) => void), enabled = true,
 ) {

@@ -8,7 +8,7 @@ const STRONG_COLORS = {
   cyan: 'bg-status-cyan-text text-background-primary-default',
 } as const;
 
-/** 高占用沿用 Chip 的 caption 尺寸，用同一语义色的实色强调。 */
+/** High usage reuses the Chip's caption size, emphasized with a solid color of the same semantic hue. */
 export function ResourceChip({ color, high, ...props }: HTMLAttributes<HTMLSpanElement> & {
   color: keyof typeof STRONG_COLORS; high: boolean;
 }) {

@@ -1,17 +1,20 @@
-/* 「推送发现」：新文件落地就进数据库，不必等下一轮全量扫描。
+/* "Push discovery": new files enter the database as they land, without waiting for the next full scan.
  *
- * 两条通道各一个开关。本地那条订阅本机文件夹的文件系统事件；网盘那条等 CloudDrive2 往
- * Peach 推一条通知，所以给出一段能整个贴进它「配置内容」的 TOML，外加一张「云端路径
- * 前缀 → 媒体根」的对应表。定期全量扫描不受这一页影响，它仍是漏发时的兜底。
+ * One switch per channel. The local channel subscribes to filesystem events of this machine's folders; the cloud drive
+ * channel waits for CloudDrive2 to push a notification to Peach, so it offers a TOML block that can be pasted whole into its
+ * "config content", plus a mapping table of "cloud path prefix to media root". The periodic full scan is unaffected by this
+ * page and remains the fallback for missed events.
  *
- * 地址、密钥不单独列成读数：它们只在那段配置里有用，抄两处只会抄漏一处。整段由服务端
- * 拼（`peach.push_discovery.clouddrive_config`）。
+ * Address and secret are not listed as readouts: they are only useful inside that config block, and copying two places means
+ * one gets missed. The block is assembled by the server (`peach.push_discovery.clouddrive_config`).
  *
- * 前缀怎么算合法、根是不是已声明过，同样由服务端判；这一页只把那句原因显示出来。
+ * Whether a prefix is legal and whether a root was already declared are likewise judged by the server; this page only shows
+ * the reason text.
  *
- * 整块只有一种行：读数写在它所属那个开关的说明里，配置通过共用代码块展示与复制，
- * 前缀表排在最后。读数与配置跟着各自的开关收起：网盘通道关着时那段配置指向一件不会
- * 发生的事；本机监视在总开关关着时读作「没有运行」，分不出是没开还是坏了。 */
+ * The whole block has one row type: readouts are written into their own switch's description, the config is shown and copied
+ * through the shared code block, and the prefix table comes last. Readouts and config collapse with their own switches: with
+ * the cloud drive channel off, that config describes something that will not happen; with the master switch off, local
+ * monitoring reads as "not running", unable to distinguish disabled from broken. */
 import { useState, type FormEvent } from 'react';
 import { RiDeleteBinLine } from '@remixicon/react';
 
@@ -41,9 +44,9 @@ export function PushDiscoveryForm({ initial, receipt }: {
   const [failure, setFailure] = useState('');
   const action = useAction();
   const roots = state.media_roots;
-  /* 读数说的是服务端此刻在跑什么，所以按已保存的开关收放：拨一下开关它们就跟着出现的话，
-     写的还是上一次的状态，「本机文件夹监视 · 没有运行」会被读成「打开了也没用」。
-     要填的东西（前缀表）反过来跟着拨到哪儿走，否则得先保存一次才能填。 */
+  /* The readings say what the server is running right now, so they expand and collapse with the saved switch: if they appeared the moment the switch flipped,
+     the written state would still be the previous one, and "local folder watch · not running" would read as "turning it on is useless".
+     What needs filling (the prefix table) follows the toggle the other way, otherwise it could only be filled after one save. */
   const [live, setLive] = useState(initial);
 
   const settle = (next: PushDiscoveryState, message: string) => {
@@ -63,67 +66,67 @@ export function PushDiscoveryForm({ initial, receipt }: {
       enabled: state.enabled, watch_local: state.watch_local, cloud: state.cloud, prefixes: rows,
     };
     void action.run('save', (signal) => apiSend<PushDiscoveryState>(SAVE_URL, body, 'POST', signal),
-      (next) => settle(next, '已保存配置'), (cause) => setFailure(errorMessage(cause)));
+      (next) => settle(next, 'Configuration saved'), (cause) => setFailure(errorMessage(cause)));
   };
 
   const rotate = () => {
     void action.run('secret', (signal) => apiSend<PushDiscoveryState>(SECRET_URL, {}, 'POST', signal),
-      (next) => settle(next, '已更换共享密钥'), (cause) => setFailure(errorMessage(cause)));
+      (next) => settle(next, 'Shared secret rotated'), (cause) => setFailure(errorMessage(cause)));
   };
 
-  const ingested = `已入库 ${live.queue.ingested} 个文件`
-    + (live.queue.failed ? `，${live.queue.failed} 个入库失败` : '')
-    + (live.queue.pending ? `，队列里还有 ${live.queue.pending} 条` : '');
+  const ingested = `${live.queue.ingested} files added to library`
+    + (live.queue.failed ? `, ${live.queue.failed} failed intake` : '')
+    + (live.queue.pending ? `, ${live.queue.pending} more in the queue` : '');
   const watching = live.local_running
-    ? `正在监视 ${live.local_roots.join('、')}` : live.local_message || '没有运行';
+    ? `Watching ${live.local_roots.join(', ')}` : live.local_message || 'Not running';
 
   return (
-    <Section id="pushDiscovery" guide="discovery" title="自动发现新文件" onSubmit={submit}>
+    <Section id="pushDiscovery" guide="discovery" title="Discover new files automatically" onSubmit={submit}>
       <Stack>
-        <div className="flex flex-wrap items-center gap-2"><span className="text-body-regular text-text-secondary">本机监视</span>
-          <StatusLabel tone={!live.enabled || !live.watch_local ? 'neutral' : live.local_running ? 'progress' : 'warning'}>{!live.enabled || !live.watch_local ? '未启用' : live.local_running ? '运行中' : '未运行'}</StatusLabel></div>
+        <div className="flex flex-wrap items-center gap-2"><span className="text-body-regular text-text-secondary">Watch this machine</span>
+          <StatusLabel tone={!live.enabled || !live.watch_local ? 'neutral' : live.local_running ? 'progress' : 'warning'}>{!live.enabled || !live.watch_local ? 'Not enabled' : live.local_running ? 'Running' : 'Not running'}</StatusLabel></div>
       </Stack>
       <Rows>
-        <SettingsRow label="发现新文件后自动入库" description={live.enabled ? ingested : undefined}>
-          <Switch aria-label="发现新文件后自动入库" isSelected={state.enabled} isDisabled={!state.available}
+        <SettingsRow label="Auto-intake after finding new files" description={live.enabled ? ingested : undefined}>
+          <Switch aria-label="Auto-intake after finding new files" isSelected={state.enabled} isDisabled={!state.available}
             onChange={(enabled) => setState({ ...state, enabled })} />
         </SettingsRow>
-        <SettingsRow label="监视本机文件夹" description={live.enabled && live.watch_local ? watching : undefined}>
-          <Switch aria-label="监视本机文件夹" isSelected={state.watch_local}
+        <SettingsRow label="Watch local folders" description={live.enabled && live.watch_local ? watching : undefined}>
+          <Switch aria-label="Watch local folders" isSelected={state.watch_local}
             isDisabled={!state.available || !state.enabled}
             onChange={(watchLocal) => setState({ ...state, watch_local: watchLocal })} />
         </SettingsRow>
-        <SettingsRow label="接收 CloudDrive2 通知" description="网盘目录有变化时由 CloudDrive2 推送过来。">
-          <Switch aria-label="接收 CloudDrive2 通知" isSelected={state.cloud}
+        <SettingsRow label="Receive CloudDrive2 notifications" description="When a cloud-drive directory changes, CloudDrive2 pushes the change over.">
+          <Switch aria-label="Receive CloudDrive2 notifications" isSelected={state.cloud}
             isDisabled={!state.available || !state.enabled}
             onChange={(cloud) => setState({ ...state, cloud })} />
         </SettingsRow>
         {live.enabled && live.cloud ? (
-          <SettingsRow label="Webhook 配置" description={live.config_toml
-            ? '贴进 CloudDrive2「设置 → Webhooks」，需要会员；更换密钥后要重贴。'
+          <SettingsRow label="Webhook configuration" description={live.config_toml
+            ? 'Paste into CloudDrive2 "Settings → Webhooks"; membership required. Paste again after changing the key.'
             : live.origin
-              ? '还没有共享密钥，保存配置后生成。'
-              : '要先有 CloudDrive2 能访问的局域网地址才能生成。'}>
+              ? 'No shared secret yet; it generates after saving the configuration.'
+              : 'A LAN address CloudDrive2 can reach must exist before this can be generated.'}>
           </SettingsRow>
         ) : null}
       </Rows>
-      {/* 原因是服务端记下的最近一次入库异常，下一个文件入库成功时清空；漏掉的那个文件由
-          定期全量扫描补上，所以这里只报原因，不给重试。 */}
+      {/* The reason is the last ingestion exception recorded by the server, cleared when the next file is added to library successfully; the missed file is picked up by
+          the periodic full scan, so this only reports the reason and offers no retry. */}
       {live.enabled && live.queue.last_error ? (
         <Stack divided>
-          <Note tone="error" title="最近一次入库失败">{live.queue.last_error}</Note>
+          <Note tone="error" title="The most recent intake failure">{live.queue.last_error}</Note>
         </Stack>
       ) : null}
       {live.enabled && live.cloud && live.config_toml ? (
         <Stack divided>
           <div className="flex flex-col gap-3">
-            {/* 收起来是因为抄它的人不用读它：三十行里只有地址和密钥两处跟这台机器有关，
-                两处都已经填好了。展开是留给要核对推到哪儿的那一次。 */}
-            <Disclosure summary="查看配置">
-              <CodeBlock code={live.config_toml} language="toml" label="CloudDrive2 配置" bounded={false} copyLabel="复制配置"
-                onCopy={() => receipt('已复制 CloudDrive2 配置')} />
-              <Help>Windows 桌面版粘贴后显示「无效」时，把这段存成 .toml 文件，放进
-                %LOCALAPPDATA%\CloudDrive.WinUI\webhooks\ 目录。</Help>
+            {/* It stays collapsed because the person copying it does not need to read it: of the thirty lines only the address and the key concern this machine,
+                and both are already filled in. Expanding is for the one time someone verifies where things were pushed. */}
+            <Disclosure summary="View configuration">
+              <CodeBlock code={live.config_toml} language="toml" label="CloudDrive2 configuration" bounded={false} copyLabel="Copy configuration"
+                onCopy={() => receipt('CloudDrive2 configuration copied')} />
+              <Help>When the Windows desktop version shows "Invalid" after pasting, save this as a .toml file and put it in the
+                %LOCALAPPDATA%\CloudDrive.WinUI\webhooks\ directory.</Help>
             </Disclosure>
           </div>
         </Stack>
@@ -131,18 +134,18 @@ export function PushDiscoveryForm({ initial, receipt }: {
       {state.enabled && state.cloud ? (
         <Stack divided>
           <div className="flex flex-col gap-3">
-            <FieldLabel>云端路径前缀</FieldLabel>
-            <div role="group" aria-label="云端路径前缀" className="flex flex-col gap-3">
+            <FieldLabel>Cloud path prefix</FieldLabel>
+            <div role="group" aria-label="Cloud path prefix" className="flex flex-col gap-3">
               {rows.map((row, index) => (
                 <div key={index} className="flex items-start gap-2">
-                  <Input className="min-w-0 flex-1" aria-label={`云端路径前缀 ${index + 1}`}
+                  <Input className="min-w-0 flex-1" aria-label={`Cloud path prefix ${index + 1}`}
                     placeholder="/115" autoComplete="off" maxLength={200} value={row.prefix}
                     onChange={(prefix) => edit(index, { prefix })} />
-                  <Select aria-label={`前缀 ${index + 1} 对应的媒体根`} prefix="对应目录" selectedKey={row.root}
+                  <Select aria-label={`Media root for prefix ${index + 1}`} prefix="Matching folders" selectedKey={row.root}
                     onSelectionChange={(key) => { if (key !== null) edit(index, { root: String(key) }); }}>
                     {roots.map((root) => <SelectItem key={root} id={root}>{root}</SelectItem>)}
                   </Select>
-                  <Button variant="danger" iconOnly leadingIcon={RiDeleteBinLine} aria-label="移除这一条"
+                  <Button variant="danger" iconOnly leadingIcon={RiDeleteBinLine} aria-label="Remove this entry"
                     onClick={() => setRows((list) => list.filter((_row, i) => i !== index))} />
                 </div>
               ))}
@@ -150,23 +153,23 @@ export function PushDiscoveryForm({ initial, receipt }: {
             <div>
               <Button variant="secondary"
                 onClick={() => setRows((list) => [...list, { prefix: '', root: roots[0] ?? '' }])}>
-                添加前缀
+                Add prefix
               </Button>
             </div>
           </div>
         </Stack>
       ) : null}
-      {/* 保存失败的原因归这一块，不跟着前缀表一起收起：域名或前缀写坏时那张表可能正好
-          没在屏上，而失败的正是刚按下的那颗「保存配置」。 */}
+      {/* The save-failure reason belongs to this block and does not collapse with the prefix table: when the domain or prefix is written badly, that table may not be
+          on screen at all, while what failed is the "Save configuration" button just pressed. */}
       {failure || action.error
         ? <Stack divided><ErrorText>{failure || action.error}</ErrorText></Stack> : null}
       <Footer>
         {live.enabled && live.cloud && live.config_toml ? (
           <Button variant="secondary" onClick={rotate} disabled={!state.available}
-            {...busyProps(action.busy === 'secret')}>更换密钥</Button>
+            {...busyProps(action.busy === 'secret')}>Rotate the key</Button>
         ) : null}
         <Button type="submit" disabled={!state.available} {...busyProps(action.busy === 'save')}>
-          保存配置
+          Save configuration
         </Button>
       </Footer>
     </Section>

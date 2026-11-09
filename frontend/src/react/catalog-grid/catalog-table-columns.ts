@@ -1,4 +1,4 @@
-/* 作品列表的列定义与本机列偏好的存放位置。不依赖 React：壳的首屏骨架与列表岛读同一份。 */
+/* Column definitions for the video list and where local column preferences are stored. No React dependency: the shell's first-screen skeleton and the list island read the same copy. */
 
 export const CATALOG_COLUMN_WIDTHS_KEY = 'peach.catalog-column-widths.v1';
 export const CATALOG_COLUMN_VISIBILITY_KEY = 'peach.catalog-column-visibility.v1';
@@ -21,13 +21,13 @@ export const columnSizes: Record<string, { width: number; min: number; max: numb
   code: { width: 144, min: 112, max: 400 },
 };
 
-/* 默认显示浏览时常看的：作品、艺人、媒体库、标签、时长、评分、观看次数、入库时间，1440 宽下正好放下；
- * 发行时间、观看时间、高潮计数、分辨率、体积、番号（标题里已有）默认收起，在「显示列」里打开。
- * 列的先后也按这个顺序，表格与骨架都照 `catalogColumns` 排。 */
+/* By default shows what browsing usually looks at: work, artist, library, tags, duration, rating, view count, added time — just fits at 1440 wide;
+ * release time, watched time, climax count, resolution, size, and catalog number (already in the title) are collapsed by default; open them in "Show columns".
+ * Column order follows this same order; the table and skeleton both lay out per `catalogColumns`. */
 export const defaultColumnVisibility: Record<string, boolean> = { release: false, played: false, o: false, resolution: false, size: false, code: false };
-const labels: Record<string, string> = { select: '选择', name: '作品', dur: '时长', size: '体积', resolution: '分辨率',
-  rating: '评分', o: '高潮计数', plays: '观看次数', new: '入库时间', played: '观看时间', release: '发行时间', code: '番号', tags: '标签',
-  library: '媒体库', people: '艺人' };
+const labels: Record<string, string> = { select: 'Select', name: 'Videos', dur: 'Duration', size: 'Size', resolution: 'Resolution',
+  rating: 'Rating', o: 'Climax count', plays: 'Watch count', new: 'Date added', played: 'Watch time', release: 'Release date', code: 'Code', tags: 'Tags',
+  library: 'Media library', people: 'Artists' };
 export const catalogColumns = ['select', 'name', 'people', 'library', 'tags', 'dur', 'rating', 'plays', 'new', 'release', 'played', 'o', 'resolution', 'size', 'code']
   .map(id => ({ id, label: labels[id]!, ...columnSizes[id]!, flex: id === 'name', required: id === 'select' || id === 'name', visible: defaultColumnVisibility[id] !== false }));
 
@@ -41,13 +41,13 @@ function stored(key: string): Record<string, unknown> {
 export interface SnapshotColumn { id: string; label: string; width: number; min: number; max: number; flex: boolean; required: boolean; visible: boolean }
 export type TableSnapshot = { id: string; label: string; width: number | null; min: number }[];
 
-/** 首屏骨架按当前列偏好排版：只读存下来的宽度与可见性，与表格的取值规则一致；
- *  `width` 为空的是承接剩余宽度的那一列，`min` 是它不再缩小的宽度。勾选列只在选择模式出现，不画。 */
+/** The first-screen skeleton lays out by the current column preference: it reads only stored widths and visibility, matching the table's resolution rules;
+ *  a column with empty `width` is the one absorbing leftover space, and `min` is the width it will not shrink below. The checkbox column exists only in selection mode and is not drawn. */
 export function catalogTableSnapshot(): TableSnapshot {
   return tableSnapshot(catalogColumns, CATALOG_COLUMN_WIDTHS_KEY, CATALOG_COLUMN_VISIBILITY_KEY);
 }
 
-/** 同上，给别的表（JAV 新作列表）按它自己的列定义与偏好键取一份。 */
+/** Same as above, but fetch one for another table (the JAV New Releases list) using its own column definitions and preference key. */
 export function tableSnapshot(columns: readonly SnapshotColumn[], widthsKey: string, visibilityKey: string): TableSnapshot {
   const widths = stored(widthsKey);
   const shown = stored(visibilityKey);

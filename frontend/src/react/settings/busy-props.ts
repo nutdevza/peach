@@ -1,6 +1,6 @@
-/* 等待期按钮的属性。单独成一个模块：首启页的独立页面包要用它，却不该连带 `use-action` 背后的请求封装。 */
+/* Props for the pending-state button. Its own module: the first-run page's standalone page bundle needs it but must not drag in the request wrapper behind `use-action`. */
 
-/** 等待期的按钮：写 `aria-busy` 与 `aria-disabled`、保持可聚焦，不用原生 `disabled`。 */
+/** Buttons while waiting: set `aria-busy` and `aria-disabled`, stay focusable, and do not use native `disabled`. */
 export function busyProps(busy: boolean) {
   return busy ? { 'aria-busy': true, 'aria-disabled': true } as const : {};
 }

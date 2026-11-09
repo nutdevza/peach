@@ -1,13 +1,16 @@
-/* 实体资料页顶上那块资料卡，连同资料卡下面、作品上面那一行未入库的新作。
+/* The profile card at the top of the entity profile page, plus the row of new releases not yet added to the library that sits
+ * between the card and the videos.
  *
- * 资料卡按 Board 的 profile 卡排：一块 secondary 底、18px 圆角的卡，正文是头像加身份三行
- * （名字、别名与归属、外链），女优有资料时右边再加一栏资料表，同台艺人收进卡底那条色阶带——
- * 那是这个人的附注，不是这一页的正文。卡外面的交集条、筛选条与内容区仍归壳。
+ * The profile card follows Board's profile card layout: a secondary-background card with 18px radius, body being avatar plus
+ * three identity lines (name, aliases and affiliation, external links), a data table column on the right when the performer
+ * has profile data, and co-performers folded into the color-scale band at the card's bottom: that is a note about the person,
+ * not this page's body. The intersection bar, filter bar and content area outside the card still belong to the shell.
  *
- * 头像、同台艺人的脸和新作卡是拼好的 HTML（大位与新作卡由壳给，同台艺人的脸取自 `@peach/card-art`）：
- * 取图失败时兜底链（`card-art/image-fallback.ts`）会把 `<img>`
- * 从 DOM 里摘掉、人脸放大（`avatarFrame`）往图上写内联尺寸、等待微光挂在图的父元素上，这几样
- * 都直接改节点，所以那几格用 `dangerouslySetInnerHTML`，React 不拥有里面的节点。 */
+ * The avatar, co-performers' faces and new-release cards are preassembled HTML (the large slot and new-release cards come from
+ * the shell, co-performers' faces from `@peach/card-art`): when an image fails, the fallback chain (`card-art/image-fallback.ts`)
+ * removes the `<img>` from the DOM, face zoom (`avatarFrame`) writes inline sizing onto the image, and the waiting shimmer
+ * hangs on the image's parent; all of these mutate nodes directly, so those cells use `dangerouslySetInnerHTML` and React does
+ * not own the nodes inside. */
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { entityFaceImg, facePos } from '@peach/card-art';
@@ -33,7 +36,7 @@ import {
   type HeroCostar, type HeroFollow, type LinkMark, type LinkView,
 } from './entity-hero';
 
-/** 同台艺人圆框里那张图：实体图优先，退到代表作头像，按检出的人脸取景。 */
+/** The image in a co-performer's circle: entity image first, falling back to the representative avatar, framed by the detected face. */
 function costarImg(person: HeroCostar): string {
   return entityFaceImg({
     id: person.id, hasImage: person.has_image, version: person.image_version, rep: person.has_avatar ? person.rep : null,
@@ -52,14 +55,14 @@ export function EntityHeroPage({ kind, name, entity, feedNew, feedHost, feedErro
   const costars = kind === 'agency' ? [] : (entity.related_performers || []);
   const linkRow = useRef<HTMLDivElement>(null);
   const costarRow = useRef<HTMLDivElement>(null);
-  /* 同台艺人与窄屏那排外链都是 `overflow-x:auto` 加隐藏滚动条：能滚，但鼠标没有一个够得着的
-     入口，所以登记全站横向行那套拖动加滚轮映射。外链那排宽屏下换行，组件量得出不溢出。 */
+  /* Co-performers and the narrow-screen external links row are both `overflow-x:auto` with hidden scrollbars: they scroll, but the mouse has no reachable
+     entry point, so they register the site-wide horizontal-row drag-and-wheel mapping. The external links row wraps on wide screens and the component measures that it does not overflow. */
   useEffect(() => { helpers.wireScroller(linkRow.current) }, [helpers, links.length]);
   useEffect(() => { helpers.wireScroller(costarRow.current) }, [helpers, costars.length]);
 
   return (
     <>
-      <section data-entity-card="" aria-label="资料">
+      <section data-entity-card="" aria-label="Details">
         <div data-entity-profile={facts.length ? 'facts' : ''}>
           <div data-entity-portrait-wrap="">
             <Portrait kind={kind} name={displayName} helpers={helpers} people={people} company={company} />
@@ -81,9 +84,9 @@ export function EntityHeroPage({ kind, name, entity, feedNew, feedHost, feedErro
             <AliasLine kind={kind} entity={entity} actions={actions} />
             {entity.related_identities?.length ? (
               <div className="flex min-w-0 flex-wrap gap-2 text-caption-1-regular text-text-secondary">
-                {/* 账号名常是一长串无空格的英文，窄屏下得能在任意处折行。 */}
+                {/* Account names are often long unbroken English strings, so on narrow screens they must wrap at any point. */}
                 {entity.related_identities.map((identity) => {
-                  const text = `${identity.relation === 'same_person' ? '同一人' : '关联账号'}：${entityDisplayName(identity.kind, identity.canonical_name, identity.id)}`;
+                  const text = `${identity.relation === 'same_person' ? 'Same person' : 'Linked account'}: ${entityDisplayName(identity.kind, identity.canonical_name, identity.id)}`;
                   return (
                     <button type="button" key={identity.id} title={text}
                       className="min-w-0 max-w-full text-text-primary underline wrap-anywhere"
@@ -116,7 +119,7 @@ export function EntityHeroPage({ kind, name, entity, feedNew, feedHost, feedErro
           ) : null}
         </div>
         {costars.length ? (
-          <div data-entity-foot="" aria-label="同台艺人">
+          <div data-entity-foot="" aria-label="Co-stars">
             <div ref={costarRow} data-related-people="">
               {costars.map((person) => (
                 <button key={person.k} type="button" data-related-performer={person.k}
@@ -130,19 +133,19 @@ export function EntityHeroPage({ kind, name, entity, feedNew, feedHost, feedErro
           </div>
         ) : null}
       </section>
-      {/* 新作那一行摆在壳留好的 `section.feednew[data-feed-new]` 里，与首页那一行同一个组件。 */}
+      {/* The new releases row sits in the `section.feednew[data-feed-new]` the shell reserved, the same component as the home page row. */}
       {feedHost ? createPortal(<FeedNewRow feedNew={feedNew} host={feedHost} wire={helpers.wireFeedRow}
         act={(feedId, action) => actions.feedAction(feedId, action)} error={feedError} retry={retryFeed} />, feedHost) : null}
     </>
   );
 }
 
-/** 大位：公司取自己的标识（方框），人取实体图或代表作头像（圆框）；一环都取不到就只剩首字母。 */
+/** Large slots: companies take their own mark (square frame), people take the entity image or a representative work's avatar (round frame); when nothing can be fetched at all, only the initial letter remains. */
 function Portrait({ kind, name, helpers, people, company }: {
   kind: string; name: string; helpers: EntityHeroHelpers; people: boolean; company: boolean;
 }) {
-  /* 图只拼一次：兜底链摘掉的 `<img>`、人脸放大写进去的尺寸都留在节点上，重画时不能按
-     同一段 HTML 再盖回去（`dangerouslySetInnerHTML` 只在字符串变了时才重写）。 */
+  /* The image is assembled once: the `<img>` removed by the fallback chain and the dimensions written by face zoom stay on the node, and repainting must not
+     stamp the same HTML over again (`dangerouslySetInnerHTML` only rewrites when the string changed). */
   const portrait = useRef<HTMLDivElement>(null);
   const [html] = useState(() => `${helpers.portraitImg()}<span data-portrait-initial="">${esc(firstGrapheme(name))}</span>`);
   useLayoutEffect(() => {
@@ -158,7 +161,7 @@ function Portrait({ kind, name, helpers, people, company }: {
   );
 }
 
-/** 身份资料各项带图标；别名独立排列，归属有实体时提供站内入口。 */
+/** Identity fields each carry an icon; aliases are laid out separately, and when one belongs to an entity an in-app entry is offered. */
 function AliasLine({ kind, entity, actions }: { kind: string; entity: EntityHeroData; actions: EntityHeroActions }) {
   const agency = agencyOf(entity);
   const go = (target: string, to: string) => (event: MouseEvent) => {
@@ -168,23 +171,23 @@ function AliasLine({ kind, entity, actions }: { kind: string; entity: EntityHero
   const agencyNode = agency ? (agency.linked
     ? <a href={entityPath('agency', agency.name, agency.id)} data-agency={agency.name} onClick={go('agency', agency.name)}>{agency.name}</a>
     : agency.name) : null;
-  const count = <><b>{entity.asset_count.toLocaleString()}</b> 个视频</>;
+  const count = <><b>{entity.asset_count.toLocaleString()}</b> videos</>;
   if (kind === 'performer' || kind === 'creator') {
     const groups = entity.name_display?.groups[nameLanguage()] ?? entity.name_groups;
     const line = nameLine(groups);
     return (
       <div data-entity-alias="meta">
         <IdentityMeta entity={entity} />
-        <span data-meta-item="" title="视频"><Glyph name="film" /><span>{count}</span></span>
+        <span data-meta-item="" title="Videos"><Glyph name="film" /><span>{count}</span></span>
         {entity.follow?.key ? <FollowMeta follow={entity.follow} actions={actions} /> : null}
-        {agencyNode ? <span data-meta-item="" title="事务所"><Glyph name="briefcase" /><span>{agencyNode}</span></span> : null}
+        {agencyNode ? <span data-meta-item="" title="Agency"><Glyph name="briefcase" /><span>{agencyNode}</span></span> : null}
         {line ? (
           <div data-meta-item="names">
             <Glyph name="id-card" />
-            <span data-alias-names="" title="别名">{line.names.map((one, at) => <span key={at} lang={textLang(one)}>{one}</span>)}</span>
+            <span data-alias-names="" title="Aliases">{line.names.map((one, at) => <span key={at} lang={textLang(one)}>{one}</span>)}</span>
             {line.rest > 0 ? (
-              <MorePop id="entityAliasPop" hook="alias" rest={line.rest} label={`另外 ${line.rest.toLocaleString()} 个别名`}
-                heading={`${line.total.toLocaleString()} 个别名`}>
+              <MorePop id="entityAliasPop" hook="alias" rest={line.rest} label={`${line.rest.toLocaleString()} more aliases`}
+                heading={`${line.total.toLocaleString()} aliases`}>
                 <dl>
                   {(groups?.groups || []).map((group, at) => (
                     <NameGroup key={at} label={group.label} names={group.names} />
@@ -198,34 +201,34 @@ function AliasLine({ kind, entity, actions }: { kind: string; entity: EntityHero
     );
   }
   const aliases = entity.display_aliases || [];
-  /* 事务所页数的是人，不是片；片商页同理，旗下有几个 label 是它自己的读数（ADR-0051）。 */
+  /* The agency page counts people, not videos; the studio page is the same, where how many labels it owns is its own stat (ADR-0051). */
   const members = kind === 'agency'
-    ? <> · <b>{(entity.member_count || 0).toLocaleString()}</b> 位艺人</>
-    : (entity.labels || []).length ? <> · <b>{entity.labels!.length.toLocaleString()}</b> 个厂牌</> : null;
+    ? <> · <b>{(entity.member_count || 0).toLocaleString()}</b> artists</>
+    : (entity.labels || []).length ? <> · <b>{entity.labels!.length.toLocaleString()}</b> labels</> : null;
   const maker = entity.maker;
   return (
     <div data-entity-alias="meta">
       {kind === 'creator' ? <IdentityMeta entity={entity} /> : null}
-      <span data-meta-item="" title="视频"><Glyph name="film" /><span>{count}{members}</span></span>
-      {agencyNode ? <span data-meta-item="" title="事务所"><Glyph name="briefcase" /><span>{agencyNode}</span></span> : null}
-      {maker ? <span data-meta-item="" title="片商"><Glyph name="clapperboard" /><a href={entityPath('studio', maker.name, maker.id)} data-studio-link={maker.name}
+      <span data-meta-item="" title="Videos"><Glyph name="film" /><span>{count}{members}</span></span>
+      {agencyNode ? <span data-meta-item="" title="Agency"><Glyph name="briefcase" /><span>{agencyNode}</span></span> : null}
+      {maker ? <span data-meta-item="" title="Studios"><Glyph name="clapperboard" /><a href={entityPath('studio', maker.name, maker.id)} data-studio-link={maker.name}
         onClick={go('studio', maker.name)}>{maker.name}</a></span> : null}
       {aliases.length ? <CompanyAliases aliases={aliases} /> : null}
     </div>
   );
 }
 
-/** 公司别名：先列几个，余下的收进「+N」，浮层里一个名字一行。片商改过几轮名、挂过一串
- *  label 时别名能有三十多个，全摊开会占掉资料卡十几行。 */
+/** Company aliases: list a few first, fold the rest into "+N"; one name per line in the overlay. After a studio renames several rounds and runs a chain of
+ *  labels, aliases can exceed thirty, and laying them all out would eat a dozen-plus rows of the profile card. */
 function CompanyAliases({ aliases }: { aliases: string[] }) {
   const { shown, rest } = shownTags(aliases, COMPANY_ALIASES_SHOWN);
   return (
     <div data-meta-item="names" data-company-names="">
       <Glyph name="id-card" />
-      <span data-alias-names="" title="别名">{shown.map((name, at) => <span key={at}>{name}</span>)}</span>
+      <span data-alias-names="" title="Aliases">{shown.map((name, at) => <span key={at}>{name}</span>)}</span>
       {rest ? (
-        <MorePop id="entityAliasPop" hook="alias" rest={rest} label={`另外 ${rest.toLocaleString()} 个别名`}
-          heading={`${aliases.length.toLocaleString()} 个别名`}>
+        <MorePop id="entityAliasPop" hook="alias" rest={rest} label={`Plus ${rest.toLocaleString()} more aliases`}
+          heading={`${aliases.length.toLocaleString()} aliases`}>
           <dl><NameGroup names={aliases.map((name) => ({ name }))} /></dl>
         </MorePop>
       ) : null}
@@ -233,22 +236,22 @@ function CompanyAliases({ aliases }: { aliases: string[] }) {
   );
 }
 
-/** 关注里绑在这位名下的来源：读数是还没入库的更新，整段是站内去处（同事务所链接的钨蓝），
- *  点开切到这一页的在线视图。 */
+/** Sources bound to this person in follows: the count is updates not yet added to library, the whole block is an in-site destination (same tungsten blue as the agency link),
+ *  and opening it switches to this page's online view. */
 function FollowMeta({ follow, actions }: { follow: HeroFollow; actions: EntityHeroActions }) {
   const from = follow.providers.join(' · ');
   return (
-    <span data-meta-item="" data-entity-follow="" title={from ? `关注 · ${from}` : '关注'}>
+    <span data-meta-item="" data-entity-follow="" title={from ? `Follows · ${from}` : 'Follows'}>
       <Glyph name="rss" />
       <a href="?media=online" onClick={(event) => { event.preventDefault(); actions.openFollowAuthor(follow.key) }}>
-        {follow.n.toLocaleString()} 项更新
+        {follow.n.toLocaleString()} updates
       </a>
     </span>
   );
 }
 
-/** 关注里有同名作者、还没认是不是同一个人：每组一条提示，认了才把那组来源绑到这位名下。
- *  名字相同不算证据（ADR-0095），所以这里只问，不替人绑。 */
+/** Follows with same-named authors not yet confirmed as the same person: one prompt per group, and only confirming binds that group's sources to this person.
+ *  A shared name is not evidence (ADR-0095), so this only asks and never binds for the user. */
 function HeldAuthors({ follow, displayName, actions }: {
   follow: HeroFollow; displayName: string; actions: EntityHeroActions;
 }) {
@@ -259,7 +262,7 @@ function HeldAuthors({ follow, displayName, actions }: {
     try {
       await actions.confirmFollowAuthor(key, name);
     } catch {
-      /* 失败回执由壳发，按钮回到可按。 */
+      /* The shell sends the failure toast and the button returns to pressable. */
     } finally {
       setBusy('');
     }
@@ -267,18 +270,18 @@ function HeldAuthors({ follow, displayName, actions }: {
   return (
     <div data-entity-held="" className="flex flex-col gap-2">
       {follow.held.map((group) => (
-        <Note key={group.key} tone="info" title={`关注里有同名作者 ${group.name}`}
+        <Note key={group.key} tone="info" title={`Follows contain a same-named author ${group.name}`}
           action={<Button size="small" {...busyProps(busy === group.key)}
-            onClick={() => { void confirm(group.key, group.name) }}>是同一个人</Button>}>
-          {[group.providers.join(' · '), `${group.n.toLocaleString()} 项更新`].filter(Boolean).join(' · ')}
-          。和 {displayName} 是同一个人吗？
+            onClick={() => { void confirm(group.key, group.name) }}>Is the same person</Button>}>
+          {[group.providers.join(' · '), `${group.n.toLocaleString()} updates`].filter(Boolean).join(' · ')}
+          . and {displayName} the same person?
         </Note>
       ))}
     </div>
   );
 }
 
-/** 分类位于身份行的第一项。 */
+/** The category is the first item in the identity row. */
 function IdentityMeta({ entity }: { entity: EntityHeroData }) {
   if (!entity.identity_labels?.length) return null;
   return (
@@ -288,7 +291,7 @@ function IdentityMeta({ entity }: { entity: EntityHeroData }) {
   );
 }
 
-/** 浮层里的一组名字：一个名字一行，读音排在它下面一行。串成一段的话，名字和读音分不清各属于谁。 */
+/** A group of names in the overlay: one name per line with its reading on the line below. Run together into one paragraph, names and readings become impossible to match up. */
 function NameGroup({ label, names }: { label?: string; names: { name: string; reading?: string }[] }) {
   return (
     <>
@@ -312,15 +315,15 @@ function FactRowView({ glyph, label, clip, children }: { glyph: string; label: s
   );
 }
 
-/** 站上的标签只是读数，不是这一页的筛选，所以是标签的脸、不接点击。 */
+/** The site's tags are just a reading, not a filter for this page, so they render as tag chips but take no clicks. */
 function FactTags({ tags }: { tags: string[] }) {
   const { shown, rest } = shownTags(tags);
   return (
     <>
       {shown.map((tag) => <span key={tag} data-fact-tag="" title={tag}>{tag}</span>)}
       {rest ? (
-        <MorePop id="entityTagPop" hook="fact" rest={rest} label={`另外 ${rest.toLocaleString()} 个标签`}
-          heading={`${tags.length.toLocaleString()} 个标签`}>
+        <MorePop id="entityTagPop" hook="fact" rest={rest} label={`Plus ${rest.toLocaleString()} more tags`}
+          heading={`${tags.length.toLocaleString()} tags`}>
           <div data-fact-tags="">{tags.map((tag) => <span key={tag} data-fact-tag="" title={tag}>{tag}</span>)}</div>
         </MorePop>
       ) : null}
@@ -328,8 +331,8 @@ function FactTags({ tags }: { tags: string[] }) {
   );
 }
 
-/** 链接前那枚圆标。站点圆标是别人服务器上的位图，取不到时 `data-drop="self"` 把 img 撤掉、
- *  露出底下那枚地球，所以这一格是遗留层的 HTML。 */
+/** The round badge in front of the link. A site badge is a bitmap on someone else's server; when it cannot load, `data-drop="self"` removes the img and
+ *  reveals the globe underneath, so this cell is legacy-layer HTML. */
 function LinkIcon({ mark }: { mark: LinkMark }) {
   if ('brand' in mark) return <span data-link-icon="brand"><Glyph name={mark.brand} /></span>;
   const html = icon('globe') + ('site' in mark
@@ -337,8 +340,8 @@ function LinkIcon({ mark }: { mark: LinkMark }) {
   return <span data-link-icon="" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-/** 外链排成一行次级按钮：36px 高、一圈线。纯图标的链接自己不带可读文字，名字留在 title 与
- *  读屏名称里；官网那种「点之前看不出是谁」的链接才写字。 */
+/** External links line up as secondary buttons: 36px tall with an outline. Icon-only links carry no readable text of their own, so the name lives in the title and
+ *  accessible name; only links like an official site, where you cannot tell who it is before clicking, get text. */
 function HeroLinkView({ link }: { link: LinkView }) {
   switch (link.type) {
     case 'icon':
@@ -348,7 +351,7 @@ function HeroLinkView({ link }: { link: LinkView }) {
         </a>
       );
     case 'gone':
-      /* 已隐退女优的失效链接留在原位、不可点：去敲一个停放域名只会招来杀毒软件告警。 */
+      /* Dead links of retired performers stay in place and are not clickable: hitting a parked domain only invites antivirus warnings. */
       return (
         <span data-link="gone" tabIndex={0} title={link.title} aria-label={link.title}>
           <LinkIcon mark={{ globe: true }} />
@@ -358,7 +361,7 @@ function HeroLinkView({ link }: { link: LinkView }) {
       return (
         <span data-link="private" title={link.sources ? link.sources.join('\n') : link.label}>
           <LinkIcon mark={{ globe: true }} />
-          <span data-link-label="">{link.sources ? link.label : `来源 · ${link.label}`}</span>
+          <span data-link-label="">{link.sources ? link.label : `Source · ${link.label}`}</span>
         </span>
       );
     default:
@@ -371,17 +374,17 @@ function HeroLinkView({ link }: { link: LinkView }) {
   }
 }
 
-/** 看片的那一行：JavDB 与 MISSAV 两站自己的标识，后面是订阅新作的开关。
+/** The watch row: JavDB and MISSAV's own logos, followed by the subscribe-to-new-releases switch.
  *
- *  MISSAV 站上没有图形标识，它的标题就是排出来的字：Halant 500、`MISS` 跟页面墨色、`AV` 用
- *  它的粉。一位女优在 javdb 有两个演员页是常事，第二枚在标识后面缀服务端编好的序号。 */
+ *  MISSAV has no graphic logo; its title is just set type: Halant 500, `MISS` in page ink, `AV` in its pink. One performer having two
+ *  actress pages on javdb is common; the second one gets a server-assigned number appended after the logo. */
 function EntryMarks({ entity, actions, helpers }: {
   entity: EntityHeroData; actions: EntityHeroActions; helpers: EntityHeroHelpers;
 }) {
   const [following, setFollowing] = useState(!!entity.feed?.following);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  /* 写回失败时开关留在原位，失败回执由壳发；成功才发过去时的回执，撤销是另一次真实写回。 */
+  /* On a failed write the toggle stays put and the shell sends the failure receipt; the success receipt goes out only on success, and undo is another real write. */
   const write = async (on: boolean): Promise<boolean> => {
     if (busyRef.current) return false;
     busyRef.current = true;
@@ -399,7 +402,7 @@ function EntryMarks({ entity, actions, helpers }: {
   };
   const toggle = async (on: boolean) => {
     if (!await write(on)) return;
-    helpers.receipt(on ? '已订阅新作' : '已取消订阅新作', { undo: async () => { await write(!on) } });
+    helpers.receipt(on ? 'Subscribed new releases' : 'Unsubscribed from new releases', { undo: async () => { await write(!on) } });
     if (on) actions.refreshFeedAfterCheck();
   };
   return (

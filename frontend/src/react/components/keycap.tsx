@@ -1,13 +1,13 @@
-/* 拟物键帽，一个键一枚：录制快捷键时显示正按着的键、还空着的位置和这一下的结果。平时的绑定提示
- * 仍用 BoardUI Kbd 胶囊；BoardUI 没有这类组件，所以是 Peach 自己的组合件。样式见 `keycap.css`。 */
+/* Skeuomorphic keycaps, one per key: while recording a shortcut, show the key currently being pressed, the still-empty slots, and the result of this press. The usual binding hints
+ * still use the BoardUI Kbd pill; BoardUI has no such component, so this is a Peach composition of its own. Styles in `keycap.css`. */
 import { Fragment } from 'react';
 import './keycap.css';
 
-/** `down` 正按着；`slot` 还空着的位置；`invalid` 这一下没过；`done` 刚录好。 */
+/** down is being pressed; slot is a still-empty position; invalid this one didn't pass; done was just recorded. */
 export type KeycapState = 'idle' | 'down' | 'slot' | 'invalid' | 'done';
 export interface KeycapItem { label: string; state: KeycapState }
 
-/** 一排键帽。`plus` 为真时键与键之间放加号（Windows 的写法），Mac 连写。 */
+/** A row of key caps. When plus is true, put a plus sign between keys (the Windows convention); Mac writes them together. */
 export function Keycaps({ keys, plus }: { keys: KeycapItem[]; plus: boolean }) {
   return (
     <span data-keycaps="">

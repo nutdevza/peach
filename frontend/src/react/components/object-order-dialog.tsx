@@ -30,8 +30,8 @@ export function ObjectOrderDialog({ title, items, save, close }: {
       </div>
       {problem ? <Note tone="error">{problem}</Note> : null}
       <div className="flex justify-between gap-4 p-3">
-        <Button variant="secondary" disabled={saving} onClick={close}>取消</Button>
-        <Button {...busyProps(saving)} onClick={() => void submit()}>保存顺序</Button>
+        <Button variant="secondary" disabled={saving} onClick={close}>Cancel</Button>
+        <Button {...busyProps(saving)} onClick={() => void submit()}>Save order</Button>
       </div>
     </div>
   </ModalFrame>;

@@ -9,7 +9,7 @@ export interface CatalogRender {
 
 interface Painting { revision: number; abort: AbortController }
 
-/** 只管理网格代次、首屏取消与落地等待；请求、缓存与页面归现有 Query 和路由。 */
+/** Manages only grid epochs, first-screen cancellation and landing waits; requests, caching and pages stay with the existing Query and router. */
 export class CatalogController {
   private currentRevision = 0;
   private currentPage = '';
@@ -22,11 +22,11 @@ export class CatalogController {
 
   taken(mounted: boolean): boolean { return mounted || this.pending; }
 
-  /** 同一页已落地时只更新 props；首屏尚未完成时取消上一轮再打开。 */
+  /** When the same page has already landed, update props only; when the first screen is still pending, cancel the previous round and open again. */
   begin(page: string, mounted: boolean): CatalogRender {
     const changedPage = !!this.currentPage && this.currentPage !== page;
     if (changedPage) this.clear();
-    // 每轮只有一个有效等待：被替代的调用返回，其落地回调仍按代次隔离。
+    // Only one wait is valid per round: the superseded call returns, and its landing callback stays isolated by epoch.
     this.releaseWaiters();
     this.currentPage = page;
     const revision = ++this.currentRevision;
@@ -51,7 +51,7 @@ export class CatalogController {
     };
   }
 
-  /** 页面只交回自己的代次；旧页面不能放行后续筛选的等待。 */
+  /** A page only hands back its own epoch; an old page cannot release the wait for later filters. */
   settle(revision: number): void {
     if (revision > this.currentRevision) return;
     for (const [requested, resolve] of this.waiters) {
@@ -59,7 +59,7 @@ export class CatalogController {
     }
   }
 
-  /** 离开网格时取消预取，释放全部等待；代次单调递增。 */
+  /** Leaving the grid cancels prefetches and releases every wait; the epoch increases monotonically. */
   clear(): void {
     this.painting?.abort.abort();
     this.painting = null;

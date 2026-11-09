@@ -18,7 +18,7 @@ export function indexPath({ kind, q, scope, view, category }: IndexRoute): strin
   return `/${kind}` + (params.size ? `?${params}` : '');
 }
 
-/** 公司认自有标识；人的代表作头像保留服务端的占位说明与人脸取景。 */
+/** Companies keep their own logo; a person's representative-work avatar keeps the server's placeholder note and face framing. */
 export function personAvatar(item: IndexPerson & Pick<FaceRef, 'logo_version'>, kind: string, big: boolean): PersonAvatar {
   const id = item.entity_id || item.id;
   const company = kind === 'studio' || kind === 'agency';

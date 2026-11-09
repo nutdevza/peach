@@ -5,7 +5,7 @@ import { ENTITY_FILTER_KEYS, type EntityFilters, type EntityMedia } from './enti
 export const emptyEntityFilters = (): Record<string, string> => Object.fromEntries(
   ENTITY_FILTER_KEYS.map(key => [key, key === 'sort' ? 'new' : key === 'dir' ? 'desc' : '']));
 
-/** 排序偏好只决定未显式给方向的地址；资料页缺省列仍是入库时间。 */
+/** The sort preference only decides addresses without an explicit direction; the profile page's default column is still the time added to library. */
 export function parseEntityFilters(search: string, preference: { sort: string; dir: string }): EntityFilters {
   const params = new URLSearchParams(search), filters = emptyEntityFilters();
   for (const key of ENTITY_FILTER_KEYS) if (key !== 'sort' && key !== 'dir') filters[key] = params.get(key) || '';
@@ -39,7 +39,7 @@ export function entityViewPath(kind: string, name: string, filters: EntityFilter
   return entityPath(kind, name) + (search ? `?${search}` : '');
 }
 
-/** 认领打开同一位时消费一次空筛选；深链与 POP 始终读地址。 */
+/** Opening the same person via claim consumes an empty filter; deep links and POP always read the address. */
 export function createEntityEntryState() {
   let freshPath = '';
   return {

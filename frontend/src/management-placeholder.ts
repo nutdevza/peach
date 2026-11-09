@@ -25,7 +25,7 @@ export interface PageSkeletonOptions {
   gridSize?: string;
 }
 
-/** 整页骨架：`cards` 画卡片网格，否则画面板；只把给了的几项交下去，其余用 `skeletonHtml` 自己的缺省。 */
+/** Full-page skeleton: `cards` renders a card grid, otherwise a panel; only the given items are passed down, and the rest fall back to `skeletonHtml`'s own defaults. */
 export const pageSkeletonHtml = (
   label: string,
   { cards = false, className = '', variant = '', count, fill, cardRatio, gridClass = '', gridSize = '' }: PageSkeletonOptions = {},
@@ -34,16 +34,17 @@ export const pageSkeletonHtml = (
   ...(count ? { count } : {}), ...(fill === undefined ? {} : { fill }), ...(cardRatio ? { cardRatio } : {}),
 });
 
-/* 分类名是静态文案，骨架直接写出来；次序就是页签次序，与复核页那一份一致。 */
+/* Category names are static copy written straight into the skeleton; the order is the tab order, matching the review page's list. */
 const reviewLabels = () => normalizeNavigationOrder('review', appSettingsStore().value.navigationOrders.review)
   .map(key => NAVIGATION_GROUPS.review.items.find(([id]) => id === key)![1]);
-/* 复核页是左边一列分类、右边工具条加一格一格 Fieldset，骨架就用最终容器的那几个类名，
-   分栏、列宽和卡高全由页面自己那套规则给：读完数据只是把占位换成内容，版面一格不挪。
-   分类名和「复核分类」这两样与数据无关，直接写出来；等的是每类多少条，所以只有计数
-   那一枚是占位。工具条上那三件——分组方式、分类筛选、全选本页——要等队列回来才知道
-   选项和条数，三枚占位一件对一件。 */
-const reviewSkeletonHtml = (label = '正在读取复核队列'): string => `<div class="review review-workspace review-skeleton" data-skeleton="review" aria-busy="true" aria-label="${esc(label)}">
-  <div class="reviewcontrols" data-section-nav><h2 class="review-category-title">复核分类</h2>
+/* The review page is categories in a column on the left with a toolbar and Fieldsets cell by cell on the right, so the
+   skeleton uses the final containers' class names; column split, column widths and card heights all come from the page's own
+   rules, so finishing is only swapping placeholders for content and not one cell of layout moves.
+   The category names and "Review categories" are data-independent and written out directly; what waits is how many each
+   category holds, so only the count is a placeholder. The three toolbar pieces, grouping, category filter and select all on
+   this page, need the queue back to know options and counts, three placeholders matched one to one. */
+const reviewSkeletonHtml = (label = 'Reading the review queue'): string => `<div class="review review-workspace review-skeleton" data-skeleton="review" aria-busy="true" aria-label="${esc(label)}">
+  <div class="reviewcontrols" data-section-nav><h2 class="review-category-title">Review categories</h2>
     <div class="reviewtabs" data-section-items>${reviewLabels().map((text, i) =>
       `<button type="button" disabled aria-selected="${i === 0}">${esc(text)}<span class="skeleton reviewcountskeleton" aria-hidden="true"></span></button>`).join('')}</div></div>
   <div class="reviewbulkbar reviewbulktoolbar" aria-hidden="true">${'<span class="skeleton reviewtoolskeleton"></span>'.repeat(3)}</div>
@@ -52,36 +53,36 @@ const reviewSkeletonHtml = (label = '正在读取复核队列'): string => `<div
 
 const PLACEHOLDERS: Record<string, () => string> = {
   '/data-cleanup': () => cleanupSkeletonHtml(),
-  /* 每个维护工具都有自己那一页的骨架，新加的工具不会落到下面那张通用面板上。 */
+  /* Every maintenance tool has its own page skeleton; newly added tools don't fall back to the generic panel below. */
   ...Object.fromEntries(CLEANUP_TOOLS.map(tool => [tool.path, () => cleanupToolSkeletonHtml(tool.key)])),
-  // 旧地址 /resource-sync 打开后转到资源同步二级页，占位先画成那一页，转过去时同一个键不重画。
+  // The old address /resource-sync, once opened, routes to the resource-sync second-level page; the placeholder is first drawn as that page, and when transitioning, the same key isn't redrawn.
   '/resource-sync': () => cleanupToolSkeletonHtml('resource-sync'),
   '/review': () => reviewSkeletonHtml(),
   /* 采集来源是 812px 窄列里一叠同宽的 Fieldset：连接检查、高清封面，再接各个来源。骨架画四块，
      那是首屏装得下的张数；说明那一句是静态文案，与数据无关，立刻显示。 */
-  '/sources': () => `<div class="scraping-page"><p>高清图片可能要经代理才能下载，先检查连接。</p>
-    ${pageSkeletonHtml('正在读取采集来源', { cards: true, count: 4, fill: false, className: 'cleanup-skeleton' })}</div>`,
+  '/sources': () => `<div class="scraping-page"><p>HD images may need a proxy to download; check the connection first.</p>
+    ${pageSkeletonHtml('Loading scraping sources', { cards: true, count: 4, fill: false, className: 'cleanup-skeleton' })}</div>`,
 };
 
-/** 关注管理的骨架照这台浏览器上次选的视图画，排序框与方向键照地址栏上的那一档画：等数据的这段时间画成
- *  卡片、数据到了换成表格的话，同一次进入里版式会整个翻一遍。 */
+/** The follows-management skeleton draws in the view this browser chose last time, with the sort box and direction key matching the URL's tier: if the wait draws
+ *  as cards and the table only appears once data lands, the layout flips wholesale within a single visit. */
 export interface FollowSkeletonState {
   followLayout: string;
   followSort: string;
   followDir: string;
 }
 
-/** 这一页的加载态 HTML。 */
+/** This page's loading-state HTML. */
 export function managementSkeletonHtml(path: string, { followLayout, followSort, followDir }: FollowSkeletonState): string {
   return boardPageSkeleton(path, { followLayout, ...(path === '/subscriptions' ? { followSort, followDir } : {}) })
-    || (PLACEHOLDERS[path] ?? (() => pageSkeletonHtml('正在读取页面')))();
+    || (PLACEHOLDERS[path] ?? (() => pageSkeletonHtml('Loading page')))();
 }
 
-/** 骨架的键：同一个键说明是同一张，不必重画。 */
+/** The skeleton's key: the same key means the same skeleton, no redraw needed. */
 export const skeletonKeyOf = (html: string): string => String(html).match(/data-skeleton="([^"]*)"/)?.[1] || '';
 
-/** 把加载态铺进容器。容器里已经是同一张骨架就不动：innerHTML 换新节点会把 shimmer 从头放一遍，
- *  整页刷新看到的就是同一段动画闪两次。 */
+/** Lays the loading state into the container. If the same skeleton is already inside, leave it: swapping new nodes via innerHTML replays the shimmer from the top,
+ *  and a full page refresh would show the same animation flash twice. */
 export function paintManagementPlaceholder(container: HTMLElement, placeholder: string): void {
   const painted = container.querySelector<HTMLElement>('[data-skeleton]')?.dataset.skeleton || '';
   const next = skeletonKeyOf(placeholder);

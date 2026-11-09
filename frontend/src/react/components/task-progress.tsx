@@ -2,8 +2,8 @@ import { cx } from '@/utils/cx';
 import { LoadingDots } from './loading-dots';
 import { Progress } from './progress';
 
-/** 独立任务带框，框与中性提示条（`Note`）同一底色与圆角，内边距放宽一档，和它们排在一起时是同一种条；
- *  卡片或结果分区内的任务复用所在容器。 */
+/** Standalone tasks get a box; the box shares its base color and corners with the neutral notice bar (`Note`), with one step more padding, so lined up next to them it reads as the same kind of bar;
+ * tasks inside a card or a result section reuse the enclosing container. */
 export function TaskProgress({ label, value = 0, total, embedded = false }: {
   label: string; value?: number; total?: number | null; embedded?: boolean;
 }) {

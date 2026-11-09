@@ -1,22 +1,25 @@
-/* 沉浸模式（ADR-0031 第 11e 步）：`/immerse` 的全屏连播。片单、每一格的播放器、加载提示、手势、
- * 动作键、作者与标题都在这一面里。
+/* Immersive mode (ADR-0031 step 11e): the fullscreen auto-advance player at `/immerse`. The queue, each slide's player,
+ * loading indicators, gestures, action keys, author and title all live on this surface.
  *
- * 常驻组件 `immerse`（`router/managed-routes.tsx` 的常驻表）：路由树把它画进 body 末尾的常驻宿主
- * `[data-immerse-host]`，宿主就是那个节点本身，第一次打开沉浸模式时由 `application-residents.ts` 的 `loadImmerse` 建好、
- * 在画首帧的同一个任务里挂进文档。首帧就是藏着的外框。壳只拿 `configureImmerse` 给的命令式入口：沉浸
- * 模式盖在所有页面之上，壳的键盘、换批与播放快捷键要随时同步问它开没开、当前是哪一个 video。句柄写本模块
- * 的 store 再 `flushSync` 通知，`open(startId)` 里骨架、列表与播放器那几次绘制都在返回之前画完，紧跟着读
- * DOM 的代码读到的就是刚画好的结构。
+ * Resident component `immerse` (the resident table in `router/managed-routes.tsx`): the route tree renders it into the resident
+ * host `[data-immerse-host]` at the end of body, the host being that node itself. It is created by `loadImmerse` in
+ * `application-residents.ts` the first time immersive mode opens and mounted into the document in the same task as the first
+ * frame. The first frame is the hidden outer frame. The shell only gets the imperative entry `configureImmerse` provides:
+ * immersive mode covers all pages, so the shell's keyboard, batch and playback shortcuts must be able to ask it at any moment
+ * whether it is open and which video is current. The handle writes this module's store and notifies via `flushSync`; inside
+ * `open(startId)` the skeleton, list and player renders all finish before it returns, so code that reads the DOM right after
+ * reads freshly rendered structure.
  *
- * 外框、动作列、作者标题与进度条由 React 画；每一格（`[data-immerse-slide]` 与里面的 `<video>`）
- * 由控制器在空轨道里命令式建、拆：Video.js 要占着那块 DOM，上下滑动的位移按帧写在格子的
- * `style.transform` 上，进度条的宽度随 timeupdate 写，这三样都不能等一次重画。
+ * The outer frame, action column, author/title and progress bar are React-rendered; each slide (`[data-immerse-slide]` and the
+ * `<video>` inside) is built and torn down imperatively by the controller in an empty track: Video.js needs to own that DOM,
+ * the slide offset for vertical scrolling is written per frame to the slide's `style.transform`, and the progress bar width is
+ * written on timeupdate. None of these three can wait for a re-render.
  *
- * 方向键、改窗口大小与离开页面这三条监听挂在模块上、不挂在组件上：错误边界卸掉这一面之后，壳照旧能
- * 开关它，离开页面时还开着的格照旧按会话取消读取。
+ * The arrow-key, window-resize and page-leave listeners hang on the module, not the component: after an error boundary unmounts
+ * this surface the shell can still open and close it, and slides still open on page leave are cancelled per session as before.
  *
- * 宿主不包 `.peach-react`：这块全屏层的排版一直在 Preflight 之外，按钮、链接与字号继承的是遗留层
- * 的全局规则，样式全在 `immerse.css`，不用工具类。 */
+ * The host is not wrapped in `.peach-react`: this fullscreen layer's typography has always been outside Preflight; buttons,
+ * links and font sizes inherit the legacy layer's global rules, all styles live in `immerse.css`, no utility classes. */
 import { useLayoutEffect, useRef, useSyncExternalStore, type MouseEvent, type PointerEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -42,32 +45,32 @@ import {
 } from './immerse';
 import type { ImmerseApi, ImmerseHost } from './immerse-api';
 
-/* ── 状态 ── */
+/* ── State ── */
 
 interface Shown { item: ImmerseItem; index: number; length: number }
 
 interface View {
   open: boolean;
-  /** 第一条片子出画前只留加载提示：框、动作列、作者标题和进度条按出画时的形状一起出现，不会先按
-   *  竖屏摆一遍再跳。片子在隐藏的舞台里照常缓冲。 */
+  /** Before the first clip leaves the frame, only the loading hint remains: frame, action column, author title, and progress bar appear together in the shapes they have at exit, never laid out
+   *  as portrait first and then jumping. The clip keeps buffering in the hidden stage as usual. */
   idle: boolean;
-  /** 舞台形状只在一条片子真正出画时换。新片预加载时旧片还在屏上，形状提前翻过去，旧片就被塞进
-   *  另一种比例的框里。 */
+  /** The stage shape flips only when a clip truly leaves the frame. If it flipped early while the new clip preloads, the old clip still on screen would be squeezed into
+   *  a frame of a different ratio. */
   wide: boolean;
-  /** 加载提示的整句（带读取速度）；null 是收起。 */
+  /** The full loading hint sentence (with read speed); null means collapsed. */
   loading: string | null;
   shown: Shown | null;
 }
 
-/** 一格：外层负责上下滑动，里面的 video 交给 Video.js。当前格用变量持有，不按 id 查：Video.js
- *  挂载后会把 video 的 id 挪到外包的 div 上。 */
+/** One cell: the outer layer handles vertical scrolling and the inner video is handed to Video.js. The current cell is held in a variable, not looked up by id: Video.js
+ *  moves the video's id onto its wrapping div after mounting. */
 interface Slide {
   el: HTMLDivElement;
   video: HTMLVideoElement;
   session: string;
   release: () => void;
   disposed: boolean;
-  /** 拆掉时兑现：还在等片源或等出画的那一步不再干等。 */
+  /** Settled on teardown: the step still waiting for the video source or for a picture stops waiting idly. */
   gone: Promise<void>;
   leave: () => void;
 }
@@ -80,7 +83,7 @@ let host: ImmerseHost | null = null;
 let dom: Dom | null = null;
 let view: View = CLOSED;
 const listeners = new Set<() => void>();
-/* 每次打开、关闭各换一代：取数与等待回来时代次不对就作废。 */
+/* Each open and close bumps the epoch: fetches and waits returning with the wrong epoch are discarded. */
 let generation = 0;
 let seed = 0;
 let draw = 0;
@@ -94,14 +97,14 @@ const slides = new Set<Slide>();
 let loadingLabel = '';
 let loadingItem: ImmerseItem | null = null;
 let ticker = 0;
-/** 进度条拖动作用在哪一格上；第一条出画前与关掉之后没有。 */
+/** Which cell a progress bar drag acts on; absent before the first item comes on screen and after closing. */
 let scrubTarget: { video: HTMLVideoElement; duration: () => number } | null = null;
 let scrubbing = false;
-/** 进度条上方的画面预览，跟着当前格换：与详情播放器同一份取图与夹边。 */
+/** The frame preview above the progress bar, swapping with the current cell: same image-fetching and clamping as the detail player. */
 let seekPreview: SeekPreview | null = null;
 
 function immerseHost(): ImmerseHost {
-  if (!host) throw new Error('沉浸模式还没有接上宿主（configureImmerse）');
+  if (!host) throw new Error('Immersive mode is not wired to a host yet (configureImmerse)');
   return host;
 }
 
@@ -114,19 +117,19 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/* 返回时已经画完。这一面抛错、被错误边界卸掉之后没人订阅，`view` 照旧写进 store，不画、不抛。 */
+/* By the time we return, rendering is done. Once this face throws and the error boundary unmounts it, nobody subscribes; `view` still lands in the store, drawn by no one, thrown from nowhere. */
 function paint(): void {
   flushSync(notify);
 }
 
-/* ── 加载提示 ── */
+/* ── Loading hint ── */
 
 function loadingText(): string {
   const speed = loadingItem ? streamSpeedBits(loadingItem.id) : 0;
   return speed ? `${loadingLabel} · ${fmtSpeed(speed)}` : loadingLabel;
 }
 
-/** 打开、收起加载提示。开着时每 500ms 按当前那一条刷新读取速度。 */
+/** Opens and closes the loading hint. While open, refreshes the read speed every 500ms for the current item. */
 function setLoading(label: string | null, item: ImmerseItem | null = null): void {
   clearInterval(ticker);
   ticker = 0;
@@ -142,13 +145,13 @@ function setLoading(label: string | null, item: ImmerseItem | null = null): void
   }, 500);
 }
 
-/* ── 每一格 ── */
+/* ── Each cell ── */
 
 function createSlide(offset: number): Slide {
   const el = document.createElement('div');
   el.dataset.immerseSlide = '';
   if (offset) el.style.transform = `translateY(${offset}%)`;
-  // `video-js` 类要写在挂载前的 video 上，Video.js 才会把它带到外包 div 上。
+  // The `video-js` class must be written on the video before mounting for Video.js to carry it onto the wrapping div.
   const video = document.createElement('video');
   video.className = 'video-js';
   video.playsInline = true;
@@ -163,7 +166,7 @@ function createSlide(offset: number): Slide {
   return slide;
 }
 
-/** 挂上这一格的播放器；片源交给 video 之后兑现（拆得更早就随拆兑现）。 */
+/** The player attached to this cell; it resolves once the stream is handed to video (or earlier, when torn down first). */
 function loadSlide(slide: Slide, item: ImmerseItem): Promise<void> {
   return new Promise((resolve) => {
     slide.release = mountPlayer(slide.video, {
@@ -174,7 +177,7 @@ function loadSlide(slide: Slide, item: ImmerseItem): Promise<void> {
   });
 }
 
-/** 拆一格：按会话取消读取、拆播放器、摘节点。 */
+/** Tear down one cell: cancel reads by session, dismantle the player, unmount the node. */
 function disposeSlide(slide: Slide | null): void {
   if (!slide || slide.disposed) return;
   slide.disposed = true;
@@ -205,7 +208,7 @@ function waitReady(slide: Slide): Promise<void> {
   });
 }
 
-/* ── 铺满还是完整显示 ── */
+/* ── Fill or fit ── */
 
 function fitVideo(video: HTMLVideoElement): void {
   const track = video.closest<HTMLElement>('[data-immerse-track]');
@@ -225,14 +228,14 @@ function applyFit(video: HTMLVideoElement): void {
   else video.addEventListener('loadedmetadata', () => fitVideo(video), { once: true });
 }
 
-/** 换舞台形状，框里每条片子的铺满判定跟着重算。 */
+/** Changing the stage shape re-runs the fill test for every video in the frame. */
 function setStage(wide: boolean): void {
   view = { ...view, wide };
   paint();
   fitAll();
 }
 
-/* ── 片单与换条 ── */
+/* ── Playlist and entry switching ── */
 
 const fetchDraw = (): Promise<ImmerseItem[]> => {
   const at = query;
@@ -251,7 +254,7 @@ function wireProgress(video: HTMLVideoElement, item: ImmerseItem): void {
   });
   scrubTarget = { video, duration };
   seekPreview?.dispose();
-  // 进度条横贯视口，预览两端各让出 12px，与关闭键离边的距离同级。
+  // The progress bar spans the viewport; the preview leaves 12px on each end, at the same level as the close key's distance from the edge.
   seekPreview = dom ? createSeekPreview(dom.bar, item, { inset: 12 }) : null;
 }
 
@@ -266,13 +269,13 @@ async function show(direction = 0): Promise<void> {
   const item = list[index];
   if (!item || switching) return;
   const mine = generation;
-  /* 当前这一条交给壳写进地址栏：竖划十条之后刷新页面，落回来的该是同一条片子，而不是重新抽一批。 */
+  /* The current item is handed to the shell to write into the address bar: after swiping through ten items and refreshing, the same video should come back, not a freshly drawn batch. */
   immerseHost().route(item.id);
   switching = true;
-  setLoading(direction ? '切换中' : '加载中', item);
+  setLoading(direction ? 'Switching' : 'Loading', item);
   let incoming: Slide | null = null;
   try {
-    // 这一条刚被删掉（详情回 `{error}`）照样放：作者与动作键只是没有可画的。
+    // This entry was just deleted (the detail returns `{error}`) and still renders: the author and action buttons simply have nothing to draw.
     await ensureDetail(item.id).catch((error: unknown) => { if (!(error instanceof ItemGone)) throw error });
     if (mine !== generation) return;
     const old = current, sliding = !!(direction && old);
@@ -290,7 +293,7 @@ async function show(direction = 0): Promise<void> {
         next.el.style.transform = '';
       }));
       await new Promise((resolve) => setTimeout(resolve, SLIDE_MS));
-      // 动画帧没跑到（页面在后台）也要落位，否则新片停在屏幕外。
+      // Even when no animation frame runs (the page is in the background), the card must land in place, or the new video stays off screen.
       disposeSlide(old);
       next.el.style.transform = '';
     }
@@ -314,8 +317,8 @@ async function step(direction: number): Promise<void> {
   if (switching || !view.open) return;
   const mine = generation;
   index += direction;
-  setLoading('切换中', list[index] ?? null);
-  // 滚到尾部就续取下一批：无限流。每次都是新的随机抽样，按 id 去重接在后面。
+  setLoading('Switching', list[index] ?? null);
+  // Reaching the tail fetches the next batch: an infinite stream. Each round is a fresh random sample, deduplicated by id and appended.
   if (index >= list.length - 3 && !extending) {
     extending = true;
     try {
@@ -323,7 +326,7 @@ async function step(direction: number): Promise<void> {
       const more = await fetchDraw();
       if (mine === generation) list = extendList(list, more);
     } catch {
-      // 续取失败就在已有的那一批里绕回。
+      // If the next-page fetch fails, wrap around within the batch already loaded.
     } finally {
       extending = false;
     }
@@ -343,7 +346,7 @@ async function open(startId: number | null): Promise<void> {
   queryClient.removeQueries({ queryKey: ['immerse-list'] });
   view = { ...view, open: true, idle: true, shown: null };
   document.body.setAttribute('data-immerse-open', '');
-  setLoading('加载内容');
+  setLoading('Load content');
   try {
     let next = await fetchDraw();
     if (startId && !next.some((item) => item.id === startId)) {
@@ -357,7 +360,7 @@ async function open(startId: number | null): Promise<void> {
     list = next;
     if (!list.length) {
       close();
-      immerseHost().warn('当前筛选下没有可直接播放的内容');
+      immerseHost().warn('Nothing directly playable under the current filter');
       return;
     }
     index = Math.max(0, list.findIndex((item) => item.id === startId));
@@ -369,7 +372,7 @@ async function open(startId: number | null): Promise<void> {
   }
 }
 
-/** 拆掉所有格、收起提示与手势的中间态。 */
+/** The intermediate state where all cells are torn down and hint and gestures are collapsed. */
 function teardown(): void {
   clearInterval(ticker);
   ticker = 0;
@@ -393,9 +396,9 @@ function close(): void {
   immerseHost().closed();
 }
 
-/* ── 单击、双击与触屏手势 ──
-   手机上竖划切片、横划拖进度。横划在哪儿起手都行——屏幕最下沿那条进度条在手机上几乎摸不到。
-   位移按屏宽换算成时长的相对量，所以从任何位置起手都是「往右 = 往后」。 */
+/* -- Single tap, double tap, and touch gestures --
+   On phones, vertical swipes slice and horizontal swipes scrub. Horizontal swipes may start anywhere; the progress bar along the screen's bottom edge is nearly untouchable on phones.
+   Displacement converts by screen width into a relative amount of duration, so from any position "right = forward". */
 
 let tapTimer = 0;
 let lastTap: { side: number; at: number } | null = null;
@@ -409,7 +412,7 @@ function clearTap(): void {
   lastTap = null;
 }
 
-/** 左右半区：同侧两下快退快进，一下切播放（等双击窗口过去才兑现）。 */
+/** Left and right halves: two taps on the same side seek backward or forward, one tap toggles playback (applied only after the double-tap window closes). */
 function handleTap(clientX: number): void {
   const video = current?.video;
   if (!video) return;
@@ -420,7 +423,7 @@ function handleTap(clientX: number): void {
     seekVideoBy(video, immerseHost().seekSeconds() * side);
     return;
   }
-  // 两次点在不同半区时，第一下仍是一次完整的单击；立即兑现后再等当前点击。
+  // With taps in different halves, the first is still a complete single tap; apply it immediately, then wait out the current tap.
   if (tapTimer) { clearTimeout(tapTimer); tapTimer = 0; toggleVideoPlayback(video) }
   lastTap = { side, at: now };
   tapTimer = window.setTimeout(() => {
@@ -431,7 +434,7 @@ function handleTap(clientX: number): void {
 }
 
 function clickTrack(): void {
-  // 触屏的合成 click 会紧跟 touchend；那一下已经由单击／双击判定接管，不能再切一次。
+  // On touch, the synthetic click follows right after touchend; that tap is already handled by the single/double tap logic and must not toggle again.
   if (Date.now() < ignoreClickUntil) return;
   toggleVideoPlayback(current?.video);
 }
@@ -460,7 +463,7 @@ function onTouchMove(event: TouchEvent): void {
   if (touch.axis !== 'x') return;
   const video = current?.video, total = video ? video.duration || 0 : 0;
   if (!total) return;
-  event.preventDefault(); // 横划归进度，不交给页面滚动
+  event.preventDefault(); // Horizontal swipes go to the progress bar, not page scrolling
   touch.to = Math.min(total, Math.max(0, touch.from + dx / window.innerWidth * total));
   paintProgress(touch.to / total);
   showSeekPreview(touch.to / total);
@@ -499,9 +502,9 @@ function onWheel(event: WheelEvent): void {
   void step(event.deltaY > 0 ? 1 : -1);
 }
 
-/* 进度条拖动。pointer 一套同时盖鼠标和触控，捕获指针后手滑出进度条也不会断。拖动中只画进度，
-   松手才 seek——每帧都 seek 会让远程源一直重新缓冲。没拖动的单击走同一条路：pointerdown 已经
-   画了进度，pointerup 落地。 */
+/* Progress bar dragging. One pointer set covers mouse and touch, and after pointer capture a hand slipping off the bar does not break the drag. While dragging, only progress paints;
+   seek happens on release; seeking every frame would keep rebuffering remote sources. A plain click without dragging takes the same path: pointerdown already
+   painted progress, and pointerup lands it. */
 function barRatio(event: PointerEvent): number {
   const box = dom!.bar.getBoundingClientRect();
   return Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
@@ -517,7 +520,7 @@ function scrubStart(event: PointerEvent<HTMLDivElement>): void {
   event.preventDefault();
 }
 
-/* 预览不等按下：鼠标悬停就显示，触控只在按住拖动时才有 pointermove。 */
+/* The preview doesn't wait for a press: it shows on mouse hover; touch only produces pointermove while held and dragging. */
 function scrubMove(event: PointerEvent): void {
   if (scrubbing) paintProgress(barRatio(event));
   showSeekPreview(barRatio(event));
@@ -542,12 +545,12 @@ function scrubLeave(): void {
   if (!scrubbing) seekPreview?.hide();
 }
 
-/* ── 动作键 ── */
+/* ── Action buttons ── */
 
 type FeedbackKind = 'dislike' | 'seen' | 'o';
 interface FeedbackResult { feedback?: string | null; disposal?: string | null; o_count?: number }
 
-/** 写一次反馈，回执换进 `['item', id]`，目录里同一张卡跟着换。 */
+/** Writes one feedback, and the receipt is swapped into `['item', id]`, so the same card in the catalog updates with it. */
 export async function sendFeedback(id: number, kind: string): Promise<FeedbackResult> {
   const result = await apiSend<FeedbackResult>(FEEDBACK_URL, { id, kind });
   const before = queryClient.getQueryData<DetailItem>(itemKey(id));
@@ -564,12 +567,12 @@ export async function sendFeedback(id: number, kind: string): Promise<FeedbackRe
 }
 
 const ACTIONS: { kind: FeedbackKind; glyph: string; label: string }[] = [
-  { kind: 'dislike', glyph: 'thumbs-down', label: '标为不喜欢' },
-  { kind: 'seen', glyph: 'eye', label: '标为看过' },
-  { kind: 'o', glyph: 'heart', label: '记一次高潮' },
+  { kind: 'dislike', glyph: 'thumbs-down', label: 'Mark as disliked' },
+  { kind: 'seen', glyph: 'eye', label: 'Mark as watched' },
+  { kind: 'o', glyph: 'heart', label: 'Log a climax' },
 ];
 
-/** 当前出画那一条的详情：出画前已经取过（`ensureDetail`），这里只读缓存、跟着写回重画。 */
+/** Details for the item currently leaving the frame: fetched before exit (`ensureDetail`); this only reads the cache and re-renders along with the write-back. */
 function useDetail(id: number | null) {
   return useQuery({
     queryKey: itemKey(id ?? 0),
@@ -598,7 +601,7 @@ function ImmerseAction({ kind, glyph, label, id }: { kind: FeedbackKind; glyph: 
       });
       if (kind === 'dislike' && result.feedback === 'dislike') setTimeout(() => { void step(1) }, DISLIKE_ADVANCE_MS);
     },
-    onError: (error) => immerseHost().failure('更新反馈', error),
+    onError: (error) => immerseHost().failure('Update feedback', error),
   });
   const busy = mutation.isPending;
   const pressed = kind !== 'o' && full ? (full.feedback === kind ? 'true' : 'false') : undefined;
@@ -610,22 +613,22 @@ function ImmerseAction({ kind, glyph, label, id }: { kind: FeedbackKind; glyph: 
         <svg viewBox="0 0 24 24"><use href={`#i-${glyph}`} /></svg>
       </button>
       <span data-immerse-label="">
-        {kind === 'dislike' ? '不喜欢' : null}
-        {kind === 'seen' ? (full?.feedback === 'seen' ? '已看' : '看过') : null}
-        {kind === 'o' ? <>高潮 <b>{full?.o_count || 0}</b></> : null}
+        {kind === 'dislike' ? 'Dislike' : null}
+        {kind === 'seen' ? (full?.feedback === 'seen' ? 'Watched' : 'Watched') : null}
+        {kind === 'o' ? <>Climaxes <b>{full?.o_count || 0}</b></> : null}
       </span>
     </div>
   );
 }
 
-/* ── 作者与标题 ── */
+/* ── Author and title ── */
 
 function Caption({ shown }: { shown: Shown | null }) {
   const item = shown?.item ?? null;
   const full = useDetail(item?.id ?? null);
   const owner = full ? ownerOf(full) : null;
   const helpers = immerseHost();
-  /* 点作者或头像：先关掉，再进第一位出镜者（没有就是创作者）的资料页。 */
+  /* Clicking the author or avatar: close first, then open the profile page of the first featured performer (or the creator if there is none). */
   const openOwner = (event: MouseEvent) => {
     event.preventDefault();
     if (!full) return;
@@ -634,8 +637,8 @@ function Caption({ shown }: { shown: Shown | null }) {
     else if (full.creator) helpers.openEntity('creator', full.creator);
     else helpers.openUnowned();
   };
-  /* 标题进详情页。沉浸模式里只看得到文件名，想看标签、相关推荐或改东西都得先退出再去列表里
-     把它找回来。路径和旁边的作者链接一致：先关，再开。 */
+  /* The title opens the details page. In immersive mode only the filename is visible; to see tags, related recommendations, or edit anything, one must exit first and find it again
+     in the list. Same path as the author link beside it: close first, then open. */
   const openTitle = () => {
     if (!item) return;
     close();
@@ -645,19 +648,19 @@ function Caption({ shown }: { shown: Shown | null }) {
   return (
     <div data-immerse-ui="">
       <div data-immerse-author="">
-        <button type="button" data-immerse-avatar="" aria-label="打开资料" onClick={openOwner}
+        <button type="button" data-immerse-avatar="" aria-label="Open details" onClick={openOwner}
           dangerouslySetInnerHTML={{ __html: avatar }} />
         <a href="#" onClick={openOwner}>{owner?.who ?? ''}</a>
         <span>{shown && item ? `· ${fmtDur(item.duration)} · ${item.ctx_orient || ''} · ${shown.index + 1}/${shown.length}` : ''}</span>
       </div>
-      <button type="button" data-immerse-title="" onClick={openTitle}>{item ? helpers.displayName(item).trim() || '未命名视频' : ''}</button>
+      <button type="button" data-immerse-title="" onClick={openTitle}>{item ? helpers.displayName(item).trim() || 'Untitled video' : ''}</button>
     </div>
   );
 }
 
-/* ── 外框 ── */
+/* ── Outer frame ── */
 
-const SPINNER = { __html: spinnerHtml('媒体加载中') };
+const SPINNER = { __html: spinnerHtml('Loading media') };
 
 function ImmerseView({ view: at }: { view: View }) {
   const frame = useRef<HTMLDivElement>(null);
@@ -667,8 +670,8 @@ function ImmerseView({ view: at }: { view: View }) {
   useLayoutEffect(() => {
     const el = frame.current!;
     dom = { root: el, track: track.current!, bar: bar.current!, progress: progress.current! };
-    /* 横划要 `preventDefault`，React 的触摸与滚轮事件挂在根上是被动的，拦不住页面滚动：这几条直接挂
-       在节点上。 */
+    /* Horizontal swipes need `preventDefault`; React's touch and wheel listeners on the root are passive and cannot stop page scroll: these few attach directly
+       on the node. */
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd, { passive: false });
@@ -697,7 +700,7 @@ function ImmerseView({ view: at }: { view: View }) {
         <span data-immerse-spinner="" dangerouslySetInnerHTML={SPINNER} />
         <span>{at.loading ?? ''}</span>
       </div>
-      <button type="button" data-immerse-close="" title="关闭" aria-label="关闭" onClick={close}>
+      <button type="button" data-immerse-close="" title="Close" aria-label="Close" onClick={close}>
         <svg viewBox="0 0 24 24"><use href="#i-x" /></svg>
       </button>
       <div ref={bar} data-immerse-bar="" onPointerDown={scrubStart} onPointerMove={scrubMove}
@@ -709,7 +712,7 @@ function ImmerseView({ view: at }: { view: View }) {
   );
 }
 
-/* ── 对壳的入口 ── */
+/* ── Entry points into the shell ── */
 
 const api: ImmerseApi = {
   open,
@@ -720,30 +723,30 @@ const api: ImmerseApi = {
 
 function onKeyDown(event: KeyboardEvent): void {
   if (!view.open) return;
-  // 输入态不抢键：搜索框、标签弹窗和任何可编辑区域里的按键归它们自己处理。
+  // Typing contexts do not steal keys: presses inside the search box, the tag dialog, and any editable area belong to those.
   const target = event.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
   if (event.ctrlKey || event.metaKey || event.altKey) return;
-  // 纵向切片，和竖屏短视频的手势方向保持一致。
+  // Vertical slices, keeping the gesture direction consistent with portrait short videos.
   if (event.key === 'ArrowDown') void step(1);
   if (event.key === 'ArrowUp') void step(-1);
 }
 
-/** 接上壳给的宿主，拿回沉浸模式的命令式入口。只调一次；壳的 `loadImmerse` 接着在路由树里打开这一面，
- *  藏着的外框画上之后才交出句柄，第一次打开之前它就在。 */
+/** Attach the host the shell provides and get back immersive mode's imperative handle. Called once; the shell's `loadImmerse` then opens this surface in the router tree,
+ *  handing over the handle only after the hidden outer frame is drawn, so it exists before the first open. */
 export function configureImmerse(next: ImmerseHost): ImmerseApi {
   const first = !host;
   host = next;
   if (first) {
     document.addEventListener('keydown', onKeyDown);
-    // 旋转手机或改窗口大小后，同一条视频的铺满／完整显示判定可能翻转。
+    // After rotating the phone or resizing the window, the cover-fit vs full-display verdict for the same video can flip.
     addEventListener('resize', () => { if (view.open) fitAll() });
     addEventListener('pagehide', () => { slides.forEach((slide) => cancelStreamSession(slide.session)) });
   }
   return api;
 }
 
-/** 常驻表里的那一面：读本模块的 store，宿主还没接上时不画。 */
+/** The resident table's face: reads this module's store and renders nothing until the host is attached. */
 export function ImmerseSurface() {
   const at = useSyncExternalStore(subscribe, () => view);
   return host ? <ImmerseView view={at} /> : null;

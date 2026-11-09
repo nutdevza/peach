@@ -1,8 +1,8 @@
-/* 「账本备份」：立即备份当前账本，或从一份备份恢复（ADR-0138）。
+/* "Ledger backup": back up the current ledger immediately, or restore from a backup (ADR-0138).
  *
- * 列表里是两处备份目录里能恢复的全部备份，新的在前：手动备份与写入前的自动备份同一套保留规则。
- * 备份与恢复都是服务端的后台任务，进行中每 1.5 秒问一次状态，进度同时进任务中心。
- * 恢复会替换当前账本，确认框写清这一点；只读端只看列表，不能恢复。 */
+ * The list is every restorable backup in the two backup directories, newest first: manual backups and pre-write automatic backups share the same retention rules.
+ * Both backup and restore are server-side background tasks; while in progress, status is polled every 1.5 seconds, and progress also feeds the task center.
+ * Restore replaces the current ledger; the confirm dialog states this clearly; the read-only client only views the list and can't restore. */
 import { useEffect, useRef, useState } from 'react';
 import { confirmModal } from '@peach/legacy/ui';
 import { fmtSize } from '@peach/legacy/core';
@@ -50,10 +50,10 @@ export interface LedgerBackupState {
 const when = (backup: LedgerBackup) => new Date(backup.modified_at * 1000).toLocaleString();
 
 function describe(backup: LedgerBackup) {
-  return [backup.source === 'manual' ? '手动' : `自动 · ${backup.purpose}`, fmtSize(backup.bytes)].join(' · ');
+  return [backup.source === 'manual' ? 'Manual' : `Auto · ${backup.purpose}`, fmtSize(backup.bytes)].join(' · ');
 }
 
-/** 进行中的那一个任务：知道页数就画进度条，否则只说在做哪一步。 */
+/** The one task in progress: if the page count is known, draw a progress bar; otherwise just state which step is running. */
 function Running({ job, label }: { job: LedgerBackupJob; label: string }) {
   return (
     <div aria-live="polite" className="flex flex-col gap-2">
@@ -93,7 +93,7 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
     return () => { controller.abort(); clearTimeout(timer); };
   }, [state]);
 
-  // 一轮结束：成功的回执走 Toast，失败的原因留在分区里。只报这一页上看着开始的那一轮。
+  // A round ends: successful receipts go through a Toast, failure reasons stay in the section. Only report the round that appears to have started on this page.
   useEffect(() => {
     if (!state) return;
     for (const key of ['backup', 'restore'] as const) {
@@ -103,15 +103,15 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
       reported.current[key] = false;
       if (job.status !== 'complete') continue;
       receipt(key === 'backup'
-        ? `已备份账本：${job.name}`
-        : `已从备份恢复账本，恢复前的账本另存为 ${job.saved}。刷新页面查看恢复后的资料`);
+        ? `Ledger backed up: ${job.name}`
+        : `The ledger has been restored from backup; the pre-restore ledger is saved separately as ${job.saved}. Refresh the page to view the restored profile`);
     }
   }, [state]);
 
   if (!state) {
     return (
-      <Section id="ledgerBackups" guide="ledger-backups" title="账本备份">
-        <Stack>{loadError ? <ErrorText>{loadError}</ErrorText> : <LoadingDots label="正在读取备份列表" />}</Stack>
+      <Section id="ledgerBackups" guide="ledger-backups" title="Ledger backup">
+        <Stack>{loadError ? <ErrorText>{loadError}</ErrorText> : <LoadingDots label="Loading backup list" />}</Stack>
       </Section>
     );
   }
@@ -120,11 +120,11 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
     apiSend<LedgerBackupState>(`${LEDGER_BACKUPS_URL}/backup`, {}, 'POST', signal), setState);
 
   const restore = (item: LedgerBackup) => void confirmModal({
-    title: '从备份恢复账本',
+    title: 'Restore ledger from backup',
     danger: true,
-    body: `将用 ${when(item)} 的备份（${describe(item)}）替换当前账本，此后的资料、观看记录与复核结论回到备份时的状态。`
-      + '替换前先把当前账本另存为一份备份；恢复期间不能启动新任务。',
-    confirmLabel: '替换当前账本',
+    body: `The backup from ${when(item)} (${describe(item)}) will replace the current ledger; metadata, watch history, and review conclusions from that point on revert to their state at backup time.`
+      + 'Before replacing, save the current ledger as a backup; no new task can start during a restore.',
+    confirmLabel: 'Replace current ledger',
     onConfirm: async () => {
       reported.current.restore = true;
       setState(await apiSend<LedgerBackupState>(`${LEDGER_BACKUPS_URL}/restore`, { id: item.id, confirm: true }));
@@ -133,16 +133,16 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
 
   const failed = [state.backup, state.restore].find((job) => job.status === 'failed');
   const last = state.last_restore;
-  const status = backingUp ? '正在备份…' : restoring ? '正在恢复…'
-    : state.backups.length ? `共 ${state.backups.length} 份可恢复的备份` : '还没有备份';
+  const status = backingUp ? 'Backing up…' : restoring ? 'Restoring…'
+    : state.backups.length ? `A total of ${state.backups.length} restorable backups` : 'No backup yet';
   return (
-    <Section id="ledgerBackups" guide="ledger-backups" title="账本备份">
+    <Section id="ledgerBackups" guide="ledger-backups" title="Ledger backup">
       <Stack>
-        <Help>账本保存全部资料、观看记录与复核结论。手动备份与写入前的自动备份放在一起，保留最近 5 份和 24 小时内的备份。</Help>
-        {!state.writer ? <Help>这台电脑不是账本写入端，只能在写入端恢复：{state.writer_reason}</Help> : null}
-        {backingUp ? <Running job={state.backup} label="备份进度" /> : null}
-        {restoring ? <Running job={state.restore} label="恢复进度" /> : null}
-        {failed ? <ErrorText>{failed.error || '任务没有完成'}</ErrorText> : null}
+        <Help>The ledger stores all resources, watch records, and review conclusions. Manual backups and pre-write automatic backups are kept together, retaining the most recent 5 and backups within 24 hours.</Help>
+        {!state.writer ? <Help>This computer is not the ledger write client; restore is only possible on the write client:{state.writer_reason}</Help> : null}
+        {backingUp ? <Running job={state.backup} label="Backup progress" /> : null}
+        {restoring ? <Running job={state.restore} label="Restore progress" /> : null}
+        {failed ? <ErrorText>{failed.error || 'Task not finished'}</ErrorText> : null}
         {last ? (last.outcome === 'kept' || last.outcome === 'completed'
           ? <Help>{last.message}</Help> : <ErrorText>{last.message}</ErrorText>) : null}
         {action.error ? <ErrorText>{action.error}</ErrorText> : null}
@@ -153,7 +153,7 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
               {state.backups.map((item) => (
                 <SettingsRow key={item.id} label={when(item)} description={describe(item)}>
                   <Button variant="secondary" disabled={!state.writer || running}
-                    onClick={() => restore(item)}>恢复</Button>
+                    onClick={() => restore(item)}>Restore</Button>
                 </SettingsRow>
               ))}
             </Rows>
@@ -161,7 +161,7 @@ export function LedgerBackupSettings({ receipt }: { receipt(message: string): vo
         : null}
       <Footer status={<p>{status}</p>}>
         <Button disabled={running} onClick={backup}
-          {...busyProps(action.busy === 'backup' || backingUp)}>立即备份</Button>
+          {...busyProps(action.busy === 'backup' || backingUp)}>Back up now</Button>
       </Footer>
     </Section>
   );

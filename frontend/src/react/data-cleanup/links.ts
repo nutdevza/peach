@@ -1,13 +1,13 @@
-/* 链接管理的数据契约。
+/* Link management's data contract.
  *
- * 外链是别人服务器上的东西，会在我们不知情的时候烂掉——实测 719 条里 152 条打不开，
- * 而它们在资料页上和好链接长得一模一样，只有点下去才知道。所以检查要能随时重跑。
+ * External links live on other people's servers and rot without notice: measured, 152 of 719 did not open, and on the profile
+ * page they look identical to good links until clicked. So the check must be rerunnable at any time.
  *
- * 三份真相三个键，节律各不相同：
- * - `['links']` 是库里链接的现状，纯读库、随页面一起加载，不轮询。
- * - `['links','check']` 是那趟联网检查的状态，`running` 时两秒问一次。
- * - `['links','prune']` 是删除那趟的状态，同样按 `running` 开关。
- * 合成一个键的话，每两秒的一轮轮询都会把上面那块只读统计重画一遍。 */
+ * Three truths, three keys, each on its own cadence:
+ * - `['links']` is the current state of links in the library, a pure database read that loads with the page and never polls.
+ * - `['links','check']` is the state of the networked check run, asked every two seconds while `running`.
+ * - `['links','prune']` is the state of the deletion run, likewise on the `running` switch.
+ * Merged into one key, every two-second poll round would re-render the read-only stats block above. */
 import { apiGet, apiSend } from '../../api';
 import { t } from '../../i18n';
 
@@ -19,10 +19,10 @@ export const LINKS_KEY = ['links'] as const;
 export const LINK_CHECK_KEY = ['links', 'check'] as const;
 export const LINK_PRUNE_KEY = ['links', 'prune'] as const;
 
-/** 链接类型与界面上的名字。
+/** Link types and their on-screen names.
  *
- *  `官网 · 事务所` 里的间隔点会和「按类型」那行的分隔点撞在一起，读出来是
- *  「社媒 373 · 官网 · 事务所 224」——分不清哪个数字属于哪一类，所以用斜杠。 */
+ *  The interpunct in `Official site · Agency` collides with the "by type" row's separator dots, reading as
+ *  "Social 373 · Official site · Agency 224"; impossible to tell which number belongs to which type, hence the slash. */
 export const LINK_KINDS: Record<string, string> = {
   official: t('cleanup:links.kindOfficial'), social: t('cleanup:links.kindSocial'),
   catalog: t('cleanup:links.kindCatalog'), source_reference: t('cleanup:links.kindSourceReference'),
@@ -36,7 +36,7 @@ export interface LinkStats {
   top_host_link_ids: Record<string, number>;
 }
 
-/** 一条被判出来的链接。`note` 是站点回的那句结果。 */
+/** One judged link. `note` is the result sentence the site returned. */
 export interface LinkRow {
   id: number;
   entity: string;
@@ -56,7 +56,7 @@ export interface LinkCheckState {
   total: number;
   gone: LinkRow[];
   unclear: LinkRow[];
-  /** `retry` 是只重验点名的那几条。 */
+  /** `retry` re-verifies only the named entries. */
   scope: string;
   error?: string;
 }
@@ -68,13 +68,13 @@ export interface LinkPruneState {
   total?: number;
   message?: string;
   removed?: number;
-  /** 已隐退女优的链接不删，留作不可点的记录。 */
+  /** Links of retired performers are kept, as non-clickable records. */
   marked?: number;
   recovered?: number;
   error?: string;
 }
 
-/** 这几条写端点拒绝时回的是 200 加 `ok:false`（清单过期、没有可重试的行），不是错误码。 */
+/** These write endpoints reject with 200 plus `ok:false` (stale manifest, no retryable rows), not an error code. */
 async function accepted<T>(request: Promise<T & { ok?: boolean; error?: string }>): Promise<T> {
   const result = await request;
   if (result.ok === false) throw new Error(result.error || t('cleanup:links.operationIncomplete'));
@@ -83,11 +83,11 @@ async function accepted<T>(request: Promise<T & { ok?: boolean; error?: string }
 
 export const fetchLinkStats = (signal?: AbortSignal) => apiGet<LinkStats>(LINKS_URL, signal);
 
-/** 检查状态是 POST 读的：这条端点同时负责启动，`status_only` 才是只问不启动。 */
+/** Check status is read via POST: this endpoint also starts the run; only `status_only` asks without starting. */
 export const fetchLinkCheck = (signal?: AbortSignal) =>
   apiSend<LinkCheckState>(LINK_CHECK_URL, { status_only: true }, 'POST', signal);
 
-/** 起一趟检查。给了 `retry` 就只重验点名的那几条，别的结论原样留着：重跑整批要好几分钟。 */
+/** Start a check run. With `retry`, only the named entries are re-verified and other conclusions stay as they are: rerunning the whole batch takes several minutes. */
 export const startLinkCheck = ({ retry, checkId }: { retry?: readonly number[]; checkId?: string }) =>
   accepted(apiSend<LinkCheckState>(LINK_CHECK_URL, retry
     ? { retry, check_id: checkId }
@@ -95,20 +95,20 @@ export const startLinkCheck = ({ retry, checkId }: { retry?: readonly number[]; 
 
 export const fetchLinkPrune = (signal?: AbortSignal) => apiGet<LinkPruneState>(LINK_PRUNE_URL, signal);
 
-/** 删除判定为失效的链接。服务端删前逐条重验一次，所以这一趟走后台任务；不可撤销，
- *  调用方必须先过确认弹层。 */
+/** Deletes links judged dead. The server re-verifies each one before deleting, so this run goes through a background task; irreversible,
+ *  the caller must go through the confirm popover first. */
 export const startLinkPrune = ({ checkId, ids }: { checkId: string; ids?: number[] }) =>
   accepted(apiSend<LinkPruneState>(LINK_PRUNE_URL, { confirm: true, check_id: checkId, background: true, ...(ids ? { ids } : {}) }));
 
 const count = (value: number | undefined) => Number(value || 0).toLocaleString();
 
-/** 删完那一句。 */
+/** The message once deletion completes. */
 export const pruneText = (state: LinkPruneState) =>
   [t('cleanup:links.pruneRemoved', { count: Number(state.removed || 0) }),
     ...(state.marked ? [t('cleanup:links.pruneRetired', { count: Number(state.marked || 0) })] : []),
     t('cleanup:links.pruneKept', { count: Number(state.recovered || 0) })].join(t('cleanup:shared.sentenceGap'));
 
-/** 检查推进到哪儿了。总量还没算出来时只说在做什么。 */
+/** How far the check has progressed. While the total is not yet known, only say what it is doing. */
 export function checkLine(state: LinkCheckState): string {
   const retrying = state.scope === 'retry';
   if (!state.total) return retrying ? t('cleanup:links.rechecking') : t('cleanup:links.checkingLinks');

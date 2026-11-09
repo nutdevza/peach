@@ -1,11 +1,13 @@
-/* 库存的径向图：一段一圈，读数跟着指到的那一段走。
+/* The library's radial chart: one segment per ring, with the readout following the pointed-at segment.
  *
- * 圈由 EvilCharts 的 `EvilRadialChart` 画，颜色按 `chart-1`…`chart-6` 循环，满圈是最长那段的
- * 1.1 倍（`radialCeiling`）。段数超过六个时并掉尾部（`radialSlices`），不为 0 的段至少画一小截
- * 弧（`radialArc`），浮层与读数仍是原始数。高亮是 React 状态：指针进出与点选各管一件事——扫过去是看一眼，
- * 点下去是钉住。图下那排格子是同一份状态的按钮，键盘也够得着；上游的可点选图例只有一个
- * 选中态，分不出「看一眼」和「钉住」，所以圈的形状与点击走 `radialBarProps` 接到这里。
- * 差异登记在 `../evilcharts/ORIGIN.md`。 */
+ * The ring is drawn by EvilCharts' `EvilRadialChart`, colors cycling `chart-1`...`chart-6`, with a full ring being 1.1 times
+ * the longest segment (`radialCeiling`). When there are more than six segments the tail is merged (`radialSlices`), non-zero
+ * segments always draw at least a small arc (`radialArc`), and the overlay and readouts still show the original numbers.
+ * Highlight is React state: pointer enter/leave and clicking each manage one thing: sweeping over is a look, clicking is a
+ * pin. The row of cells under the chart is buttons over the same state and reachable by keyboard; upstream's clickable legend
+ * has only one selected state and cannot distinguish "a look" from "pinned", so the ring's shape and clicks come through
+ * `radialBarProps` to here.
+ * Differences registered in `../evilcharts/ORIGIN.md`. */
 import { useState } from 'react';
 import { Sector, type SectorProps } from 'recharts';
 
@@ -18,13 +20,13 @@ import { ChartTip } from '../charts/chart-tip';
 import { SourceMark } from '../settings/section';
 import { radialArc, radialBarSize, radialCeiling, radialSlices, type RadialSlice } from './stats';
 
-/** 六档图表色循环。类名写成整串，Tailwind 扫得到。 */
+/** A six-tier chart color cycle. Class names are written out whole so Tailwind can see them. */
 const TILE_SWATCH = [
   'bg-chart-1', 'bg-chart-2', 'bg-chart-3',
   'bg-chart-4', 'bg-chart-5', 'bg-chart-6',
 ];
-/* 钉住某一段时那一格换成这一段自己的颜色：旧 `.board-radial-tiles>button[aria-pressed]`
- * 是同色 10% 混底加一圈 1px 同色内描边。换成中性色的话，六格里哪一格被钉住是认不出来的。 */
+/* When a segment is pinned, its cell takes that segment's own color: the old `.board-radial-tiles>button[aria-pressed]`
+ * was a same-color 10% blend backing plus a 1px same-color inner stroke. In neutral colors, which of the six cells is pinned would be unrecognizable. */
 const TILE_PINNED = [
   'aria-pressed:bg-chart-1/10 aria-pressed:ring-chart-1',
   'aria-pressed:bg-chart-2/10 aria-pressed:ring-chart-2',
@@ -35,10 +37,10 @@ const TILE_PINNED = [
 ];
 
 export function RadialCard(
-  { title, rows, empty, unit = '个视频' }: { title: string; rows: RadialSlice[]; empty: string; unit?: string },
+  { title, rows, empty, unit = 'videos' }: { title: string; rows: RadialSlice[]; empty: string; unit?: string },
 ) {
-  /* 钉住的那一段和指针扫过的那一段分开记：扫过去要能回到钉住的那一段，合成一个状态的话
-     鼠标一离开就把用户点下的选择也擦了。 */
+  /* The pinned segment and the pointer-hovered segment are recorded separately: hovering must be able to return to the pinned segment; merging them into one state
+     would erase the user's clicked selection the moment the mouse leaves. */
   const [pinned, setPinned] = useState(-1);
   const [hovered, setHovered] = useState(-1);
   const slices = radialSlices(rows);
@@ -49,8 +51,8 @@ export function RadialCard(
   const shown = slices[focus];
   const toggle = (index: number) => setPinned((at) => (at === index ? -1 : index));
   const ceiling = radialCeiling(slices.map((row) => row.value));
-  /* 原始数放 `count` 列，不叫 `value`：Recharts 算扇区时把这一行展开后又写一遍 `value`，填的是
-     画图那一列（`arc`），浮层读到的就成了垫高的弧长。 */
+  /* The raw number goes in the `count` column, not `value`: when Recharts computes a sector it spreads this row out and writes `value` again, filling
+     the drawing column (`arc`), so the overlay would read an inflated arc length. */
   const data = slices.map((row, index) => (
     { slice: sliceKey(index), count: row.value, arc: radialArc(row.value, ceiling) }));
 
@@ -90,7 +92,7 @@ export function RadialCard(
             onPointerEnter={() => setHovered(index)} onPointerLeave={() => setHovered(-1)}
             onFocus={() => setHovered(index)} onBlur={() => setHovered(-1)}
             className={`flex min-w-0 cursor-pointer flex-col items-start gap-1 rounded-xl bg-background-tertiary-default p-2.5 text-left outline-none aria-pressed:ring-1 aria-pressed:ring-inset focus-visible:ring-2 focus-visible:ring-border-focus-ring ${TILE_PINNED[index % 6]}`}>
-            {/* 名字折成几行时色块跟第一行对齐，不悬在几行中间。 */}
+            {/* When the name wraps to several lines, the color chip aligns with the first line instead of floating between them. */}
             <span className="flex min-w-0 max-w-full items-start gap-1.5 text-caption-1-regular text-text-secondary">
               <i aria-hidden className={`mt-0.5 size-3 shrink-0 rounded-sm ${TILE_SWATCH[index % 6]}`} />
               <span className="inline-flex min-w-0 items-start gap-1.5 wrap-anywhere">

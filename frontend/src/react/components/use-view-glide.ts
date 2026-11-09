@@ -1,19 +1,25 @@
-/* 一排「你在哪儿」的键下面那块滑动玻璃（React 这一侧；首页与关注页那几排归壳的 `GLIDE_ROWS`）。
+/* The sliding glass beneath a row of "where am I" keys (the React side; the home and follows pages' rows belong to the shell's
+ * `GLIDE_ROWS`).
  *
- * 玻璃是一个常驻节点：由组件画在浮层根上、只建一次，换筛选、换视图都只挪它，不重建——换了
- * 元素，动画就从头起跑，看到的只是瞬移。位移与抻长交给遗留层的 `moveGlidePane`，全站只有这一种
- * 动法；这里只管「此刻落在哪一枚上」：
+ * The glass is a resident node: rendered by the component on the overlay root and built once; filter and view changes only
+ * move it, never rebuild. Swap the element and the animation starts over, all you see is a teleport. Translation and
+ * stretching go to the legacy layer's `moveGlidePane`, the only such motion site-wide; this module only decides "which key it
+ * sits on right now":
  *
- * - 按下去立刻滑到那一枚（壳当场推新的按下态，这里跟着 `pressed` 变）；
- * - 悬停时滑到指针下那一枚，离开这一排回到按下的那一枚（触摸不跟）；
- * - 这一排横滚或窗口改尺寸时只重量、不动画；
- * - 这一排量不出宽度（被 `hidden` 收起、祖先 `display:none`）或目标滚出了可视区，玻璃收起。
+ * - Pressing slides it to that key immediately (the shell pushes the new pressed state on the spot, and this follows
+ *   `pressed`);
+ * - Hovering slides it to the key under the pointer, and leaving the row returns it to the pressed one (touch does not
+ *   follow);
+ * - When the row scrolls horizontally or the window resizes, it only remeasures, no animation;
+ * - When the row measures zero width (collapsed by `hidden`, an ancestor `display:none`) or the target scrolled out of view,
+ *   the glass collapses.
  *
- * 坐标以浮层根（玻璃的父元素）为原点，扣掉中间每一层的滚动量，同壳的 `viewGlideGeometry`：
- * 玻璃住在滚动层外面，纵向回弹不会被横滚容器切平。
+ * Coordinates take the overlay root (the glass's parent) as origin and subtract each intermediate layer's scroll, same as the
+ * shell's `viewGlideGeometry`: the glass lives outside the scrolling layer, so vertical overscroll bounce is not clipped flat
+ * by the horizontal-scroll container.
  *
- * 默认是一排横着的键；`axis: 'y'` 给竖着的一列（侧栏导航）：位移的回弹换到纵轴，滚出可视区
- * 的判据也换成纵向。 */
+ * The default is a horizontal row of keys; `axis: 'y'` gives a vertical column (sidebar navigation): the translation's bounce
+ * moves to the vertical axis, and the scrolled-out-of-view criterion switches to vertical as well. */
 import { useCallback, useEffect, useLayoutEffect, useRef, type PointerEvent, type RefObject } from 'react';
 import { cancelGlide, moveGlidePane } from '@peach/legacy/ui';
 
@@ -49,9 +55,9 @@ function geometry(pill: HTMLElement, host: HTMLElement, axis: Axis): Box | null 
   return { x, y, w: pill.offsetWidth, h: pill.offsetHeight };
 }
 
-/** `pane` 是玻璃节点，`row` 是这一排；`pressed` 是这一排里按下那一枚的选择器。`key` 变了
- *  （按下态换了、这一排出现或收起）就带动画落到新的按下项上。返回的两个处理器接在键与排上；
- *  `sync` 给这一排自己知道的布局变化（宿主改尺寸、上方插进了别的东西）：掐掉在跑的位移，原地重量。 */
+/** `pane` is the glass node, `row` is this row; `pressed` is the selector for the pressed key in this row. When `key` changes
+ *  (pressed state changed, the row appeared or collapsed), it animates onto the newly pressed item. The two returned handlers attach to keys and rows;
+ *  `sync` covers layout changes this row knows about itself (host resized, something inserted above): it cancels an in-flight glide and re-measures in place. */
 export function useViewGlide(
   pane: RefObject<HTMLElement | null>, row: RefObject<HTMLElement | null>, pressed: string, key: unknown,
   { axis = 'x' }: { axis?: Axis } = {},
@@ -60,8 +66,8 @@ export function useViewGlide(
   const place = useCallback((target: HTMLElement | null, animate: boolean) => {
     const glass = pane.current;
     const line = row.current;
-    /* 玻璃是浮层根的直接子元素，根是吸顶定位的，所以根就是它的定位基准。不读 `offsetParent`：
-       收起着的玻璃那一项是 null。 */
+    /* The glass is a direct child of the overlay root, and the root is sticky positioned, so the root is its positioning baseline. Do not read `offsetParent`:
+       it is null for the collapsed glass item. */
     const host = glass?.parentElement;
     if (!glass) return;
     const active = line && line.offsetWidth ? target ?? line.querySelector<HTMLElement>(pressed) : null;
@@ -72,16 +78,16 @@ export function useViewGlide(
       last.current = null;
       return;
     }
-    /* 从收起到出现是第一次落位，不从上一次的旧坐标飞进来。 */
+    /* The move from collapsed to visible is the first placement; it does not fly in from the previous stale coordinates. */
     const from = glass.hidden ? null : last.current;
     glass.hidden = false;
     last.current = box;
-    /* 同一落点在切页取数时可重复上报，保留它正在完成的位移。 */
+    /* The same landing point can be reported again during a page-switch fetch, preserving the displacement it is still completing. */
     if (animate && from && sameBox(from, box)) return;
     moveGlidePane(glass, animate ? from : null, box, axis);
   }, [pane, row, pressed, axis]);
 
-  /* 首次落位不动画；往后按下态一变就滑过去。放在布局阶段：画出来的第一帧玻璃就在位上。 */
+  /* No animation on first placement; afterwards it slides whenever the pressed state changes. Runs during layout: the glass is already in position on the first painted frame. */
   const placed = useRef(false);
   useLayoutEffect(() => {
     const glass = pane.current;
@@ -90,7 +96,7 @@ export function useViewGlide(
     placed.current = true;
   }, [place, key]);
 
-  /* 横滚、改尺寸只重量。滚动事件不冒泡，所以在浮层根上按捕获阶段接住这一排里任何一层的滚动。 */
+  /* Horizontal scrolling and resizing only re-measure. Scroll events do not bubble, so the overlay root catches scrolling from any layer in this row during the capture phase. */
   useEffect(() => {
     const host = pane.current?.parentElement;
     let frame = 0;
@@ -100,7 +106,7 @@ export function useViewGlide(
     };
     host?.addEventListener('scroll', remeasure, { capture: true, passive: true });
     addEventListener('resize', remeasure, { passive: true });
-    /* 浮层可以随页面收起，也可以在取数后补进另一组控件。尺寸恢复与相邻组变宽都会改变落点。 */
+    /* The overlay can collapse with the page, or gain another set of controls after the fetch. Both size restoration and a neighboring group growing change the landing point. */
     const observer = new ResizeObserver(() => {
       const line = row.current;
       const active = line?.offsetWidth ? line.querySelector<HTMLElement>(pressed) : null;

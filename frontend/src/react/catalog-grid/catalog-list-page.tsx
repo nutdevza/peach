@@ -35,16 +35,16 @@ import './catalog-list.css';
 const features = tableFeatures({ rowSortingFeature, rowSelectionFeature, rowPaginationFeature, columnVisibilityFeature });
 const COLUMN_ORDER = catalogColumns.map(column => column.id);
 const sortOptions = [
-  { id: 'name', label: '名称' }, { id: 'dur', label: '时长' }, { id: 'size', label: '体积' },
-  { id: 'new', label: '入库时间' }, { id: 'release', label: '发行时间' },
-  { id: 'rating', label: '评分' }, { id: 'o', label: '高潮计数' },
-  { id: 'plays', label: '观看次数' }, { id: 'played', label: '观看时间' },
+  { id: 'name', label: 'Name' }, { id: 'dur', label: 'Duration' }, { id: 'size', label: 'Size' },
+  { id: 'new', label: 'Date added' }, { id: 'release', label: 'Release date' },
+  { id: 'rating', label: 'Rating' }, { id: 'o', label: 'Climax count' },
+  { id: 'plays', label: 'Watch count' }, { id: 'played', label: 'Watch time' },
 ];
 interface ListState { sorting: SortingState; pagination: { pageIndex: number; pageSize: number } }
-// 详情返回保留同一筛选范围内的页码与列排序。
+// Returning from details keeps the page number and column sort within the same filter scope.
 const positions = new Map<string, ListState>();
 
-/** 服务端对完整筛选结果排序、分页；选择集及批量栏归现有馆藏控制器。 */
+/** The server sorts and paginates the full filtered result; the selection set and bulk bar belong to the existing library controller. */
 export function CatalogListPage(props: CatalogGridProps) {
   const preferences = useCatalogTablePreferences();
   const tints = useLibraryTints();
@@ -74,7 +74,7 @@ export function CatalogListPage(props: CatalogGridProps) {
       if (options.sort) query.set('sort', options.sort);
       if (options.dir) query.set('dir', options.dir);
       const page = await apiGet<MediaPage>(`/api/items?${query}`, signal);
-      /* 与卡片网格同一判据（`fetchCatalogPage`）：第一页为空、又不是回收站，再问整个馆藏有没有东西，空态据此分「还没有作品」与「没有符合的」。 */
+      /* Same criterion as the card grid (`fetchCatalogPage`): when the first page is empty and this is not the trash, ask whether the whole library has anything; the empty state then splits into "No works yet" and "No matches". */
       if (offset || page.items?.length || props.filters?.state === 'trash') return page;
       return { ...page, libraryEmpty: (await apiGet<MediaPage>('/api/items?limit=1&thumb=0', signal)).total === 0 };
     },
@@ -104,18 +104,18 @@ export function CatalogListPage(props: CatalogGridProps) {
   const rowSelection: RowSelectionState = props.selectMode ? Object.fromEntries([...props.selected].map(id => [String(id), true])) : {};
   const columns = useMemo(() => {
     const helper = createColumnHelper<typeof features, MediaItem>();
-    /* 列的先后照 `catalogColumns`，与骨架、「显示列」里的顺序同一份。 */
+    /* The column order follows catalogColumns, the same as the skeleton and the 'display columns' order. */
     return helper.columns([
-      helper.display({ id: 'select', header: ({ table }) => <TableSelectionHeader table={table} label="全选本页作品" disabled={result.isPlaceholderData} />,
-      cell: ({ row }) => <Checkbox slot={null} aria-label={`选择 ${props.helpers.displayName(row.original, row.original.name || '')}`}
+      helper.display({ id: 'select', header: ({ table }) => <TableSelectionHeader table={table} label="Select all videos on this page" disabled={result.isPlaceholderData} />,
+      cell: ({ row }) => <Checkbox slot={null} aria-label={`Choose ${props.helpers.displayName(row.original, row.original.name || '')}`}
         isDisabled={result.isPlaceholderData}
         isSelected={row.getIsSelected()} onChange={on => row.toggleSelected(on)} /> }),
-      helper.accessor(item => item.name || '', { id: 'name', header: '作品', enableSorting: true,
+      helper.accessor(item => item.name || '', { id: 'name', header: 'Videos', enableSorting: true,
         cell: ({ row }) => <ListIdentity item={row.original} props={props} disabled={result.isPlaceholderData} /> }),
-      helper.display({ id: 'library', header: '媒体库', cell: ({ row }) => <ListLibrary item={row.original} /> }),
-      helper.display({ id: 'people', header: '艺人', cell: ({ row }) => <ListPeople item={row.original} props={props} /> }),
-      /* 标签与卡片同一套：关注条目的标签不可点，其余点一下按这个标签筛选。 */
-      helper.display({ id: 'tags', header: '标签', cell: ({ row }) => {
+      helper.display({ id: 'library', header: 'Media library', cell: ({ row }) => <ListLibrary item={row.original} /> }),
+      helper.display({ id: 'people', header: 'Artists', cell: ({ row }) => <ListPeople item={row.original} props={props} /> }),
+      /* Tags match the cards: a follows entry's tags are not clickable, everything else filters by that tag on click. */
+      helper.display({ id: 'tags', header: 'Tags', cell: ({ row }) => {
         const item = row.original;
         const tags = item.follow_tags || item.tags || [];
         return tags.length
@@ -128,26 +128,26 @@ export function CatalogListPage(props: CatalogGridProps) {
           </div>
           : '—';
       } }),
-      helper.display({ id: 'code', header: '番号', cell: ({ row }) => row.original.code || '—' }),
-      helper.accessor(item => item.duration, { id: 'dur', header: '时长', enableSorting: true,
+      helper.display({ id: 'code', header: 'Code', cell: ({ row }) => row.original.code || '—' }),
+      helper.accessor(item => item.duration, { id: 'dur', header: 'Duration', enableSorting: true,
         cell: ({ row }) => fmtDur(row.original.duration) || '—' }),
-      helper.display({ id: 'resolution', header: '分辨率', cell: ({ row }) => {
+      helper.display({ id: 'resolution', header: 'Resolution', cell: ({ row }) => {
         const { width, height } = row.original;
         return width && height ? `${width} × ${height}` : '—';
       } }),
-      helper.accessor(item => item.size, { id: 'size', header: '体积', enableSorting: true,
+      helper.accessor(item => item.size, { id: 'size', header: 'Size', enableSorting: true,
         cell: ({ row }) => row.original.size == null ? '—' : fmtSize(row.original.size) }),
-      helper.accessor(item => item.rating, { id: 'rating', header: '评分', enableSorting: true,
+      helper.accessor(item => item.rating, { id: 'rating', header: 'Rating', enableSorting: true,
         cell: ({ row }) => <CatalogRating item={row.original} actions={props.actions} /> }),
-      helper.accessor(item => item.play_count, { id: 'plays', header: '观看次数', enableSorting: true,
+      helper.accessor(item => item.play_count, { id: 'plays', header: 'Watch count', enableSorting: true,
         cell: ({ row }) => Number(row.original.play_count || 0).toLocaleString() }),
-      helper.accessor(item => item.o_count, { id: 'o', header: '高潮计数', enableSorting: true,
+      helper.accessor(item => item.o_count, { id: 'o', header: 'Climax count', enableSorting: true,
         cell: ({ row }) => Number(row.original.o_count || 0).toLocaleString() }),
-      helper.accessor(item => item.last_played, { id: 'played', header: '观看时间', enableSorting: true,
+      helper.accessor(item => item.last_played, { id: 'played', header: 'Watch time', enableSorting: true,
         cell: ({ row }) => catalogTableDate(row.original.last_played) }),
-      helper.accessor(item => item.first_seen, { id: 'new', header: '入库时间', enableSorting: true,
+      helper.accessor(item => item.first_seen, { id: 'new', header: 'Date added', enableSorting: true,
         cell: ({ row }) => catalogTableDate(row.original.first_seen) }),
-      helper.accessor(item => item.release_date, { id: 'release', header: '发行时间', enableSorting: true,
+      helper.accessor(item => item.release_date, { id: 'release', header: 'Release date', enableSorting: true,
         cell: ({ row }) => row.original.release_date || '—' }),
     ]).sort((a, b) => COLUMN_ORDER.indexOf(a.id!) - COLUMN_ORDER.indexOf(b.id!));
   }, [props.helpers, props.actions, props.layout, props.selectMode, result.isPlaceholderData]);
@@ -170,18 +170,18 @@ export function CatalogListPage(props: CatalogGridProps) {
       }
     },
   });
-  /* 一部都没有时与卡片网格同一份空态（壳给的 `emptyHtml`：回收站、馆藏全空、筛选无结果各一种），
-     不画空表格与列设置；资料页不给空态，它自己在作品区外说「还没有视频」。 */
+  /* When there are no works at all, the same empty state as the card grid (the shell's `emptyHtml`: one each for trash, whole library empty, and no filter results),
+     no empty table or column settings; the details page gives no empty state — it says "No videos yet" itself, outside the works area. */
   if (result.data && !result.isPlaceholderData && !result.isError && total === 0) {
     const html = props.emptyHtml?.({ trash: props.mode !== 'entity' && props.filters?.state === 'trash',
       libraryEmpty: !!(result.data as { libraryEmpty?: boolean }).libraryEmpty }) || '';
     return <div data-catalog-view-mode="list" data-media-empty="" dangerouslySetInnerHTML={{ __html: html }} />;
   }
   return <div data-catalog-view-mode="list" data-catalog-table="" aria-busy={result.isFetching || undefined} className="flex min-w-0 flex-col gap-4">
-    <div className="flex flex-wrap justify-end gap-2" role="toolbar" aria-label="作品列表工具栏">
+    <div className="flex flex-wrap justify-end gap-2" role="toolbar" aria-label="Video list toolbar">
       <div data-toolbar-actions="">
       <TableColumnControls preferences={preferences} />
-      <DataTableSort label="作品列表" options={sortOptions} sorting={sorting}
+      <DataTableSort label="Video list" options={sortOptions} sorting={sorting}
         onChange={next => table.setSorting(next)} />
       </div>
     </div>
@@ -190,7 +190,7 @@ export function CatalogListPage(props: CatalogGridProps) {
       : <LibraryCompletionPrompt className="" assetIds={missing} meteredIds={metered} />}
     {result.isError ? <RetryNote message={requestErrorMessage(result.error)} onRetry={() => void result.refetch()} /> : null}
     <DataTableFrame follow preferences={preferences} onRowClick={props.selectMode ? id => { if (!result.isPlaceholderData) props.actions.toggleSelection(Number(id), false) } : undefined}>
-      <Table aria-label="作品列表" size="sm"
+      <Table aria-label="Video list" size="sm"
         sortDescriptor={sort ? { column: sort.id, direction: sort.desc ? 'descending' : 'ascending' } : undefined}
         onSortChange={next => table.setSorting([{ id: String(next.column), desc: next.direction === 'descending' }])}>
         <TableHeader>{table.getHeaderGroups()[0]!.headers.map(header =>
@@ -204,10 +204,10 @@ export function CatalogListPage(props: CatalogGridProps) {
             <TableColumnResizer preferences={preferences} id={header.id} />
             </>}
           </TableColumn>)}
-          <TableColumn id="remaining-space" aria-label="行空白区域" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
+          <TableColumn id="remaining-space" aria-label="Row empty space" data-table-space="" width={preferences.spaceWidth} minWidth={0} />
         </TableHeader>
-        <TableBody renderEmptyState={() => result.isError ? '作品列表未取得' : '没有符合的作品'}>
-          {/* 等数据时在真实表格里画骨架行，格子内容与壳的首屏骨架同一份，接管时不换结构。 */}
+        <TableBody renderEmptyState={() => result.isError ? 'The video list could not be fetched' : 'No videos match'}>
+          {/* While waiting for data, skeleton rows render inside the real table with cell content identical to the shell's first-screen skeleton, so takeover swaps no structure. */}
           {result.isPending ? Array.from({ length: 6 }, (_, index) => <TableRow key={`skeleton-${index}`} id={`skeleton-${index}`}
             data-list-skeleton-row="" aria-hidden="true">
             {table.getHeaderGroups()[0]!.headers.map(header => <TableCell key={header.id}>
@@ -224,23 +224,23 @@ export function CatalogListPage(props: CatalogGridProps) {
         </TableBody>
       </Table>
     </DataTableFrame>
-    {result.data ? <DataTableFooter label="作品列表" total={total} pagination={pagination}
-      onChange={next => table.setPagination(next)} unit="部作品" pageUnit="部" /> : null}
+    {result.data ? <DataTableFooter label="Video list" total={total} pagination={pagination}
+      onChange={next => table.setPagination(next)} unit="videos" pageUnit="videos" /> : null}
   </div>;
 }
 
 function ListIdentity({ item, props, disabled }: { item: MediaItem; props: CatalogGridProps; disabled: boolean }) {
   const artwork = cardArtwork(item, 'small', false, props.layout.javImage);
-  /* 与卡片同一判据：按画幅筛时组里只剩这一卷或这一个版本，就按单个文件写。 */
+  /* Same rule as the cards: when an aspect filter leaves only this volume or this edition in the group, write it as a single file. */
   const parts = Number(item.part_group?.count) > 1 ? item.part_group || null : null;
   const editions = Number(item.edition_group?.count) > 1 ? item.edition_group || null : null;
   const rawName = parts?.title || item.name || '';
-  const name = props.helpers.displayName(item, rawName).trim() || '未命名作品';
-  const titleHtml = props.helpers.titleHtml(item, rawName).trim() || '未命名作品';
+  const name = props.helpers.displayName(item, rawName).trim() || 'Untitled video';
+  const titleHtml = props.helpers.titleHtml(item, rawName).trim() || 'Untitled video';
   useEntityNames();
   const watched = !parts && Number(item.play_seconds) > 0 && Number(item.duration) > 0
     ? Math.min(Number(item.play_seconds) / Number(item.duration), 1) : 0;
-  const flaggedBy = [Number(item.liked) > 0 ? '喜欢' : '', Number(item.o_count) > 0 ? '有高潮记录' : ''].filter(Boolean);
+  const flaggedBy = [Number(item.liked) > 0 ? 'Like' : '', Number(item.o_count) > 0 ? 'Has climax records' : ''].filter(Boolean);
   const glyph = (name: string) => <svg viewBox="0 0 24 24" aria-hidden="true"><use href={`#i-${name}`} /></svg>;
   const open = (event: MouseEvent<HTMLElement>) => {
     if (props.selectMode) {
@@ -252,39 +252,39 @@ function ListIdentity({ item, props, disabled }: { item: MediaItem; props: Catal
   return <div data-list-identity="">
     <button type="button" data-list-open="" disabled={disabled} tabIndex={-1} aria-hidden="true" onClick={open}>
       <span data-list-picture="">{artwork.html
-        ? <ArtSlot artwork={artwork} relayout={root => relayoutCovers(root, 'small')} /> : <span>无预览</span>}
-        {parts && !editions ? <span data-media-group="">{`${Number(parts.count).toLocaleString()} 卷`}</span> : null}
-        {editions ? <span data-media-group="" title={editions.editions.join(' · ')}>{`${Number(editions.count).toLocaleString()} 个版本`}</span> : null}
+        ? <ArtSlot artwork={artwork} relayout={root => relayoutCovers(root, 'small')} /> : <span>No preview</span>}
+        {parts && !editions ? <span data-media-group="">{`${Number(parts.count).toLocaleString()} volumes`}</span> : null}
+        {editions ? <span data-media-group="" title={editions.editions.join(' · ')}>{`${Number(editions.count).toLocaleString()} editions`}</span> : null}
         {watched > 0
-          ? <span data-media-progress="" role="progressbar" aria-label="观看进度" aria-valuemin={0} aria-valuemax={100}
+          ? <span data-media-progress="" role="progressbar" aria-label="Watch progress" aria-valuemin={0} aria-valuemax={100}
             aria-valuenow={Math.round(watched * 100)}>
             <i style={{ '--media-fill': `${(watched * 100).toFixed(1)}%` } as CSSProperties} />
           </span>
           : null}
         {item.watch_later || flaggedBy.length
           ? <span data-media-status="">
-            {item.watch_later ? <span data-status="later" title="稍后看" aria-label="稍后看">{glyph('bookmark')}</span> : null}
-            {flaggedBy.length ? <span data-status="flagged" title={`已标记：${flaggedBy.join('、')}`}
-              aria-label={`已标记：${flaggedBy.join('、')}`}>{glyph('heart')}</span> : null}
+            {item.watch_later ? <span data-status="later" title="Watch later" aria-label="Watch later">{glyph('bookmark')}</span> : null}
+            {flaggedBy.length ? <span data-status="flagged" title={`Flagged by: ${flaggedBy.join(', ')}`}
+              aria-label={`Flagged by: ${flaggedBy.join(', ')}`}>{glyph('heart')}</span> : null}
           </span>
           : null}</span>
     </button>
     <span data-list-text="">
-      <button type="button" data-list-name="" disabled={disabled} title={name} aria-label={`打开 ${name}`} onClick={open}
+      <button type="button" data-list-name="" disabled={disabled} title={name} aria-label={`Open ${name}`} onClick={open}
         dangerouslySetInnerHTML={{ __html: titleHtml }} />
     </span>
   </div>;
 }
 
-/** 媒体库那一列：标识加名字，与侧栏媒体库切换同一套。没有归属媒体库的写「—」。 */
+/** The media-library column: identifier plus name, the same set as the sidebar media-library switcher. Ones with no library affiliation show “—”. */
 function ListLibrary({ item }: { item: MediaItem }) {
   const tints = useLibraryTints({ names: true });
   const tint = item.library_id ? tints.get(item.library_id) : undefined;
-  return tint?.name ? <span data-list-library="" title={`媒体库：${tint.name}`}><SourceMark mark={tint.icon} /><span>{tint.name}</span></span> : '—';
+  return tint?.name ? <span data-list-library="" title={`Library: ${tint.name}`}><SourceMark mark={tint.icon} /><span>{tint.name}</span></span> : '—';
 }
 
-/** 艺人那一列：头像与署名和卡片同一套（`identityParts`）。点头像或人名打开人物、厂牌页，没有署名的那批
- *  打开「未归属」；选择模式下不跳。 */
+/** The artist column: the avatar and credit use the same set as the card (`identityParts`). Clicking the avatar or name opens the person or label page; the uncredited ones
+ * open "Unattributed"; no navigation in selection mode. */
 function ListPeople({ item, props }: { item: MediaItem; props: CatalogGridProps }) {
   useEntityNames();
   const { avatar, who } = identityParts(item);

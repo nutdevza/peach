@@ -27,7 +27,7 @@ export interface EntityOnlineProps {
   view: FollowView;
   media: FollowMedia;
   result: UseInfiniteQueryResult<InfiniteData<FollowPage>>;
-  /** 合并好的几页，与这一档媒体里可见的组。 */
+  /** The merged pages, and the visible groups within this media tier. */
   data: FollowPage | null;
   visible: readonly FollowGroup[];
   context: FollowContext;
@@ -42,7 +42,7 @@ export interface EntityOnlineProps {
 
 export function EntityOnline(props: EntityOnlineProps) {
   const { result, data, media, helpers } = props;
-  /* 换筛选时先借着上一份数据（`keepPreviousData`），那一份不能当这一份画出来。 */
+  /* When filters change, the previous data is kept around (`keepPreviousData`), but that copy must not be rendered as the new one. */
   const pending = result.isPending || result.isPlaceholderData;
   if (!data && result.isError) {
     return <RetryNote message={requestErrorMessage(result.error)} onRetry={() => { void result.refetch() }} />;
@@ -93,10 +93,10 @@ function Empty({ searched, clear, actions, sources }: {
   searched: boolean; clear(): void; actions: FollowFeedActions; sources: number[];
 }) {
   return <div data-follow-empty="" className="contents"><EmptyState
-    icon={spriteGlyph(searched ? 'search-x' : 'rss')} title={searched ? '当前筛选下没有更新' : '还没有抓到更新'}
-    actions={searched ? <Button size="small" onClick={clear}>清除筛选</Button>
+    icon={spriteGlyph(searched ? 'search-x' : 'rss')} title={searched ? 'No updates under the current filter' : 'No updates fetched yet'}
+    actions={searched ? <Button size="small" onClick={clear}>Clear filters</Button>
       : sources.length ? <FollowCheckButton sources={sources} report={actions.checkReport} />
-      : <ButtonLink size="small" href="/subscriptions?tab=add">添加关注</ButtonLink>}>
-    {searched ? '切换媒体类型、状态、来源或标签后再试。' : '检查来源更新后，这位创作者的新内容会出现在这里。'}
+      : <ButtonLink size="small" href="/subscriptions?tab=add">Add follows</ButtonLink>}>
+    {searched ? 'Try again after switching media type, state, source, or tags.' : 'After checking source updates, this creator\'s new content will appear here.'}
   </EmptyState></div>;
 }

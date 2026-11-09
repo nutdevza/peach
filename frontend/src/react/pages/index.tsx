@@ -1,11 +1,13 @@
-/* 独立页面包的构建入口（`web/dist/peach-pages.js`）。
+/* The standalone pages bundle's build entry (`web/dist/peach-pages.js`).
  *
- * 首启、登录与错误三页共用服务端给的同一张HTML 模板，壳里只有一个挂载点 `#peach-page`：`data-page` 说是
- * 哪一页，其余 `data-*` 是服务端才知道的变量，原样交给那一页。这份产物不依赖主界面的任何模块：
- * 不加载主包，不带 Query 缓存，共用控件（折叠、来源站标）由 `vite.pages.config.ts`
- * 直接打进来。三页都用浏览器原生滚动条。弹出层落在 body 上，body 本身就是 `.peach-react` 容器。
+ * The first-run, login and error pages share the server-provided HTML template with a single mount point `#peach-page` in
+ * the shell: `data-page` says which page, and the other `data-*` attributes are variables only the server knows, passed
+ * through as-is. This output depends on no module of the main UI: it does not load the main bundle, carries no Query cache,
+ * and shared controls (collapse, source site marks) are bundled in directly by `vite.pages.config.ts`. All three pages use
+ * the browser's native scrollbar. Popovers land on body, and body itself is the `.peach-react` container.
  *
- * 这个包不要会话就能取（ADR-0094）：不得 import 别的产物，不得内嵌数据库、配置或凭据派生的数据。 */
+ * This bundle is fetchable without a session (ADR-0094): it must not import other outputs, and must not embed data derived
+ * from the database, configuration or credentials. */
 import './pages.css';
 import { installErrorReporting } from '../../error-reporting';
 

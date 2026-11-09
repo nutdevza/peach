@@ -1,11 +1,12 @@
-/* 播放列表页的数据契约与三个写操作。
+/* The playlists page's data contract and its three write operations.
  *
- * 读 `/api/playlists`（`src/peach/web_playlists.py` 的 `q_playlists`，按最近改动排），写一律
- * POST `/api/playlist`。写端点回的是带 `items` 的整份列表，不是列表页那一行的形状，
- * 改名还会动 `updated_at`、换掉排序，所以写完一律让列表键重取，不拿回话拼缓存。
+ * Reads `/api/playlists` (`q_playlists` in `src/peach/web_playlists.py`, sorted by last change); writes always POST
+ * `/api/playlist`. The write endpoint returns the whole list with `items`, not the list page's row shape, and renaming also
+ * touches `updated_at` and changes the sort, so after any write the list key refetches; the response is never assembled into
+ * cache.
  *
- * 首页存完一份 Mix 再进来要看得到它：首屏 `prefetch` 每次都向服务端重取，不读缓存里
- * 上一次的那一份。 */
+ * Saving a Mix on home and coming back must show it: the first screen's `prefetch` refetches from the server every time and
+ * never reads the previous copy from cache. */
 import { apiGet, apiSend } from '../../api';
 import { queryClient } from '../query';
 
@@ -13,7 +14,7 @@ export const PLAYLISTS_URL = '/api/playlists';
 export const PLAYLIST_URL = '/api/playlist';
 export const PLAYLISTS_KEY = ['playlists'] as const;
 
-/** 列表卡的署名：列表里出镜最多的那几位（服务端最多给三位）。 */
+/** The list card's credits: the most featured performers in the list (the server sends at most three). */
 export interface PlaylistFace {
   kind: string;
   id: number;
@@ -23,27 +24,27 @@ export interface PlaylistFace {
   avatar_focus?: unknown;
 }
 
-/** `/api/playlists` 的一行。 */
+/** One row of `/api/playlists`. */
 export interface PlaylistRow {
   id: number;
   name: string;
-  /** `mix` 是从 Mix 存下来的，其余是手动建的。 */
+  /** `mix` was saved from Mix; the rest were built by hand. */
   source_kind: string;
   source_seed_asset_id: number | null;
   current_asset_id: number | null;
   created_at: string;
   updated_at: string;
   item_count: number;
-  /** 静止封面：续播点那一个，没有续播点时是第一个。空列表是 null。 */
+  /** Static cover: the resume point's one, or the first when there is no resume point. Empty list is null. */
   preview_asset_id: number | null;
-  /** 悬停时翻过的封面，续播点那张在最前，最多五张。 */
+  /** The covers flipped through on hover, the resume-point frame first, at most five. */
   preview_ids: number[];
   faces: PlaylistFace[];
 }
 
 export interface PlaylistsData { items: PlaylistRow[] }
 
-/** `/api/playlist?id=` 与写端点回话里的那一份整列表。这一页只用得到下面几项。 */
+/** The full list as returned by `/api/playlist?id=` and the write endpoints' replies. This page only uses the fields below. */
 export interface PlaylistDetail {
   id: number;
   name: string;
@@ -55,15 +56,15 @@ export interface PlaylistDetail {
 
 export const fetchPlaylists = (signal?: AbortSignal) => apiGet<PlaylistsData>(PLAYLISTS_URL, signal);
 
-/** 首屏。`staleTime: 0` 写明：缓存里有上一次的列表也照样重取。 */
+/** First screen. `staleTime: 0` makes it explicit: refetch even when the cache still holds the previous list. */
 export async function prefetchPlaylists(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({ queryKey: PLAYLISTS_KEY, queryFn: () => fetchPlaylists(signal), staleTime: 0 });
 }
 
-/** 写完之后重读列表。 */
+/** Re-read the list after writing. */
 export const refreshPlaylists = () => queryClient.invalidateQueries({ queryKey: PLAYLISTS_KEY, exact: true });
 
-/** 点卡片从哪一个接着播：续播点，没有就是第一个。空列表没有去处。 */
+/** Which item clicking a card resumes from: the resume point, or the first if none. An empty list has nowhere to go. */
 export const resumeAssetId = (row: PlaylistRow) => row.current_asset_id || row.preview_asset_id || null;
 
 export const posterUrl = (id: number) => `/poster?id=${id}&c=4`;
@@ -83,13 +84,13 @@ export const fetchPlaylist = (id: number, signal?: AbortSignal) => apiGet<Playli
 export const reorderPlaylist = (id: number, ids: number[]) =>
   apiSend<Written>(PLAYLIST_URL, { action: 'reorder', id, asset_ids: ids });
 
-/** 删之前先把内容取回来：`delete` 连 playlist_item 一起清，删完就没有地方能问出这份列表
- *  装着哪些视频。取不到就是 null，那一次删除不给撤销。 */
+/** Fetch the contents before deleting: `delete` clears the playlist_item rows too, and afterwards nothing can tell you which videos the list held.
+ *  If they cannot be fetched it is null, and that delete gets no undo. */
 export const keepPlaylist = (id: number): Promise<PlaylistDetail | null> =>
   apiGet<PlaylistDetail>(`${PLAYLIST_URL}?id=${id}`).catch(() => null);
 
-/** 撤销删除：重建一份新记录，装同一批视频、同一个来源。Mix 种子不在列表里了就不带，
- *  服务端要求种子必须在列表中。 */
+/** Undo delete: rebuild a new record holding the same batch of videos and the same source. If the Mix seed is no longer in the list, omit it;
+ *  the server requires the seed to be in the list. */
 export function recreatePlaylist(kept: PlaylistDetail) {
   const ids = (kept.items || []).map((entry) => entry.id);
   const seed = kept.source_seed_asset_id;

@@ -1,8 +1,8 @@
-/* 数据管理页上的「孤儿记录」：文件已不在盘上、带着个人记录的作品（ADR-0087）。
+/* The "orphan records" block on the data management page: videos whose files are no longer on disk but still carry personal records (ADR-0087).
  *
- * 每行一条已消失的作品：快照图供认片，后面是它带的记录、在库里可能是它新版本的文件。
- * 选一个文件接过去，记录搬到那个文件上、旧行删掉，整批可按批次号撤回；彻底删除连记录一起
- * 删，过危险档确认弹层。没有已消失的作品时整块不出现。 */
+ * Each row is one missing video: a snapshot image for identification, then the records it carries and files in the library that may be its newer edition.
+ * Pick a file to adopt them onto; the records move to that file and the old row is deleted, and the whole batch can be reverted by batch number; permanent delete removes the records too,
+ * through a dangerous-action confirm popover. The whole block does not appear when there are no missing videos. */
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { confirmModal } from '@peach/legacy/ui';
@@ -85,8 +85,8 @@ function OrphanActions({ item, toast }: { item: OrphanRecord; toast(message: str
 function OrphanIdentity({ item }: { item: OrphanRecord }) {
   return (
         <span className="flex min-w-0 items-center gap-3">
-          {/* 快照图供认片；没有图或取不到时留一格带描边的占位，和重复文件页的封面格同一个样子。
-              窄屏收起，把宽度让给名字与记录。 */}
+          {/* The snapshot image identifies the video; when there is none or it cannot be fetched, leave an outlined placeholder cell, the same look as the cover cell on the duplicate files page.
+              Collapses on narrow screens, giving the width to name and records. */}
           <span className="relative inline-grid aspect-16/10 w-24 flex-none place-items-center max-cleanup-tight:hidden overflow-hidden rounded-lg border border-separator-border bg-background-tertiary-default text-text-tertiary">
             <PLAY aria-hidden className="size-5" />
             {item.has_thumb

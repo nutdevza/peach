@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 
 /** 首页的竖屏栏。`竖屏` 是地址参数 `orient` 的取值，不是界面文案。 */
-export const portraitColumn = (query: URLSearchParams) => query.get('orient') === '竖屏';
+export const portraitColumn = (query: URLSearchParams) => query.get('orient') === 'Portrait';
 
 /** 首页那几栏（全部、JAV、竖屏都在 `/` 上）与搜索结果的标签页名称；不在 `/` 上是空串。 */
 export function homeRouteLabel(pathname: string, search: string): string {

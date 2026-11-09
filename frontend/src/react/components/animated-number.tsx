@@ -1,12 +1,12 @@
-/* 会跟着轮询变的读数：新值到达时从旧值滚到新值，而不是一帧跳过去。
+/* Readings that change with polling: when a new value arrives, roll from the old value to the new instead of jumping in one frame.
  *
- * 首次挂载直接画终值，只有值变了才过渡；过渡用 Motion 的 `animate` 逐帧写文字，
- * 系统开了减弱动态效果时直接画终值。数字一律等宽，滚动时整行不抖。 */
+ * First mount paints the final value directly; only a value change transitions; the transition uses Motion's `animate` writing text frame by frame,
+ * and with the system's reduced motion on it paints the final value directly. Numbers are always tabular, so the row does not jitter while rolling. */
 import { useEffect, useRef, useState } from 'react';
 import { animate } from 'motion';
 import { useReducedMotion } from 'motion/react';
 
-/** 过渡时长，秒。短于各处最快的轮询间隔（1.5 秒），下一次新值到达前一定已经停稳。 */
+/** Transition duration in seconds. Shorter than the fastest polling interval anywhere (1.5 s), so it always settles before the next value arrives. */
 const DURATION = 0.6;
 
 export function AnimatedNumber(

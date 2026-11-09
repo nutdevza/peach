@@ -1,11 +1,12 @@
-/* 光晕预设那一格：设置面板「配色」那一组和侧栏底部配色卡上半张是同一组色块、同一份写入。两处都读
- * 同一份 store（`@peach/appearance` 的 `appSettingsStore`），点哪一边，另一边经 store 通知当场对齐。
+/* The glow preset cell: the settings panel's "Color scheme" group and the top half of the sidebar's bottom color card are the
+ * same swatches with the same write path. Both read the same store (`appSettingsStore` in `@peach/appearance`), so picking on
+ * either side aligns the other on the spot via the store's notification.
  *
- * 选中一档写什么（光晕、玻璃面色相、强调色一起换）在 `appearance/glow.ts` 的 `chooseGlowPreset`；
- * 这里只画球。「自定义」那一格会出现或消失，按档名做 key，正落着焦点的那一枚是同一个节点，
- * 键盘选完一档焦点不会掉回页面开头。
+ * What selecting a scheme writes (glow, glass surface hues and accent color together) is in `appearance/glow.ts`'s
+ * `chooseGlowPreset`; this only paints balls. The "Custom" cell appears or disappears; keyed by scheme name, the ball
+ * holding focus stays the same node, so keyboard selection never drops focus back to the top of the page.
  *
- * 样式在 `./glow-preset-grid.css`。 */
+ * Styles in `./glow-preset-grid.css`. */
 import type { CSSProperties } from 'react';
 
 import { chooseGlowPreset, glowChips, type GlowSettings } from '@peach/appearance';

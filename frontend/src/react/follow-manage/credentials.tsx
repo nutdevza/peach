@@ -1,7 +1,7 @@
-/* 来源和凭证：哪些站要登录、这台电脑上填没填、去哪儿取。
+/* Sources and credentials: which sites need login, whether this computer has them filled in, and where to fetch them.
  *
- * 值不回显。服务端只报存在性，保存成功之后这一栏清空，看得到的只有字段名——凭据回到
- * 浏览器里就等于又多一处会被翻出来的副本。 */
+ * Values are never echoed back. The server reports existence only, and the field is cleared after a successful save, leaving only the field name visible; a credential sitting
+ * in the browser is one more copy waiting to be dug out. */
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { confirmModal } from '@peach/legacy/ui';
@@ -26,18 +26,18 @@ import {
 import { SourceIcon } from './source-view';
 import { RiKey2Line } from '@remixicon/react';
 
-const CLEAR_BODY = '将清除这个来源在本机和共享副本中的登录凭据。';
-const WORLD_READABLE = '其他系统用户可以读取此凭据文件。请在运行 Peach 的 Mac 或 Linux 电脑上，将文件权限设为仅当前用户可读写（0600）。';
+const CLEAR_BODY = 'This will clear this source\'s login credentials on this machine and in shared copies.';
+const WORLD_READABLE = 'Other system users can read this credentials file. On the Mac or Linux computer running Peach, set the file permissions so only the current user can read and write it (0600).';
 
-/** 一个字段此刻的样子：共享回填的、本机存过的，还是从来没填过。 */
+/** A field's current state: backfilled from shared data, saved locally before, or never filled in. */
 function fieldHint(row: CredentialRow, name: string): string {
-  if ((row.shared_fields || []).includes(name)) return '来自共享，留空表示不改';
-  return row.fields.includes(name) ? '已保存，留空表示不改' : '未填写';
+  if ((row.shared_fields || []).includes(name)) return 'From sharing; leave empty to keep as is';
+  return row.fields.includes(name) ? 'Saved; leave empty to keep as is' : 'Not filled in';
 }
 
 function StateChip({ row }: { row: CredentialRow }) {
   const done = credentialDone(row);
-  if (done) return <Chip variant="caption" color="lime">已配置</Chip>;
+  if (done) return <Chip variant="caption" color="lime">Configured</Chip>;
   const color = row.requirement === 'required' ? 'yellow'
     : row.requirement === 'blocked' ? 'rose' : 'neutral';
   return <Chip variant="caption" color={color}>{CREDENTIAL_STATE[row.requirement] || ''}</Chip>;
@@ -52,13 +52,13 @@ function CredentialForm({ row, readOnly, toast }:
   const write = useMutation({
     mutationFn: (next: Record<string, string>) => saveCredential(row.provider, next),
     onSuccess: (result, next) => {
-      /* 共享盘不在时后端只撤掉了本机那一份，必须让用户看见：他以为撤干净了，等盘回来
-         key 又被同步回来。 */
+      /* When the shared drive is absent the backend only removed the local copy, and the user must see it: he thinks it was cleaned up, then the key gets synced back
+         once the drive returns. */
       if (result.note) { setProblem(result.note); return }
       setProblem('');
       setValues({});
       void queryClient.invalidateQueries({ queryKey: FOLLOW_CREDENTIALS_KEY, exact: true });
-      toast(Object.keys(next).length ? '已保存来源凭据' : '已清除来源凭据');
+      toast(Object.keys(next).length ? 'Source credentials saved' : 'Source credentials cleared');
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
@@ -66,7 +66,7 @@ function CredentialForm({ row, readOnly, toast }:
   const save = () => {
     const filled = Object.fromEntries(
       Object.entries(values).map(([name, value]) => [name, value.trim()]).filter(([, value]) => value));
-    if (!Object.keys(filled).length) { setProblem('没有填写内容'); return }
+    if (!Object.keys(filled).length) { setProblem('Nothing was filled in'); return }
     write.mutate(filled);
   };
 
@@ -74,8 +74,8 @@ function CredentialForm({ row, readOnly, toast }:
     <div className="flex flex-col gap-3">
       <Help>
         {row.why}
-        {/* 「去取」跳到那个站自己的页面，会离开 Peach，所以带外链标。 */}
-        {row.where ? <> <ExternalLink href={row.where}>获取凭据</ExternalLink></> : null}
+        {/* "Go fetch" jumps to the site's own page and leaves Peach, so it carries an external link mark. */}
+        {row.where ? <> <ExternalLink href={row.where}>Get credentials</ExternalLink></> : null}
       </Help>
       {row.howto ? <Help>{row.howto}</Help> : null}
       <div className="flex w-full flex-col gap-3">
@@ -90,19 +90,19 @@ function CredentialForm({ row, readOnly, toast }:
         {done ? (
           <Button variant="danger" disabled={readOnly} {...busyProps(write.isPending)}
             onClick={() => void confirmModal({
-              title: '清除来源凭据', body: CLEAR_BODY, confirmLabel: '清除来源凭据', danger: true,
+              title: 'Clear source credentials', body: CLEAR_BODY, confirmLabel: 'Clear source credentials', danger: true,
               onConfirm: () => write.mutateAsync({}),
-            })}>清除</Button>
+            })}>Clear</Button>
         ) : null}
         <Button variant="primary" disabled={readOnly} {...busyProps(write.isPending)}
-          onClick={save}>保存配置</Button>
+          onClick={save}>Save configuration</Button>
       </div>
       {problem ? <ErrorText>{problem}</ErrorText> : null}
       {(row.shared_fields || []).length
-        ? <Help>{`${row.shared_fields!.join('、')} 使用共享副本中的登录信息，本机没有单独保存。清除时，本机和共享副本中的登录信息都会删除。`}</Help>
+        ? <Help>{`${row.shared_fields!.join(', ')} use login information from the shared copy; this machine keeps no separate copy. Clearing deletes the login information on both this machine and the shared copy.`}</Help>
         : null}
       {row.path
-        ? <Disclosure summary="凭据文件"><PathLine path={row.path} className="font-mono text-caption-1-regular text-text-tertiary" onRevealed={toast} /></Disclosure>
+        ? <Disclosure summary="Credentials file"><PathLine path={row.path} className="font-mono text-caption-1-regular text-text-tertiary" onRevealed={toast} /></Disclosure>
         : null}
     </div>
   );
@@ -117,8 +117,8 @@ function CredentialSection({ row, readOnly, toast }:
       </span>
       <b className="min-w-0 text-body-medium wrap-anywhere text-text-primary">{row.provider_label}</b>
       <StateChip row={row} />
-      {/* 每个缺的字段一枚标签：缺两项就是两枚，填上一项消掉一枚。 */}
-      {row.missing.map(field => <Chip key={field} variant="caption" color="rose">{`缺 ${field}`}</Chip>)}
+      {/* One chip per missing field: two missing makes two chips, and filling one removes its chip. */}
+      {row.missing.map(field => <Chip key={field} variant="caption" color="rose">{`Missing ${field}`}</Chip>)}
     </span>
   );
   if (row.requirement === 'none' || row.requirement === 'blocked') {
@@ -132,11 +132,11 @@ function CredentialSection({ row, readOnly, toast }:
   return (
     <div className="flex flex-col gap-2 border-b border-separator-border px-6 py-5 last:border-b-0 max-sm:px-4">
       {head}
-      <Disclosure summary={credentialDone(row) ? '修改凭据' : '填写凭据'}
+      <Disclosure summary={credentialDone(row) ? 'Edit credentials' : 'Fill in credentials'}
         defaultOpen={row.requirement === 'required' && !credentialDone(row)}>
         <CredentialForm row={row} readOnly={readOnly} toast={toast} />
       </Disclosure>
-      {row.world_readable ? <Note tone="error" title="凭据文件权限过宽">{WORLD_READABLE}</Note> : null}
+      {row.world_readable ? <Note tone="error" title="The credentials file permissions are too broad">{WORLD_READABLE}</Note> : null}
     </div>
   );
 }
@@ -147,16 +147,16 @@ export function Credentials(
 ) {
   const rows = data.providers || [];
   const pending = rows.filter((row) => row.requirement === 'required' && !credentialDone(row));
-  /* 记下哪些来源已配好：配置页骨架据此画每行的徽章位与展开态（站点清单本身是静态登记）。 */
+  /* Records which sources are configured: the settings page skeleton uses it to draw each row's badge slot and expanded state (the site list itself is a static registry). */
   useEffect(() => { rememberShape('credentials', { done: rows.filter(credentialDone).map(row => row.provider) }) }, [data]);
   if (!rows.length) {
-    return <EmptyState size="compact" icon={RiKey2Line} title="没有可配置的来源">已接入的站点及其凭据状态会显示在这里。</EmptyState>;
+    return <EmptyState size="compact" icon={RiKey2Line} title="No configurable sources">Connected sites and their credential states show here.</EmptyState>;
   }
-  const pendingLabel = pending.length ? <span className="text-body-2-regular text-text-error-primary">{`${pending.length} 个待配置`}</span> : null;
+  const pendingLabel = pending.length ? <span className="text-body-2-regular text-text-error-primary">{`${pending.length} items to configure`}</span> : null;
   const groups = <>{[
-        { title: '可配置凭据', rows: rows.filter((row) => row.requirement !== 'none' && row.requirement !== 'blocked') },
-        { title: '不需要凭据', rows: rows.filter((row) => row.requirement === 'none') },
-        { title: '暂不支持', rows: rows.filter((row) => row.requirement === 'blocked') },
+        { title: 'Configurable credentials', rows: rows.filter((row) => row.requirement !== 'none' && row.requirement !== 'blocked') },
+        { title: 'No credentials needed', rows: rows.filter((row) => row.requirement === 'none') },
+        { title: 'Not supported yet', rows: rows.filter((row) => row.requirement === 'blocked') },
       ].filter((group) => group.rows.length).map((group) => (
         <section key={group.title} aria-label={group.title} className="flex flex-col gap-2">
           <h4 className="text-body-medium text-text-secondary">{group.title}</h4>
@@ -167,11 +167,11 @@ export function Credentials(
           </div>
         </section>
       ))}</>;
-  return embedded ? <Section guide="credentials" title="来源凭据" aside={pendingLabel || undefined}>
+  return embedded ? <Section guide="credentials" title="Source credentials" aside={pendingLabel || undefined}>
     <Stack><div className="flex flex-col gap-4">{groups}</div></Stack>
   </Section> :
     <div className={cardClass({ padding: 'none', className: 'flex flex-col gap-4 px-6 py-5 max-sm:px-4' })}>
-      <div className="flex flex-wrap items-center gap-2"><h3 className="mr-auto text-title-2-medium text-text-primary">来源凭据</h3>{pendingLabel}</div>
+      <div className="flex flex-wrap items-center gap-2"><h3 className="mr-auto text-title-2-medium text-text-primary">Source credentials</h3>{pendingLabel}</div>
       {groups}
     </div>;
 }

@@ -1,8 +1,8 @@
-/* 元数据字段那一类卡片的正文：一组互斥的来源值，加上还没收录的 genre。
+/* The body of the metadata-field card type: a set of mutually exclusive source values, plus genres not yet included.
  *
- * 一张候选卡上下两段读的是两件事：上段是这个来源给的那个值，也就是选中它就会写进数据库
- * 的东西；下段是同一来源顺带交回来的其它字段，只作判断依据。两段各自铺底色并由一条线
- * 隔开，选哪一段能改数据库就不用猜。 */
+ * A candidate card's upper and lower halves read two different things: the upper half is the value this source gives, that is, what selecting it would write to the database;
+ * the lower half is the other fields the same source returned along the way, used only as decision input. Each half carries its own background, separated by a line,
+ * so which half can change the database needs no guessing. */
 import { useId, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { RadioGroup } from '@/components/base/radio/radio';
@@ -17,15 +17,15 @@ import { pendingGenres, recordGenre, reloadReview } from './review';
 import { ComparisonText } from './comparison-text';
 import { composingKey } from '../components/ime';
 
-/** 候选顺带交回来的那些字段在界面上叫什么。表里没有的按原名显示。 */
+/** What the fields candidates hand back are called in the UI. Anything missing from the table shows under its original name. */
 const EVIDENCE_LABELS: Record<string, string> = {
-  title: '标题', original_title: '原标题', runtime: '来源时长', director: '导演',
-  label: 'Label', poster_url: '海报', cover_url: '封面', screenshot_urls: '截图',
-  trailer_url: '预告片',
+  title: 'Title', original_title: 'Original title', runtime: 'Source and duration', director: 'Director',
+  label: 'Label', poster_url: 'Poster', cover_url: 'Cover', screenshot_urls: 'Stills',
+  trailer_url: 'Trailer',
 };
 
-/** 收录 genre 时的候选词表，一份挂在整页上：每张卡各写一遍的话，同一百来个 option 会在
- *  DOM 里重复几十份。 */
+/** The candidate word list for accepting genres, mounted once on the whole page: writing it on every card would repeat the same hundred-odd options
+ *  dozens of times in the DOM. */
 export const GENRE_TAGS_ID = 'reviewgenretags';
 
 export function GenreTagList({ tags }: { tags: string[] }) {
@@ -37,7 +37,7 @@ export function GenreTagList({ tags }: { tags: string[] }) {
   );
 }
 
-/** 来源依据独立展开，点击说明不会同时选中另一个来源。 */
+/** Source evidence expands independently; clicking the explanation never also selects another source. */
 function CandidateEvidence({ candidate, row }: { candidate: ReviewCandidate; row: ReviewRow }) {
   const [open, setOpen] = useState(false);
   const panel = useId();
@@ -48,9 +48,9 @@ function CandidateEvidence({ candidate, row }: { candidate: ReviewCandidate; row
     <div className="min-w-0">
       <Button variant="secondary" size="small" leadingIcon={CollapseChevron}
         aria-expanded={open} aria-controls={panel}
-        aria-label={`${open ? '收起' : '展开'} ${candidate.source || '该来源'} 的来源依据`}
+        aria-label={`${open ? 'Collapse' : 'Expand'} source evidence for ${candidate.source || 'this source'}`}
         onClick={() => setOpen(!open)}>
-        <span data-copy-key="review.card.source_evidence">来源依据</span>{` · ${evidence.length}`}
+        <span data-copy-key="review.card.source_evidence">Source evidence</span>{` · ${evidence.length}`}
       </Button>
       <CollapseRegion id={panel} open={open}>
         <dl className="flex min-w-0 flex-col gap-2 px-3 pt-2 pb-1">
@@ -81,7 +81,7 @@ function CandidateEvidence({ candidate, row }: { candidate: ReviewCandidate; row
 
 function candidateHeading(candidate: ReviewCandidate) {
   const id = candidate.content_id || candidate.provider_id;
-  return `${candidate.source || '未标注来源'}${candidate.official ? ' · 官方优先' : ''}${id ? ` · ID ${id}` : ''}`;
+  return `${candidate.source || 'Source not stated'}${candidate.official ? ' - official preferred' : ''}${id ? ` - ID ${id}` : ''}`;
 }
 
 function CandidateValue({ candidate, reference }: { candidate: ReviewCandidate; reference?: string }) {
@@ -95,8 +95,8 @@ function CandidateValue({ candidate, reference }: { candidate: ReviewCandidate; 
   </span>;
 }
 
-/** 互斥的几个来源值。只有一个候选时没什么可选的：单选圈只会让人以为还有别的选项，
- *  所以改成纯展示，而提交仍按这一个候选走。 */
+/** Mutually exclusive source values. With a single candidate there is nothing to choose: a radio circle would make people think other options exist,
+ *  so it becomes display-only, and submission still follows that one candidate. */
 export function CandidateChoices(
   { row, fieldName, value, onChange, locked }: {
     row: ReviewRow;
@@ -120,7 +120,7 @@ export function CandidateChoices(
     );
   }
   return (
-    <RadioGroup aria-label={`${fieldName || '资料'}的来源`} value={value} isDisabled={locked}
+    <RadioGroup aria-label={`Sources for ${fieldName || 'details'}`} value={value} isDisabled={locked}
       onChange={onChange}>
       <div className="flex min-w-0 flex-col gap-3">
       {candidates.map((candidate) => (
@@ -137,7 +137,7 @@ export function CandidateChoices(
   );
 }
 
-/** 一个还没收录的 genre。给中文名就是收录成那个标签，判「不是内容」就是永久排除。 */
+/** A genre not yet cataloged. Giving it a name enrolls it as that tag; judging it "not content" excludes it permanently. */
 function GenreRow(
   { genre, tags, locked, toast }: {
     genre: string; tags: string[]; locked: boolean; toast(message: string): void;
@@ -148,38 +148,38 @@ function GenreRow(
   const record = useMutation({
     mutationFn: (tag: string) => recordGenre(genre, tag),
     onSuccess: async (result, tag) => {
-      if (!result.ok) { setProblem(result.error || '服务端拒绝了这次收录'); return }
-      toast(tag ? `已把「${genre}」收录为标签「${tag}」` : `已把「${genre}」判为非内容标签`);
+      if (!result.ok) { setProblem(result.error || 'The server rejected this intake'); return }
+      toast(tag ? `Filed "${genre}" as the tag "${tag}"` : `Marked "${genre}" as not a content tag`);
       await reloadReview();
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
   const accept = () => {
     const tag = draft.trim();
-    if (!tag) { setProblem('先给它一个中文标签'); return }
+    if (!tag) { setProblem('Give it a Chinese tag first'); return }
     setProblem('');
     record.mutate(tag);
   };
   return (
     <div className="flex flex-wrap items-center gap-2">
       <b lang="ja" className="text-body-medium text-text-primary">{genre}</b>
-      <TextField aria-label={`「${genre}」收录成的中文标签`} value={draft} onChange={setDraft}
+      <TextField aria-label={`The Chinese tag "${genre}" was filed as`} value={draft} onChange={setDraft}
         maxLength={40} isDisabled={locked || record.isPending} className="min-w-40 flex-1">
-        {/* 输入法还在组词时的那一下 Enter 是「选这个词」，不是「提交」。 */}
+        {/* The Enter press while the IME is still composing means "accept this word", not "submit". */}
         <InputBase size="small" list={tags.length ? GENRE_TAGS_ID : undefined}
-          autoComplete="off" placeholder="中文标签"
+          autoComplete="off" placeholder="Chinese tag"
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || composingKey(event.nativeEvent)) return;
             event.preventDefault();
             accept();
           }} />
       </TextField>
-      {/* 两个结论都是次级键：这张卡上的主动作是「通过」，把词收进表里只是让那一步有得
-          可选。收录挂上 primary 的话，同一张卡上会有两个蓝底键在抢「按这里」。 */}
+      {/* Both conclusions are secondary keys: the card's primary action is "Approve", and adding a word to the vocabulary only gives that step
+          something to pick. Making Include primary would put two blue keys fighting over "press here" on one card. */}
       <Button variant="secondary" size="small" disabled={locked || record.isPending}
-        onClick={accept}>收录</Button>
+        onClick={accept}>Archived</Button>
       <Button variant="secondary" size="small" disabled={locked || record.isPending}
-        onClick={() => { setProblem(''); record.mutate('') }}>不是内容</Button>
+        onClick={() => { setProblem(''); record.mutate('') }}>Not content</Button>
       {problem
         ? <p role="status" className="w-full text-body-2-regular text-text-error-primary">{problem}</p>
         : null}
@@ -187,9 +187,9 @@ function GenreRow(
   );
 }
 
-/** 未收录 genre 是这张卡上唯一一件不判候选的事：来源给了值，Peach 还没决定它算哪个标签，
- *  于是那句「来源还有 2 个未收录 genre」每批都原样再来一次。收录一次是对整张词表说的，
- *  不属于其中某一个来源，所以单列一块摆在候选下面。 */
+/** Not-yet-included genres are the only thing on this card that is not a candidate decision: the source gave a value, Peach has not yet decided which tag it counts as,
+ *  so the "source has 2 not-yet-included genres" line comes back verbatim with every batch. Including one speaks to the whole vocabulary,
+ *  not to any one source, so it gets its own block below the candidates. */
 export function PendingGenres(
   { row, tags, locked, toast }: {
     row: ReviewRow; tags: string[]; locked: boolean; toast(message: string): void;
@@ -198,8 +198,8 @@ export function PendingGenres(
   const genres = pendingGenres(row);
   if (!genres.length) return null;
   return (
-    <div role="group" aria-label="未收录 genre" className="flex flex-col gap-2 border-t border-separator-border pt-4">
-      <h5 className="text-body-2-medium text-text-secondary">{`未收录 genre · ${genres.length}`}</h5>
+    <div role="group" aria-label="Uncollected genre" className="flex flex-col gap-2 border-t border-separator-border pt-4">
+      <h5 className="text-body-2-medium text-text-secondary">{`Unindexed genres · ${genres.length}`}</h5>
       <div role="list" className="flex flex-col">
         {genres.map((genre, index) => (
           <div key={genre} role="listitem"

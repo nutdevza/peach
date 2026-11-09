@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { fitSkeleton } from '@peach/legacy/ui';
 
-/** 等待文字原位换成同宽骨架；保留文字的尺寸和外层控件。 */
+/** The waiting text is swapped in place for a same-width skeleton; keep the text's size and the outer controls. */
 export function AsyncText({ text, busy, placeholder }: { text: string | undefined; busy: boolean; placeholder?: ReactNode }) {
   const node = useRef<HTMLSpanElement>(null);
   const previous = useRef<string | undefined>(text);

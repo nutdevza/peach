@@ -1,4 +1,4 @@
-/** 评论分页快照保留来源时间，跨浏览器重启复用，失败不覆盖成功内容。 */
+/** Comment page snapshots keep their source timestamps, survive browser restarts, and a failure never overwrites successful content. */
 import { publicationFresh } from '../publication-cache';
 import type { JavReviews } from './jav-detail';
 
@@ -25,7 +25,7 @@ export function rememberReviews(code: string, result: JavReviews) {
     const rows = [row, ...entries().filter(entry => entry.code !== code || entry.result.page !== result.page)].slice(0, 128);
     const text = JSON.stringify(rows);
     if (text.length <= 2_000_000) localStorage.setItem(KEY, text);
-  } catch { /* 存储不可用时评论仍由查询内存保存。 */ }
+  } catch { /* When storage is unavailable, comments are still kept in query memory. */ }
 }
 export function cachedReviews(code: string, released?: string) {
   const rows = entries();

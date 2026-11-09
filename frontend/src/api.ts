@@ -1,18 +1,18 @@
-/* island 层唯一的取数入口。
+/* The island layer's only fetch entry.
  *
- * 和遗留层用的 `api()`（`src/core/index.ts`）保持同一套失败语义（先读 JSON，再按
- * `message`／`detail`／`error` 取人能看的原因），但多两件事：返回类型由调用方声明，
- * 请求带 `AbortSignal`。第二件是 island 必需的——页面在取数途中被换掉时，
- * 迟到的响应不能再往新页面上写东西。 */
+ * It keeps the same failure semantics as the legacy layer's `api()` (`src/core/index.ts`) (read JSON first, then pick a
+ * human-readable reason from `message`/`detail`/`error`), with two additions: the return type is declared by the caller, and
+ * requests carry an `AbortSignal`. The second is required on islands: when a page is swapped out mid-fetch, a late response
+ * must not write into the new page. */
 
-/** 服务端明确回了非 2xx。`status` 留给调用方区分 401／409／404 这类需要不同处置的情况。 */
+/** The server explicitly answered non-2xx. `status` lets the caller tell apart 401/409/404 cases that need different handling. */
 import { requestErrorMessage } from './core/request-error';
 import { registerResponseEntities } from './core/entity-links';
 import { libraryScopedPath } from './core/library-scope';
 
 export class ApiError extends Error {
   readonly status: number;
-  /** 响应体原样。表单校验那种 400 会在 `errors` 里按字段给原因，页面要把它们写回原位。 */
+  /** The response body as-is. Form-validation style 400s give per-field reasons in `errors`, and the page must write them back into place. */
   readonly body: unknown;
 
   constructor(message: string, status: number, body: unknown = null) {
@@ -33,18 +33,18 @@ const reasonOf = (payload: unknown): string => {
   return '';
 };
 
-/** 把抛出来的东西收敛成一句能显示给人看的原因。
+/** Collapse whatever was thrown into one displayable reason.
  *
- * 一次取数失败会同时落到两处——路由树打开时的首屏状态和共享 store 的错误态——
- * 两边显示的必须是同一句话，否则同一个失败会因为落在哪儿而说法不同。 */
+ *  A failed fetch lands in two places at once, the route tree's first-screen state and the shared store's error state,
+ *  and both must show the same sentence, otherwise one failure reads differently depending on where it landed. */
 export const errorMessage = (cause: unknown): string => requestErrorMessage(cause);
 
-/** GET 一个 `/api/...` 契约端点。`signal` 中止时抛出 `AbortError`，调用方据此放弃写 DOM。 */
+/** GETs a `/api/...` contract endpoint. Throws `AbortError` when `signal` aborts, so the caller can give up writing the DOM. */
 export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   path = libraryScopedPath(path);
   const response = await fetch(path, {
     headers: { Accept: 'application/json' },
-    // 页面口令是 httponly cookie，取数必须带上；跨源请求不在此列。
+    // The page passphrase is an httponly cookie that every fetch must carry; cross-origin requests are exempt.
     credentials: 'same-origin',
     ...(signal ? { signal } : {}),
   });
@@ -53,16 +53,16 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
     payload = await response.json();
   } catch {
     signal?.throwIfAborted();
-    // 失败响应不一定是 JSON（例如 401 的登录页），下面用状态码兜底。
+    // A failed response is not necessarily JSON (a 401 login page, for example); the status code below is the fallback.
   }
   if (!response.ok) {
-    throw new ApiError(reasonOf(payload) || `请求失败（${response.status}）`, response.status);
+    throw new ApiError(reasonOf(payload) || `Request failed (${response.status})`, response.status);
   }
   registerResponseEntities(path, payload);
   return payload as T;
 }
 
-/** 带 JSON 请求体的写操作。失败时原响应体挂在 `ApiError.body` 上，字段级原因由调用方取。 */
+/** A write with a JSON request body. On failure the raw response body rides on `ApiError.body`; the caller picks out field-level reasons. */
 export async function apiSend<T>(path: string, body: unknown, method = 'POST', signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method, ...(signal ? { signal } : {}),
@@ -75,10 +75,10 @@ export async function apiSend<T>(path: string, body: unknown, method = 'POST', s
     payload = await response.json();
   } catch {
     signal?.throwIfAborted();
-    // 同上：失败响应不一定是 JSON。
+    // Same as above: a failed response is not necessarily JSON.
   }
   if (!response.ok) {
-    throw new ApiError(reasonOf(payload) || `请求失败（${response.status}）`, response.status, payload);
+    throw new ApiError(reasonOf(payload) || `Request failed (${response.status})`, response.status, payload);
   }
   return payload as T;
 }

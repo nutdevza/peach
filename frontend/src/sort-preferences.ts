@@ -1,42 +1,42 @@
-/* 目录排序的词表：有哪几列、每一列的方向怎么说、旧键怎么换成新键。壳的地址解析、筛选条的排序钮与
- * 启动时的设置归一化（`appearance/settings.ts`）读的都是这一份。 */
+/* The catalog sort vocabulary: which columns exist, how each column's directions are worded, and how old keys map to new keys. The shell's URL parsing, the filter bar's sort buttons, and
+ *  startup settings normalization (`appearance/settings.ts`) all read this one source. */
 
-/** `[键, 显示名]`。随机排第一：它是出厂默认，也没有方向。 */
+/** `[key, display name]`. Random comes first: it is the factory default and has no direction. */
 export const SORTS: readonly (readonly [key: string, label: string])[] = [
-  ['seed', '随机'], ['rating', '评分'], ['o', '高潮计数'], ['plays', '观看次数'], ['dur', '时长'],
-  ['size', '体积'], ['new', '入库时间'], ['played', '观看时间'],
+  ['seed', 'Random'], ['rating', 'Rating'], ['o', 'Climax count'], ['plays', 'Watch count'], ['dur', 'Duration'],
+  ['size', 'Size'], ['new', 'Date added'], ['played', 'Watch time'],
 ];
-/** 只在 JAV 语境里出现的那一列。 */
-export const JAV_RELEASE_SORT: readonly [key: string, label: string] = ['release', '发行时间'];
+/** The column that appears only in the JAV context. */
+export const JAV_RELEASE_SORT: readonly [key: string, label: string] = ['release', 'Release date'];
 export const SORT_KEYS: readonly string[] = [...SORTS, JAV_RELEASE_SORT].map(([key]) => key);
 
-/** `[desc, asc]` 两种方向的说法。 */
+/** The two direction labels for `[desc, asc]`. */
 export type SortDirWords = Readonly<Record<string, readonly [desc: string, asc: string]>>;
 
-/* 方向词按列各自定义：同一个 desc 在时间列上是「从新到旧」，在时长上是「从长到短」，
-   写成通用的「降序」等于让界面解释 SQL。数组是 [desc,asc]，在表里就等于这一列可翻转。 */
+/* Direction words are defined per column: the same desc is "newest to oldest" on the date column and "longest to shortest" on duration;
+   a generic "descending" makes the UI explain SQL. The array is [desc,asc], which in the table means this column is flippable. */
 export const SORT_DIR_WORDS: SortDirWords = {
-  rating: ['从高到低', '从低到高'], o: ['从多到少', '从少到多'],
-  plays: ['从多到少', '从少到多'], dur: ['从长到短', '从短到长'], size: ['从大到小', '从小到大'],
-  new: ['从新到旧', '从旧到新'], played: ['从近到远', '从远到近'], release: ['从新到旧', '从旧到新'],
+  rating: ['Highest first', 'Lowest first'], o: ['Most first', 'Fewest first'],
+  plays: ['Most first', 'Fewest first'], dur: ['Longest first', 'Shortest first'], size: ['Largest first', 'Smallest first'],
+  new: ['Newest first', 'Oldest first'], played: ['Closest first', 'Farthest first'], release: ['Newest first', 'Oldest first'],
 };
 
-/* 旧键沿用：地址栏、书签和设置里存着把方向写进键名的值。方向现在单独由 `dir` 表达，
-   两个时长键收敛成一个 dur；认不出旧键的后果不是报错，是静默换成另一种排序。 */
+/* Old keys are kept: the URL, bookmarks and settings store values with the direction baked into the key name. Direction is now expressed separately by `dir`,
+   and the two duration keys collapse into one dur; an unrecognized old key does not error, it silently switches to a different sort. */
 export const SORT_ALIASES: Readonly<Record<string, readonly [sort: string, dir: 'asc' | 'desc']>> = {
   big: ['size', 'desc'], short: ['dur', 'asc'], long: ['dur', 'desc'],
 };
 
-/* 词表可换：关注页排的是在线更新，列不一样（热度那一列只有它有），但「点未选中项换列、
-   点选中项翻方向」和箭头怎么画两页完全相同。传表进来，这三枚函数就不必各写一份。 */
+/* The vocabulary is swappable: the follows page sorts online updates with different columns (only it has the popularity column), but "click an unselected key to switch columns,
+   click the selected one to flip direction" and how the arrow draws are identical on both pages. Passing the table in keeps these three functions from being written twice. */
 export const sortDirWord = (key: string, dir: string, words: SortDirWords = SORT_DIR_WORDS): string =>
   (words[key] || [])[dir === 'asc' ? 1 : 0] || '';
 
-/** 一列的默认方向：可翻转的列从 desc 起，随机这类没有方向的列是空串。 */
+/** A column's default direction: flippable columns start at desc, directionless columns like random are an empty string. */
 export const defaultSortDir = (key: string, words: SortDirWords = SORT_DIR_WORDS): string => (words[key] ? 'desc' : '');
 
-/* 点未选中项＝换列并用该列的默认方向；点选中项＝翻方向。随机没有方向，重复点它
-   什么都不做——换一批是它旁边那枚按钮的事。 */
+/* Clicking an unselected column switches to it with its default direction; clicking the selected one flips direction. Random has no direction, and clicking it again
+   does nothing; shuffling belongs to the button beside it. */
 export function nextSortState(
   key: string, current: string, dir: string, words: SortDirWords = SORT_DIR_WORDS,
 ): { sort: string; dir: string } | null {
@@ -45,13 +45,13 @@ export function nextSortState(
   return { sort: key, dir: dir === 'asc' ? 'desc' : 'asc' };
 }
 
-/** 首页未指定方向时使用浏览偏好；显式 URL 始终优先。 */
+/** When the home page specifies no orientation, use the browse preference; an explicit URL always wins. */
 export function preferredDirection(sort: string, preferredSort: string, direction: unknown): string {
   return sort === 'seed' ? '' : sort === preferredSort && direction === 'asc' ? 'asc' : 'desc';
 }
 
-/** 地址上的 `sort` 与 `dir` 一次解成列和方向。旧键自带方向；`dir` 显式写了就听它的；写了列、没写方向是那一列的
- *  默认方向（目录地址省掉的正是它）；两样都没写按浏览偏好。随机没有方向。认不出的列换成 `fallback`。 */
+/** The address's `sort` and `dir` resolve in one pass into column and direction. Legacy keys carry their own direction; an explicit `dir` wins; a column without a direction takes that column's
+ *  default direction (exactly what catalog addresses omit); neither written follows the browsing preference. Random has no direction. Unrecognized columns become `fallback`. */
 export function sortFromAddress(
   rawSort: string | null, rawDir: string | null, preferredSort: string, direction: unknown, fallback = preferredSort,
 ): { sort: string; dir: string } {

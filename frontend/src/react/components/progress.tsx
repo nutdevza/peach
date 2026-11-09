@@ -1,27 +1,28 @@
-/* 已知总量的进度条。更新下载、任务活动与统计页的覆盖率、容量共用这一份。
+/* Progress bar for known totals. The update download, job activity, and the stats page's coverage and capacity share it.
  *
- * 注册表里没有进度组件，用 SVG 矩形画：宽度按比例写进 `rect` 的属性，不用内联样式，
- * 也就不必给 `no-inline-styles` 开例外。差异登记在 `../boardui/ORIGIN.md`。
+ * The registry has no progress component, so SVG rects are used: width is written proportionally into the `rect`'s attribute,
+ * no inline styles, so `no-inline-styles` needs no exception. Differences registered in `../boardui/ORIGIN.md`.
  *
- * 画布固定 `SCALE` 格宽，填充与刻度都先换算成它的份数；读屏值照给真实单位。按字节计的
- * 容量是万亿量级，把它直接写成 `viewBox` 的宽，Chrome 画出来的矩形是零宽。 */
+ * The canvas is fixed at `SCALE` cells wide, with fill and ticks first converted into its units; the screen-reader value
+ * carries the real unit. Byte-based capacity reaches the trillions, and writing it directly as the `viewBox` width makes
+ * Chrome draw a zero-width rect. */
 
-/** 画布宽度：填充和刻度都换算成这么多份。 */
+/** Canvas width: fills and ticks both convert into this many parts. */
 const SCALE = 100;
-/** 一道刻度的宽度，按 `SCALE` 计。 */
+/** The width of one tick, measured in `SCALE`. */
 const STOP_WIDTH = 0.4;
 
-/** `tinted`：放在提示条那种灰底上时，轨道用文字色叠一层浅色，比底色略深（暗色下略亮），不和底色融成一片。
+/** `tinted`: when placed on the gray background of a callout bar, the track overlays the text color with a light layer, slightly darker than the background (slightly lighter in dark mode), not blending into the background.
  *
- * `meter`：画的是已知范围里的一个量（空间使用率、覆盖率、占比），不是在往完成走的任务。读屏把
- * `progressbar` 念成「进行中」，所以这类读数改用 `meter`；画法不变（同 BoardUI Meter）。 */
+ * `meter`: it draws a quantity within a known range (space usage, coverage, proportion), not a task progressing toward completion. Screen readers read
+ * `progressbar` as "in progress", so this kind of reading switches to `meter`; the drawing is unchanged (same as BoardUI Meter). */
 export function Progress({ label, value, max = 100, stops = [], tinted = false, meter = false }: {
   label: string; value: number; max?: number; stops?: number[]; tinted?: boolean; meter?: boolean;
 }) {
   const total = max > 0 ? max : 1;
   const clamp = (at: number) => Math.min(Math.max(Number.isFinite(at) ? at : 0, 0), total);
   const share = (at: number) => (clamp(at) / total) * SCALE;
-  /* 读屏值同画面一样夹在 [0, max]：超额完成读成「150 / 100」会被当成算错。 */
+  /* The screen-reader value is clamped to [0, max] like the visual: reading an overrun as "150 / 100" would be taken as a miscalculation. */
   return (
     <svg role={meter ? 'meter' : 'progressbar'} aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={clamp(value)}
       viewBox={`0 0 ${SCALE} 1`} preserveAspectRatio="none" className="h-1.5 w-full overflow-hidden rounded-full">

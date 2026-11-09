@@ -1,9 +1,10 @@
-/* 首次设置表单。题目、默认值、显隐与随平台变化的文案来自 `GET /api/setup/questions`；
- * 分组标题、按钮与「完成设置后」那一组是页面骨架，写在这里。
+/* The first-run form. Title, defaults, visibility and per-platform copy come from `GET /api/setup/questions`; group
+ * headings, buttons and the "after finishing setup" group are page scaffolding, written here.
  *
- * 提交走 `POST /api/setup`。400 的 `errors` 按题目 key 写回原位：媒体目录按行对齐，整表不成立
- * 的那一句放在目录区上方；高级设置里任一项出错就展开它；访问密码出错时开关保持打开。已填的
- * 内容都留在原地，焦点落到第一个标错的框。 */
+ * Submission goes to `POST /api/setup`. The 400 `errors` are written back in place by question key: media directories align
+ * per row, the sentence for a wholly invalid form sits above the directory section; any error in advanced settings expands it;
+ * an access password error leaves the switch open. Everything already filled stays in place, and focus lands in the first
+ * marked box. */
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { RiFolderLine, RiSearchLine, RiPlayCircleLine } from '@remixicon/react';
 
@@ -37,10 +38,10 @@ import {
 import { libraryFields, processingSummary } from './setup-processing';
 import { SetupShell } from './setup-scene';
 
-/** 这几项出错时「高级设置」自己展开：错在折叠里的框，人看不见。 */
+/** When these fields error, "Advanced settings" opens itself: a box with an error inside a collapse is invisible. */
 const ADVANCED_KEYS = ['port', 'mdns_name'];
 
-/** 媒体目录那一项的错误：与行数对得上就按行写回，否则是整表一句。 */
+/** Errors for the media directory entries: when they map to rows, write them back per row; otherwise one sentence for the whole table. */
 function folderErrors(value: SetupErrors[string], count: number): { rows: string[]; table: string } {
   if (Array.isArray(value)) {
     return value.length === count ? { rows: value, table: '' } : { rows: [], table: value.filter(Boolean).join(' ') };
@@ -49,8 +50,8 @@ function folderErrors(value: SetupErrors[string], count: number): { rows: string
 }
 
 function scanLabel(paths: string[]): string {
-  if (!paths.length) return '完成设置后扫描媒体目录';
-  return `完成设置后扫描 ${paths.length} 个文件夹`;
+  if (!paths.length) return 'Scan media folders after finishing setup';
+  return `Scan ${paths.length} folders after finishing setup`;
 }
 
 const text = (value: SetupErrors[string]) => (Array.isArray(value) ? value.filter(Boolean).join(' ') : value ?? '');
@@ -71,7 +72,7 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
   const host = fields.find((question) => question.key === 'host');
   const others = fields.filter((question) => question.input !== 'folder' && question.key !== 'host');
   const sources = setup.media_sources.map(({ value, label }) => [value, label] as const);
-  const firstLibrary = useRef<Partial<SetupFolder>>({ library_id: randomId(), library: '我的媒体库',
+  const firstLibrary = useRef<Partial<SetupFolder>>({ library_id: randomId(), library: 'My library',
     library_icon: '', library_color: '', library_policy: 'auto' });
   const blank = (path = ''): SetupFolder => ({ path, location: setup.media_source_default, root: '', ...firstLibrary.current,
     cost: setup.media_source_default === 'local' ? 'free' : '' });
@@ -99,20 +100,20 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
   const [failure, setFailure] = useState('');
   const [busy, setBusy] = useState(false);
   const [requireReadPolicy, setRequireReadPolicy] = useState(false);
-  // 每次因为错误要展开就换一个 key：折叠按初始状态展开，已填的值都在这一层的 state 里。
+  // Swap the key every time an error forces expansion: the details expands per its initial state, and the filled values all live in this layer's state.
   const [advancedOpenings, setAdvancedOpenings] = useState(0);
   const form = useRef<HTMLFormElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
-  // 写回之后焦点交给第一个标错的框。错误在 await 之后才到，React 不在点击那一刻同步提交，
-  // 所以等这一轮落到 DOM 上再找，不赌下一帧之前一定画完。
+  // After the write, focus goes to the first field flagged with an error. The error arrives after an await, and React does not commit synchronously at click time,
+  // So wait for this round to land in the DOM before searching, instead of betting it has painted by the next frame.
   const [errorRound, setErrorRound] = useState(0);
   useEffect(() => {
     if (errorRound) [...(form.current?.querySelectorAll<HTMLElement>('input[aria-invalid="true"]') ?? [])]
       .find(input => !input.closest('[hidden]'))?.focus();
   }, [errorRound]);
-  // 写回的错误放进框下的提示：`role="alert"` 让读屏在它出现时播报一次，提示本身仍由
-  // `aria-describedby` 挂在框上，文字在页面上只有这一份。`key` 跟着提交轮次换，同一句错误
-  // 再提交一次也会重新播报。
+  // The written-back error goes into the hint under the field: `role="alert"` makes screen readers announce it once when it appears, while the hint itself is still
+  // `aria-describedby` sits on the box, and the text exists on the page only once. `key` changes with each submit round, the same error message
+  // Submitting again announces it again.
   const announce = (message: string | undefined) =>
     message ? <span key={errorRound} role="alert">{message}</span> : undefined;
 
@@ -137,13 +138,13 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
     setBusy(true);
     setFailure('');
     const submission: SetupSubmission = {
-      media_dir: skipMedia ? [] : folders.rows.map(row => ({ ...row, library: row.library?.trim() || '未命名媒体库' })),
+      media_dir: skipMedia ? [] : folders.rows.map(row => ({ ...row, library: row.library?.trim() || 'Unnamed library' })),
       skip_media: skipMedia, access_enabled: accessOn, scan_now: !skipMedia && scanNow,
       peach_proxy: { mode: proxyMode, proxy: proxyMode === 'proxy' ? proxyAddress : '' },
       ...(setup.history_guide ? { history_guide: true } : {}),
       ...(reporting ? { remote_reporting: { usage: reporting.usage, errors: reporting.errors } } : {}),
     };
-    // 隐藏的题不提交，服务端按题目默认值补上。
+    // Hidden questions are not submitted; the server fills in their defaults.
     for (const question of fields) if (visible(question)) submission[question.key] = values[question.key] ?? '';
     if (accessOn) Object.assign(submission, { access_password: password, access_confirm: confirmation });
     try {
@@ -219,28 +220,28 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
     <form ref={form} noValidate onSubmit={(event) => void submit(event)} aria-labelledby="auth-card-title"
       data-setup-form-panel="">
       <div data-setup-top="">
-        <div data-setup-progress="" role="img" aria-label={`首次设置，第 ${step + 1} 步，共 4 步`}>
+        <div data-setup-progress="" role="img" aria-label={`First-time setup, step ${step + 1} of 4`}>
           {[0, 1, 2, 3].map(index => <span key={index} data-active={index === step || undefined} data-complete={index < step || undefined} />)}
         </div>
-        <span className="text-body-2-regular text-text-secondary">首次设置</span>
+        <span className="text-body-2-regular text-text-secondary">First-time setup</span>
       </div>
       <div data-setup-step-scroll="" ref={stepScroll}>
       <div data-setup-step-content="" style={{ '--setup-direction': `${direction * 20}px` } as CSSProperties}>
         <header data-setup-step-heading="" key={step}>
           <h1 id="auth-card-title" data-copy-key={`setup.title.${step}`} ref={stepTitle} tabIndex={-1} className="text-title-1-semibold text-text-primary">
-            {step === 0 ? '欢迎使用 Peach' : step === 1 ? '你的媒体，放在哪里？' : step === 2 ? (setup.docker ? '访问与网络' : '在哪里使用 Peach？') : '准备好开始了'}
+            {step === 0 ? 'Welcome to Peach' : step === 1 ? 'Where should your media live?' : step === 2 ? (setup.docker ? 'Access and network' : 'Where will you use Peach?') : 'Ready to begin'}
           </h1>
           <p data-copy-key={`setup.description.${step}`} className="text-body-regular text-text-secondary">
-            {step === 0 ? '花一点时间，让 Peach 更适合你。' : step === 1 ? '连接已有文件夹，或先进入界面看看。'
-              : step === 2 ? (setup.docker ? '为馆藏设置访问密码，并选择资料采集的连接方式。' : '选择访问范围，也可以为馆藏设置密码。')
-              : '确认这些选择，剩下的交给 Peach。'}
+            {step === 0 ? 'Take a moment to make Peach fit you better.' : step === 1 ? 'Connect existing folders, or step inside and look around first.'
+              : step === 2 ? (setup.docker ? 'Set an access password for the library and choose how metadata collection connects.' : 'Choose the access range, and optionally set a password for the library.')
+              : 'Confirm these choices and leave the rest to Peach.'}
           </p>
         </header>
       <div hidden={step !== 0}>
         <ul data-setup-welcome-points="">
-          <li><RiFolderLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">连接你的媒体库</strong><p className="text-body-2-regular text-text-secondary">本地文件夹与已挂载的网盘，都可以整理。</p></div></li>
-          <li><RiSearchLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">更快找到想看的</strong><p className="text-body-2-regular text-text-secondary">用搜索、标签和收藏浏览馆藏。</p></div></li>
-          <li><RiPlayCircleLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">按你的习惯播放</strong><p className="text-body-2-regular text-text-secondary">播放与外观偏好，可以随时在设置里调整。</p></div></li>
+          <li><RiFolderLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">Connect your library</strong><p className="text-body-2-regular text-text-secondary">Local folders and mounted cloud drives can both be organized.</p></div></li>
+          <li><RiSearchLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">Find what you want to watch faster</strong><p className="text-body-2-regular text-text-secondary">Browse the library with search, tags and favorites.</p></div></li>
+          <li><RiPlayCircleLine /><div data-setup-welcome-copy=""><strong className="text-body-medium">Play the way you like</strong><p className="text-body-2-regular text-text-secondary">Playback and appearance preferences adjust anytime in settings.</p></div></li>
         </ul>
       </div>
       <div hidden={step !== 1}>
@@ -249,26 +250,26 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
           <GroupTitle id="setup-media-title">
             {media.label}
           </GroupTitle>
-          <Checkbox isSelected={skipMedia} onChange={setSkipMedia}>稍后添加媒体库</Checkbox>
-          {skipMedia ? <Help>完成设置后，可在「媒体库与入库」添加自己的媒体目录。</Help> : <>
+          <Checkbox isSelected={skipMedia} onChange={setSkipMedia}>Add library later</Checkbox>
+          {skipMedia ? <Help>After setup, add your own media folders under "Libraries and intake".</Help> : <>
           {tableError ? <ErrorText key={errorRound}>{tableError}</ErrorText> : null}
           <div role="group" aria-labelledby="setup-media-title" className="flex flex-col gap-3">
             {libraries.map(library => <div key={library.library_id} data-library-block="" data-setup-library-block="">
               <div data-library-head="">
-                <LibraryIconPicker label={`${library.library || '未命名媒体库'} 图标`} value={library.library_icon || ''} kind={library.location}
+                <LibraryIconPicker label={`Icon of ${library.library || 'Unnamed library'}`} value={library.library_icon || ''} kind={library.location}
                   onChange={library_icon => editLibrary(library, { library_icon })} />
-                <Input className="w-full" aria-label={`${library.library || '未命名媒体库'} 名称`} placeholder="媒体库名称" maxLength={80}
+                <Input className="w-full" aria-label={`Name of ${library.library || 'Unnamed library'}`} placeholder="Library name" maxLength={80}
                   value={library.library || ''} onChange={value => editLibrary(library, { library: value })} />
-                <LibraryColorPicker id={library.library_id || ''} name={library.library || '未命名媒体库'} value={library.library_color || ''}
+                <LibraryColorPicker id={library.library_id || ''} name={library.library || 'Unnamed library'} value={library.library_color || ''}
                   onChange={library_color => editLibrary(library, { library_color })} />
-                <div data-setup-library-policy=""><PresetSelect name={library.library || '未命名媒体库'} value={library.library_policy || 'auto'}
+                <div data-setup-library-policy=""><PresetSelect name={library.library || 'Unnamed library'} value={library.library_policy || 'auto'}
                   onChange={library_policy => editLibrary(library, { library_policy,
                     library_stages: library_policy === 'custom' ? library.library_stages || AUTO_STAGES.join(',') : '' })} /></div>
               </div>
-              {library.library_policy === 'custom' ? <StageChooser name={library.library || '未命名媒体库'}
+              {library.library_policy === 'custom' ? <StageChooser name={library.library || 'Unnamed library'}
                 value={(library.library_stages?.split(',').filter(Boolean) ?? AUTO_STAGES) as Stage[]}
                 onChange={value => editLibrary(library, { library_stages: value.join(',') })} /> : null}
-              <div data-library-folders="" role="group" aria-label={`${library.library || '未命名媒体库'} 的文件夹`}>
+              <div data-library-folders="" role="group" aria-label={`Folders of ${library.library || 'Unnamed library'}`}>
             {folders.rows.map((row, index) => row.library_id === library.library_id ? (
               <FolderRow key={index} label={`${media.label} ${index + 1}`} path={row.path}
                 onPath={(path) => folders.edit(index, { path })} error={announce(folders.errors[index])}
@@ -279,34 +280,34 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
                   <SourceSelect index={index} value={row.location} options={sources}
                     onChange={(location) => folders.edit(index, { location, cost: location === 'local' ? 'free' : '' })} />
                   <MediaReadPolicy index={index} cost={row.cost ?? ''}
-                    error={requireReadPolicy && !row.cost ? '请选择媒体读取策略' : undefined}
+                    error={requireReadPolicy && !row.cost ? 'Select a media reading strategy' : undefined}
                     onChange={(cost) => folders.edit(index, { cost })} />
-                  {libraries.length > 1 ? <FolderField label="移到媒体库" className="w-full @lg:w-60">
-                    <Select className="w-full" aria-label={`目录所属媒体库 ${index + 1}`} selectedKey={row.library_id}
-                      renderValue={<span className="flex min-w-0 items-center gap-2"><SourceMark mark={row.library_icon || libraryAutoChoice(row.location)[0]} /><span className="truncate">{row.library || '未命名媒体库'}</span></span>}
+                  {libraries.length > 1 ? <FolderField label="Move to library" className="w-full @lg:w-60">
+                    <Select className="w-full" aria-label={`Media library owning directory ${index + 1}`} selectedKey={row.library_id}
+                      renderValue={<span className="flex min-w-0 items-center gap-2"><SourceMark mark={row.library_icon || libraryAutoChoice(row.location)[0]} /><span className="truncate">{row.library || 'Unnamed library'}</span></span>}
                       onSelectionChange={key => {
                         const other = folders.rows.find(value => value.library_id === key);
                         if (other) folders.edit(index, libraryFields(other));
                       }}>
                       {[...new Map(folders.rows.map(value => [value.library_id, value])).values()].map(value => (
-                        <SelectItem key={value.library_id} id={value.library_id}>{value.library || '未命名媒体库'}</SelectItem>
+                        <SelectItem key={value.library_id} id={value.library_id}>{value.library || 'Unnamed library'}</SelectItem>
                       ))}
                     </Select>
                   </FolderField> : null}
                 </FolderFieldLine>
               </FolderRow>
             ) : null)}
-              <div className="flex"><Button variant="secondary" data-copy-interact aria-label={`给 ${library.library || '未命名媒体库'} 添加文件夹`}
+              <div className="flex"><Button variant="secondary" data-copy-interact aria-label={`Add a folder to ${library.library || 'Untitled library'}`}
                 onClick={() => { folders.add(); folders.edit(folders.rows.length,
-                  { ...libraryFields(library), location: library.location, cost: library.cost }); }}>添加文件夹</Button></div>
+                  { ...libraryFields(library), location: library.location, cost: library.cost }); }}>Add folder</Button></div>
               </div>
             </div>)}
           </div>
           <Button ref={addButton} variant="secondary" className="self-start" data-copy-interact onClick={() => {
-            folders.add(); folders.edit(folders.rows.length, { library_id: randomId(), library: `媒体库 ${libraries.length + 1}`,
+            folders.add(); folders.edit(folders.rows.length, { library_id: randomId(), library: `Library ${libraries.length + 1}`,
               library_icon: '', library_color: '', library_policy: 'auto', library_stages: undefined });
           }}>
-            添加媒体库
+            Add library
           </Button>
           {cloud ? (
             <>
@@ -334,7 +335,7 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
               autoComplete="off" spellCheck="false" value={values[dataRoot.key] ?? ''}
               onChange={(value) => setValue(dataRoot.key, value)}
               validationBehavior="aria" isInvalid={Boolean(dataRootError)} hint={announce(dataRootError)} />
-            <IconButton icon={FolderSearchIcon} aria-label="选择数据目录" onClick={() => void pickDataRoot()}
+            <IconButton icon={FolderSearchIcon} aria-label="Choose the data directory" onClick={() => void pickDataRoot()}
               {...busyProps(pickingData)} />
           </div>
           {dataRoot.help.map((line) => <Help key={line}>{line}</Help>)}
@@ -346,33 +347,33 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
       <CardGroup first labelledBy="auth-card-title">
         {host ? field(host) : null}
         {preset ? <>
-          <Label elementType="span">访问密码</Label>
-          <Note tone="info">已按 PEACH_ACCESS_PASSWORD 设置访问密码，可在配置页「网络与访问」修改。</Note>
+          <Label elementType="span">Access password</Label>
+          <Note tone="info">The access password is set from PEACH_ACCESS_PASSWORD; change it under "Network and access" on the configuration page.</Note>
         </> : <>
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <Label id="setup-password-title" elementType="span">访问密码</Label>
-            <p id="setup-access-description" className="text-body-2-regular text-text-secondary">开启后，访问 Peach 需要先登录。</p>
+            <Label id="setup-password-title" elementType="span">Access password</Label>
+            <p id="setup-access-description" className="text-body-2-regular text-text-secondary">When on, accessing Peach requires signing in first.</p>
           </div>
           <Switch aria-labelledby="setup-password-title" aria-describedby="setup-access-description"
             isSelected={accessOn} onChange={setAccessOn} />
         </div>
-        <Help>{lan || setup.docker ? '局域网访问推荐设置密码。未设置时，同一网络中能连接 Peach 的设备可直接进入。'
-          : '只有这台电脑可以访问；设置密码后，打开 Peach 仍需登录。'}</Help>
+        <Help>{lan || setup.docker ? 'A password is recommended for LAN access. Without one, devices on the same network that can reach Peach get in directly.'
+          : 'Only this computer can access it; after a password is set, opening Peach still requires signing in.'}</Help>
         </>}
         {accessOn
-          ? <PasswordPair label="访问密码" password={password} confirmation={confirmation}
+          ? <PasswordPair label="Access password" password={password} confirmation={confirmation}
               onPassword={setPassword} onConfirmation={setConfirmation}
-              passwordError={announce(text(errors.access_password))} passwordHint="请输入 8–256 个字符。"
+              passwordError={announce(text(errors.access_password))} passwordHint="Enter 8-256 characters."
               confirmationInvalid={Boolean(errors.access_password)} />
           : null}
       </CardGroup>
 
       <CardGroup labelledBy="setup-proxy-title">
-        <GroupTitle id="setup-proxy-title">Peach 代理</GroupTitle>
-        <Help>用于资料采集、封面和工具下载，可在配置页修改。</Help>
+        <GroupTitle id="setup-proxy-title">Peach proxy</GroupTitle>
+        <Help>Used for profile scraping, covers, and tool downloads; editable on the configuration page.</Help>
         <div className="flex flex-col items-start gap-1.5">
-          <Label elementType="span" id="setup-proxy-mode-label">连接方式</Label>
+          <Label elementType="span" id="setup-proxy-mode-label">Connection method</Label>
           <ProxyModeSelect mode={proxyMode} onChange={setProxyMode} labelledBy="setup-proxy-mode-label" />
         </div>
         {proxyMode === 'proxy'
@@ -380,61 +381,61 @@ export function SetupForm({ setup, onDone, onRestore }: { setup: SetupQuestions;
               saved={setup.peach_proxy?.proxy_saved} error={announce(text(errors.peach_proxy))} />
           : errors.peach_proxy ? <ErrorText key={errorRound}>{text(errors.peach_proxy)}</ErrorText> : null}
         {setup.docker && proxyMode === 'proxy' && isLoopbackProxy(proxyAddress)
-          ? <Note tone="warning" title="请填写容器可访问的代理地址">回环地址指向容器自身；宿主机代理需使用容器可访问的宿主机地址。</Note>
+          ? <Note tone="warning" title="Enter a proxy address reachable from the container">Loopback addresses point at the container itself; a host proxy needs a host address the container can reach.</Note>
           : null}
         {setup.peach_proxy?.needs_selection
-          ? <Note tone="warning" title="需要选择连接方式">已有来源的代理地址不同，请选择公共连接方式。</Note>
+          ? <Note tone="warning" title="A connection method must be chosen.">Existing sources use different proxy addresses; choose the shared connection method.</Note>
           : null}
       </CardGroup>
 
       {/* Docker 的端口与局域网名由 Compose 决定，不出题，也算不出外部访问地址。 */}
       {setup.docker ? null : <CardGroup>
-        <Disclosure key={advancedOpenings} summary="高级设置" defaultOpen={advancedOpenings > 0}>
+        <Disclosure key={advancedOpenings} summary="Advanced settings" defaultOpen={advancedOpenings > 0}>
           <div className="flex flex-col gap-4">{others.filter(visible).map(field)}</div>
         </Disclosure>
-        <Help><span className="break-all">访问地址：{address}</span></Help>
+        <Help><span className="break-all">URL:{address}</span></Help>
       </CardGroup>}
 
       </div>
       <div hidden={step !== 3}>
       <CardGroup first labelledBy="setup-options-title">
-        <GroupTitle id="setup-options-title">首次扫描</GroupTitle>
-        {skipMedia ? <Help>添加媒体目录后，再选择处理方式并开始扫描。</Help> : <>
+        <GroupTitle id="setup-options-title">First scan</GroupTitle>
+        {skipMedia ? <Help>After adding media folders, choose the handling and start scanning.</Help> : <>
         <div className="flex flex-col gap-1.5">
           <Checkbox isSelected={scanNow} onChange={setScanNow}>{scanLabel(filled)}</Checkbox>
-          <Help>{scanNow ? '扫描会在后台开始，期间可以进入 Peach。' : '先保存处理方式，稍后在「媒体库与入库」开始扫描。'}</Help>
+          <Help>{scanNow ? 'Scanning starts in the background; you can enter Peach while it runs.' : 'Save the handling first, then start scanning later under "Libraries and intake".'}</Help>
         </div>
         {folders.rows.some(row => row.cost === 'metered')
-          ? <Help>开启代理保护的目录不会自动读取视频信息或生成预览；播放时会读取视频。</Help>
+          ? <Help>Folders under proxy protection do not auto-read video info or generate previews; the video is read during playback.</Help>
           : null}
         </>}
       </CardGroup>
 
       {failure ? <ErrorText>{failure}</ErrorText> : null}
       {reporting ? <CardGroup>
-        <GroupTitle>版本统计与错误诊断</GroupTitle>
+        <GroupTitle>Edition stats and error diagnostics</GroupTitle>
         <ReportingChoices value={reporting} onChange={setReporting} />
-        <Help>馆藏与口味明细上传默认关闭，可在「应用与维护」查看并选择。</Help>
+        <Help>Library and taste detail uploads are off by default; review and choose under "App and maintenance".</Help>
       </CardGroup> : null}
       <CardGroup labelledBy="setup-summary-title">
-        <GroupTitle id="setup-summary-title">确认设置</GroupTitle>
+        <GroupTitle id="setup-summary-title">Confirm settings</GroupTitle>
         <FactList>
-          <Fact term="媒体目录">{skipMedia ? '稍后添加' : filled.length ? `${filled.length} 个文件夹 · ${libraries.length} 个媒体库` : '尚未填写'}</Fact>
-          <Fact term="数据目录"><span className="break-all">{dataRoot ? values[dataRoot.key] || '尚未填写' : setup.data_root || '未取得'}</span></Fact>
-          <Fact term="访问范围">{setup.docker ? '按 Compose 端口映射' : lan ? '同一局域网的设备' : '只有这台电脑'} · {
-            preset ? '已按 PEACH_ACCESS_PASSWORD 设置访问密码' : accessOn ? '使用访问密码' : '未设置访问密码'}</Fact>
-          <Fact term="首次扫描">{!skipMedia && scanNow ? '完成设置后开始' : '稍后手动开始'}</Fact>
-          {reporting ? <Fact term="诊断反馈">{reporting.usage || reporting.errors ? '已开启，可在上方调整' : '已关闭'}</Fact> : null}
-          {!skipMedia ? libraries.map(row => <Fact key={row.library_id} term={row.library || '未命名媒体库'}>{processingSummary(row)}</Fact>) : null}
+          <Fact term="Media folders">{skipMedia ? 'Add later' : filled.length ? `${filled.length} folders · ${libraries.length} libraries` : 'Not filled in yet'}</Fact>
+          <Fact term="Data directory"><span className="break-all">{dataRoot ? values[dataRoot.key] || 'Not filled in yet' : setup.data_root || 'Not fetched'}</span></Fact>
+          <Fact term="Access range">{setup.docker ? 'By Compose port mapping' : lan ? 'Devices on the same LAN' : 'This computer only'} · {
+            preset ? 'Access password set from PEACH_ACCESS_PASSWORD' : accessOn ? 'Use an access password' : 'No access password set'}</Fact>
+          <Fact term="First scan">{!skipMedia && scanNow ? 'Start after setup is complete' : 'Start manually later'}</Fact>
+          {reporting ? <Fact term="Diagnostics feedback">{reporting.usage || reporting.errors ? 'Enabled; adjust above' : 'Closed'}</Fact> : null}
+          {!skipMedia ? libraries.map(row => <Fact key={row.library_id} term={row.library || 'Unnamed library'}>{processingSummary(row)}</Fact>) : null}
         </FactList>
       </CardGroup>
       </div>
       </div>
       </div>
       <footer data-setup-footer="" data-setup-footer-end={step === 0 && !onRestore ? '' : undefined} key={step} data-copy-interact>
-        {step > 0 ? <Button variant="ghost" onClick={() => { if (!busy) move(step - 1); }} aria-disabled={busy || undefined}>返回</Button>
-          : onRestore ? <Button variant="ghost" onClick={onRestore}>使用已有数据</Button> : null}
-        <Button type="submit" {...busyProps(busy)}>{step === 0 ? '开始设置' : step === 3 ? '完成设置' : '继续'}</Button>
+        {step > 0 ? <Button variant="ghost" onClick={() => { if (!busy) move(step - 1); }} aria-disabled={busy || undefined}>Back</Button>
+          : onRestore ? <Button variant="ghost" onClick={onRestore}>Use existing data</Button> : null}
+        <Button type="submit" {...busyProps(busy)}>{step === 0 ? 'Start setup' : step === 3 ? 'Finish setup' : 'Continue'}</Button>
       </footer>
     </form>
     </SetupShell>

@@ -1,13 +1,13 @@
 import { visibleWallTiles } from './wall-layout';
 
-/** 冷启动直达 `/wall` 时，React 墙要等目录元素和首屏数据才挂上，中间有几秒空档。壳先按墙自己
- *  读取中的那份几何铺一层同样的骨架（镜头原点、窄屏 0.68 倍），墙挂上时摘掉，交接处磁贴不跳。 */
+/** On a cold start landing directly on `/wall`, the React wall waits for the directory element and first-screen data before mounting, leaving a few seconds of blank. The shell first lays down the same skeleton with the geometry the wall itself is
+ * reading (camera origin, 0.68× on narrow screens), and removes it when the wall mounts, so tiles do not jump at the handoff. */
 export function paintWallBootSkeleton(): void {
   if (document.querySelector('[data-wall-boot]')) return;
   const scale = innerWidth < 640 ? .68 : 1;
   const host = document.createElement('div');
   host.className = 'peach-react'; host.dataset.wallBoot = '';
-  host.innerHTML = '<div data-video-wall="" data-fullscreen=""><div data-wall-viewport="" data-skeleton="wall" role="status" aria-busy="true" aria-label="正在读取播放墙">'
+  host.innerHTML = '<div data-video-wall="" data-fullscreen=""><div data-wall-viewport="" data-skeleton="wall" role="status" aria-busy="true" aria-label="Loading the playback wall">'
     + `<div data-wall-world="" style="transform:translate3d(0px, 0px, 0) scale(${scale})"></div></div></div>`;
   document.body.append(host);
   const viewport = host.querySelector<HTMLElement>('[data-wall-viewport]')!.getBoundingClientRect();

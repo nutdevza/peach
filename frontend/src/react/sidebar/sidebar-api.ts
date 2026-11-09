@@ -1,94 +1,96 @@
-/* 侧栏（常驻组件 `sidebar`，`sidebar-island.tsx`）对壳的契约。
+/* The sidebar (resident component `sidebar`, `sidebar-island.tsx`) and its contract with the shell.
  *
- * 它画的是左侧抽屉 `#drawer` 里滚动的那一层：标题行的空槽、导航那一列、导航上那块滑动玻璃，
- * 以及导航下面按语境出现的筛选分组（目录与资料页的来源、时长、产地、画幅、创作者、标签，
- * 关注页的来源、时长与内容标签）。抽屉本身、它的开合、底栏（明暗、配色、设置三枚键）、品牌与开合键归壳：
- * 它们是壳里几张浮层的锚点，壳在 `attached` 时把品牌与开合键挪进标题行的空槽。
+ * It renders the scrolling layer inside the left drawer `#drawer`: the header row's empty slot, the nav column, the sliding
+ * glass over the nav, and the filter groups that appear per context below the nav (catalog and profile pages: sources,
+ * duration, origin, aspect, creators, tags; follows page: sources, duration, content tags). The drawer itself, its open/close,
+ * the bottom bar (light/dark, color, settings keys), brand and collapse button belong to the shell: they are anchors for
+ * several overlays in the shell, and at `attached` the shell moves brand and collapse button into the header row's slot.
  *
- * 筛选、路由与取数仍归壳。成员、按下态与数字由壳算好推进来，点下去的动作回到壳的
- * `commitContextFilter`、`navTo` 与关注页的筛选。导航顺序读的是同一份 `appSettings`
- * （`host.store`）：设置面板或这一列自己拖动改了顺序，侧栏按 store 的通知当场重排。 */
+ * Filters, routing and fetching stay with the shell. Members, pressed states and counts are computed by the shell and pushed
+ * in; clicks return to the shell's `commitContextFilter`, `navTo` and the follows page's filters. Nav order reads the same
+ * `appSettings` (`host.store`): when the settings panel or the column's own drag changes the order, the sidebar reorders on the
+ * spot per the store's notification. */
 import type { SettingsStore } from '../../settings-store';
 
-/** 来源那一行开头的小记号：本地与在线是雪碧图字形，网盘是官方站标，其余按计费画一个点。 */
+/** The small mark at the start of the source row: local and online use a sprite glyph, cloud drives use the official site icon, the rest draw a dot by billing. */
 export type SidebarDot =
   | { kind: 'glyph'; name: string }
   | { kind: 'image'; src: string }
   | { kind: 'cost'; cost: 'free' | 'metered' };
 
-/** 一枚筛选键。`label` 已由壳按 `LOC`、`tagLabel` 或聚合里的显示名换好。 */
+/** One filter key. The shell has already set `label` from `LOC`, `tagLabel`, or the display name in the aggregate. */
 export interface SidebarChip {
   value: string;
   label: string;
   n: number | null;
   dot?: SidebarDot;
-  /** 来源脱盘：留在名单里但点不了，`title` 说原因。 */
+  /** A source whose drive is gone: it stays in the list but cannot be clicked; `title` says why. */
   offline?: string;
 }
 
-/** 目录与资料页那一份聚合，按组排好。 */
+/** The aggregation for the catalog and profile page, sorted by group. */
 export interface SidebarFacets {
   years?: SidebarChip[];
   locations: SidebarChip[];
   regions: SidebarChip[];
   orientations: SidebarChip[];
-  /** 资料页是某位创作者自己时已经去掉了这个人。 */
+  /** When the profile page is one of the creators themselves, that person has already been removed. */
   creators: SidebarChip[];
   tags: SidebarChip[];
   tech: SidebarChip[];
   followTags: SidebarChip[];
-  /** 库里有时长读数时才出现时长那一组。 */
+  /** The duration group appears only when the library has duration readings. */
   duration: boolean;
 }
 
 export type SidebarContent =
-  /** `key` 换了就是一份新聚合：分组的默认展开重新按按下态定，计数徽标按上一次的值决定弹不弹。 */
+  /** A new `key` means a new aggregate: default group expansion is re-derived from the pressed state, and count badges decide whether to pop based on the previous value. */
   | { kind: 'catalog'; key: string; facets: SidebarFacets }
-  /** 关注页与关注详情：内容标签的计数由壳按可见条目或这一条自己的标签算好。来源与时长只在关注页有：
-   *  来源按全库列（选中一个之后别的还在），`duration` 说库里有没有时长读数；按下态与时长两端读
-   *  `filters` 里的 `provider`、`dur_min`、`dur_max`。详情只给标签。 */
+  /** Follows page and follows details: content tag counts are computed by the shell from the visible items or from this item's own tags. Source and duration exist only on the follows page:
+   *  sources listed library-wide (after selecting one the others remain), `duration` says whether the library has duration readings; pressed state and duration ends read
+   *  `filters`' `provider`, `dur_min`, `dur_max`. Details only get tags. */
   | { kind: 'follow'; tags: SidebarChip[]; selected: string[]; providers?: SidebarChip[]; duration?: boolean };
 
 export interface SidebarProps {
-  /** null 时只画导航（作品详情、管理区与索引页，或换页后聚合还没回来）。 */
+  /** When null, only navigation renders (video details, the manage area and the index page, or the aggregate has not come back after a page change). */
   content: SidebarContent | null;
-  /** 当前语境的筛选（首页的 `state` 或资料页、详情的那一份）：按下态与时长两端照它画。 */
+  /** The current context's filters (the home page's `state`, or the profile page's and details' copy): pressed states and the duration range render from it. */
   filters: Record<string, string | number | null | undefined>;
-  /** 就地刷新的数字：成员不动，计数照这一份改，名单里没有的记 0；「展开全部」照它摊开。 */
+  /** The numbers refreshed in place: members stay put, counts follow this copy, names missing from it count 0, and "expand all" lays out by it. */
   latest: SidebarFacets | null;
 }
 
 export interface SidebarHost {
-  /** 侧栏画进去的那一层（`#drawerScroll`），也是常驻组件的宿主。覆盖式滚动条由壳挂在它上面，轨道住在 `#drawer` 里。 */
+  /** The layer the sidebar renders into (`#drawerScroll`), also the host of resident components. The overlay scrollbar is attached to it by the shell, with the track living in `#drawer`. */
   scroll: HTMLElement;
-  /** 界面偏好的那一份 store（`appSettings`）；侧栏只读写其中的 `sidebarOrder`。 */
+  /** The UI preferences store (`appSettings`); the sidebar reads and writes only its `sidebarOrder`. */
   store: SettingsStore<{ sidebarOrder: string[] }>;
-  /** 侧栏能放的全部入口，`[键, 名称, 字形]`；首页那一项的键是空串。 */
+  /** Every entry the sidebar can hold, `[key, name, glyph]`; the home item's key is an empty string. */
   navCatalog: readonly (readonly [string, string, string])[];
-  /** 这一项此刻亮不亮（壳的 `navOn`，读地址与目录筛选）。 */
+  /** Whether this item is lit right now (the shell's `navOn`, reading the address and catalog filters). */
   navOn(key: string): boolean;
   navTo(key: string): void;
-  /** 双击导航时平滑回顶，保留该栏目内容和筛选。 */
+  /** Double-clicking a nav smoothly scrolls to top while keeping that section's content and filter. */
   navToTop(): void;
-  /** 一枚目录筛选键：`multi` 的组按逗号列表增减，其余组单选、再点一次取消。 */
+  /** A catalog filter key: `multi` groups toggle members in a comma list, the rest are single-select and a second click clears. */
   toggleChip(key: string, value: string, multi: boolean): void;
-  /** 时长两端松手（分钟）：0 与 180 表示这一端不限。 */
+  /** The released ends of the duration range (minutes): 0 and 180 mean that end is unbounded. */
   setDuration(min: number, max: number): void;
-  /** 目录页上的关注标签：去关注页「已保存」那一份，只按这一枚标签筛。 */
+  /** A follows tag on the catalog page: goes to the follows page's "Saved" copy, filtered by just this tag. */
   openFollowTag(tag: string): void;
-  /** 关注页与关注详情的内容标签：换成只按这一枚标签筛。 */
+  /** Content tags on the follows page and follows details: switch to filtering by this tag alone. */
   selectFollowTag(tag: string): void;
-  /** 关注页的来源：单选，再点一次取消。 */
+  /** The follows page's source: single select, click again to cancel. */
   selectFollowProvider(provider: string): void;
-  /** 关注页的时长两端松手（分钟），口径同 `setDuration`。 */
+  /** The follows page's duration range applies on release (minutes), same semantics as `setDuration`. */
   setFollowDuration(min: number, max: number): void;
-  /** 路由树画出首帧之后、句柄交出之前，在同一个任务里调一次：壳把品牌与开合键挪进标题行。 */
+  /** Called once, in the same task, after the route tree paints its first frame and before the handle is handed over: the shell moves the brand and the collapse key into the title row. */
   attached(): void;
 }
 
 export interface SidebarApi {
-  /** 整份 props；壳手上留一份，每次只改其中几项再整份推进来。返回时已经画好。 */
+  /** The full props; the shell keeps one copy, changes a few fields each time and pushes the whole thing back in. It is painted by the time it returns. */
   render(props: SidebarProps): void;
-  /** 导航的按下态要重读（路由变了、目录筛选改了 JAV 或竖屏）：玻璃从旧项滑到新项。返回时已经画好。 */
+  /** The nav's pressed state must be re-read (route changed, catalog filters switched JAV or portrait): the glass slides from the old item to the new one. Already painted by the time you return. */
   navChanged(): void;
 }

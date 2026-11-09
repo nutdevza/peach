@@ -1,14 +1,15 @@
-/* 人工复核页：把带出处的候选摆到人面前，等一次明确的批准或否决。
+/* Manual review page: putting sourced candidates in front of a person and waiting for one explicit approval or rejection.
  *
- * ADR-0018 的确定项在扫描与资料处理任务结束时已经落库；这一页只读取剩下的判断题，
- * 打开页面不会再触发一次写操作。
+ * ADR-0018's decided items already landed in the database when the scan and profile-processing jobs finished; this page only
+ * reads the remaining judgment calls, and opening it triggers no write.
  *
- * 地址栏与组件状态的分界（ADR-0031「迁移桥接」）：
- * - `category` 与 `queue` 在地址栏上，分类和处理状态都能通过链接及刷新还原，
- *   刷新也要还原——判到一半按了刷新却被扔回元数据字段，等于重新找位置。
- * - 分组、筛选、页码是组件状态。复核队列是消耗性的：判一条它就少一条，第 3 页指的是
- *   哪二十行随每一次判定而变，写进地址栏分享出去只会指向另一批东西。换分类、换分组、
- *   换筛选都回第 1 页，也正说明页码依附于此刻这一屏的看法，不是这一页的身份。 */
+ * The line between address bar and component state (ADR-0031, "migration bridging"):
+ * - `category` and `queue` live in the address bar; both category and processing state must survive links and refresh, and
+ *   refresh too: judging halfway, hitting refresh and being thrown back to the metadata fields means finding your place again.
+ * - Grouping, filtering and page number are component state. The review queue is consumable: judging one removes one, and
+ *   which twenty rows "page 3" means changes with every judgment; writing it into the address would only point whoever you
+ *   share with at a different batch. Changing category, grouping or filter returns to page 1, which is exactly why the page
+ *   number belongs to this screen's current view, not to the page's identity. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { RiCheckboxCircleLine } from '@remixicon/react';
@@ -35,7 +36,7 @@ import {
   reviewWindow, selectReviewRange, settleReviewRows, submitDecision,
 } from './review';
 
-// 与配置页共用 BoardUI gray PillTab 样式；保留 tabpanel 与复核队列计数。
+// Shares the BoardUI gray PillTab styling with the config page; keeps the tabpanel and the review queue count.
 const TAB_CLASS = 'flex cursor-pointer items-center justify-between gap-2';
 
 export function ReviewPage(props: ReviewProps) {
@@ -59,13 +60,13 @@ export function ReviewPage(props: ReviewProps) {
   const [fieldFilter, setFieldFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  /* 勾选、选中的来源值、勾上的作品样本、失败原因，身份都是 `item_key`：翻页、换分组
-     之后手里还是同一批东西。它们不进地址栏——那是这一刻手里的一批，不是这一页的身份。 */
+  /* Checkboxes, selected source values, sampled checked videos and failure reasons are all keyed by `item_key`: after paging or regrouping
+     you still hold the same batch. They stay out of the URL; that is this moment's batch, not this page's identity. */
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set<string>());
   const [choices, setChoices] = useState<ReadonlyMap<string, RowChoice>>(new Map());
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
   const [feedback, setFeedback] = useState('');
-  /* 区间多选的锚点：Shift 从上一次点过的那一格算起，与馆藏页同一套语义。 */
+  /* The anchor for range multi-select: Shift counts from the last cell clicked, same semantics as the library page. */
   const anchor = useRef<string | null>(null);
   const [revealing, setRevealing] = useState(0);
   const [revealNote, setRevealNote] = useState('');
@@ -114,7 +115,7 @@ export function ReviewPage(props: ReviewProps) {
   const win = useMemo(() => reviewWindow(filteredRows, page, pageSize), [filteredRows, page, pageSize]);
   const pageKeys = win.rows.map((row) => row.item_key);
   const onPage = new Set(pageKeys);
-  /* 这一页上一张都没有的组不画分组条：条子底下空着，读起来像加载坏了。 */
+  /* Groups with no cards on this page skip the section bar: an empty strip under it reads like a broken load. */
   const pageGroups = groups
     .map((group) => ({ ...group, rows: group.rows.filter((row) => onPage.has(row.item_key)) }))
     .filter((group) => group.rows.length);
@@ -131,8 +132,8 @@ export function ReviewPage(props: ReviewProps) {
   const fail = (key: string, message: string) =>
     setErrors((now) => new Map(now).set(key, message));
 
-  /* 换分类就是换一条队列：上一条队列里的勾选、选中的来源和失败原因都不再有对应的行，
-     留着只会让工具条报一个算不出来的数。 */
+  /* Switching categories means switching queues: the checks, chosen sources, and failure reasons of the previous queue no longer have matching rows,
+     and keeping them would only make the toolbar report an uncomputable number. */
   const resetView = () => {
     setGroupBy('candidates');
     setFilter('');
@@ -159,7 +160,7 @@ export function ReviewPage(props: ReviewProps) {
     mutationFn: ({ row, status, category: target }: { row: ReviewRow; status: DecisionStatus; category: ReviewCategory }) =>
       submitDecision(decisionPayload(target, currentReviewRow(target, row), status, choiceOf(row))),
     onSuccess: (result, { row, status, category: target }) => {
-      if (!result.ok) { fail(row.item_key, result.error || '服务端拒绝了这次判定'); return }
+      if (!result.ok) { fail(row.item_key, result.error || 'The server rejected this verdict'); return }
       settleReviewRows(target, [row.item_key], status);
       forget([row.item_key]);
       toast(decisionReceipt(status));
@@ -167,8 +168,8 @@ export function ReviewPage(props: ReviewProps) {
     onError: (cause, { row }) => fail(row.item_key, errorMessage(cause)),
   });
 
-  /* 批量逐条提交：失败的留在屏幕上供重试，成功的立刻从队列里摘掉。整批一次性交上去的话，
-     中间任何一条被服务端拒绝，用户都不知道前面几条到底写没写。 */
+  /* Submit the batch item by item: failures stay on screen for retry, successes leave the queue immediately. Hand the whole batch over at once and
+     if any entry in the middle is rejected by the server, the user cannot tell whether the earlier ones were written. */
   const bulk = useMutation({
     mutationFn: async ({ status, category: target, rows }: {
       status: DecisionStatus; category: ReviewCategory; rows: ReviewRow[];
@@ -177,10 +178,10 @@ export function ReviewPage(props: ReviewProps) {
       const failures: [string, string][] = [];
       for (const [at, row] of rows.entries()) {
         if (!alive.current) break;
-        setFeedback(`正在处理 ${at} / ${rows.length}`);
+        setFeedback(`Processing ${at} / ${rows.length}`);
         try {
           const result = await submitDecision(decisionPayload(target, currentReviewRow(target, row), status, choiceOf(row)));
-          if (!result.ok) throw new Error(result.error || '服务端未采用该项');
+          if (!result.ok) throw new Error(result.error || 'The server did not adopt this entry');
           done.push(row.item_key);
         } catch (cause) {
           failures.push([row.item_key, errorMessage(cause)]);
@@ -193,9 +194,9 @@ export function ReviewPage(props: ReviewProps) {
       forget(done);
       failures.forEach(([key, message]) => fail(key, message));
       setFeedback('');
-      const action = { approved: '通过', rejected: '忽略', skipped: '移至稍后处理', restore: '恢复待处理' }[status];
-      toast(`已${action} ${done.length} 项`
-        + (failures.length ? `，${failures.length} 项未完成` : ''));
+      const action = { approved: 'Approve', rejected: 'Ignore', skipped: 'Move to handle-later', restore: 'Restore pending' }[status];
+      toast(`${action} ${done.length} items`
+        + (failures.length ? `, ${failures.length} unfinished` : ''));
     },
     onError: (cause) => { setFeedback(errorMessage(cause)) },
   });
@@ -204,14 +205,14 @@ export function ReviewPage(props: ReviewProps) {
     if (bulk.isPending || !selectedRows.length) return;
     if (status === 'approved' && metadata
       && selectedRows.some((row) => !choiceOf(row).candidateKey)) {
-      setFeedback('请先为所选资料选择要采用的来源。');
+      setFeedback('Choose which source to adopt for the selected details first.');
       return;
     }
     setFeedback('');
     bulk.mutate({ status, category, rows: selectedRows });
   };
 
-  /* 统一选择来源只动所选那几行的选中项，不替人按下「通过」：改的是要写什么，判断仍归人。 */
+  /* Bulk-selecting sources only changes the selection on the chosen rows and never approves on the user's behalf: it changes what would be written, and the judgment stays human. */
   const unifySource = (source: string) => {
     setChoices((now) => {
       const next = new Map(now);
@@ -221,7 +222,7 @@ export function ReviewPage(props: ReviewProps) {
       }
       return next;
     });
-    setFeedback(`已选择 ${source}，点击通过所选采用。`);
+    setFeedback(`${source} selected; click to adopt the selection.`);
   };
 
   const reveal = async (id: number) => {
@@ -244,10 +245,10 @@ export function ReviewPage(props: ReviewProps) {
     <Page>
       <div className="flex flex-col gap-5 pb-10">
       {locked ? (
-        <Note tone="warning" title="本机只能浏览"
+        <Note tone="warning" title="This machine is browse-only"
           extra={writerUrl
             ? <p className="text-body-2-regular">
-                <ExternalLink href={writerUrl}>前往写入端复核</ExternalLink>
+                <ExternalLink href={writerUrl}>Go to write side for review</ExternalLink>
               </p>
             : undefined}>
           {mirror}
@@ -255,11 +256,11 @@ export function ReviewPage(props: ReviewProps) {
       ) : null}
       <GenreTagList tags={genreTags} />
 
-      {/* 分类目录位于正文左侧；窄屏使用正文上方的导航。 */}
+      {/* The category catalog sits to the left of the body; narrow screens use navigation above the body. */}
       <div className="flex flex-col gap-5 review-split:flex-row review-split:items-start review-split:gap-6">
         <div data-section-nav className="w-full min-w-0 review-split:sticky review-split:top-topbar review-split:w-review-tabs review-split:shrink-0">
-          <h2 id="reviewcategories">复核分类</h2>
-          <SortableBoardTabs group="review" label="复核分类" value={category} onChange={goCategory}
+          <h2 id="reviewcategories">Review categories</h2>
+          <SortableBoardTabs group="review" label="Review categories" value={category} onChange={goCategory}
             orientation={narrow ? 'horizontal' : 'vertical'} panelPrefix="review" sectionItems
             className="" itemClassName={TAB_CLASS} disabled={decide.isPending || bulk.isPending}
             tabs={REVIEW_CATEGORIES.map((key) => {
@@ -302,7 +303,7 @@ export function ReviewPage(props: ReviewProps) {
                       for (const key of keys) { if (all) next.delete(key); else next.add(key) }
                       setSelected(next);
                     }}>
-                      {group.rows.every((row) => selected.has(row.item_key)) ? '清空本组' : '全选本组'}
+                      {group.rows.every((row) => selected.has(row.item_key)) ? 'Clear this group' : 'Select this group'}
                     </Button>
                   )}
                 </div>
@@ -333,24 +334,24 @@ export function ReviewPage(props: ReviewProps) {
               </div>
             </section>
           )) : review.isError && !review.data ? (
-            /* 读不到队列和队列是空的不是一回事：说清楚是读取失败，给一颗重试键。 */
-            <Note tone="error" title="复核队列读取失败" action={
-              <Button variant="secondary" size="small" disabled={review.isFetching} onClick={() => void review.refetch()}>立即重试</Button>
+            /* A queue that cannot be read is not an empty queue: say it is a read failure and give a retry button. */
+            <Note tone="error" title="Reading the review queue failed" action={
+              <Button variant="secondary" size="small" disabled={review.isFetching} onClick={() => void review.refetch()}>Retry now</Button>
             }>
               {errorMessage(review.error)}
             </Note>
           ) : (
-            <EmptyState icon={RiCheckboxCircleLine} title={`此分类没有${REVIEW_QUEUE_LABELS[queueView]}项目`}
+            <EmptyState icon={RiCheckboxCircleLine} title={`This category has no ${REVIEW_QUEUE_LABELS[queueView]} items`}
               actions={REVIEW_CATEGORIES.some(key => key !== category && Number(snapshot.counts[key] || 0) > 0)
                 ? <Button size="small" onClick={() => {
                     const next = categoryOrder.find(key => key !== category && Number(snapshot.counts[key] || 0) > 0);
                     if (next) goCategory(next);
-                  }}>查看其他分类</Button> : undefined}>
-              {queueView === 'pending' ? '可切换分类查看其他待确认资料。' : `${REVIEW_QUEUE_LABELS[queueView]}的资料会保留在这里，可恢复到待处理。`}
+                  }}>View other categories</Button> : undefined}>
+              {queueView === 'pending' ? 'Switch categories to view other unconfirmed details.' : `Details from ${REVIEW_QUEUE_LABELS[queueView]} stay here and can be restored to pending.`}
             </EmptyState>
           )}
 
-          {filteredRows.length ? <DataTableFooter label="复核" total={filteredRows.length}
+          {filteredRows.length ? <DataTableFooter label="Review" total={filteredRows.length}
             pagination={{ pageIndex: win.page - 1, pageSize }}
             onChange={(next) => { setPage(next.pageIndex + 1); setPageSize(next.pageSize) }} /> : null}
           {metadata && queueView === 'pending'

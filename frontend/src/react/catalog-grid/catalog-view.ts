@@ -12,7 +12,7 @@ export function catalogView(): CatalogView {
 
 export function setCatalogView(view: string) {
   fallback = view === 'list' ? 'list' : 'cards';
-  try { localStorage.setItem(KEY, fallback) } catch { /* 当前页面保留所选视图。 */ }
+  try { localStorage.setItem(KEY, fallback) } catch { /* The current page keeps the selected view. */ }
   listeners.forEach(listener => listener());
 }
 

@@ -1,30 +1,30 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "ace3e245-c877-4408-ae9f-f57c19cc0cf7", e._sentryDebugIdIdentifier = "sentry-dbid-ace3e245-c877-4408-ae9f-f57c19cc0cf7");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "a7e053b8-e185-412a-a970-94b927d6a177", e._sentryDebugIdIdentifier = "sentry-dbid-a7e053b8-e185-412a-a970-94b927d6a177");
 	} catch {}
 })();
 import { Button as e, LinkButton as t, Note as n, Progress as r, REPAIRS_KEY as i, RESULT_PANEL as a, RESULT_SECTION as o, SectionHeading as s, StatusLabel as c, apiSend as l, confirmModal as u, fetchRepairs as d, fmtSize as f, i2 as p, queryClient as m, repairCenterPanelSkeleton as h, require_jsx_runtime as g, useAction as _, useQuery as v } from "./peach-app.js";
 import { Page as y } from "./peach-app.page-QAncjzM1.js";
 // src/react/settings/repair-center.tsx
 var b = g(), x = {
-	done: ["已完成", "success"],
-	succeeded: ["已完成", "success"],
-	complete: ["已完成", "success"],
-	running: ["进行中", "progress"],
-	pending: ["等待执行", "neutral"],
-	waiting: ["等你确认", "warning"],
-	failed: ["需要重试", "error"],
-	none: ["无需处理", "neutral"]
+	done: ["Completed", "success"],
+	succeeded: ["Completed", "success"],
+	complete: ["Completed", "success"],
+	running: ["In progress", "progress"],
+	pending: ["Waiting to run", "neutral"],
+	waiting: ["Waiting for you", "warning"],
+	failed: ["Needs retry", "error"],
+	none: ["Nothing to do", "neutral"]
 }, S = (e = 0) => e.toLocaleString(), C = (e) => (/* @__PURE__ */ new Date(e * 1e3)).toLocaleString("zh-CN", {
 	year: "numeric",
 	month: "2-digit",
 	day: "2-digit",
 	hour: "2-digit",
 	minute: "2-digit"
-}), w = (e) => `${S(e.files)} 个文件 · ${f(e.bytes || 0)}`, T = (e) => e.state === "running" && !!e.total, E = (e) => !!e.estimating || e.state === "running";
+}), w = (e) => `${S(e.files)} files · ${f(e.bytes || 0)}`, T = (e) => e.state === "running" && !!e.total, E = (e) => !!e.estimating || e.state === "running";
 function D(e) {
-	return e.estimating ? "正在统计" : e.state === "failed" && e.error ? e.error : e.files ? `可回收 ${f(e.bytes || 0)}` : e.state === "waiting" ? e.pending ? `${S(e.pending)} 部待补测` : "" : T(e) ? "" : e.total ? `${S(e.done)} / ${S(e.total)}` : e.mode === "confirm" ? "" : e.changed ? `改动 ${S(e.changed)} 项` : "";
+	return e.estimating ? "Measuring" : e.state === "failed" && e.error ? e.error : e.files ? `Reclaimable ${f(e.bytes || 0)}` : e.state === "waiting" ? e.pending ? `${S(e.pending)} videos pending recheck` : "" : T(e) ? "" : e.total ? `${S(e.done)} / ${S(e.total)}` : e.mode === "confirm" ? "" : e.changed ? `${S(e.changed)} changes` : "";
 }
 function O({ title: e, description: t, progress: n, children: r }) {
 	return /* @__PURE__ */ (0, b.jsxs)("div", {
@@ -57,7 +57,7 @@ function k({ item: e }) {
 		children: [/* @__PURE__ */ (0, b.jsx)("div", {
 			className: "min-w-0 flex-1",
 			children: /* @__PURE__ */ (0, b.jsx)(r, {
-				label: `${e.title}进度`,
+				label: `${e.title} progress`,
 				value: e.done || 0,
 				max: e.total
 			})
@@ -77,19 +77,19 @@ function A() {
 		queryFn: ({ signal: e }) => d(e),
 		refetchInterval: ({ state: e }) => e.data?.items.some(E) ? 2e3 : !1
 	}), o = r.data, f = _(), g = (e) => m.setQueryData(i, e), A = (e, t) => l(`/api/configuration/repairs/${e.id}`, {}, "POST", t), j = (e) => e.files === void 0 ? void f.run(e.id, (t) => A(e, t), g) : void u({
-		title: `删除${e.title}`,
-		body: `将删除 ${w(e)}，删除后不能恢复。每个关注来源最近 3 份快照和条目引用的快照会保留。`,
-		confirmLabel: "删除快照",
+		title: `Delete ${e.title}`,
+		body: `Will delete ${w(e)}; deletion cannot be undone. The latest 3 snapshots per followed source and snapshots referenced by entries are kept.`,
+		confirmLabel: "Delete snapshots",
 		danger: !0,
 		onConfirm: async () => g(await A(e))
 	}), M = (e) => e.backups.length ? e.backups.some((e) => e.exists) ? /* @__PURE__ */ (0, b.jsx)(t, {
 		href: "/settings/maintenance#ledgerBackups",
 		size: "small",
 		trailingIcon: p,
-		children: "修复前的账本备份"
+		children: "The pre-repair ledger backup"
 	}) : /* @__PURE__ */ (0, b.jsx)("span", {
 		className: "text-body-2-regular text-text-tertiary",
-		children: "修复前的备份已清理"
+		children: "The pre-repair backup was cleared"
 	}) : null, N = f.error || (r.error ? r.error.message : "");
 	return /* @__PURE__ */ (0, b.jsxs)(y, { children: [
 		N ? /* @__PURE__ */ (0, b.jsx)(n, {
@@ -101,7 +101,7 @@ function A() {
 			className: "flex flex-col gap-4",
 			children: [/* @__PURE__ */ (0, b.jsx)(s, {
 				id: "repair-items",
-				children: "修复项目"
+				children: "Repair items"
 			}), o ? o.items.length ? /* @__PURE__ */ (0, b.jsx)("div", {
 				className: a,
 				children: o.items.map((t) => {
@@ -126,12 +126,12 @@ function A() {
 				})
 			}) : /* @__PURE__ */ (0, b.jsx)("p", {
 				className: "text-body-2-regular text-text-secondary",
-				children: "这台机器上没有要修复或迁移的内容。"
+				children: "Nothing on this machine needs repairing or migrating."
 			}) : /* @__PURE__ */ (0, b.jsx)("div", {
 				className: "contents",
 				"data-skeleton": "",
 				"aria-busy": "true",
-				"aria-label": "正在读取修复项目",
+				"aria-label": "Reading repair items",
 				dangerouslySetInnerHTML: { __html: h() }
 			})]
 		}),
@@ -145,7 +145,7 @@ function A() {
 				className: a,
 				children: o.history.map((e) => /* @__PURE__ */ (0, b.jsx)(O, {
 					title: e.title,
-					description: `${C(e.at)} · ${e.changed ? `改动 ${S(e.changed)} 项` : "无改动"}`,
+					description: `${C(e.at)} · ${e.changed ? `${S(e.changed)} changes` : "No changes"}`,
 					children: M(e)
 				}, e.id))
 			})]
@@ -154,4 +154,4 @@ function A() {
 }
 export { A as RepairCenterPage };
 
-//# debugId=ace3e245-c877-4408-ae9f-f57c19cc0cf7
+//# debugId=a7e053b8-e185-412a-a970-94b927d6a177

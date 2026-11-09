@@ -16,16 +16,16 @@ export const AMANE_BRIDGE_URL = '/api/scraping/amane-bridge';
 export const AMANE_BRIDGE_CHECK_URL = '/api/scraping/amane-bridge/check';
 export const AMANE_BRIDGE_REBUILD_URL = '/api/scraping/amane-bridge/rebuild';
 
-/** 来源列表共用这一个键。 */
+/** The source list shares this one key. */
 export const SCRAPING_KEY = ['scraping'] as const;
-/** 抓封面那一趟后台任务的状态。 */
+/** Status of the background task that fetches covers. */
 export const COVER_JOB_KEY = ['scraping', 'cover'] as const;
 /** 全部来源连接检查那一趟后台任务的状态。 */
 export const CHECK_ALL_KEY = ['scraping', 'check-all'] as const;
-/** amane 桥的事实与重建任务的状态（`q_scraping_amane_bridge`）。 */
+/** Facts about the amane bridge and the rebuild task's state (`q_scraping_amane_bridge`). */
 export const AMANE_BRIDGE_KEY = ['scraping', 'amane-bridge'] as const;
 
-/** 一个采集来源。字段以 `q_scraping`（`src/peach/web_scraping.py`）为准。 */
+/** A scraping source. Fields follow `q_scraping` (`src/peach/web_scraping.py`). */
 export interface Source {
   source: string;
   label: string;
@@ -33,7 +33,7 @@ export interface Source {
   accepts_cookie: boolean;
   network: string;
   cookie_saved: boolean;
-  /** 这台机器上这个来源的请求由本机浏览器发、验证由它自己过（ADR-0065）；为真时不需要 Cookie。 */
+  /** On this machine, requests for this source are sent by the local browser and verification is passed by it directly (ADR-0065); when true, no Cookie is needed. */
   browser: boolean;
   cooldown_until?: number | null;
 }
@@ -42,7 +42,7 @@ export interface ScrapingData {
   sources: Source[];
 }
 
-/** 一次连接检查的一项结果：来源页面，以及部分来源另有的高清图片地址。 */
+/** One result item from a connection check: the source page, plus the HD image URL some sources also have. */
 export interface Check {
   label: string;
   ok: boolean;
@@ -84,7 +84,7 @@ export interface CheckAllJob {
   error?: string;
 }
 
-/** 抓封面的后台任务快照（`scraping_cover_job`）。`status` 是 `idle|running|complete|failed`。 */
+/** Snapshot of the cover-fetching background job (`scraping_cover_job`). `status` is `idle|running|complete|failed`. */
 export interface CoverJob {
   status: string;
   job_id?: string;
@@ -94,10 +94,10 @@ export interface CoverJob {
   height?: number;
 }
 
-/** amane 桥那张卡（ADR-0043）。`revision` 是清单里钉的 amane sha，`version` 是锁里那一条的
- *  版本号；`installed` 是 venv 里有没有解释器；`sites` 是经桥开放给来源链的站。`job` 是重建
- *  任务的快照，`status` 同 `CoverJob`。安装包缺桥的清单或脚本时 `bundled` 为假，
- *  `problem` 写原因，`revision` 与 `version` 为空。 */
+/** The amane bridge's card (ADR-0043). `revision` is the amane sha pinned in the manifest, `version` the version of the
+ *  locked entry; `installed` is whether the venv has an interpreter; `sites` are the sites the bridge opens to the source
+ *  chain. `job` is the rebuild job's snapshot with `status` like `CoverJob`. When the install package lacks the bridge's
+ *  manifest or scripts, `bundled` is false, `problem` says why, and `revision` and `version` are empty. */
 export interface AmaneBridge {
   repository: string;
   license: string;
@@ -112,7 +112,7 @@ export interface AmaneBridge {
   job: CoverJob;
 }
 
-/** Netscape Cookie 文件的上限。再大的多半不是 Cookie 文件，先拦住再说。 */
+/** The size cap for Netscape cookie files. Anything larger is probably not a cookie file, so it gets rejected up front. */
 export const COOKIE_TEXT_LIMIT = 256 * 1024;
 
 export const fetchSources = (signal?: AbortSignal) => apiGet<ScrapingData>(SCRAPING_URL, signal);
@@ -133,13 +133,13 @@ export async function prefetchScraping(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({ queryKey: SCRAPING_KEY, queryFn: () => fetchSources(signal) });
 }
 
-/** 一条检查结果说成一句话：谁、通不通、图有多大、服务端补充了什么。
+/** One check result stated as one sentence: what it checked, whether it connected, how big the image is, what the server added.
  *
- * 结果里的 `label` 是这一跳查的是什么；只有一跳时它就是来源页面本身，句子里不必再说一遍。 */
+ * `label` in a result is what that hop queried; with a single hop it is the source page itself and the sentence need not repeat it. */
 export function checkText(check: Check, sourceLabel: string): string {
-  return `${sourceLabel}${check.label === '来源页面' ? '' : ' 高清图片'}`
-    + `：${check.ok ? '可连接' : '不能连接'}`
+  return `${sourceLabel}${check.label === 'source page' ? '' : ' HD images'}`
+    + `: ${check.ok ? 'reachable' : 'unreachable'}`
     + (check.width ? ` · ${check.width} × ${check.height}` : '')
-    + (check.elapsed_s !== undefined ? ` · ${check.elapsed_s.toFixed(2)} 秒` : '')
-    + (check.message ? `。${check.message}` : '');
+    + (check.elapsed_s !== undefined ? ` · ${check.elapsed_s.toFixed(2)} sec` : '')
+    + (check.message ? `. ${check.message}` : '');
 }

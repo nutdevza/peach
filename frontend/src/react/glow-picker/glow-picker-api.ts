@@ -1,15 +1,17 @@
-/* 侧栏配色卡（常驻组件 `glow-picker`，`glow-picker-island.tsx`）与壳之间的接缝。
+/* The seam between the sidebar color card (resident component `glow-picker`, `glow-picker-island.tsx`) and the shell.
  *
- * 卡的外壳（`#boardGlowMenu`：popover、玻璃材质、锚定与开合）由壳建、由壳的 `wireAnchoredMenu` 管；
- * 路由树只往里画内容。读写的是壳那一份界面偏好 store，钮上那两枚小圆与设置面板都订阅同一份。 */
+ * The card's shell (`#boardGlowMenu`: popover, glass material, anchoring and open/close) is built by the shell and managed by
+ * its `wireAnchoredMenu`;
+ * the route tree only renders content into it. Reads and writes go through the shell's UI preference store, and the two small
+ * circles on the button and the settings panel all subscribe to the same one. */
 import type { GlowSettings } from '@peach/appearance';
 
 import type { SettingsStore } from '../../settings-store';
 
 export interface GlowPickerHost {
-  /** 卡本身，也就是常驻组件的宿主：路由树把内容直接画成它的子节点。 */
+  /** The card itself, the resident component's host: the route tree renders content directly as its children. */
   root: HTMLElement;
   store: SettingsStore<GlowSettings>;
-  /** 「详细设置」：收起这张卡，开设置面板「界面」那一页并滚到光晕参数。 */
+  /** 'Detailed settings': collapse this card, open the settings panel's Appearance page and scroll to the glow parameters. */
   openDetails(): void;
 }

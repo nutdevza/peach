@@ -1,15 +1,17 @@
-/* 光晕、玻璃面与强调色写到页面上，以及配色那几下点选。
+/* Painting glow, glass surfaces and the accent color onto the page, plus the few color-scheme clicks.
  *
- * 光晕怎么算、怎么写在 `./home-glow.ts`：那一份不认识偏好对象，这里把当前设置和目标元素递进去。
- * 侧栏那一层写的是 `.glowlayer` 那枚空 div 而不是 <html>：自定义属性是继承的，写在根上整棵树都要
- * 重算样式，实测每帧 15ms 上下，拖动时帧预算当场就超；量法和数字记在 web/css/01-base.css 那条规则
- * 上面。一帧只写一次：指针拖动一秒能发上百个 pointermove，排进 requestAnimationFrame 之后写的就是
- * 这一帧真正要画的那一份。
+ * How glow is computed and painted lives in `./home-glow.ts`: that file knows nothing of the preferences object; this module
+ * passes in the current settings and the target element. The sidebar's layer writes to the empty `.glowlayer` div rather than
+ * <html>: custom properties inherit, so writing at the root recalculates styles for the whole tree, measured at around 15ms
+ * per frame, which blows the frame budget during drags; the measurement and numbers are recorded above that rule in
+ * web/css/01-base.css. One write per frame: a pointer drag can emit hundreds of pointermove events a second; queued into
+ * requestAnimationFrame, what gets written is the copy this frame actually paints.
  *
- * 其余玻璃面（搜索框、顶栏图标钮、筛选浮层、设置卡的分区导航、媒体库与配色弹层、窄栏、选择工具条）
- * 分散在整棵树上，没有共同的宿主，它们那两团反光的色相只能写在根上。写一次根就是整棵树重算样式，所以
- * 那一条只接换档、点颜色和开关那几下。强调色同理：一次点选写一个属性，换来的是整页的按钮、焦点环和
- * 链接跟着走。 */
+ * The other glass panes (search box, top bar icon buttons, filter overlays, the settings card's section nav, media library and
+ * color popovers, narrow rail, selection toolbar) are scattered across the tree with no common host, so their two reflections'
+ * hues can only be written at the root. One root write is a whole-tree style recalc, so that path only takes preset changes,
+ * color picks and toggles. Same for the accent color: one click writes one attribute and, in exchange, every button, focus
+ * ring and link on the page follows along. */
 import {
   ACCENTS, DEFAULT_ACCENT, DEFAULT_HOME_GLOW, HOME_GLOW_PRESETS, HOME_GLOW_SPOTS, glowAccent, glowChipFill, glowPalette,
   isNativeGlass, normalizeAccent, paintGlassFaces, paintHomeGlow, type HomeGlow,
@@ -18,17 +20,17 @@ import {
 import type { SettingsStore } from '../settings-store';
 import { appSettingsStore } from './settings';
 
-/** 这一层读写的那两项；store 上还有别的字段。 */
+/** The two items this layer reads and writes; the store has other fields. */
 export interface GlowSettings { homeGlow: HomeGlow; accent: string }
 type GlowStore = SettingsStore<GlowSettings>;
 
-/** 侧栏光晕那一层当场写一次。启动时第一帧之前走这一条。 */
+/** The sidebar glow layer is written once on the spot. Startup takes this path before the first frame. */
 export function paintHomeGlowNow(store: GlowStore = appSettingsStore()): void {
   paintHomeGlow(document.querySelector<HTMLElement>('.glowlayer'), store.value.homeGlow);
 }
 
 let glowFrame = 0;
-/** 排一帧重画侧栏光晕那一层；同一帧里再叫不另排。读的是那一帧时的设置。 */
+/** Schedules one frame to redraw the sidebar's glow layer; another call within the same frame schedules nothing extra. It reads the settings as of that frame. */
 export function applyHomeGlow(store: GlowStore = appSettingsStore()): void {
   if (glowFrame) return;
   glowFrame = requestAnimationFrame(() => { glowFrame = 0; paintHomeGlowNow(store) });
@@ -42,26 +44,26 @@ export function applyAccent(store: GlowStore = appSettingsStore()): void {
   document.documentElement.dataset.accent = store.value.accent;
 }
 
-/** 预设色块里的一格。`native` 那一格不带颜色，球色由样式表按当前主题取。 */
+/** One swatch in the preset palette. The `native` swatch carries no color; the ball color comes from the stylesheet per current theme. */
 export interface GlowChip { key: string; label: string; native: boolean; fill: string }
 
 const chip = (key: string, label: string, colors: readonly string[]): GlowChip =>
   ({ key, label, native: isNativeGlass(key), fill: isNativeGlass(key) ? '' : glowChipFill(colors) });
 
-/* 预设色块照 feralui 的预设 chip 做：三枚光晕色等分一圈 conic-gradient，再叠 BoardUI 那三层白色高光。
-   「自定义」只有在用户真手调过颜色之后才占一格：没调过时那一格里是一份和默认档一模一样的球，点它
-   什么也不会变，读起来却像还有一档没试过。 */
+/* Preset swatches follow feralui's preset chips: three glow colors equally divide a conic-gradient, then BoardUI's three white highlight layers stack on top.
+   "Custom" only occupies a slot after the user really hand-tuned colors: before that, the slot holds a ball identical to the default tier, and clicking it
+   changes nothing yet reads like an untried tier. */
 export function glowChips(glow: HomeGlow): GlowChip[] {
   const chips = HOME_GLOW_PRESETS.map(([key, label, palette]) => chip(key, label, HOME_GLOW_SPOTS.map((spot) => palette[spot].color)));
-  if (glow.preset === 'custom') chips.push(chip('custom', '自定义', HOME_GLOW_SPOTS.map((spot) => glow[spot].color)));
+  if (glow.preset === 'custom') chips.push(chip('custom', 'Custom', HOME_GLOW_SPOTS.map((spot) => glow[spot].color)));
   return chips;
 }
 
-/** 强调色那一排：`[键, 名称]`。球色由样式表按 `data-accent-ball` 取这一档的 400 与 600 两级。 */
+/** The accent color row: `[key, name]`. The ball color is picked by the stylesheet via `data-accent-ball`, taking that tier's 400 and 600 shades. */
 export const ACCENT_CHOICES = ACCENTS;
 
-/* 换一档光晕连强调色一起换：一档配色就是一副面，光晕暖着、按钮还是蓝的，读起来是两套皮叠在一起。
-   强调色那一排可以单独点，点完只改强调色、不动光晕——先给一套搭配好的，要拆开也拆得开。 */
+/* Picking a glow tier switches the accent color with it: one tier is one face, and a warm glow with buttons still blue reads as two skins stacked.
+   The accent row can be used on its own; picking there changes only the accent and leaves the glow alone. Ship one matched pair first, but keep them separable. */
 export function chooseGlowPreset(key: string, store: GlowStore = appSettingsStore()): void {
   if (key === 'custom') return;
   const glow = store.value.homeGlow;
@@ -78,8 +80,8 @@ export function chooseAccent(key: string, store: GlowStore = appSettingsStore())
   applyAccent(store);
 }
 
-/* 重置的是配色，不是整份光晕：标题就写着「光晕」和「强调色」，把强度和颗粒一起清掉会让人以为按错了键。
-   整份恢复默认在详细设置那一屏。 */
+/* What resets is the color scheme, not the whole glow: the title says "Glow" and "Accent color", and wiping intensity and grain along with it would read as a mis-press.
+   Full restore to defaults lives on the advanced settings screen. */
 export function resetGlowColors(store: GlowStore = appSettingsStore()): void {
   const glow = store.value.homeGlow;
   glow.preset = DEFAULT_HOME_GLOW.preset;
@@ -89,16 +91,16 @@ export function resetGlowColors(store: GlowStore = appSettingsStore()): void {
   applyHomeGlow(store); applyGlassFaces(store); applyAccent(store);
 }
 
-/* 侧栏底部那枚配色钮右下角的两枚小圆：上面那枚报当前预设的第一枚光晕色，下面那枚报强调色。光晕关掉
-   之后上面那枚收起、只剩强调色那一枚——BoardUI 原版那颗点本来就是强调色。「玻璃原色」那一档没有光晕色
-   可报，换成玻璃自带那两团反光色各一半，样式表按 `data-glow-native` 取。 */
+/* The two small dots at the bottom right of the palette button at the sidebar's bottom: the upper one reports the current preset's first glow color, the lower one the accent color. After glow is turned off
+   the upper one retracts, leaving only the accent dot; BoardUI's original button dot was the accent color anyway. The "glass native" tier has no glow color
+   to report, so it shows the glass's own two reflection colors, half each; the stylesheet picks by `data-glow-native`. */
 export function paintGlowButton(button: HTMLElement, glow: HomeGlow): void {
   button.style.setProperty('--glow-swatch', glow.on ? glow.spot1.color : 'var(--color-accent-500)');
   button.toggleAttribute('data-glow-native', glow.on && isNativeGlass(glow.preset));
   button.toggleAttribute('data-glow-off', !glow.on);
 }
 
-/** 当场画一次那枚钮，之后每次落盘都跟上：钮常驻在壳里，点哪一处改的配色它都要对齐。 */
+/** Paints the button once right away, then follows every persist: the button lives in the shell and must stay aligned with whichever control changed the color scheme. */
 export function wireGlowButton(button: HTMLElement, store: GlowStore = appSettingsStore()): () => void {
   paintGlowButton(button, store.value.homeGlow);
   return store.subscribe(() => paintGlowButton(button, store.value.homeGlow));

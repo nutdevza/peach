@@ -11,14 +11,14 @@ export interface SeekPreviewItem {
   id?: number | string;
   width?: number | null;
   height?: number | null;
-  /** 有九宫格快照（与卡片悬停同一判据）；没有就不退回九宫格，免得每格去撞 404。 */
+  /** There is a nine-grid snapshot (same criterion as card hover); without one, do not fall back to the nine-grid, so each cell doesn't hit 404. */
   has_thumb?: unknown;
 }
 
-/** 一帧落在第几张接触印相、第几格；`rows` 是这一张自己的行数。 */
+/** Which contact print and which cell a frame lands on; `rows` is this print's own row count. */
 export interface SheetTile { page: number; slot: number; columns: number; rows: number }
 
-/** 自有接触印相按页预热的上限：两小时的片子 10 秒一帧是 8 张，再长的按需取。 */
+/** The upper limit of page-based preheating for own touch frames: a two-hour video at one frame per 10 seconds is 8 frames; anything longer is fetched on demand. */
 export const PRELOAD_PAGES = 12;
 
 export function sheetTile(seconds: number, sheet: TimelineSheets): SheetTile | null {
@@ -26,17 +26,17 @@ export function sheetTile(seconds: number, sheet: TimelineSheets): SheetTile | n
   if (index === null) return null;
   const columns = sheet.columns || 10, per = columns * (sheet.rows || 10);
   const page = Math.floor(index / per);
-  // 末张通常不满 10 行，行数按它自己那几帧反算：按满行去铺，格子会落到图外面的空白上。
+  // The last image usually has fewer than 10 rows, so its row count is back-computed from its own frames: laying out by full rows would drop cells onto blank space outside the image.
   return { page, slot: index % per, columns, rows: Math.ceil(Math.min(per, sheet.frames - page * per) / columns) };
 }
 
-/** 预览中心点：跟着指针，但整块留在进度条里，两端各让出 `inset`。放不下时居中。 */
+/** Preview center point: follows the pointer, but the whole block stays within the progress bar, leaving inset on both ends. When it doesn't fit, it's centered. */
 export function previewCenter(pointer: number, track: number, width: number, inset = 0): number {
   if (width + inset * 2 >= track) return track / 2;
   return Math.min(track - inset - width / 2, Math.max(inset + width / 2, pointer));
 }
 
-/** 只预热 Peach 自有接触印相：页数可数。外部来源的 `s` 是帧号、一帧一图，可能几百张，按需取。 */
+/** Only preheat Peach's own touch frames: the page count is countable. External sources' s is a frame number, one image per frame, possibly hundreds, fetched on demand. */
 export function preloadPages(sheet: TimelineSheets | null | undefined): number {
   if (!sheet || (sheet.source || 'peach') !== 'peach' || sheet.cues?.length || !(sheet.interval > 0) || sheet.frames <= 0) return 0;
   const pages = Math.ceil(sheet.frames / ((sheet.columns || 10) * (sheet.rows || 10)));
@@ -44,15 +44,15 @@ export function preloadPages(sheet: TimelineSheets | null | undefined): number {
 }
 
 export interface SeekPreview {
-  /** 指针进了进度条或开始拖：此时才预热整片的接触印相，没碰进度条的播放不多下载。 */
+  /** The pointer entered the progress bar or a drag began: only then does it warm up the full-video contact prints; playing without touching the progress bar downloads nothing extra. */
   prime(): void;
-  /** `ratio` 是进度比例，`duration` 是整片秒数。 */
+  /** `ratio` is the progress ratio; `duration` is the total seconds of the video. */
   show(ratio: number, duration: number): void;
   hide(): void;
   dispose(): void;
 }
 
-/** `inset`：进度条贴着视口边时（沉浸），预览离两端留的距离；Video.js 的进度条本身已经内缩。 */
+/** inset: the distance the preview keeps from both ends when the progress bar is flush against the viewport edge (immersive); Video.js's progress bar is already inset on its own. */
 export function createSeekPreview(host: HTMLElement, item: SeekPreviewItem | null,
   options: { thumbnail?: boolean; inset?: number } = {}): SeekPreview {
   const hasThumbnail = !!item?.id && options.thumbnail !== false;
@@ -73,7 +73,7 @@ export function createSeekPreview(host: HTMLElement, item: SeekPreviewItem | nul
     const track = host.getBoundingClientRect().width;
     preview.style.left = `${previewCenter(pointer * track, track, preview.offsetWidth, options.inset)}px`;
   };
-  /* 九宫格一格取不到，多半是快照没了：九格同源，不再逐格去试。 */
+  /* If one cell of the 3×3 grid can't load, the snapshot is likely gone: all nine share the same source, so don't retry them one by one. */
   let posterless = item?.has_thumb !== true;
   const warm: HTMLImageElement[] = [];
   const sheetSource = (sheet: TimelineSheets, page: number) =>
@@ -101,12 +101,12 @@ export function createSeekPreview(host: HTMLElement, item: SeekPreviewItem | nul
     const tile = sheetTile(seconds, sheet);
     if (!tile || !frame || !image) return false;
     indexedImage = !!sheet.cues;
-    // 外部逐帧图按图片自身比例取景（见 `onload`）；回到拼图时取景框回到片源比例。
+    // External frame-by-frame images are framed by their own aspect ratio (see `onload`); returning to the mosaic resets the viewfinder to the source ratio.
     if (!indexedImage && item?.width && item.height) aspect(item.width, item.height);
     const source = sheetSource(sheet, tile.page);
     if (source !== shown) { shown = source; image.src = source }
     frame.hidden = false;
-    // 取景框按片源比例，图按格子铺满：两边比例一致，`fill` 才既不裁也不拉。
+    // The framing box follows the stream's aspect and the image fills its cell: with both ratios equal, `fill` neither crops nor stretches.
     image.style.objectFit = 'fill';
     image.style.width = `${tile.columns * 100}%`; image.style.height = `${tile.rows * 100}%`;
     image.style.left = `${-(tile.slot % tile.columns) * 100}%`; image.style.top = `${-Math.floor(tile.slot / tile.columns) * 100}%`;
@@ -140,7 +140,7 @@ export function createSeekPreview(host: HTMLElement, item: SeekPreviewItem | nul
     if (frame && !(sheets && showSheetFrame(seconds, sheets)) && !(sheets?.fallback && showSheetFrame(seconds, sheets.fallback))) {
       showPoster(clamped);
     }
-    // 宽度按显出来之后的实测值夹边：框宽由样式按片源比例和视口定，这里不另算一套。
+    // The width is clamped to the measured value after it's shown: the box width is set by styles from the source aspect ratio and viewport, so don't compute a separate set here.
     paint();
   };
   return {

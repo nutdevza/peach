@@ -1,18 +1,19 @@
-/* 垃圾文件队列（`CATALOG_ROUTES['/junk-files']`）的数据与对外契约。
+/* The junk files queue's (`CATALOG_ROUTES['/junk-files']`) data and external contract.
  *
- * 队列一次取 200 条（`/api/ads?limit=200&status=…[&kind=…]`，`src/peach/web_batch.py` 的 `q_ads`
- * 现算评分），客户端按「每批条数」一段段露出来；换分类、换视图就是换查询键。写操作只有三种，
- * 都走 `/api/batch`，由壳执行（回执、撤销与重读都归壳），做完壳推进 `revision`，查询换键重取。 */
+ * The queue fetches 200 at a time (`/api/ads?limit=200&status=...[&kind=...]`, scored fresh by `q_ads` in `src/peach/web_batch.py`);
+ * the client reveals them batch by batch per "items per batch"; changing category or view changes the query key. Write
+ * operations are only three kinds, all through `/api/batch` and executed by the shell (receipt, undo and reread belong to the
+ * shell); when done the shell advances `revision`, and the query changes keys and refetches. */
 import { apiGet } from '../../api';
 import type { JunkKind, JunkRoute, JunkView } from '../../junk-queue';
 import { t } from '../../i18n';
 
 export type { JunkKind, JunkRoute, JunkView };
 
-/** 队列一次取多少条。和遗留层同一个数：评分是现算的，页越大越慢。 */
+/** How many rows the queue fetches at once. Same number as the legacy layer: ratings are computed on the fly, so bigger pages are slower. */
 export const JUNK_LIMIT = 200;
 
-/** `/api/ads` 的一条。只列卡片读到的字段，其余原样带着，壳的缓存要的是整条。 */
+/** One entry from `/api/ads`. Only the fields the card reads are listed; the rest ride along untouched, since the shell cache wants the whole entry. */
 export interface JunkItem {
   id: number;
   name?: string;
@@ -24,8 +25,8 @@ export interface JunkItem {
   [field: string]: unknown;
 }
 
-/** `/api/ads` 的回话：`total` 是这一视图、这一类的条数，`all_total` 是这一视图各类合计，
- *  `counts` 按类计数，`dismissed_total` 给分类条末尾那一项的徽标。 */
+/** The `/api/ads` response: `total` is this view, this category's count, `all_total` is this view's cross-category total,
+ *  `counts` counts per category, and `dismissed_total` feeds the badge at the category bar's end. */
 export interface JunkPage {
   items: JunkItem[];
   total?: number;
@@ -37,21 +38,21 @@ export interface JunkPage {
 
 export type JunkOperation = 'dismiss-junk' | 'reconsider-junk' | 'dispose';
 
-/** 卡片上的类型名与字形。网址那一类在卡上写全称。 */
+/** The type name and glyph on the card. The URL kind writes the full name on the card. */
 export const JUNK_KIND_META: Record<string, readonly [string, string]> = {
   video: [t('cleanup:junk.kindVideos'), 'play'], image: [t('cleanup:junk.kindImages'), 'pics'], archive: [t('cleanup:junk.kindArchives'), 'file-archive'],
   audio: [t('cleanup:junk.kindAudio'), 'file-audio'], url: [t('cleanup:junk.kindUrlShortcuts'), 'globe'], other: [t('cleanup:junk.kindOtherFiles'), 'hard-drive'],
 };
 export const junkKindMeta = (item: JunkItem) => JUNK_KIND_META[item.junk_kind || 'other'] || JUNK_KIND_META.other!;
 
-/** 中间那颗判断键：待判断视图里是「不是垃圾」，已排除视图里是「重新判断」。 */
+/** The middle judgment button: 'not junk' in the pending view, 're-judge' in the excluded view. */
 export function junkDecision(view: JunkView): { operation: JunkOperation; label: string; glyph: string } {
   return view === 'dismissed'
     ? { operation: 'reconsider-junk', label: t('cleanup:junk.reconsider'), glyph: 'rotate-ccw' }
     : { operation: 'dismiss-junk', label: t('cleanup:junk.notJunk'), glyph: 'check' };
 }
 
-/** 分类条上一项的计数：「全部」读这一视图的合计，其余读各类。 */
+/** A category bar item's count: "All" reads this view's total, the rest read their own category. */
 export const junkCount = (page: JunkPage, kind: JunkKind): number =>
   Number((kind ? page.counts?.[kind] : page.all_total) || 0);
 
@@ -69,40 +70,40 @@ export async function fetchJunkPage(route: JunkRoute, signal: AbortSignal): Prom
   return { ...page, items: page.items || [] };
 }
 
-/** 卡片上仍由遗留层拼的那一段：来源角标（遗留层 `srcBadge`）。 */
+/** The card section still assembled by the legacy layer: the source badge (legacy layer `srcBadge`). */
 export interface JunkQueueHelpers {
   badgeHtml(location: string, cost: string): string;
 }
 
-/** 卡片与分类条上的动作。写 ledger、打开详情与换页都归壳。 */
+/** Actions on the card and the category bar. Ledger writes, opening details, and paging all belong to the shell. */
 export interface JunkQueueActions {
-  /** 分类条上的一项被点了（普通左键）：壳收起多选、改地址、重读。修饰键与中键照浏览器默认。 */
+  /** A category bar item was clicked (plain left click): the shell collapses multi-select, changes the address, and re-reads. Modifier keys and the middle button follow browser defaults. */
   navigate(path: string): void;
-  /** 切换一张的选中；`range` 是按住 Shift 连选。 */
+  /** Toggles one card's selection; `range` is a Shift-held range select. */
   toggleSelection(id: number, range: boolean): void;
-  /** 点标题打开：视频进详情，本地图片在新标签页看原图。 */
+  /** Click the title to open: videos go to details, local images open the original in a new tab. */
   open(item: JunkItem, anchor: HTMLElement): void;
-  /** 「打开位置」：在资源管理器里显示。回话是要写在卡片状态行里的一句，成功为空。 */
+  /** "Reveal location": show in file explorer. The reply is one line meant for the card's status row, empty on success. */
   reveal(item: JunkItem): Promise<string>;
-  /** 三颗处置键。写 ledger，做完重读队列并给撤销；失败由壳报，再抛出。 */
+  /** The three disposition buttons. They write the ledger, then refetch the queue and offer undo; failures are reported by the shell and rethrown. */
   operate(item: JunkItem, operation: JunkOperation): Promise<void>;
 }
 
 export interface JunkQueueProps extends JunkRoute {
   helpers: JunkQueueHelpers;
   actions: JunkQueueActions;
-  /** 每一段露多少张（设置里的「每批条数」）。 */
+  /** How many items each segment shows (the "items per batch" setting). */
   batchSize: number;
-  /** 刷新代次：壳要求重读时加一，查询随之换键重取。换代时旧的一份留在屏上，不重铺骨架。 */
+  /** Refresh epoch: incremented when the shell requests a re-read, re-keying the query to refetch. On rotation the old copy stays on screen and the skeleton is not re-laid. */
   revision: number;
   selectMode: boolean;
   selected: ReadonlySet<number>;
-  /** 计数行（`#count`）。行本身归壳（换页时由壳清空），里面的摘要与分类条归这一页。 */
+  /** The count row (`#count`). The row itself belongs to the shell (cleared by the shell on page change), while the summary and category bar inside belong to this page. */
   countRow: HTMLElement | null;
-  /** 网格骨架的 HTML（遗留层 `pageSkeletonHtml`），和壳首屏铺的是同一份。 */
+  /** The grid skeleton's HTML (legacy layer `pageSkeletonHtml`), the same copy the shell lays on the first screen. */
   skeletonHtml(): string;
-  /** 一次取数落定（成功、为空或失败）：`revision` 是那一次的代次，壳据此放行等着它的调用方。 */
+  /** One fetch settled (success, empty, or failure): `revision` is that run's epoch, and the shell releases the callers waiting on it based on this. */
   settled?(revision: number): void;
-  /** 此刻能不能往下露下一段：管理区或索引页盖在上面时不露。 */
+  /** Whether the next segment may be revealed now: not while admin or an index page sits on top. */
   canLoadMore?(): boolean;
 }

@@ -1,17 +1,19 @@
-/* 口味页：两套证据说同一件事。
+/* Taste page: two sets of evidence saying the same thing.
  *
- * 左边是浏览器记录（这台机器上读到的、或从别处导进来的私有导出），右边是 Peach 自己的
- * 观看行为。两套各有自己的读数、图和名次，由顶上的页签整块切换——它们是两份证据，不是
- * 同一份数据的两种画法，并排摆会被读成互相印证。
+ * The left is browser history (read on this machine, or imported from a private export elsewhere); the right is Peach's own
+ * watch behavior. Each set has its own readouts, charts and rankings, switched wholesale by the tabs on top: they are two
+ * bodies of evidence, not two renderings of one dataset; side by side they would read as corroborating each other.
  *
- * 分析范围带在 `queryKey` 上（`['taste', window]`），切换时 `keepPreviousData` 留住上一份：
- * 这一屏的结构不变，只有数在变，退回骨架等于把已经读到的东西收走再放回来。范围本身是
- * 组件状态，不进地址栏：路由仍归遗留壳，进这一页就是从「全部时间」重新看一遍。这一页不设
- * `staleTime`，所以换到哪个范围都重取一趟——导入或移除之后回到先前看过的范围，读到的是写
- * 之后的数，而不是缓存里那份写之前的。
+ * The analysis window rides on `queryKey` (`['taste', window]`), and switching uses `keepPreviousData` to keep the previous
+ * copy: this screen's structure does not change, only the numbers do, and falling back to a skeleton would take away what you
+ * already read and put it back. The window itself is component state and stays out of the address bar: routing still belongs
+ * to the legacy shell, and entering this page always starts a fresh look from "All time". The page sets no `staleTime`, so
+ * every window change refetches: returning to a previously viewed window after an import or removal reads the post-write
+ * numbers, not the pre-write ones from cache.
  *
- * 「读取浏览器历史」是后台任务，关掉页面照样在跑。首屏读到的旧终态不冒充新结果：只有本次
- * 点过读取、或者本次亲眼见过它在跑，终态才发回执并让 dashboard 重取（ADR-0031）。 */
+ * "Read browser history" is a background job that keeps running after the page closes. An old terminal state read on first
+ * screen does not masquerade as a new result: only when you clicked read this time, or personally saw it running this time,
+ * does the terminal state send a receipt and have the dashboard refetch (ADR-0031). */
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 import type { ChangeEvent } from 'react';
 import {
@@ -60,43 +62,43 @@ import {
   type TasteJob,
 } from './taste';
 
-/** 收起时露这么多条名次。二十条一次铺开会把下面几块整个顶到屏外。 */
+/** This many ranking entries show when collapsed. Laying out twenty at once pushes the blocks below entirely off screen. */
 const RANK_PREVIEW = 10;
 
 const MENU_ROW = cx(MENU_ITEM, MENU_ITEM_INTERACTIVE, 'text-body-2-medium');
 const CARD = `${cardClass()} flex flex-col gap-4`;
-/** 卡里的一格：旧 `.tastelead`／`.tastesource` 用的是浮层那一档面，比卡面亮一级。 */
+/** A cell in the card: the legacy `.tastelead` and `.tastesource` use the overlay-tier surface, one step brighter than the card face. */
 const TILE = 'rounded-xl bg-background-primary-default p-3';
 
-/* 中文正文写成常量：JSX 里换行的文字会在接缝处多出一个空格，中文句子里看得见。 */
-const REFRESH_TITLE = '读取运行 Peach 的这台电脑上的浏览历史与书签';
-const NO_SOURCE_HINT = '导入或读取浏览记录后，这里会列出记录来自哪些设备。';
-const NO_LEAD_HINT = '馆藏中暂时没有与你浏览过的内容相符的标签。';
-const NO_CATEGORY_HINT = '读取浏览记录后，这里会按类别汇总你浏览过的内容。';
-const GAP_HINT = '这些标签出现在浏览记录中，Peach 的观看或评价记录中尚未出现这些标签';
-const NO_BROWSER_TAG_HINT = '采集浏览记录后，这里会列出浏览过的标签。';
-const NO_BROWSER_CREATOR_HINT = '采集浏览记录后，这里会列出浏览过的创作者。';
-const NO_DOMAIN_HINT = '采集浏览记录后，这里会列出常访问的网站。';
-const NO_PEACH_TAG_HINT = '在 Peach 里播放或评价作品后，这里会列出对应的标签。';
-const NO_PEACH_CREATOR_HINT = '在 Peach 里播放或评价作品后，这里会列出对应的创作者。';
-const NO_PEACH_PERFORMER_HINT = '在 Peach 里播放或评价作品后，这里会列出对应的女优。';
-const GUIDE_LOCAL = '在运行 Peach 的电脑上使用浏览器：点上面的「读取浏览器记录」。';
-const GUIDE_REMOTE = '记录在其他设备上：导出文件后，选择「导入历史文件」或「导入书签文件」。书签支持浏览器导出的 HTML 文件和 Chromium Bookmarks JSON 文件。';
-const GUIDE_REFRESH = '需要刷新时再次读取或导入；数据源可在页面底部移除。';
-const REMOVE_BODY = '删除这个来源的已导入记录，原始文件保留。若浏览器仍启用，下次读取会再次导入。';
+/* Chinese body text is written as constants: line-wrapped text in JSX gains a space at the seam, which is visible in Chinese sentences. */
+const REFRESH_TITLE = 'Read the browsing history and bookmarks on this computer running Peach';
+const NO_SOURCE_HINT = 'After importing or reading browsing data, this lists which devices the records came from.';
+const NO_LEAD_HINT = 'No tags in the library currently match what you have browsed.';
+const NO_CATEGORY_HINT = 'After reading browsing data, this summarizes what you browsed by category.';
+const GAP_HINT = 'These tags appear in browsing history but not yet in the watch or rating records in Peach';
+const NO_BROWSER_TAG_HINT = 'After collecting browsing data, this lists the tags you browsed.';
+const NO_BROWSER_CREATOR_HINT = 'After browsing history is collected, the creators you viewed are listed here.';
+const NO_DOMAIN_HINT = 'After collecting browsing data, this lists the sites you visit often.';
+const NO_PEACH_TAG_HINT = 'After you play or rate videos in Peach, the related tags are listed here.';
+const NO_PEACH_CREATOR_HINT = 'After you play or rate videos in Peach, the related creators are listed here.';
+const NO_PEACH_PERFORMER_HINT = 'After you play or rate videos in Peach, the related performers are listed here.';
+const GUIDE_LOCAL = 'In the browser on the computer running Peach: click "Read browser history" above.';
+const GUIDE_REMOTE = 'Records on other devices: after exporting the file, choose "Import history file" or "Import bookmarks file". Bookmarks accept browser-exported HTML files and Chromium Bookmarks JSON files.';
+const GUIDE_REFRESH = 'Read or import again whenever a refresh is needed; data sources can be removed at the bottom of the page.';
+const REMOVE_BODY = 'Deletes the imported records of this source; original files are kept. If the browser source is still enabled, the next read imports them again.';
 
-/** 跳过指南是这台浏览器的持久偏好，和分析结果无关，所以不进 Query。 */
+/** Skipping the guide is a persistent preference of this browser, unrelated to analysis results, so it stays out of Query. */
 export const TASTE_GUIDE_KEY = 'peach-taste-guide-dismissed';
 
 type Glyph = typeof RiEyeLine;
 
-const TasteEmptyAction = createContext<ReactNode>(<ButtonLink size="small" href="/">浏览馆藏</ButtonLink>);
+const TasteEmptyAction = createContext<ReactNode>(<ButtonLink size="small" href="/">Browse library</ButtonLink>);
 
 function TasteRecordActions() {
   return useContext(TasteEmptyAction);
 }
 
-/** 一格读数：一个名字、一个大数、一句它的来历。和统计页的读数卡是同一张卡。 */
+/** One readout cell: a name, a big number, one line about where it comes from. The same card as the stats page's readout card. */
 function SummaryCard({ icon: Icon, term, figure, detail, detailTitle, accent }:
 { icon: Glyph; term: string; figure: string; detail?: string; detailTitle?: string; accent: number }) {
   return (
@@ -107,10 +109,10 @@ function SummaryCard({ icon: Icon, term, figure, detail, detailTitle, accent }:
   );
 }
 
-/** 站点圆标：先垫首字母，服务端那枚圆标叠上去；取不到就把 `<img>` 摘掉，露出首字母。
+/** Site roundels: back an initial first, then layer the server's roundel on top; if it cannot be fetched, remove the `<img>` and expose the initial.
  *
- *  圆标走 `/site-mark`，浏览器不向对方站点也不向任何第三方图标代理发请求——那种请求
- *  会逐个报出这一列里的每一个站，换回来的只是一枚 16px 位图。 */
+ *  Roundels go through `/site-mark`; the browser sends no request to the target site nor any third-party icon proxy; such requests
+ *  would report every site in the column one by one, in exchange for a 16px bitmap. */
 function SiteAvatar({ name, domain }: { name: string; domain: string }) {
   return (
     <span className="relative inline-grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-background-tertiary-default text-caption-1-medium text-text-secondary">
@@ -122,7 +124,7 @@ function SiteAvatar({ name, domain }: { name: string; domain: string }) {
   );
 }
 
-/** 实体圆标。`card-art` 的 `avatarInner` 是唯一那份回落链实现，页面不重画一遍。 */
+/** The entity roundel. `avatarInner` in `card-art` is the only fallback-chain implementation; pages do not redraw it. */
 function EntityAvatar({ html }: { html: string }) {
   return (
     <span className={`relative inline-grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-background-tertiary-default text-caption-1-medium text-text-secondary ${LEGACY_AVATAR_IMG}`}
@@ -132,18 +134,18 @@ function EntityAvatar({ html }: { html: string }) {
 
 interface RankListProps {
   rows: RankRow[];
-  /** 点得动时交回给壳的信号类型（`tag`／`creator`／`performer`）。空串表示这一榜不可点。 */
+  /** The signal type handed back to the shell when this board is clickable (`tag` / `creator` / `performer`). An empty string means this board is not clickable. */
   kind: string;
-  /** 每行左边画什么：实体圆标、站点圆标，或什么都不画。 */
+  /** What to draw on a row's left: an entity round badge, a site round badge, or nothing at all. */
   visual: 'entity' | 'domain' | 'creator' | 'none';
   empty: string;
   onSignal: TasteProps['onSignal'];
 }
 
-/** 一榜名次。点得动的那些是按钮，其余是行——馆藏里没有对应条目时点进去只会是一张空页。 */
+/** One board's placements. The clickable ones are buttons, the rest are rows: with no matching library entry, clicking through lands on an empty page. */
 function RankList({ rows, kind, visual, empty, onSignal }: RankListProps) {
   if (!rows.length) {
-    return <EmptyState size="compact" icon={RiSearchLine} title="记录还不够"
+    return <EmptyState size="compact" icon={RiSearchLine} title="Not enough records"
       actions={<TasteRecordActions />}>{empty}</EmptyState>;
   }
   const shares = rankShares(rows);
@@ -155,8 +157,8 @@ function RankList({ rows, kind, visual, empty, onSignal }: RankListProps) {
           const domain = String(row.source_domain || '');
           const body = (
             <>
-              {/* 名次条铺满整行：旧 `.taste-rank-track` 是 `position:absolute;inset:0` 加 14%
-                  不透明度的一块底，不是文字下面那道细线——一眼看的是行有多长。 */}
+              {/* The rank bar fills the whole row: the old `.taste-rank-track` was `position:absolute;inset:0` with a 14%
+                  opacity backing, not the thin line under the text; the eye reads how long the row is. */}
               <svg viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden
                 className="absolute inset-0 -z-10 size-full overflow-hidden rounded-lg opacity-15">
                 <rect width={shares[index]} height={1} className="fill-chart-4" />
@@ -202,7 +204,7 @@ function RankList({ rows, kind, visual, empty, onSignal }: RankListProps) {
   );
 }
 
-/** 一侧证据的维度面板。页签走 React Aria，切的是同一块地方的几层名次。 */
+/** The dimension panel for one side's evidence. Tabs use React Aria, switching between ranked layers of the same area. */
 function DimensionPanels(
   { label, panels, onSignal }:
   {
@@ -211,7 +213,7 @@ function DimensionPanels(
   } & Pick<TasteProps, 'onSignal'>,
 ) {
   return (
-    /* 旧 `.insightpanel`：一张 16px 的填充卡，页签是卡内顶上那条分段控件。 */
+    /* Old `.insightpanel`: one filled card with 16px radius, and the tabs are the segmented control at the top of the card. */
     <Tabs className={`${cardClass({ padding: 'none' })} flex flex-col`}>
       <div className="px-4 pt-3">
         <TabList aria-label={label} className={SEGMENTED_TRACK}>
@@ -227,7 +229,7 @@ function DimensionPanels(
   );
 }
 
-/** 口味总结：一句结论、几条要点，加上点进去就能做的事。 */
+/** Taste summary: one conclusion, a few key points, plus actions reachable in one click. */
 function AnalysisCard({ data, onSignal, navigate }:
 { data: TasteData } & Pick<TasteProps, 'onSignal' | 'navigate'>) {
   const analysis = data.analysis;
@@ -240,17 +242,17 @@ function AnalysisCard({ data, onSignal, navigate }:
       { key: `route:${item.route}`, title: item.title, detail: item.detail, act: () => navigate(item.route) })),
   ];
   return (
-    <section className={CARD} aria-label="口味总结">
+    <section className={CARD} aria-label="Taste summary">
       <header className="flex flex-col gap-2">
-        <h3 className="text-title-2-medium text-text-primary">口味总结</h3>
-        {/* 结论句是这张卡的主角：旧 `.tasteleads .tastelede p` 是 20/30 的主文字色，比正文
-            大一档、限宽 64ch。「有多少把握」是它的注脚，旧版就是一句灰字配一枚 8px 圆点。 */}
+        <h3 className="text-title-2-medium text-text-primary">Taste summary</h3>
+        {/* The conclusion sentence is this card's protagonist: the old `.tasteleads .tastelede p` was 20/30 in primary text color, one tier
+            larger than body text and capped at 64ch wide. "How confident" is its footnote; the old version was one gray line with an 8px dot. */}
         <p className="max-w-prose text-title-2-regular wrap-anywhere text-text-primary">{analysis.headline}</p>
         <p className="flex flex-wrap items-center gap-2 text-body-2-regular text-text-secondary">
           <i aria-hidden className={`size-2 shrink-0 rounded-full ${confidence.level === 'high'
             ? 'bg-status-lime-text'
             : confidence.level === 'medium' ? 'bg-status-yellow-text' : 'bg-text-tertiary'}`} />
-          <span className="min-w-0 wrap-anywhere">{confidence.label || '仍在学习'}</span>
+          <span className="min-w-0 wrap-anywhere">{confidence.label || 'Still learning'}</span>
         </p>
       </header>
       {analysis.points?.length ? (
@@ -276,51 +278,51 @@ function AnalysisCard({ data, onSignal, navigate }:
             </button>
           ))}
         </div>
-      ) : <EmptyState size="compact" icon={RiSearchLine} title="还没有可探索的入口"
-        actions={<ButtonLink size="small" href="/">浏览馆藏</ButtonLink>}>{NO_LEAD_HINT}</EmptyState>}
+      ) : <EmptyState size="compact" icon={RiSearchLine} title="No entry points to explore yet"
+        actions={<ButtonLink size="small" href="/">Browse library</ButtonLink>}>{NO_LEAD_HINT}</EmptyState>}
     </section>
   );
 }
 
-/** 浏览记录怎么来。已经采集到记录、或跳过之后都不再出现，`?onboarding=1` 进来时直接展开。 */
+/** How the browsing history came to be. It stops appearing once records are scraped or the step is skipped, and enters expanded when arriving with `?onboarding=1`. */
 function HistoryGuide({ onboarding, done }: { onboarding: boolean; done: boolean }) {
   const [skipped, setSkipped] = useState(() => {
     try { return localStorage.getItem(TASTE_GUIDE_KEY) === '1' } catch { return false }
   });
   if (done || skipped) return null;
   const skip = () => {
-    try { localStorage.setItem(TASTE_GUIDE_KEY, '1') } catch { /* 存储不可用时这一次仍然收起 */ }
+    try { localStorage.setItem(TASTE_GUIDE_KEY, '1') } catch { /* When storage is unavailable, still collapse this time */ }
     setSkipped(true);
   };
   return (
     <div className={cardClass({ padding: 'none', className: 'p-4' })}>
-      <Disclosure summary="浏览器历史记录导入指南" defaultOpen={onboarding}>
+      <Disclosure summary="Browser history import guide" defaultOpen={onboarding}>
         <p className="text-body-2-regular text-text-secondary">{GUIDE_LOCAL}</p>
         <p className="text-body-2-regular text-text-secondary">{GUIDE_REMOTE}</p>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-body-2-regular text-text-secondary">
           <li>
-            Chrome：在 <a href="https://takeout.google.com/" target="_blank" rel="noopener noreferrer"
+            Chrome: in <a href="https://takeout.google.com/" target="_blank" rel="noopener noreferrer"
               className="text-text-primary underline-offset-4 hover:underline">Google Takeout<RiExternalLinkLine aria-hidden className="size-(--icon-inline) shrink-0" /></a>
-            {' '}选择 Chrome 历史记录，下载 ZIP 后直接导入。
+            {' '}Select Chrome history and import directly after downloading the ZIP.
           </li>
           <li>
-            其他浏览器：用 <a href="https://github.com/purarue/browserexport" target="_blank" rel="noopener noreferrer"
+            Other browsers: use <a href="https://github.com/purarue/browserexport" target="_blank" rel="noopener noreferrer"
               className="text-text-primary underline-offset-4 hover:underline">browserexport<RiExternalLinkLine aria-hidden className="size-(--icon-inline) shrink-0" /></a>
-            {' '}导出历史记录，再导入导出文件。
+            {' '}Export history, then import the export file.
           </li>
         </ul>
         <p className="text-body-2-regular text-text-secondary">{GUIDE_REFRESH}</p>
         <span className="self-start">
-          <Button variant="secondary" size="small" onClick={skip}>跳过</Button>
+          <Button variant="secondary" size="small" onClick={skip}>Skip</Button>
         </span>
       </Disclosure>
     </div>
   );
 }
 
-/** 主键加一个下拉：读取和导入是同一件事的两种来路，摊成两颗按钮读不出哪个是常用的那一个。
+/** A dropdown on the primary key: reading and importing are two entry points to the same thing, and splitting them into two buttons hides which one is the everyday one.
  *
- *  菜单第一项和左边那颗同名同事——键盘和读屏用户只走菜单这一条路，少列一项就是少一个动作。 */
+ *  The menu's first item matches the left button in name and action; keyboard and screen reader users only ever take the menu, so a missing item means a missing action. */
 function HistoryActions(
   { busy, onRefresh, onImport, onImportBookmarks }:
   { busy: boolean; onRefresh(): void; onImport(): void; onImportBookmarks(): void },
@@ -332,23 +334,23 @@ function HistoryActions(
     <>
       <span data-guide-target="history-import" data-button-group data-split-button data-variant="primary">
         <Button leadingIcon={RiCompassLine} title={REFRESH_TITLE} onClick={onRefresh} {...busyProps(busy)}>
-          读取浏览器记录
+          Read browser history
         </Button>
         <Button ref={trigger} iconOnly leadingIcon={RiArrowDownSLine}
-          aria-label="更多取得浏览记录的方式" aria-haspopup="dialog" aria-expanded={open}
+          aria-label="More ways to obtain browsing data" aria-haspopup="dialog" aria-expanded={open}
           {...busyProps(busy)} onClick={() => { if (!busy) setOpen(true) }} />
       </span>
       <Popover triggerRef={trigger} isOpen={open} onOpenChange={setOpen}
         placement="bottom end" offset={4} className={MENU_POPOVER_SURFACE}>
-        <Dialog aria-label="更多取得浏览记录的方式" className="flex w-52 flex-col gap-1 outline-none">
+        <Dialog aria-label="More ways to obtain browsing data" className="flex w-52 flex-col gap-1 outline-none">
           <button type="button" className={MENU_ROW} onClick={() => pick(onRefresh)}>
-            <RiCompassLine aria-hidden className="size-4 shrink-0" />读取浏览器记录
+            <RiCompassLine aria-hidden className="size-4 shrink-0" />Read browser history
           </button>
           <button type="button" className={MENU_ROW} onClick={() => pick(onImport)}>
-            <RiUploadLine aria-hidden className="size-4 shrink-0" />导入历史文件
+            <RiUploadLine aria-hidden className="size-4 shrink-0" />Import history file
           </button>
           <button type="button" className={MENU_ROW} onClick={() => pick(onImportBookmarks)}>
-            <RiBookmarkLine aria-hidden className="size-4 shrink-0" />导入书签文件
+            <RiBookmarkLine aria-hidden className="size-4 shrink-0" />Import bookmarks file
           </button>
         </Dialog>
       </Popover>
@@ -356,7 +358,7 @@ function HistoryActions(
   );
 }
 
-/** 已采集设备。移除只影响分析，原始导出文件仍在本机。 */
+/** Collected devices. Removal affects analysis only; the original export files stay on this machine. */
 function SourceList(
   { sources, browsers, window: range, toast, emptyActions }:
   { sources: NonNullable<TasteData['sources']>; browsers: NonNullable<TasteData['browsers']>; window: string; emptyActions: ReactNode } & Pick<TasteProps, 'toast'>,
@@ -364,9 +366,9 @@ function SourceList(
   const remove = useMutation({
     mutationFn: (sourceKey: string) => removeTasteSource(sourceKey, range),
     onSuccess: (result) => {
-      // 服务端连这一范围的新 dashboard 一起回，换进缓存即可，不为一次移除把整页重取一遍。
+      // The server returns the new dashboard for this range along with it; swap it into the cache instead of refetching the whole page over one removal.
       queryClient.setQueryData(tasteKey(range), result.dashboard);
-      toast('已移除口味数据源');
+      toast('Removed the taste data source');
     },
   });
   return (
@@ -385,22 +387,22 @@ function SourceList(
               <span className="flex min-w-0 grow flex-col gap-0.5">
                 <b className="min-w-0 text-body-2-medium break-words text-text-primary">{source.profile}</b>
                 <small className="min-w-0 text-caption-1-regular break-words text-text-secondary">
-                  {`导入文件 · ${source.host} · ${Number(source.visits || source.bookmarks || 0).toLocaleString()} ${source.bookmarks ? '枚书签' : '条历史'}`}
+                  {`Import files · ${source.host} · ${Number(source.visits || source.bookmarks || 0).toLocaleString()} ${source.bookmarks ? 'bookmarks' : 'history entries'}`}
                 </small>
               </span>
-              <Button variant="secondary" size="small" aria-label={`移除 ${source.profile}`} className="shrink-0"
+              <Button variant="secondary" size="small" aria-label={`Remove ${source.profile}`} className="shrink-0"
                 iconOnly leadingIcon={RiDeleteBinLine} {...busyProps(remove.isPending)}
                 onClick={() => {
                   if (remove.isPending) return;
                   void confirmModal({
-                    title: '移除口味数据源', body: REMOVE_BODY, confirmLabel: '移除口味数据源',
+                    title: 'Remove taste data source', body: REMOVE_BODY, confirmLabel: 'Remove taste data source',
                     onConfirm: () => remove.mutateAsync(source.source_key),
                   });
                 }} />
             </div>
           ))}
         </>
-      ) : !browsers.length ? <EmptyState size="compact" icon={RiDatabase2Line} title="还没有数据源"
+      ) : !browsers.length ? <EmptyState size="compact" icon={RiDatabase2Line} title="No data sources yet"
         actions={emptyActions}>{NO_SOURCE_HINT}</EmptyState> : null}
     </BrowserSources>
   );
@@ -416,8 +418,8 @@ export function TastePage(props: TasteProps) {
   const taste = useQuery({
     queryKey: tasteKey(range),
     queryFn: ({ signal }) => fetchTaste(range, signal),
-    /* 换范围时留住上一份：这一屏的结构不变，只有数在变。退回骨架就是把已经读到的东西
-       收走再放回来，而服务端那一层缓存多半立刻就回来了。 */
+    /* Keep the previous one when the scope changes: this screen's structure stays, only the numbers change. Falling back to a skeleton takes what was already read
+       away and puts it back, and the server-side cache usually returns immediately anyway. */
     placeholderData: keepPreviousData,
     refetchInterval: (query) => tasteRefetchInterval(query.state.data),
   });
@@ -425,16 +427,16 @@ export function TastePage(props: TasteProps) {
     queryKey: TASTE_REFRESH_KEY,
     queryFn: ({ signal }) => fetchTasteJob(signal),
     start: () => startTasteRefresh(range),
-    /* 读取可以从引导页或上一次会话里起来，闲着也隔一会儿问一次。 */
+    /* The read can start from the onboarding page or the previous session, and polls occasionally while idle. */
     idlePollMs: IDLE_POLL_MS,
     onFinish: (state) => {
       if (state.status === 'failed') return;
       void queryClient.invalidateQueries({ queryKey: ['taste'] });
-      toast(state.warnings?.length ? '部分浏览记录未取得' : '已更新口味分析');
+      toast(state.warnings?.length ? 'Some browsing history unavailable' : 'Taste analysis updated');
     },
   });
-  /* 重算失败后服务端暂不再算，页面也停了轮询。「立即重试」让服务端跳过等待再算一次，回来的
-     那一份换进它所属范围的缓存：算完就是新结果，还在算就带着 `stale` 接着轮询。 */
+  /* After a failed recompute the server holds off and the page stops polling. "Retry now" makes the server skip the wait and compute once more; the response
+     is swapped into the cache of its scope: a finished one is the new result, a still-running one keeps polling with `stale`. */
   const retry = useMutation({
     mutationFn: (window: string) => fetchTaste(window, undefined, true),
     onSuccess: (result, window) => { queryClient.setQueryData(tasteKey(window), result) },
@@ -442,13 +444,13 @@ export function TastePage(props: TasteProps) {
   const load = useMutation({
     mutationFn: (chosen: File) => importTasteExport(chosen),
     onSuccess: (result) => {
-      /* 服务端回的是「全部时间」那一份，页面跟着切过去：刚导进来的记录多半不在当前
-         这个窗口里，留在原范围上会看见一份没有任何变化的结果。先把它换进缓存再切范围，
-         顺序反过来的话切过去那一刻「全部时间」还是空的，页面会为它多发一趟请求，
-         回来的那一份又把刚换进去的这一份盖掉。 */
+      /* What the server returns is the "all time" copy, and the page switches over to it: freshly imported records mostly fall outside the current
+         window, and staying on the old range would show a result with no change at all. Swap it into the cache before switching the range;
+         in the reverse order, "all time" would still be empty at the moment of switching, the page would fire another request for it,
+         and the returning copy would overwrite the one just swapped in. */
       queryClient.setQueryData(tasteKey('all'), result.dashboard);
       setRange('all');
-      toast('已导入口味数据');
+      toast('Taste data imported');
     },
   });
 
@@ -469,8 +471,8 @@ export function TastePage(props: TasteProps) {
   if (!data) {
     return (
       <Page>
-        <Note tone="error" title="口味分析读取失败">
-          {taste.error ? errorMessage(taste.error) : '读取口味分析失败'}
+        <Note tone="error" title="Reading taste analysis failed">
+          {taste.error ? errorMessage(taste.error) : 'Reading taste analysis failed'}
         </Note>
       </Page>
     );
@@ -487,35 +489,35 @@ export function TastePage(props: TasteProps) {
   const problem = refresh.error ? errorMessage(refresh.error)
     : load.error ? errorMessage(load.error)
     : retry.error ? errorMessage(retry.error)
-    : outcome?.status === 'failed' ? (outcome.error || '读取未取得')
+    : outcome?.status === 'failed' ? (outcome.error || 'Read not fetched')
     : '';
 
   const browserActions = <div className="flex flex-wrap justify-center gap-2">
-            <Button variant="secondary" {...busyProps(running || refresh.isPending || load.isPending)} onClick={startRefresh}>读取浏览器记录</Button>
-            <Button variant="secondary" {...busyProps(load.isPending)} onClick={() => file.current?.click()}>导入历史文件</Button>
+            <Button variant="secondary" {...busyProps(running || refresh.isPending || load.isPending)} onClick={startRefresh}>Read browser history</Button>
+            <Button variant="secondary" {...busyProps(load.isPending)} onClick={() => file.current?.click()}>Import history file</Button>
           </div>;
   return (
     <Page>
       <TasteEmptyAction value={range !== DEFAULT_WINDOW
-        ? <Button size="small" variant="secondary" onClick={() => setRange(DEFAULT_WINDOW)}>查看全部时间</Button>
-        : evidence === 'peach' ? <ButtonLink size="small" variant="secondary" href="/">浏览馆藏</ButtonLink> : browserActions}>
+        ? <Button size="small" variant="secondary" onClick={() => setRange(DEFAULT_WINDOW)}>View all time</Button>
+        : evidence === 'peach' ? <ButtonLink size="small" variant="secondary" href="/">Browse library</ButtonLink> : browserActions}>
       <Tabs selectedKey={evidence} onSelectionChange={(key) => setEvidence(String(key))}
         className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* 旧 `.insightswitch`：证据来源是两个互斥视图，形态是分段控件不是两枚裸按钮。 */}
-          <TabList aria-label="口味分析的数据来源" className={SEGMENTED_TRACK}>
-            <Tab id="peach" className={SEGMENT}>Peach 观看与评价</Tab>
-            <Tab id="browser" className={SEGMENT}>浏览器记录</Tab>
+          {/* Old `.insightswitch`: the evidence came from two mutually exclusive views, shaped as a segmented control rather than two bare buttons. */}
+          <TabList aria-label="Data sources for taste analysis" className={SEGMENTED_TRACK}>
+            <Tab id="peach" className={SEGMENT}>Peach watches and ratings</Tab>
+            <Tab id="browser" className={SEGMENT}>Browser history</Tab>
           </TabList>
           <div className="flex flex-wrap items-center gap-2">
-            <Select aria-label="分析范围" selectedKey={range}
+            <Select aria-label="Analysis range" selectedKey={range}
               onSelectionChange={(key) => { if (key !== null) setRange(String(key)) }}>
               {TASTE_WINDOWS.map(([key, name]) => <SelectItem key={key} id={key}>{name}</SelectItem>)}
             </Select>
             <HistoryActions busy={running || refresh.isPending || load.isPending}
               onRefresh={startRefresh} onImport={() => file.current?.click()}
               onImportBookmarks={() => bookmarkFile.current?.click()} />
-            {/* 原生文件选择器长相不可控，按钮归 BoardUI，输入框只留着接文件。 */}
+            {/* The native file picker's look is not controllable: the button is BoardUI's, and the input remains only to receive files. */}
             <input ref={file} type="file" tabIndex={-1} aria-hidden className="hidden"
               onChange={pickFile} />
             <input ref={bookmarkFile} type="file" tabIndex={-1} aria-hidden className="hidden"
@@ -524,91 +526,91 @@ export function TastePage(props: TasteProps) {
         </div>
         <HistoryGuide onboarding={onboarding}
           done={!!(summary.history_sources || data.updated_at)} />
-        {/* 这一趟在后台跑，关掉页面还在继续，所以状态留在页面上而不是只让按钮转一下。 */}
+        {/* This run keeps going in the background after the page closes, so its state lives on the page instead of just spinning a button. */}
         <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
-          {running ? <TaskProgress label={job?.message || '正在读取浏览记录并更新口味分析'}
+          {running ? <TaskProgress label={job?.message || 'Reading browsing data and updating taste analysis'}
             value={job?.checked} total={job?.total} /> : null}
-          {load.isPending ? <TaskProgress label="正在导入口味数据" /> : null}
+          {load.isPending ? <TaskProgress label="Importing taste data" /> : null}
           {data.stale && data.error ? (
             <Note tone="error" action={<Button variant="secondary" size="small"
-              {...busyProps(retry.isPending)} onClick={() => retry.mutate(range)}>立即重试</Button>}>
-              {`口味分析更新失败，当前显示 ${tasteTime(data.computed_at)} 的结果。${data.error}`}
+              {...busyProps(retry.isPending)} onClick={() => retry.mutate(range)}>Retry now</Button>}>
+              {`Taste analysis update failed; showing the result from ${tasteTime(data.computed_at)}. ${data.error}`}
             </Note>
-          ) : data.stale ? <TaskProgress label={`正在更新口味分析，当前显示 ${tasteTime(data.computed_at)} 的结果`} /> : null}
+          ) : data.stale ? <TaskProgress label={`Updating taste analysis, currently showing results from ${tasteTime(data.computed_at)}`} /> : null}
           {problem ? <Note tone="error">{problem}</Note> : null}
-          {outcome?.warnings?.length ? <Note tone="warning">{outcome.warnings.join('；')}</Note> : null}
+          {outcome?.warnings?.length ? <Note tone="warning">{outcome.warnings.join('; ')}</Note> : null}
         </div>
         <TabPanel id="browser" className="flex flex-col gap-5">
           <div className={STAT_STRIP}>
-            <SummaryCard accent={0} icon={RiHistoryLine} term="浏览记录"
+            <SummaryCard accent={0} icon={RiHistoryLine} term="Browsing data"
               figure={Number(summary.history_visits || 0).toLocaleString()}
               detail={historySpan(summary)} detailTitle={`${tasteDate(summary.range_start)}—${tasteDate(summary.range_end)}`} />
-            <SummaryCard accent={1} icon={RiPriceTag3Line} term="口味维度"
-              figure={categories.length.toLocaleString()} detail={categories[0]?.name || '尚无主维度'} />
-            <SummaryCard accent={2} icon={RiSearchLine} term="浏览线索" figure={gaps.length.toLocaleString()} />
-            <SummaryCard accent={3} icon={RiBookmarkLine} term="浏览器书签"
+            <SummaryCard accent={1} icon={RiPriceTag3Line} term="Taste dimensions"
+              figure={categories.length.toLocaleString()} detail={categories[0]?.name || 'No main dimension yet'} />
+            <SummaryCard accent={2} icon={RiSearchLine} term="Browsing leads" figure={gaps.length.toLocaleString()} />
+            <SummaryCard accent={3} icon={RiBookmarkLine} term="Browser bookmarks"
               figure={Number(summary.bookmarks || 0).toLocaleString()}
-              detail={`${Number(storage.exports || 0).toLocaleString()} 份私有导出 · ${fmtSize(storage.bytes || 0)}`} />
+              detail={`${Number(storage.exports || 0).toLocaleString()} private exports - ${fmtSize(storage.bytes || 0)}`} />
           </div>
-          {/* 维度不足三个画不成雷达：左栏只留标题与更新时间，排行条占满整张卡。 */}
-          <section className={radar ? `${CARD} md:flex-row md:gap-6` : CARD} aria-label="浏览器画像">
+          {/* Fewer than three dimensions cannot draw a radar: the left column keeps only the title and update time, and the ranking bar takes the whole card. */}
+          <section className={radar ? `${CARD} md:flex-row md:gap-6` : CARD} aria-label="Browser profile">
             <div className={radar
               ? 'flex shrink-0 flex-col gap-2 pb-5 md:w-80 md:pr-6 md:pb-0'
               : 'flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'}>
-              <span className="text-caption-1-regular text-text-secondary">浏览器画像</span>
-              {radar ? <TasteRadar rows={categories} label="主要口味维度" /> : null}
+              <span className="text-caption-1-regular text-text-secondary">Browser profile</span>
+              {radar ? <TasteRadar rows={categories} label="Main taste dimensions" /> : null}
               <small className="text-caption-1-regular text-text-secondary">
-                {data.updated_at ? `更新于 ${tasteDate(data.updated_at)}` : '尚未采集浏览记录'}
+                {data.updated_at ? `Updated ${tasteDate(data.updated_at)}` : 'Browsing data not collected yet'}
               </small>
             </div>
-            {/* 右栏跟着雷达那一栏等高（行内默认拉伸），排行条在纵向 flex 里撑满这一栏。 */}
+            {/* The right column matches the radar column's height (the default inline stretch), and the ranking bars fill this column in the vertical flex. */}
             <div className="flex min-w-0 grow flex-col">
               {categories.length
-                ? <RankedBars rows={categories} label="口味维度排名" />
-                : <EmptyState size="compact" icon={RiSearchLine} title="暂无口味维度"
+                ? <RankedBars rows={categories} label="Taste dimension ranking" />
+                : <EmptyState size="compact" icon={RiSearchLine} title="No taste dimensions yet"
                   actions={<TasteRecordActions />}>{NO_CATEGORY_HINT}</EmptyState>}
             </div>
           </section>
-          <ActivityHeat activity={data.activity} title="浏览活跃时间" dailyTitle="每日活跃"
-            words={{ unit: '口味网站访问', series: '访问', cellUnit: '次访问' }} tone={4}
-            empty="还没有可用于分析的口味网站访问记录。" />
+          <ActivityHeat activity={data.activity} title="'Browsing activity times'" dailyTitle="Daily activity"
+            words={{ unit: 'Taste site visits', series: 'Access', cellUnit: 'visits' }} tone={4}
+            empty="No taste-analyzable site visits yet." />
           <CreatorSankey flows={data.creator_flows} />
-          <DimensionPanels label="浏览器口味维度" onSignal={onSignal}
+          <DimensionPanels label="Browser taste dimensions" onSignal={onSignal}
             panels={[
-              { id: 'tags', name: '标签', props: { rows: rank.browser_tags || [], kind: 'tag', visual: 'none', empty: NO_BROWSER_TAG_HINT } },
-              { id: 'creators', name: '创作者', props: { rows: rank.browser_creators || [], kind: 'creator', visual: 'creator', empty: NO_BROWSER_CREATOR_HINT } },
-              { id: 'performers', name: '女优', props: { rows: rank.browser_performers || [], kind: 'performer', visual: 'entity', empty: '还没有与已建档女优关联的浏览记录。' } },
-              { id: 'domains', name: '常访问网站', props: { rows: rank.domains || [], kind: '', visual: 'domain', empty: NO_DOMAIN_HINT } },
-              { id: 'gaps', name: '浏览线索', props: { rows: gaps, kind: '', visual: 'none', empty: GAP_HINT } },
+              { id: 'tags', name: 'Tags', props: { rows: rank.browser_tags || [], kind: 'tag', visual: 'none', empty: NO_BROWSER_TAG_HINT } },
+              { id: 'creators', name: 'Creators', props: { rows: rank.browser_creators || [], kind: 'creator', visual: 'creator', empty: NO_BROWSER_CREATOR_HINT } },
+              { id: 'performers', name: 'Performers', props: { rows: rank.browser_performers || [], kind: 'performer', visual: 'entity', empty: 'No browsing records linked to archived performers yet.' } },
+              { id: 'domains', name: 'Frequently visited sites', props: { rows: rank.domains || [], kind: '', visual: 'domain', empty: NO_DOMAIN_HINT } },
+              { id: 'gaps', name: 'Browsing leads', props: { rows: gaps, kind: '', visual: 'none', empty: GAP_HINT } },
             ]} />
         </TabPanel>
         <TabPanel id="peach" className="flex flex-col gap-5">
           <div className={STAT_STRIP}>
-            <SummaryCard accent={0} icon={RiEyeLine} term="Peach 看过"
+            <SummaryCard accent={0} icon={RiEyeLine} term="Peach watched"
               figure={Number(summary.peach_items || 0).toLocaleString()}
               detail={tasteHours(summary.peach_seconds || 0)} />
-            <SummaryCard accent={1} icon={RiThumbUpLine} term="喜欢" figure={Number(summary.liked || 0).toLocaleString()} />
-            <SummaryCard accent={2} icon={RiThumbDownLine} term="不合口味" figure={Number(summary.disliked || 0).toLocaleString()} />
-            <SummaryCard accent={3} icon={RiPriceTag3Line} term="有标签" figure={tagged.toLocaleString()} />
+            <SummaryCard accent={1} icon={RiThumbUpLine} term="Favorites" figure={Number(summary.liked || 0).toLocaleString()} />
+            <SummaryCard accent={2} icon={RiThumbDownLine} term="Not my taste" figure={Number(summary.disliked || 0).toLocaleString()} />
+            <SummaryCard accent={3} icon={RiPriceTag3Line} term="Has tags" figure={tagged.toLocaleString()} />
           </div>
-          <section className={`${CARD} md:flex-row md:gap-6`} aria-label="Peach 观看">
+          <section className={`${CARD} md:flex-row md:gap-6`} aria-label="Peach plays">
             <div className="flex shrink-0 flex-col gap-0.5 pb-5 md:w-72 md:pr-6 md:pb-0">
-              <span className="text-caption-1-regular text-text-secondary">Peach 观看</span>
+              <span className="text-caption-1-regular text-text-secondary">Peach plays</span>
               <b className="text-display-4-medium tabular-nums text-text-primary">
                 {Number(summary.peach_items || 0).toLocaleString()}
               </b>
-              <span className="text-body-2-regular text-text-secondary">部作品有观看或评价记录</span>
+              <span className="text-body-2-regular text-text-secondary"> videos have watch or rating records</span>
             </div>
             <div className="flex min-w-0 grow flex-col">
-              <CoverageMetric term="有标签" value={tagged} rest={coverage.untagged || 0} />
-              <CoverageMetric term="有身份" value={identified} rest={coverage.unidentified || 0} />
+              <CoverageMetric term="Has tags" value={tagged} rest={coverage.untagged || 0} />
+              <CoverageMetric term="Has identity" value={identified} rest={coverage.unidentified || 0} />
             </div>
           </section>
-          <DimensionPanels label="Peach 口味维度" onSignal={onSignal}
+          <DimensionPanels label="Peach taste dimensions" onSignal={onSignal}
             panels={[
-              { id: 'tags', name: '标签', props: { rows: rank.peach_tags || [], kind: 'tag', visual: 'none', empty: NO_PEACH_TAG_HINT } },
-              { id: 'creators', name: '创作者', props: { rows: rank.peach_creators || [], kind: 'creator', visual: 'creator', empty: NO_PEACH_CREATOR_HINT } },
-              { id: 'performers', name: '女优', props: { rows: rank.peach_performers || [], kind: 'performer', visual: 'entity', empty: NO_PEACH_PERFORMER_HINT } },
+              { id: 'tags', name: 'Tags', props: { rows: rank.peach_tags || [], kind: 'tag', visual: 'none', empty: NO_PEACH_TAG_HINT } },
+              { id: 'creators', name: 'Creators', props: { rows: rank.peach_creators || [], kind: 'creator', visual: 'creator', empty: NO_PEACH_CREATOR_HINT } },
+              { id: 'performers', name: 'Performers', props: { rows: rank.peach_performers || [], kind: 'performer', visual: 'entity', empty: NO_PEACH_PERFORMER_HINT } },
             ]} />
         </TabPanel>
       </Tabs>
@@ -619,7 +621,7 @@ export function TastePage(props: TasteProps) {
   );
 }
 
-/** 一条覆盖率：读数、待补的数量与那条条共用同一对分子分母。 */
+/** One coverage figure: the numbers, the backfill count and the bar all share the same numerator and denominator. */
 function CoverageMetric({ term, value, rest }: { term: string; value: number; rest: number }) {
   const total = Math.max(value + rest, 1);
   return (
@@ -628,7 +630,7 @@ function CoverageMetric({ term, value, rest }: { term: string; value: number; re
         <span>{term}</span>
         <b className="tabular-nums">
           {value.toLocaleString()}
-          <span className="ml-1.5 text-caption-1-regular text-text-secondary">{`${rest.toLocaleString()} 项待补`}</span>
+          <span className="ml-1.5 text-caption-1-regular text-text-secondary">{`${rest.toLocaleString()} items to backfill`}</span>
         </b>
       </p>
       <Progress meter label={`${term}：${value.toLocaleString()} / ${total.toLocaleString()}`}

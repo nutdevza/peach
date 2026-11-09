@@ -1,7 +1,7 @@
-/* 裁剪封面的数据契约。
+/* Data contract for cropping covers.
  *
- * 只有一个写端点：给框就是设成手工取景，给 null 就是按折痕判据重算一遍。
- * 框是源图像素、右下开区间，与 `poster_box` 那个只读字段同一套坐标。 */
+ * There is one write endpoint: sending a box sets manual cropping, sending null recomputes from the fold heuristics.
+ * The box is in source-image pixels, right and bottom exclusive, in the same coordinate system as the read-only `poster_box` field. */
 import { apiSend } from '../../api';
 import type { CropBox } from '../../crop-geometry';
 

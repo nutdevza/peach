@@ -8,19 +8,19 @@ import './table-column-controls.css';
 import { clickedBlank } from './row-click';
 
 export interface DataTableFrameProps extends PropsWithChildren {
-  /** 关注来源表需要额外的排序图标规则；外框与行状态仍由这个共享组件负责。 */
+  /** The follows source table needs extra sort-icon rules; the outer frame and row states stay with this shared component. */
   follow?: boolean;
   preferences?: TablePreferences;
-  /** 给了就是整行可选：点在某一行的空白处时以那一行的 `data-key`（React Aria 写在 `tr` 上的
-   *  行 id）回调；点在行里的勾、键、链接上不算。 */
+  /** When set, the whole row is selectable: a click on a row's empty space calls back with that row's `data-key` (the row id React Aria writes on the `tr`);
+   *  clicks on a row's checkbox, buttons or links do not count. */
   onRowClick?(key: string): void;
 }
 
-/* 拖宽期间在根元素上做标记，整页锁成左右箭头光标且不选字；不用 `html:has(…)` 判断，那样每次
- * DOM 变动都要重新匹配整棵树，首页启动会慢几百毫秒。 */
+/* During a drag-resize, mark the root element so the whole page locks to the left-right arrow cursor and text is not selected; no `html:has(…)` check, since that would re-match the whole tree on every
+ * DOM change and slow home-page startup by hundreds of milliseconds. */
 const markResizing = () => { document.documentElement.dataset.columnResizing = '' };
 
-/** BoardUI Table 的 Data Table 外框：主表面、完整边线、圆角与选中行反馈。 */
+/** The Data Table frame of BoardUI Table: main surface, full border, rounded corners, and selected-row feedback. */
 export function DataTableFrame({ children, follow = false, onRowClick, preferences }: DataTableFrameProps) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {

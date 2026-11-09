@@ -1,9 +1,10 @@
-/* 图片灯箱：一枚原生模态 dialog，主画布与缩略图条各是一个 Swiper。
+/* Image lightbox: one native modal dialog, with the main canvas and thumbnail strip each a Swiper.
  *
- * 宿主是 body 末尾一个带 `.peach-react` 的容器，一棵根常驻：打开时换上新的一份灯箱
- * （`key` 每次加一，Swiper 从头建），关掉时只把内容渲染成空，根和容器留着给下一次。不进
- * 路由树：那一套是给壳的页面容器用的，容器归壳、换页就被整块重写；灯箱浮在所有页面
- * 之上，哪一页都能打开，跟哪个页面容器都不同生共死。 */
+ * The host is a `.peach-react` container at the end of body with one resident root: on open a new lightbox copy mounts (`key`
+ * increments each time, Swiper builds from scratch), and on close only the content renders empty while the root and container
+ * stay for next time. It stays out of the route tree: that machinery is for the shell's page containers, which belong to the
+ * shell and are rewritten wholesale on page change; the lightbox floats above all pages, openable from any page, sharing
+ * neither birth nor death with any page container. */
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -33,7 +34,7 @@ function lightboxRoot(): Root {
   return root;
 }
 
-/** 从第 `index` 张开始看 `slides`。Swiper 取不到时退到新标签页里打开那一张大图。 */
+/** Views `slides` starting at `index`. When Swiper cannot be had, falls back to opening that one full-size image in a new tab. */
 export async function openPhotoLightbox(index: number, slides: LightboxSlide[], actions?: LightboxHost): Promise<void> {
   if (!slides.length || index < 0 || index >= slides.length) return;
   let Swiper: SwiperConstructor;
@@ -55,7 +56,7 @@ export function closePhotoLightbox(): void {
 
 interface Detail {
   dismiss(returnFocus?: boolean): void;
-  /** 面板开着、这一下点在面板和触发键之外：收起面板，这一下不再算别的。 */
+  /** Panel open and this click lands outside both the panel and the trigger: collapse the panel, and this click counts for nothing else. */
   dismissOutside(target: EventTarget | null): boolean;
   isOpen(): boolean;
 }
@@ -78,10 +79,10 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
   const detail = useRef<Detail | null>(null);
   const [active, setActive] = useState(index);
   const [percent, setPercent] = useState(100);
-  /* 大图的自然尺寸，到了才知道：面板上的分辨率读它。取不到原图的那几张换成缩略图。 */
+  /* The large image's natural size, known only once it arrives: the panel's resolution reads it. The ones whose originals never come fall back to thumbnails. */
   const [natural, setNatural] = useState<Record<number, [number, number]>>({});
   const [broken, setBroken] = useState<ReadonlySet<number>>(() => new Set());
-  /** 原图和缩略图都取不到的那几张：放一块占位，不露浏览器的破图标。 */
+  /** The images where neither original nor thumbnail loads: show one placeholder block, never the browser's broken icon. */
   const [lost, setLost] = useState<ReadonlySet<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ at: number; text: string }>({ at: index, text: '' });
@@ -97,13 +98,13 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
     const centerThumb = (at: number, speed = 200) => strip.slideTo(at, speed);
     const main = new Swiper(mainEl.current!, {
       initialSlide: index, zoom: { minRatio: .01, maxRatio: 100 }, keyboard: { enabled: true }, lazyPreloadPrevNext: 1,
-      // 上下滚也翻页：看图时手在滚轮上，没人愿意为了换一张去够左右键或按钮。
+      // Vertical scrolling also pages: while viewing images the hand is on the wheel, and nobody reaches for arrow keys or buttons to see the next one.
       mousewheel: { enabled: true, forceToAxis: false },
       thumbs: { swiper: strip },
       pagination: {
         el: pagination.current, clickable: true, dynamicBullets: true, dynamicMainBullets: 3,
         renderBullet: (at: number, className: string) =>
-          `<button type="button" class="${className}" aria-label="查看第 ${at + 1} 张图片"></button>`,
+          `<button type="button" class="${className}" aria-label="View image ${at + 1}"></button>`,
       },
       navigation: { prevEl: back.current, nextEl: fwd.current },
       on: {
@@ -121,8 +122,8 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
       toggle.current?.setAttribute('aria-expanded', 'false');
       if (returnFocus && toggle.current && document.contains(toggle.current)) toggle.current.focus();
     };
-    /* 开着没开着问信息卡自己：退场动画那一段面板还没 hidden，按 hidden 判会把「正在收」
-       当成「开着」，连按两下 Escape 第二下就只是又收了一遍。 */
+    /* Ask the info card itself whether it is open: during the exit animation the panel is not hidden yet, and judging by hidden would call "closing"
+       "open", so the second of two Escape presses would just close it again. */
     detail.current = {
       dismiss,
       dismissOutside: (target) => {
@@ -133,8 +134,8 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
       },
       isOpen: context.isOpen,
     };
-    /* Swiper 只在自己构造的那一刻量一次容器。窗口一改大小（或首屏字体、滚动条落定得比构造晚）
-       slide 就停在旧宽度上，大图按错误的框缩放，看起来就是「显示不全」。 */
+    /* Swiper measures its container once, at construction. Resize the window (or let first-screen fonts and scrollbars settle after construction) and slides stay at the old width,
+       large images scale against the wrong frame, and it reads as "partly cut off". */
     const resize = new ResizeObserver(() => { main.update(); strip.update(); zoom.current?.resize() });
     resize.observe(dialog);
     const keys = (event: KeyboardEvent) => {
@@ -156,7 +157,7 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
       dialog.close();
       document.body.classList.remove('photolight-open');
     };
-    // 每次打开换一份新的（`key`），这一段只在挂上与卸下时各跑一次。
+    // Every open gets a fresh one (`key`), so this section runs exactly once on mount and once on unmount.
   }, []);
 
   useLayoutEffect(() => { if (range.current) syncBoardRange(range.current) }, [percent]);
@@ -182,8 +183,8 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
     }
     zoom.current?.loaded(img);
   };
-  // 原图取不到时换上这张的缩略图：归档站的原文件主机会拦下代理（pawchive 的 file.
-  // 子域挂着 ddos-guard），缩略图由浏览器直接读公开主机。只换一次，缩略图也取不到就放占位。
+  // Falls back to this item's thumbnail when the original cannot be fetched: archive sites' original-file hosts block the proxy (pawchive's file.
+  // subdomain hangs on ddos-guard), so thumbnails are read by the browser straight from the public host. Swap only once; if even the thumbnail cannot be fetched, show a placeholder.
   const failed = (at: number) => {
     if (broken.has(at) || !slides[at].thumb || slides[at].thumb === slides[at].src) {
       setLost((prev) => new Set(prev).add(at));
@@ -192,28 +193,28 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
     setBroken((prev) => new Set(prev).add(at));
   };
   const apply = (raw: number | 'fit') => zoom.current?.apply(raw);
-  const revealLabel = '<span>在资源管理器中显示</span>';
+  const revealLabel = '<span>Show in File Explorer</span>';
 
   return (
-    <dialog ref={box} aria-label="图片浏览" data-photo-lightbox="" data-has-strip={many ? '' : undefined}
+    <dialog ref={box} aria-label="Image browsing" data-photo-lightbox="" data-has-strip={many ? '' : undefined}
       onCancel={(event) => { event.preventDefault(); closePhotoLightbox() }}
       onClick={(event) => {
-        // 主画布铺满视口后，黑色留白属于 zoom 容器而不是最外层；两者都视为背景。
-        // 点图片、缩略图条、工具栏和翻页按钮仍不退出。
+        // Once the main canvas fills the viewport, the black letterboxing belongs to the zoom container, not the outermost layer; both count as background.
+        // Clicking the image, thumbnail strip, toolbar, and paging buttons still does not exit.
         const target = event.target as Element;
         if (detail.current?.dismissOutside(target)) return;
         if (target === box.current || target.classList.contains('swiper-zoom-container')) closePhotoLightbox();
       }}>
-      <button type="button" data-photo-close="" aria-label="关闭" onClick={closePhotoLightbox}
+      <button type="button" data-photo-close="" aria-label="Close" onClick={closePhotoLightbox}
         dangerouslySetInnerHTML={{ __html: icon('x') }} />
-      <div ref={mainEl} className="swiper" data-photo-main="" role="region" aria-roledescription="轮播"
-        aria-label="图片浏览">
+      <div ref={mainEl} className="swiper" data-photo-main="" role="region" aria-roledescription="Carousel"
+        aria-label="Image browsing">
         <div className="swiper-wrapper">
           {slides.map((item, at) => (
             <div key={at} className="swiper-slide">
               <div className="swiper-zoom-container">
                 {lost.has(at)
-                  ? <span data-photo-missing="">图片取不到</span>
+                  ? <span data-photo-missing="">Image unavailable</span>
                   : <img src={broken.has(at) ? item.thumb : item.src} alt={item.name ?? ''} loading="lazy"
                     referrerPolicy="no-referrer" onLoad={(event) => loaded(at, event.currentTarget)}
                     onError={() => failed(at)} />}
@@ -221,36 +222,36 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
             </div>
           ))}
         </div>
-        {/* 方向只翻图标，不转整个按钮。两枚都画朝左那一枚，朝右的在样式里转半圈。 */}
-        <button ref={back} type="button" data-photo-nav="back" aria-label="上一张"
+        {/* Direction flips only the icon, not the whole button. Both render the left-pointing one; the right-pointing one rotates 180 degrees in the styles. */}
+        <button ref={back} type="button" data-photo-nav="back" aria-label="Previous"
           dangerouslySetInnerHTML={{ __html: icon('chevron-left') }} />
-        <button ref={fwd} type="button" data-photo-nav="fwd" aria-label="下一张"
+        <button ref={fwd} type="button" data-photo-nav="fwd" aria-label="Next"
           dangerouslySetInnerHTML={{ __html: icon('chevron-left') }} />
       </div>
       <div data-photo-bar="">
         <button ref={toggle} type="button" data-photo-detail-toggle="" aria-expanded="false" aria-controls={detailId}
-          aria-haspopup="dialog" aria-label="图片详情" title="图片详情" dangerouslySetInnerHTML={{ __html: icon('info') }} />
+          aria-haspopup="dialog" aria-label="Image details" title="Image details" dangerouslySetInnerHTML={{ __html: icon('info') }} />
         <div>
           <div data-photo-count="" aria-live="polite">{`${active + 1} / ${slides.length}`}</div>
-          {many ? <div ref={pagination} data-photo-pagination="" aria-label="选择图片" /> : null}
+          {many ? <div ref={pagination} data-photo-pagination="" aria-label="Pick images" /> : null}
         </div>
         <div data-photo-zoom="">
-          <button type="button" data-zoom-step="-1" aria-label="缩小"
+          <button type="button" data-zoom-step="-1" aria-label="Zoom out"
             onClick={() => apply(percent - PHOTO_ZOOM_STEP)} dangerouslySetInnerHTML={{ __html: icon('zoom-out') }} />
           <input ref={range} type="range" min={PHOTO_ZOOM_MIN} max={PHOTO_ZOOM_MAX} step="1" value={percent}
-            aria-label="缩放" onChange={(event) => apply(Number(event.currentTarget.value))} />
-          <button type="button" data-zoom-step="1" aria-label="放大"
+            aria-label="Zoom" onChange={(event) => apply(Number(event.currentTarget.value))} />
+          <button type="button" data-zoom-step="1" aria-label="Zoom in"
             onClick={() => apply(percent + PHOTO_ZOOM_STEP)} dangerouslySetInnerHTML={{ __html: icon('zoom-in') }} />
           <b data-photo-zoom-readout="">{`${percent}%`}</b>
-          <button type="button" data-photo-scale="fit" aria-label="适应窗口" title="适应窗口"
+          <button type="button" data-photo-scale="fit" aria-label="Fit to window" title="Fit to window"
             onClick={() => apply('fit')} dangerouslySetInnerHTML={{ __html: icon('maximize') }} />
-          <button type="button" data-photo-scale="original" aria-label="原大小" title="原大小"
+          <button type="button" data-photo-scale="original" aria-label="Original size" title="Original size"
             onClick={() => apply(100)}>1:1</button>
         </div>
       </div>
-      {/* 图片详情只展示安全元数据，定位只把 asset id 交给服务端：绝不能为了显示路径把 ledger
-          的本机绝对路径送进浏览器。标题按这一张换一个元素：中段省略（`src/ui-kit/middle-truncate.ts`）
-          会改写它的文字，同一个元素上 React 再改字就对不上了。 */}
+      {/* Image details only show safe metadata, and locating only hands the asset id to the server: the ledger's local absolute paths must never
+          reach the browser just to show a path. The title gets a fresh element per image: middle truncation (`src/ui-kit/middle-truncate.ts`)
+          rewrites its text, and React writing text again on the same element would desync. */}
       <section ref={panel} id={detailId} data-photo-detail="" role="dialog" aria-modal="false"
         aria-labelledby={`${detailId}-title`} hidden>
         <div data-photo-detail-copy="">
@@ -259,7 +260,7 @@ function PhotoLightbox({ slides, index, Swiper, host: actions }: {
         </div>
         <button type="button" data-photo-reveal="" hidden={!asset || !actions}
           onClick={(event) => void reveal(event.currentTarget)}
-          dangerouslySetInnerHTML={{ __html: (busy ? spinnerHtml('正在定位') : icon('folder-open')) + revealLabel }} />
+          dangerouslySetInnerHTML={{ __html: (busy ? spinnerHtml('Locating') : icon('folder-open')) + revealLabel }} />
         <span data-photo-status="" aria-live="polite">{status.at === active ? status.text : ''}</span>
       </section>
       <div ref={stripEl} className="swiper" data-photo-strip="">

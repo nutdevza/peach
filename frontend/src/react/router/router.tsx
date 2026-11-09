@@ -1,24 +1,31 @@
-/* 客户端导航（ADR-0031「React Router 外壳阶段接管」）：React Router 的 Declarative 模式接管 history。
- * 管理区那几页、播放列表页与关注页、索引页与资料页、目录网格与垃圾队列，以及页面里的页面内组件（首页筛选条、
- * 首页新作行、顶栏搜索下拉）与常驻组件（后台任务、底部批量条、侧栏配色卡、管理区页头、沉浸模式、设置面板、
- * 侧栏、详情舞台）（`managed-routes.tsx`）由这棵树画。每一页、沉浸模式与详情覆盖都由路由按匹配打开
- * （`pages/` 下各元素），壳不接派发：它只订阅历史同步标题与侧栏，换页时写地址。
+/* Client-side navigation (ADR-0031, "React Router shell-stage takeover"): React Router's Declarative mode takes over history.
+ * The management pages, the playlists and follows pages, the index and profile pages, the catalog grid and the junk queue, plus
+ * the in-page components inside those pages (home filter bar, home new-releases row, top-bar search dropdown) and the resident
+ * components (background tasks, bottom batch bar, sidebar color card, management header, immersive mode, settings panel,
+ * sidebar, details stage) (`managed-routes.tsx`) are rendered by this tree. Every page, immersive mode and the details overlay
+ * open by route match (the elements under `pages/`); the shell does no dispatching: it only subscribes to keep the title and
+ * sidebar in sync with history and writes the address when the page changes.
  *
- * 用底层的 `<Router>`，history 是 `@peach/history` 那一份：应用启动时就要写地址，`<BrowserRouter>`
- * 自己建的 history 只听 `popstate`，看不见壳 push 进去的条目。也不用 `unstable_HistoryRouter`：它的更新
- * 默认包在 `startTransition` 里，接连两次变化会并成一次渲染，后退前进就少开一次。
+ * The low-level `<Router>` is used and history is the `@peach/history` instance: the address must be written at app startup,
+ * while a history `<BrowserRouter>` builds itself only listens for `popstate` and never sees entries the shell pushes.
+ * `unstable_HistoryRouter` is not used either: its updates are wrapped in `startTransition` by default, so two changes in a row
+ * coalesce into one render and back/forward would open one step fewer.
  *
- * 页面宿主是两组 `<Routes>` 的兄弟，从头活到尾：画着的页面跟着登记的那几条走（`@peach/history` 的
- * `openManagedRoute`，每个容器一条），详情舞台压在上面、地址换成 `/assets/:id` 时它留在原处。
+ * The page host is a sibling of the two `<Routes>` groups and lives for the whole session: rendered pages follow the entries
+ * registered here (`@peach/history`'s `openManagedRoute`, one per container), and when the details stage stacks on top and the
+ * address changes to `/assets/:id`, the page stays in place.
  *
- * 路由分两组：页面组按条目自己记的背景（`usr.backgroundLocation`，启动那一条不读）匹配，详情压在哪一页上就还
- * 匹配那一页，背景页不重挂；覆盖组按真实地址匹配详情与队列那几条（`OVERLAY_PATHS`，`pages/overlay.tsx`）。页面组
- * 里管理区、关注、索引、资料、目录与沉浸各挂按地址打开那一页的元素（`pages/managed.tsx`、`pages/follow.tsx`、
- * `pages/index-entity.tsx`、`pages/catalog.tsx`、`pages/immerse.tsx`）；没有背景的覆盖地址也在页面组里挂一格：
- * 作品与队列补画目录网格，关注详情只让出 `#stats`。`path="*"` 是认不出的地址，什么都不打开。
+ * Routes come in two groups: the page group matches on the background recorded by the entry itself (`usr.backgroundLocation`,
+ * the startup entry does not read it), so the page the details stack on keeps matching and the background page is not
+ * remounted; the overlay group matches the details and queue entries on the real address (`OVERLAY_PATHS`, `pages/overlay.tsx`).
+ * In the page group, management, follows, index, profile, catalog and immersive each mount the element that opens that page by
+ * address (`pages/managed.tsx`, `pages/follow.tsx`, `pages/index-entity.tsx`, `pages/catalog.tsx`, `pages/immerse.tsx`);
+ * overlay addresses without a background also get a slot in the page group: videos and queues backfill the catalog grid, and
+ * follow details only yield `#stats`. `path="*"` is an unrecognized address; nothing opens.
  *
- * 一处渲染错误只带走抛错的那一面：每一面各套一层错误边界（`SurfaceBoundary`），根上不套，两组 `<Routes>` 不随
- * 某一面卸掉。错误经根的 `onCaughtError` 交给 `reportError`，每次一条。 */
+ * One render error only takes down the surface that threw: each surface wraps its own error boundary (`SurfaceBoundary`), the
+ * root has none, and the two `<Routes>` groups do not unmount because one surface did. Errors go through the root's
+ * `onCaughtError` to `reportError`, one per occurrence. */
 import {
   Component, createContext, memo, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
   type RefObject,
@@ -48,23 +55,23 @@ import {
 import { FollowDetailGround, OverlayMatch, QueueRequests } from './pages/overlay';
 import type { ShellActions } from './shell-actions';
 
-/* 页面打开序号（`@peach/history` 的 `openEpoch`）：没人认领的历史变化各领一个，认领的写地址不领。地址没变的
- * `popstate`（同一条目重放）不会让 Router 的 location 变，代次照样变，按它挂 key 的元素照样重开。 */
+/* Page-open sequence number (`@peach/history`'s `openEpoch`): unclaimed history changes each take one; claimed address writes take none. A `popstate` with an unchanged address
+ * (the same entry replayed) does not change the Router's location, but the generation still changes, and elements keyed by it still reopen. */
 const OpenEpoch = createContext(0);
 
-/** 当前这一页是第几次打开：页面元素按它挂 key，重开就重挂，认领的写地址（页内 replace 写参数）不重挂。 */
+/** How many times this page has been opened: page elements key on it, so a reopen remounts; claimed address writes (in-page replace of params) do not remount. */
 export const useOpenEpoch = (): number => useContext(OpenEpoch);
 
-/** 壳交进来的能力，管理区那几页经它回到壳。 */
+/** Capabilities handed in by the shell; the admin pages go back to the shell through them. */
 export const ShellActionsContext = createContext<ShellActions | null>(null);
 
-/** 路由根在历史变化的同一调用里同步提交（`flushSync`）：`shellNavigate` 与后退前进返回时，两组 `<Routes>`
- *  的匹配已经换成新地址，上一页的元素已经卸掉，壳接着往同一个容器里写骨架不会撕掉 React 还管着的节点。
- *  元素的打开不在这一次提交里跑，各自排进提交之后的微任务。 */
+/** The route root commits synchronously in the same call as the history change (`flushSync`): by the time `shellNavigate` and back/forward return, both sets of `<Routes>`
+ *  have matched against the new address and the previous page's elements are unmounted, so the shell writing a skeleton into the same container will not tear nodes React still manages.
+ *  Element opens do not run inside this commit; each queues into the microtask after the commit. */
 export function PeachRouter({ children }: { children: ReactNode }) {
   const [navigation, setNavigation] = useState<Navigation>(() => peachHistory.navigation);
   useLayoutEffect(() => {
-    /* 从读初值到这里订阅之间有过变化的话，补上最新那一次。 */
+    /* If anything changed between reading the initial value and subscribing here, apply the latest one. */
     setNavigation(peachHistory.navigation);
     return peachHistory.listen((next) => { flushSync(() => setNavigation(next)) });
   }, []);
@@ -77,27 +84,29 @@ export function PeachRouter({ children }: { children: ReactNode }) {
   );
 }
 
-/* 跟着地址重渲染的只有这一格：它把当前的 `navigate` 交给管理区宿主，宿主与页面不随导航重渲染。 */
+/* The only cell that rerenders with the URL: it hands the current `navigate` to the manage area host, and the host and page do not rerender on navigation. */
 function NavigateInto({ target }: { target: RefObject<NavigateFunction | null> }) {
   const navigate = useNavigate();
   useLayoutEffect(() => { target.current = navigate });
   return null;
 }
 
-/** 管理区页面里的跳转：落在管理区那几页上的交给 React Router，别的路径交 `actions.navigate`。两条路都不认领，
- * 各领一个页面打开序号，打开次数与后退前进相同。 */
+/** Navigation inside managed-area pages: paths landing on managed pages go to React Router, everything else goes to `actions.navigate`. Neither path claims it, so
+ *  each gets its own page-open sequence number; open counts match back/forward. */
 export function managedGo(path: string, actions: ShellActions, navigate: NavigateFunction): void {
   const target = new URL(path, window.location.href);
   if (!isManagedPath(target.pathname)) { actions.navigate(path); return }
   void navigate(`${target.pathname}${target.search}${target.hash}`);
 }
 
-/** 页面宿主：画壳在各个容器里登记的那一页（`#stats`、`#index`、`#grid` 与各页面内组件的容器各一页，互不相收）。
+/** The page host: renders the page the shell registered in each container (`#stats`, `#index`, `#grid` and one per in-page
+ *  component's container, never tearing each other down).
  *
- * 换页与收起都由 `@peach/history` 同步通知，这里用 `flushSync` 当场画完：壳在同一个任务里刚换上宿主
- * （或刚撤掉它），晚一拍画就是一帧空白。每次打开领一个代次，页面按代次重挂，首屏读的是刚取回的缓存。
- * 就地更新（`updateManagedRoute`）只换那一页的 props、代次不变，照常排进下一次渲染：壳的开关可能就是从
- * 页面自己的 effect 里推过来的，那里不能 `flushSync`。 */
+ *  Page changes and teardown are notified synchronously by `@peach/history`, and this renders to completion with `flushSync`
+ *  on the spot: the shell just swapped the host in (or just withdrew it) within the same task, and rendering a beat later would
+ *  be a blank frame. Each open takes a generation, pages remount per generation, and the first screen reads the just-fetched
+ *  cache. In-place updates (`updateManagedRoute`) only swap that page's props with the generation unchanged and queue into the
+ *  next render as usual: the shell's toggles may be pushed from the page's own effect, where `flushSync` is not allowed. */
 function ManagedSurface() {
   const actions = useContext(ShellActionsContext);
   const [entries, setEntries] = useState<readonly ManagedEntry[]>(managedEntries);
@@ -123,8 +132,8 @@ function ManagedSurface() {
   );
 }
 
-/** 一面一层的错误边界。接住之后这一面画成空，并撤掉它的登记与宿主（`failManagedRoute`），壳下次打开时重开；
- *  按代次挂 key，重开就是一个新的边界实例。上报不在这里：根的 `onCaughtError` 已经报过一次。 */
+/** A one-surface-per-layer error boundary. Once caught, that surface paints empty and its registration and host are withdrawn (`failManagedRoute`), reopening the next time the shell opens it;
+ *  keyed by generation, so a reopen is a fresh boundary instance. Reporting is not here: the root's `onCaughtError` already reported once. */
 class SurfaceBoundary extends Component<{ entry: ManagedEntry; children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
 
@@ -148,51 +157,51 @@ const ManagedPortal = memo(function ManagedPortal(
   return createPortal(managedPage(entry.path, entry.props, actions, go), entry.host, String(entry.revision));
 });
 
-/* 页面组的 `location` 一直给（没有背景就给当前地址）：给与不给之间 `<Routes>` 会多包一层 `LocationContext`，
- * 来回切换就会把页面元素拆掉重挂。背景读的是当前条目（`navigationBackground`），启动那一条当作没有。
- * 两组按页面分段，段与段之间隔开几行。 */
+/* The page group's `location` is always given (current address when there is no background): without it `<Routes>` wraps an extra `LocationContext`,
+ * and toggling back and forth would tear down and remount page elements. The background reads the current entry (`navigationBackground`); the startup entry counts as none.
+ * The two groups are segmented by page, with a few blank lines between segments. */
 function RouteGroups({ children }: { children?: ReactNode }) {
   const location = useLocation();
-  // 同一条目重放时地址不变、`useLocation` 不触发重渲染，代次照样变：启动那一条重放之后要开始读背景。
+  // Replaying the same entry keeps the URL unchanged and `useLocation` silent, yet the epoch still changes: after the startup entry replays, background reading has to begin.
   useOpenEpoch();
   const background = navigationBackground();
   const settingsBackground = isPreferencePath(location.pathname) && !bootEntry() ? settingsBackgroundOf(location.state) : null;
   return (
     <>
       <Routes location={background ?? location}>
-        {/* ── 管理区 ── */}
+        {/* ── Management area ── */}
         {Object.entries(MANAGED_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
         {/* 资源同步的旧直达地址转到数据管理下的二级页。 */}
         {Object.entries(REDIRECT_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
 
 
 
-        {/* ── 关注 ── */}
+        {/* ── Follows ── */}
         {Object.entries(BROWSE_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
 
 
 
-        {/* ── 索引 ── */}
+        {/* ── Index ── */}
         {Object.entries(INDEX_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
 
 
 
-        {/* ── 资料 ── */}
+        {/* ── Profile ── */}
         {Object.entries(ENTITY_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
 
 
 
-        {/* ── 目录 ── 六条路径挂同一个元素（`pages/catalog.tsx`），换路径不重挂，元素按页面自己分 key。 */}
+        {/* ── Catalog ── six paths mount the same element (`pages/catalog.tsx`); switching paths does not remount, and the element keys by page itself. */}
         {CATALOG_PATHS.map((path) => <Route key={path} path={path} element={CATALOG_ROUTES['/'].element} />)}
 
 
 
-        {/* ── 沉浸 ── */}
+        {/* ── Immersive ── */}
         {Object.entries(IMMERSE_ROUTES).map(([path, route]) => <Route key={path} path={path} element={route.element} />)}
 
 
 
-        {/* ── 没有背景的覆盖地址 ── 作品与队列挂目录元素，补画网格；关注详情只让出 `#stats`。 */}
+        {/* ── Overlay addresses with no background ── video and queue mount on the catalog element and paint the grid back in; follow details only yields `#stats`. */}
         {OVERLAY_PATHS.map((path) => (
           <Route key={path} path={path} element={path === '/works/:code' ? null
             : path === '/posts/:id' ? <FollowDetailGround /> : CATALOG_ROUTES['/'].element} />
@@ -201,13 +210,13 @@ function RouteGroups({ children }: { children?: ReactNode }) {
 
 
 
-        {/* 认不出的地址。`children` 只给测试用。 */}
+        {/* An unrecognized address. `children` is for tests only. */}
         <Route path="*" element={children} />
       </Routes>
 
 
 
-      {/* ── 覆盖 ── */}
+      {/* ── Overlay ── */}
       <Routes location={settingsBackground ?? location}>
         {OVERLAY_PATHS.map((path) => <Route key={path} path={path} element={<OverlayMatch path={path} />} />)}
         <Route path="*" element={null} />
@@ -220,7 +229,7 @@ function RouteGroups({ children }: { children?: ReactNode }) {
   );
 }
 
-/** 整棵路由树。`children` 画在页面组 `path="*"` 的元素里面，只给测试用：跟着它挂一次就说明元素没被重挂。 */
+/** The whole route tree. `children` renders inside the page group's `path="*"` element, for tests only: mounting once along with it proves the element was not remounted. */
 export function RouterRoot({ children, actions = null, background, processing = false }:
   { children?: ReactNode; actions?: ShellActions | null; background?: ReactNode; processing?: boolean }) {
   return (
@@ -243,8 +252,8 @@ export function RouterRoot({ children, actions = null, background, processing = 
   );
 }
 
-/** 路由树那棵根的选项。错误边界接住的错误交给全局 `reportError`，和没人接住时 React 的上报同一条路，
- *  控制台与 window 的 `error` 事件各见一次。运行时才取 `reportError`：测试环境里可能没有它。 */
+/** The route tree root's options. Errors caught by the error boundary go to the global `reportError`, the same path as React's uncaught report,
+ *  seen once each by the console and window's `error` event. `reportError` is fetched at runtime: the test environment may not have it. */
 export const ROUTER_ROOT_OPTIONS: RootOptions = {
   onCaughtError: (error) => { globalThis.reportError?.(error) },
 };

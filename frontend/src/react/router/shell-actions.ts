@@ -1,9 +1,9 @@
-/* Application 交给路由树的能力，经 Context 下发给路由树画的那几页。
+/* Capabilities Application hands the route tree, delivered via Context to the pages it renders.
  *
- * 这里只放两类东西：换到还归壳的那一屏（目录、资料页、详情、关注、垃圾文件），和只有壳才有的
- * 状态或回执（Toast、偏好存储、一次性上下文）。纯查表的助手（`tagLabel`、`javTitleHtml`）由页面
- * 从 `@peach/legacy/*` 直接 import；每次打开才算得出的值（只读状态、地址上的分类与页签、引导标记）
- * 跟着那一次打开走，不在这里。 */
+ * Only two kinds of things live here: switching to screens still owned by the shell (catalog, profile page, details, follows,
+ * junk files), and state or receipts only the shell has (Toast, preference store, one-shot context). Pure lookup helpers
+ * (`tagLabel`, `javTitleHtml`) are imported by pages directly from `@peach/legacy/*`; values computable only per open
+ * (read-only state, the category and tab on the address, onboarding flags) follow that open and stay out of here. */
 
 import type { OverlayTarget } from '@peach/history';
 import type { ConfigurationPath } from '@peach/history';
@@ -22,146 +22,145 @@ import type { SearchProps } from '../search/search';
 export interface ShellActions {
   openSettings?(section: string): Promise<unknown>;
   closeSettings?(): void;
-  /** 打开作品详情（舞台）。 */
+  /** Open video details (stage). */
   openItem(id: number): void;
-  /** 打开实体资料页。`kind` 是 `creator`／`performer` 等。 */
+  /** Opens an entity profile page. `kind` is `creator`/`performer` and so on. */
   openEntity(kind: string, name: string): void;
-  /** 回目录并按这个标签筛选。 */
+  /** Return to catalog filtered by this tag. */
   openTag(key: string): void;
-  /** 口味页点一条名次：标签回目录筛选，人名进资料页。 */
+  /** Clicking a rank on the taste page: a tag filters the catalog, a person's name opens their profile page. */
   openTasteSignal(kind: string, name: string): void;
-  /** 换到一个路径：push 一条不认领的地址，像后退前进一样领一个页面打开序号，由页面组按匹配打开那一页。 */
+  /** Moves to a path: pushes an unclaimed URL, draws a page open counter just like back and forward, and the page group opens the matching page by match. */
   navigate(path: string): void;
-  /** 按管理区身份进一屏（路由表里 `section` 等于它的第一条；认不出的落到垃圾文件）。 */
+  /** Enter a screen by manage-area identity (the first route in the table whose `section` equals it; unrecognized identities fall to junk files). */
   openManage(section: string): void;
-  /** 管理区身份对应的路径；路由表里没有这个身份时是空串。 */
+  /** The path matching an admin identity; an empty string when the route table has no such identity. */
   managePath(section: string): string;
-  /** 去「看更新」那一页（`/follow`）。 */
+  /** Go to the "view updates" page (`/follow`). */
   openFollow(): void;
-  /** 过去时回执（`actionReceipt`）；给了 `undo` 就带一颗撤销键。 */
+  /** A past-tense receipt (`actionReceipt`); with `undo` given it carries an undo button. */
   receipt(message: string, options?: { undo?: () => Promise<void> }): void;
-  /** 全站 Toast 原样（`toast`）：`sound` 选提示音。 */
+  /** The site-wide Toast as-is (`toast`): `sound` picks the alert tone. */
   toast(message: string | { text: string }, options?: { sound?: string }): void;
-  /** 失败回执（`actionFailure`）：`action` 是没做成的那件事。 */
+  /** A failure receipt (`actionFailure`): `action` is the thing that did not go through. */
   failure(action: string, error: unknown): void;
-  /** 在资源管理器里显示这个文件，失败回一句原因。 */
+  /** Show this file in Explorer; on failure, return the reason. */
   revealSource(id: number): Promise<string>;
-  /** 让安装教程重新出现。 */
+  /** Make the setup guide appear again. */
   reopenTutorial(): Promise<void>;
-  /** 复核页把分类写回地址栏，不重开。 */
+  /** The review page writes the category back to the address bar instead of reopening. */
   routeReview(params: { category: string; queue?: string }): void;
-  /** 关注管理页把页签、页码与排序写回地址栏，不重开。 */
+  /** The follows management page writes tab, page number, and sort back to the address bar without reopening. */
   routeFollowManage(params: { tab: string; page: number; sort: string; dir: string }): void;
-  /** 关注管理页的偏好改了，存储归壳。 */
+  /** Preferences changed on the follows management page; storage is owned by the shell. */
   saveFollowPreference(patch: { pageSize?: number; layout?: string }): void;
-  /** 来源徽标（含计费标记）的 HTML。 */
+  /** The HTML of the source badge (including the paid marker). */
   srcBadge(location: string, cost: string): string;
-  /** 索引页把过滤词、范围、视图与类型写回地址栏，不重开。`replace` 用在打字过滤那种一路改写的场合。 */
+  /** The index page writes the filter term, scope, view, and type back to the URL bar without reopening. `replace` is for cases like typed filtering, where every step rewrites. */
   routeIndex(params: IndexRoute, options?: { replace?: boolean }): void;
-  /** 索引页的版式偏好改了，存储归壳（资料页的名册读的也是它）。 */
+  /** When the index page's layout preference changes, storage belongs to the shell (the profile page's roster reads it too). */
   savePeopleLayout(patch: { layout: PeopleLayout }): void;
-  /** 退出顶栏的选择模式：键归壳。 */
+  /** Exit top bar selection mode: keys go back to the shell. */
   exitSelectMode(): void;
-  /** 本地名册一格的头像（圆框里那段 HTML 与人脸取景），回落链在壳里只有一份。 */
+  /** A local roster cell's avatar (the HTML inside the round frame and the face framing); the fallback chain lives in the shell, one copy. */
   personAvatar(item: IndexPerson, entityKind: string, big: boolean): PersonAvatar;
-  /** 在线创作者一格的头像 HTML：主页头像优先、归档兜底，都取不到落回首字母。 */
+  /** The avatar HTML for an online creator cell: profile avatar first, archive as fallback, and the initial letter when neither exists. */
   authorAvatar(author: OnlineAuthor): string;
-  /** 回目录，按这一枚或这几枚本地标签筛选。 */
+  /** Back to the catalog, filtered by this one or these local tags. */
   showIndexTags(tags: string[], match: 'any' | 'all'): void;
-  /** 去关注页，只看这一位创作者或这一枚在线标签的更新。 */
+  /** Go to the follows page filtered to updates from this creator or this online tag only. */
   openFollowAuthor(key: string): void;
   openFollowTag(tag: string): void;
-  /** 打开一份播放列表的播放队列（舞台），从 `resumeAssetId` 那一个接着播。 */
+  /** Open a playlist's playback queue (the stage), resuming from the `resumeAssetId` one. */
   openPlaylist(id: number, resumeAssetId: number): void;
-  /** 此刻能不能悬停翻页：壳的多选、遮挡、减少动效与滚动中都回 false。 */
+  /** Whether hover paging is allowed right now: returns false during shell multi-select, occlusion, reduced motion and scrolling. */
   canFlip(): boolean;
-  /** 页面组换了一页：路由树里的页面元素挂上、开始取数之前报一次。壳收起上一页留下的面（悬停预览、在途读请求、
-   *  首页新作行、别的容器里那一页），再按种类铺开：管理区、关注页与播放列表页铺 `#stats`，索引页、
-   *  资料页与目录铺首页那一侧。 */
+  /** The page group changed pages: reported once when the route tree's page element mounts, before it starts fetching. The shell retracts the previous page's surfaces (hover preview, in-flight read requests,
+   *  the home new-releases row, that page in other containers), then expands by kind: admin, follows, and playlist pages lay out `#stats`; index, profile, and catalog lay out the home side. */
   surfaceChanged(kind: SurfaceKind, path: string): void;
-  /** 清空顶栏搜索框（带散开的残影）。 */
+  /** Clear the top bar search box (with a dispersing afterimage). */
   clearSearch(): void;
-  /** 打开沉浸模式，从 `id` 那一条开始；不给就从头。地址由调用方负责。 */
+  /** Opens immersive mode starting at the `id` entry; from the top when omitted. The caller owns the address. */
   openImmerse(id?: number): void;
-  /** 打开覆盖地址上的那一条（作品详情、队列里的一条或关注详情），地址已经在那里，不再写。 */
+  /** Opens the item at the overlay address (video detail, a queue item, or follow detail); the address is already there and is not written again. */
   openOverlay(target: OverlayTarget): void;
-  /** 取走一次队列打开意图：等待队列定下实际条目，首屏确定后才写详情地址。 */
+  /** Consumes one queue-open intent: wait for the queue to settle its actual entries, then write the detail address only after the first screen is determined. */
   openQueueRequest?(): void;
-  /** 详情舞台开着就收起（正在放的视频照旧进小窗），不写地址。 */
+  /** Collapse while the details stage is open (the playing video still goes to the mini player), without writing the address. */
   closeStage(): void;
-  /** 目录网格卡片的助手与动作：壳里各一份、身份不变（卡片按引用比较），资料页作品区与目录共用。 */
+  /** Helpers and actions for catalog grid cards: one each in the shell with stable identity (cards compare by reference), shared by the profile page's video section and the catalog. */
   readonly grid: { helpers: MediaCardHelpers; actions: MediaCardActions };
 
-  // ── 索引页与资料页的元素用（`pages/index-entity.tsx`）：取的都是只有壳才有的状态 ──
-  /** 本机能不能改配置：壳启动时探过一次的那个值，索引页交给页面。 */
+  // ── Element helpers for the index and profile pages (`pages/index-entity.tsx`): everything they read is state only the shell has ──
+  /** Whether this machine can change settings: the value probed once at shell startup, handed from the index page to the page. */
   configurable?(): boolean;
-  /** 元素打开的那一页首屏画上之后报一次：索引页让壳同步侧栏与顶栏、排吸顶；资料页让壳按这一页的语境重画顶部
-   *  三层。 */
+  /** Reports once after the opened page's first screen has painted: index pages have the shell sync the sidebar and top bar and arrange stickiness; profile pages have the shell repaint the top
+   *  three layers for this page's context. */
   surfaceShown?(kind: 'index' | 'entity', path: string): void;
-  /** 资料页那几样仍在壳里的东西。 */
+  /** The profile page pieces that still live in the shell. */
   readonly entity?: EntityPageShell;
 
-  // ── 关注与播放列表用（`pages/follow.tsx`）──
-  /** 关注页那几样仍在壳里的东西。 */
+  // -- Used by follows and playlist (`pages/follow.tsx`) --
+  /** The follows page pieces that still live in the shell. */
   readonly follow?: FollowFeedShell;
 
-  // ── 目录用（`pages/catalog.tsx`）：来源在线表、搜索框、顶部三层与取数都还在壳里 ──
-  /** 首页、三个筛选态、回收站与垃圾文件打开与重取时回到壳的那几步。 */
+  // ── Catalog use (`pages/catalog.tsx`): the source online table, search box, top three tiers, and fetching all still live in the shell ──
+  /** The steps that hand control back to the shell when the home page, three filter states, trash, and junk files open or refetch. */
   readonly catalog?: CatalogShell;
 }
 
-/** 关注页元素打开时回到壳的那几步。筛选的那一份由壳从地址读进自己的变量（回到关注页时按它写地址，侧栏、标签
- *  抽屉与关注详情也读它），选择集、照片墙偏好与页面借用的助手和动作也都在壳里；进页骨架与冷启动铺的是同一张。 */
+/** What the follows page element hands back to the shell on open. The filters copy is read from the address into the shell's own variables (used to write the address when returning to the follows page; the sidebar, tag
+ *  drawer, and follows details read it too), and the selection sets, photo wall preference, and the helpers and actions the page borrows also live in the shell; the entry skeleton and cold start lay the same one. */
 export interface FollowFeedShell {
-  /** 按地址读一遍筛选。关注页还画在 `#stats` 里（资料页压过来时只藏起来）就铺开它，把筛选、取样种子与一个新的
-   *  刷新代次推过去，照片墙跟上、回到顶上，回 true；没画着回 false，由元素整页打开。 */
+  /** Read the filters from the address. If the follows page is still painted in `#stats` (only hidden when the profile page covers it), expand it, pushing over
+ *  the filters, sampling seed, and a new refresh generation; the photo wall follows and returns to the top, returning true; if not painted, return false and the element opens the whole page. */
   refresh(restored?: Pick<FollowFeedProps, 'view' | 'seed' | 'revision'>): boolean;
-  /** 进页骨架。 */
+  /** The page-entry skeleton. */
   skeleton(): string;
-  /** 整页打开交给页面的 props：筛选、取样种子与刷新代次、选择集、照片墙偏好，以及壳里那一份助手与动作。 */
+  /** Props handed to the page on a full-page open: filters, the sampling seed and refresh epoch, the selection set, the photo wall preference, and the shell's own copy of helpers and actions. */
   props(): FollowFeedProps;
-  /** 关注详情下面那一层（深链、或后退前进落到关注详情上时列表没画着）：舞台上开着的不是关注详情就先收起，再铺开
-   *  管理区那一侧；列表还画在 `#stats` 里就原样留着，没画着就清空 `#stats`，列表等关掉详情才打开。 */
+  /** The layer under follows details (deep link, or back/forward landing on follows details while the list is not painted): if the stage's open surface is not follows details, retract it first, then expand
+   *  the admin side; if the list is still painted in `#stats` leave it as is, otherwise clear `#stats`, and the list waits for details to close before opening. */
   ground(): void;
 }
 
-/** 目录元素回到壳的那几步。筛选由元素按地址写进 `@peach/shell` 的 `state`，之后的事归壳。 */
+/** The steps by which the catalog element hands back to the shell. Filters are written by the element into `@peach/shell`'s `state` per the URL; everything after that belongs to the shell. */
 export interface CatalogShell {
-  /** 地址没写 `loc` 时的来源：缺省那几个里摘掉此刻脱盘的（壳在启动与重新检测时记下的那一份）。 */
+  /** Sources used when the address carries no `loc`: the defaults minus whichever are off disk right now (the snapshot the shell records at startup and on re-detection). */
   defaultLoc(): string;
-  /** 按刚写好的 `state` 打开这一页：从别处回到首页（`entering`）先作废顶部三层的缓存；回收站清空搜索框并铺开首页
-   *  那一侧，其余页把搜索框对齐 `state.q`；再同步侧栏与顶栏、重画顶部三层、取目录。`retitle`：地址刚由元素改写，
-   *  标题与教程状态跟着重读。 */
+  /** Open this page against the freshly written `state`: returning home from elsewhere (`entering`) first invalidates the top three layers' cache; trash clears the search box and expands the home
+   *  side; other pages align the search box to `state.q`; then sync sidebar and top bar, repaint the top three layers, and fetch the catalog. `retitle`: the address was just rewritten by an element,
+   *  so title and tutorial state are re-read along. */
   open(path: string, options?: { entering?: boolean; retitle?: boolean }): void | Promise<void>;
-  /** 筛选与地址已经由壳写好：按它们重取目录。 */
+  /** Filters and address are already written by the shell: refetch the catalog from them. */
   load(): void | Promise<void>;
-  /** 没有背景的作品详情与队列地址（深链、刷新）下面补画目录网格：网格没被占着、又是启动那一条或还铺着目录骨架时，
-   *  按当前地址取一次（不是首页口径，不写筛选）。 */
+  /** Video details and queue URLs with no background (deep link, refresh) draw the catalog grid beneath: when the grid is unoccupied, and it is the startup entry or the catalog skeleton is still up,
+   *  fetch once by the current URL (not the home-page scope, no filters written). */
   fill(): void;
-  /** 离开目录：收起 `#grid` 那一页与首页新作行。 */
+  /** Leaving the catalog: collapse the `#grid` page and the home new releases row. */
   release(): void;
 }
 
-/** 资料页元素打开时回到壳的那几步。骨架里可有可无的几块按形状名单画，名单、目录卡片的比例与新作骨架都在壳里；
- *  筛选按地址解出要用壳的排序偏好；就地推要动壳的顶部三层与侧栏。 */
+/** The steps that return to the shell when the profile page element opens. Optional skeleton blocks are drawn by a shape manifest; the manifest, catalog card ratios and the new-releases skeleton live in the shell;
+ *  resolving filters from the URL needs the shell's sort preferences; pushing in place touches the shell's top three layers and sidebar. */
 export interface EntityPageShell {
   missing(kind: string): void;
-  /** 铺进页骨架：形状名单还在路上时先等它一下，`current` 回 false 就不铺了；铺完重取一遍名单，回来时补齐骨架
-   *  里那几块。 */
+  /** Lay the page skeleton: if the shape roster is still in flight, wait for it, and skip laying when `current` comes back false; after laying, refetch the roster once and fill in the missing blocks
+   *  of the skeleton when it returns. */
   loading(kind: string, name: string, current: () => boolean): Promise<void>;
-  /** 这一次打开交给页面的 props：筛选与视图按地址上的查询串解出（从别处点进来的那一次一律从头），展示设置、
-   *  助手与写操作都是壳的那一份。卡片与宿主由元素补上。 */
+  /** Props handed to the page for this open: filters and views resolved from the URL's query string (arrivals from elsewhere always start fresh), with display settings,
+   *  helpers and write operations all the shell's own. Cards and hosts are filled in by the element. */
   props(kind: string, name: string, search: string): Omit<EntityPageProps, 'card' | 'hosts'>;
-  /** 后退前进落在画着的同一位的另一份地址上：把地址上的筛选与视图推给画着的那一页，顶部三层与侧栏跟着就地改。
-   *  这一页没画着时回 false，由元素整页重开。 */
+  /** Back/forward landing on another URL for the same person already on screen: push the URL's filters and views into the rendered page, with the top three layers and sidebar updated in place.
+   *  Returns false when that page is not on screen, and the element reopens it as a full page. */
   refresh(kind: string, name: string, search: string): boolean;
 }
 
-/** 页面组里一页的种类，壳按它决定铺哪一侧（`surfaceChanged`）。 */
+/** A page's kind within the page group; the shell decides which side to lay by it (`surfaceChanged`). */
 export type SurfaceKind = 'management' | 'index' | 'entity' | 'catalog' | 'follow' | 'playlists';
 
-/** 管理区那几页每次打开时交给页面的值，由页面元素从地址、偏好与壳的状态算（`pages/managed.tsx`），按页面分。
- *  管理区那几页画进 `#stats`。 */
+/** The values handed to the managed-area pages on each open, computed per page by the page element from the URL, preferences and shell state (`pages/managed.tsx`).
+ *  The managed-area pages render into `#stats`. */
 export interface ManagedOpenProps extends Record<ConfigurationPath, { section?: string }>,
   Record<import('../../cleanup-tools').CleanupToolPath, Record<string, never>> {
   '/jav': { tab: string; readOnly: boolean };
@@ -172,7 +171,7 @@ export interface ManagedOpenProps extends Record<ConfigurationPath, { section?: 
   '/duplicates': Record<string, never>;
   '/quality-goals': Record<string, never>;
   '/sources': Record<string, never>;
-  /** `section`：首帧选中的那一组页签名，取走壳里 `configurationRequestedSection` 记下的那一次（地址带 `#peachProxy` 时是「网络与访问」）。 */
+  /** `section`: the tab group selected on the first frame, taking the one recorded in the shell's `configurationRequestedSection` ("Network and access" when the URL carries `#peachProxy`). */
   '/settings/library': { section?: string };
   '/settings/maintenance/repairs': Record<string, never>;
   '/tasks': Record<string, never>;
@@ -184,11 +183,13 @@ export interface ManagedOpenProps extends Record<ConfigurationPath, { section?: 
 
 export type ManagedPath = keyof ManagedOpenProps;
 
-/** 播放列表页与关注页同样画进 `#stats`，但不是管理区：由路由树的元素按匹配打开（`pages/follow.tsx`），从壳里
- *  进来由壳认领写地址再要求重开（关注页回到时带上离开时的筛选，重新进入还要重掷取样种子、回到干净的
- *  `/follow`），所以不进 `ManagedPath`。每次打开交进来的值同样按页面分，之后的开关经 `updateManagedRoute`
- *  推进来。关注页的助手与动作是壳里各一份、身份不变的对象（卡片按引用比较），跟着打开走：它们拼的 HTML、
- *  碰的 DOM 与写的地址都还在壳里。 */
+/** The playlists and follows pages likewise render into `#stats`, but are not management: the route tree's elements open them
+ *  on match (`pages/follow.tsx`); arriving from the shell, the shell claims the address write and then asks for a reopen (the
+ *  follows page returns with the filters from when you left, and re-entering also rerolls the sample seed and returns to a
+ *  clean `/follow`), so they stay out of `ManagedPath`. Values handed in on each open are likewise divided per page, and later
+ *  toggles are pushed in via `updateManagedRoute`. The follows page's helpers and actions are single, identity-stable objects
+ *  in the shell (cards compare by reference) and follow the open: the HTML they assemble, the DOM they touch and the addresses
+ *  they write all still live in the shell. */
 export interface BrowseOpenProps {
   '/playlists': { revision: number };
   '/follow': FollowFeedProps;
@@ -196,14 +197,16 @@ export interface BrowseOpenProps {
 
 export type BrowseRoutePath = keyof BrowseOpenProps;
 
-/** 目录网格与垃圾队列画进 `#grid`，同样不算管理区：目录元素（`pages/catalog.tsx`）按地址把筛选写进壳的
- *  `state`，进首页还要重掷种子，回收站把筛选钉成 `trash`；作废顶部三层的缓存、摆搜索框与取数经
- *  `ShellActions.catalog` 回到壳。表按页面分键，不按
- *  地址：目录各路径与回收站画的都是 `/` 这一页，网格在 `/trash` 打开之后去 `/` 是就地推；`/junk-files`
- *  是垃圾队列那一页，`?state=ads` 落在 `/` 上时画的也是它。打开时交进来的是壳那一整份 props（筛选或
- *  分类、版式、选择态与卡片的助手和动作），之后的换筛选、换版式、选择模式与刷新代次经
- *  `updateManagedRoute` 推进来。卡片的助手与动作是壳里各一份、身份不变的对象（卡片按引用比较），
- *  目录网格那一份资料页的作品区与详情的接着看也在用，所以跟着打开走，不进 `ShellActions`。 */
+/** The catalog grid and junk queue render into `#grid` and likewise do not count as management: the catalog element
+ *  (`pages/catalog.tsx`) writes filters into the shell's `state` per address, entering home also rerolls the seed, and trash
+ *  pins the filter to `trash`; invalidating the top-three-tier cache, laying the search box and fetching go back to the shell
+ *  via `ShellActions.catalog`. The table keys per page, not per address: the catalog's paths and trash all render the `/`
+ *  page, and the grid going to `/` after opening at `/trash` is an in-place push; `/junk-files` is the junk queue page, and
+ *  `?state=ads` landing on `/` renders it too. What is handed in on open is the shell's whole props (filter or category,
+ *  layout, selection state, the cards' helpers and actions); later filter changes, layout changes, selection mode and refresh
+ *  generation are pushed in via `updateManagedRoute`. The cards' helpers and actions are single, identity-stable objects in
+ *  the shell (cards compare by reference); the profile page's video section and the details page's Continue watching reuse
+ *  the catalog grid's copies, so they follow the open and stay out of `ShellActions`. */
 export interface CatalogOpenProps {
   '/': CatalogGridProps;
   '/junk-files': JunkQueueProps;
@@ -211,25 +214,25 @@ export interface CatalogOpenProps {
 
 export type CatalogPagePath = keyof CatalogOpenProps;
 
-/** 索引页每次打开交进来的值：地址栏上的那几项（壳从地址读出）、这台浏览器的版式偏好、顶栏选择键的
- *  现值，和本机能不能改配置。选择键之后的开关经 `updateManagedRoute` 推进来。 */
+/** Values handed in each time an index page opens: the address bar items (read from the URL by the shell), this browser's layout preference, the current value of the top bar selection key,
+ *  and whether configuration can be changed on this machine. Switches after the selection key are pushed in through `updateManagedRoute`. */
 export interface IndexOpenProps extends IndexRoute {
   layout: PeopleLayout;
   selectMode: boolean;
   configurable: boolean;
 }
 
-/** 索引五页画进 `#index`，一种名册一条路径。 */
+/** The five index pages render into `#index`, one path per roster kind. */
 export type IndexRoutePath = `/${IndexKind}`;
 export type IndexOpenPropsTable = { [Path in IndexRoutePath]: IndexOpenProps };
 
-/** 资料页画进 `#index`，每种实体一条模式（名字里可能带斜杠，吃掉剩下全部段）。种类与名字跟着打开走，
- *  名字是壳从地址解码出来的那一份。 */
+/** Profile pages render into `#index`, one pattern per entity kind (the name may contain slashes and eats all remaining segments). Kind and name travel with the open,
+ *  and the name is the one the shell decoded from the address. */
 export type EntityRoutePath = '/performers/*' | '/studios/*' | '/creators/*' | '/series/*' | '/agencies/*' | '/tags/*';
 
-/** 页面里的页面内组件，按名字登记、各画进壳的一个容器：首页筛选条（`#catalogFilter`）、首页新作行（`#feedNew`）、
- *  顶栏搜索下拉（`#searchMenu`）。props 由壳算好、整份交进来，
- *  之后经 `updateManagedRoute` 推补丁。 */
+/** In-page components, registered by name and each rendered into one of the shell's containers: home filter bar (`#catalogFilter`), home new-releases row (`#feedNew`),
+ *  top bar search dropdown (`#searchMenu`). Props are computed by the shell and passed in whole,
+ *  then patched via `updateManagedRoute`. */
 export interface SurfaceOpenProps {
   'catalog-filter': CatalogFilterProps;
   'feed-new': FeedNewProps;
@@ -239,11 +242,12 @@ export interface SurfaceOpenProps {
 
 export type SurfaceName = keyof SurfaceOpenProps;
 
-/** 常驻组件，按名字登记、宿主就是那个常驻节点：底部批量条（`[data-batch-dock]`）、侧栏配色卡（`#boardGlowMenu`）、
- *  管理区页头（`[data-manage-header]`）、沉浸模式（body 末尾的 `[data-immerse-host]`）、设置面板
- *  （`[data-settings-host]`，第一次打开时放进 body 末尾）、侧栏（`#drawerScroll`）与舞台（body 末尾的
- *  `[data-stage-host]`，第一次打开详情时放进去）。打开时不带 props（`openResidentSurface`），内容由壳经各自的
- *  命令式句柄推进组件自己的 store。 */
+/** Resident components, registered by name, the host being the resident node itself: bottom batch bar (`[data-batch-dock]`),
+ *  sidebar color card (`#boardGlowMenu`), management header (`[data-manage-header]`), immersive mode (`[data-immerse-host]`
+ *  at the end of body), settings panel (`[data-settings-host]`, placed at the end of body on first open), sidebar
+ *  (`#drawerScroll`) and stage (`[data-stage-host]` at the end of body, placed there the first time details open). They open
+ *  without props (`openResidentSurface`); content is pushed by the shell through each one's imperative handle into the
+ *  component's own store. */
 export interface ResidentOpenProps {
   'batch-dock': Record<string, never>;
   'glow-picker': Record<string, never>;

@@ -1,6 +1,7 @@
-/* 玻璃面上漂移的那两团反光。画法与轨迹在 `web/board.css` 的 `[data-glass-drift]`：两倍大的画布靠
- * `transform` 走，宿主自己那两层背景光斑随之收起。只在带 `[data-glass-pane]` 等玻璃材质的宿主里
- * 显示；放在宿主子元素的最后，不改动前面那些子元素的 `:first-child` 之类的匹配。 */
+/* The two drifting reflections on glass surfaces. Painting and path live in `web/board.css`'s `[data-glass-drift]`: a canvas
+ * twice the size moves by `transform`, and the host's own two background light blobs fold away with it. It shows only inside
+ * hosts carrying glass material like `[data-glass-pane]`; placed last among the host's children so it does not disturb the
+ * earlier children's `:first-child`-style matches. */
 export function GlassDrift() {
   return <span data-glass-drift="" aria-hidden="true"><span data-drift="b"><span /></span><span data-drift="a"><span /></span></span>;
 }

@@ -1,12 +1,12 @@
-/* 沉浸模式的数据与判据：片单怎么抽、详情按哪个键取、署名怎么念、画面铺满还是完整显示。
- * 不碰 DOM，`immerse-island.tsx` 的控制器与组件都从这里取。 */
+/* Immersive mode's data and criteria: how the video list is drawn, which key details fetch by, how the byline reads, and whether the picture fills or fits.
+ *  No DOM here; the controller and components in `immerse-island.tsx` both take from this. */
 import type { QueryKey } from '@tanstack/react-query';
 
 import { apiGet } from '../../api';
 import { queryClient } from '../query';
 import { fetchItem, itemKey, type DetailEntityRef, type DetailItem } from '../item-detail/item-detail';
 
-/** 片单里的一条（`/api/items` 的卡片那一份）。 */
+/** One entry in the playlist (the card variant of `/api/items`). */
 export interface ImmerseItem {
   id: number;
   name?: string;
@@ -21,15 +21,15 @@ export interface ImmerseItem {
   [field: string]: unknown;
 }
 
-/** 片单按「这一次打开」与「第几次续取」分键：每次打开都是一次全新的随机抽样，续取的那一批
- *  也不能读到上一批的缓存。 */
+/** The playlist keys by "this open" and "which continuation": every open is a fresh random sample, and a continued batch
+ *  must not read the previous batch's cache either. */
 export const immerseListKey = (filters: string, seed: number, draw: number): QueryKey => ['immerse-list', filters, seed, draw];
 
-/** 抽样用的查询串：首页筛选去掉画幅（横竖都进），随机取 60 条。
+/** The query string for sampling: the home filter minus aspect (both orientations in), taking 60 at random.
  *
- *  没有 offset 可翻：`sort=rand` 在服务端是未加种子的 `RANDOM()`（web_contract.py），每次请求
- *  都是一次全新的随机抽样，翻页偏移在它上面没有意义——带上去只会随机跳过若干行。续取靠的是
- *  调用点按 id 去重，不是偏移量。 */
+ *  There is no offset to page through: `sort=rand` is an unseeded `RANDOM()` on the server (web_contract.py), so every
+ *  request is a fresh random sample and a page offset is meaningless on top of it; carrying one would only randomly skip rows.
+ *  Continuation relies on the call site deduplicating by id, not on an offset. */
 export function immerseQuery(filters: Record<string, string | number | null | undefined>): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, String(value));
@@ -41,8 +41,8 @@ export function immerseQuery(filters: Record<string, string | number | null | un
   return params.toString();
 }
 
-/** 能直接进片单的：不按流量计费、有时长、来源没脱盘。脱盘来源的片子拉不到流，进了片单就是
- *  一条黑屏加载中；详情页有门挡着，这里只能在入口筛掉。 */
+/** What can go straight into a playlist: not metered by traffic, has a duration, and its source is not off-disk. Videos from off-disk sources cannot pull a stream and would be
+ *  a black loading screen in the playlist; the details page has a gate, so they can only be filtered out here at the entrance. */
 export const playable = (item: ImmerseItem, offline: (location: string) => boolean): boolean =>
   item.cost !== 'metered' && !!item.duration && !offline(String(item.root_id || item.location || ''));
 
@@ -59,19 +59,19 @@ export async function fetchImmerseList(query: string, offline: (location: string
   return shuffle((page.items || []).filter((item) => playable(item, offline)));
 }
 
-/** 这一条的详情：和作品详情同一个键，动作键写回之后详情与目录卡读到的是同一份。缓存里已有就不再
- *  取（切回看过的那一条、起播那一条在打开时已经取过）。 */
+/** This entry's details: same key as video details, so after action keys write back, details and the catalog card read the same copy. Already in the cache means no
+ *  refetch (returning to a viewed entry, and the playback-starting entry, were already fetched on open). */
 export const ensureDetail = (id: number): Promise<DetailItem> =>
   queryClient.ensureQueryData({ queryKey: itemKey(id), queryFn: ({ signal }) => fetchItem(id, signal) });
 
-/** 已有的那一批之后接上新抽的一批，按 id 去重。 */
+/** Append the newly drawn batch after the existing one, deduplicated by id. */
 export function extendList(list: ImmerseItem[], more: ImmerseItem[]): ImmerseItem[] {
   const seen = new Set(list.map((item) => item.id));
   return list.concat(more.filter((item) => !seen.has(item.id)));
 }
 
-/** 作者那一行：共演作品念全出镜者（最多三位，多出来的写人数），点击进第一位的资料页；没有演员
- *  就是创作者，再没有就是「未归属」。 */
+/** The author line: co-starred videos read out everyone on camera (up to three, beyond that print the count); clicking opens the first one's profile page; with no performers
+ *  it is the creator, and failing that "Unattributed". */
 export interface Owner {
   who: string;
   kind: 'performer' | 'creator' | '';
@@ -82,24 +82,25 @@ export interface Owner {
 export function ownerOf(item: Pick<DetailItem, 'performers' | 'creator' | 'entity_refs'>): Owner {
   const cast = item.performers || [];
   const who = cast.length
-    ? cast.slice(0, 3).join('、') + (cast.length > 3 ? ` 等 ${cast.length} 人` : '')
-    : (item.creator || '未归属');
+    ? cast.slice(0, 3).join('、') + (cast.length > 3 ? ` and ${cast.length} people` : '')
+    : (item.creator || 'Unassigned');
   const kind = cast.length ? 'performer' : (item.creator ? 'creator' : '');
-  const name = cast.length ? cast[0]! : (item.creator || '未归属');
+  const name = cast.length ? cast[0]! : (item.creator || 'Unassigned');
   const ref = kind ? (item.entity_refs?.[kind]?.[0] || null) : null;
   return { who, kind, name, ref };
 }
 
-/** 沉浸模式默认 cover 铺满，但那只在片源和视口比例接近时才成立。
+/** Immersive mode defaults to cover filling the frame, but that only holds when stream and viewport ratios are close.
  *
- *  判据是两者比例差多少，不是「片源是不是竖屏」：那样 16:9 的横屏进竖屏视口照样 cover，按高度
- *  放大到两边各裁掉一大半。容差取得很紧（1.05）是刻意的：对竖屏片源用 contain 是「不裁掉正在看
- *  的画面」的有意选择。放宽到 1.25 会顺手把 9:16 片源在 9:19.5 手机上改成 cover、裁掉约 18%
- *  高度。现在只有比例几乎一致时才 cover（省掉取整产生的 1px 黑边），其余一律完整显示。
- *  视口比例会随旋转和窗口尺寸改变，所以必须跟着重算，不能只在 loadedmetadata 算一次。 */
+ *  The criterion is how far the two ratios differ, not "is the stream portrait": by that rule a 16:9 landscape in a portrait
+ *  viewport would still cover, scaled to height and cropping most of both sides. The tolerance is deliberately tight (1.05):
+ *  using contain for portrait streams is the intentional choice of "do not crop the picture being watched". Loosening to 1.25
+ *  would also flip a 9:16 stream on a 9:19.5 phone to cover and crop about 18% of its height. Now only near-identical ratios
+ *  cover (saving the 1px black bars rounding produces); everything else displays in full. The viewport ratio changes with
+ *  rotation and window size, so it must be recomputed along, never only once at loadedmetadata. */
 export const FIT_TOLERANCE = 1.05;
 
-/** `null` 是还量不出来（元数据没到或框没有尺寸），这时不改现状。 */
+/** `null` means it cannot be measured yet (metadata not arrived or the frame has no size); the current state is left alone. */
 export function fitMode(sourceWidth: number, sourceHeight: number, box: number): 'cover' | 'contain' | null {
   if (!sourceWidth || !sourceHeight || !box || !Number.isFinite(box)) return null;
   const source = sourceWidth / sourceHeight;
@@ -107,28 +108,28 @@ export function fitMode(sourceWidth: number, sourceHeight: number, box: number):
   return mismatch > FIT_TOLERANCE ? 'contain' : 'cover';
 }
 
-/** 舞台形状（竖 9:16／横 16:9）：元数据到了按画面，没到按条目登记的宽高，都没有算竖。 */
+/** Stage shape (portrait 9:16 or landscape 16:9): use the picture once metadata arrives, else the width and height registered on the item, else portrait. */
 export function isWide(video: { videoWidth: number; videoHeight: number }, item: Pick<ImmerseItem, 'width' | 'height'>): boolean {
   if (video.videoWidth && video.videoHeight) return video.videoWidth >= video.videoHeight;
   return !!(item.width && item.height && item.width > 0 && item.height > 0 && item.width >= item.height);
 }
 
-/* ── 手势的几个数 ── */
-/** 同一半区两下之间不超过这么久算双击。 */
+/* ── Gesture numbers ── */
+/** Two taps in the same half within this window count as a double click. */
 export const DOUBLE_TAP_MS = 280;
-/** 触屏抬手之后浏览器合成的那一下 click 不再切播放：那一下已经由单击／双击判定接管。 */
+/** The click the browser synthesizes after a touch release no longer toggles playback: that tap is already handled by the single/double tap logic. */
 export const SYNTHETIC_CLICK_MS = 700;
-/** 位移超过这么多才定方向；方向一旦定下就不再改，否则斜着划会又切片又跳进度。 */
+/** Direction is only decided past this much displacement; once decided it never flips, otherwise a diagonal swipe would page and seek at the same time. */
 export const AXIS_LOCK_PX = 12;
-/** 竖划超过这么多换条。 */
+/** A vertical swipe beyond this threshold switches the entry. */
 export const SWIPE_PX = 60;
-/** 两个方向都不超过这么多算一次点击。 */
+/** Movement within this bound in both directions counts as one click. */
 export const TAP_SLOP_PX = 14;
-/** 滚轮换条的节流。 */
+/** Throttle for wheel-based entry switching. */
 export const WHEEL_GAP_MS = 260;
-/** 不喜欢之后停这么久再换下一条：回执先落地。 */
+/** After a dislike, dwell this long before moving to the next one: the receipt lands first. */
 export const DISLIKE_ADVANCE_MS = 260;
-/** 切片动画的时长加一帧余量；动画帧没跑到（页面在后台）也按这个时刻落位。 */
+/** The slice animation's duration plus a one-frame margin; even when the animation frame never fires (page in the background), it settles at this moment. */
 export const SLIDE_MS = 210;
-/** 等一格可以出画的上限。 */
+/** The cap on waiting for a cell to enter the frame. */
 export const READY_TIMEOUT_MS = 15_000;

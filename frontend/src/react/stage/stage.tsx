@@ -1,17 +1,21 @@
-/* 舞台（ADR-0031 第 11a 步）：详情浮窗 `<dialog id="stage">`、它的进出场、骨架与揭示、两座详情、
- * 播放器与小窗都在这一面里。
+/* The stage (ADR-0031 step 11a): the details popover `<dialog id="stage">`, its enter/exit transitions, skeleton and reveal,
+ * the two details, the player and the mini player all live on this surface.
  *
- * 常驻组件 `stage`（`router/managed-routes.tsx` 的常驻表）：路由树把它画进 body 末尾的常驻宿主
- * `[data-stage-host]`，宿主就是那个节点本身、不包 `.peach-react`，第一次打开详情时由 `application-residents.ts` 的
- * `loadStage` 建好、在画出小窗节点的同一个任务里挂进文档。舞台盖在所有页面之上，小窗要在换页之后接着放，
- * 所以宿主不跟某一页走。壳只拿 `configureStage` 给的命令式入口：句柄写本模块的 store 再 `flushSync` 通知，
- * `open`（含原地换条）、`update` 与 `dispose` 里每一次绘制都在返回之前画完，紧跟着读 DOM 的代码（骨架量尺寸、
- * `showModal`、标题揭示、焦点交给关闭键）读到的就是刚画好的结构。
+ * Resident component `stage` (the resident table in `router/managed-routes.tsx`): the route tree renders it into the resident
+ * host `[data-stage-host]` at the end of body, the host being that node itself and not wrapped in `.peach-react`. It is
+ * created by `loadStage` in `application-residents.ts` the first time details open and mounted into the document in the same
+ * task as the mini player node. The stage covers all pages and the mini player must keep playing across page changes, so the
+ * host is not tied to a page. The shell only gets the imperative entry `configureStage` provides: the handle writes this
+ * module's store and notifies via `flushSync`; every render inside `open` (including in-place item change), `update` and
+ * `dispose` finishes before they return, so code that reads the DOM right after (the skeleton measuring sizes, `showModal`,
+ * the title reveal, focus moving to the close button) reads freshly rendered structure.
  *
- * 每次 `open` 换一枚 `generation`，取数回来时代次不对就作废；重开时 dialog 按它重建，原地换条沿用开着的那个。
- * 两座详情是这一面的子组件，和页面共用路由树的 QueryClient（`providers.tsx`）。两座详情画出来时报给壳的 `present` 排到微任务里：壳收到后
- * 会画侧栏与顶栏，那几座常驻组件的句柄内部 `flushSync`，在路由树的提交阶段里画不出来。微任务在浏览器绘制前
- * 跑完；那一条已经换走（原地换条或重开）或舞台已经收起就不报。 */
+ * Every `open` mints a new `generation`; fetches returning with the wrong generation are discarded; on reopen the dialog
+ * rebuilds by it, and an in-place item change reuses the open one. The two details are child components of this surface and
+ * share the route tree's QueryClient (`providers.tsx`). When the details render, the `present` they report to the shell queues
+ * into a microtask: on receiving it the shell renders the sidebar and top bar, and those resident components' handles
+ * `flushSync` internally, which cannot render inside the route tree's commit phase. Microtasks finish before the browser
+ * paints; if the entry has already moved on (in-place change or reopen) or the stage has closed, it does not report. */
 import { useLayoutEffect, useRef, useSyncExternalStore, type MouseEvent, type PointerEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { UNSAFE_PortalProvider } from 'react-aria';
@@ -44,8 +48,8 @@ interface View {
   generation: number;
   request: StageRequest;
   content: Content;
-  /* 骨架 → 淡出（骨架抬成 `[data-stage-fade]` 一层，内容同时清晰起来）→ 内容。取得比显示门槛快时跳过
-     中间那一段：从未露面的骨架不该再演一次退场。 */
+  /* Skeleton, then fade out (the skeleton lifts into a `[data-stage-fade]` layer while the content comes into focus at the same time), then content. When data arrives faster than the visibility threshold, skip
+     the middle step: a skeleton that never showed should not play an exit. */
   phase: Phase;
 }
 
@@ -55,11 +59,11 @@ let pageReturn: { left:number; top:number; anchor:HTMLElement } | null = null;
 const listeners = new Set<() => void>();
 let generation = 0;
 let controller: AbortController | null = null;
-/* 关闭键、Escape、点浮窗外面与原生 `cancel` 可能在同一下里各来一次：退场动画期间再要一次，
-   会让第二次关闭跳过动画直接拆。 */
+/* Close button, Escape, clicking outside the overlay, and native `cancel` may each arrive within the same moment: requesting another close during the exit animation
+   would make the second close skip the animation and tear down directly. */
 let closeRequested = false;
-/* 按下那一刻在不在浮窗外面。详情里进度条、音量条和队列都能拖，从控件上拖出边界再松手同样会在
-   dialog 上收到一次 click——那是一次拖动的收尾，不是要关窗。 */
+/* Whether the press happened outside the overlay. In details the seek bar, volume bar and queue all drag, and dragging off a control's edge before releasing also delivers
+   a click on the dialog; that is a drag finishing, not a request to close. */
 let dismissArmed = false;
 
 const stageDialog = (): HTMLDialogElement | null => {
@@ -68,7 +72,7 @@ const stageDialog = (): HTMLDialogElement | null => {
 };
 
 function stageHost(): StageHost {
-  if (!host) throw new Error('舞台还没有接上宿主（configureStage）');
+  if (!host) throw new Error('The stage has no host attached yet (configureStage)');
   return host;
 }
 
@@ -81,7 +85,7 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/* 返回时已经画完。这一面抛错、被错误边界卸掉之后没人订阅，`view` 照旧写进 store，不画、不抛。 */
+/* By the time we return, rendering is done. Once this face throws and the error boundary unmounts it, nobody subscribes; `view` still lands in the store, drawn by no one, thrown from nowhere. */
 function paint(): void {
   flushSync(notify);
 }
@@ -96,13 +100,15 @@ function StageTree({ view: current }: { view: View | null }) {
 }
 
 const DetailSkeleton = () => (
-  <div data-skeleton="detail" role="status" aria-label="正在读取作品详情" dangerouslySetInnerHTML={{ __html: detailSkeletonBody() }} />
+  <div data-skeleton="detail" role="status" aria-label="Reading video details" dangerouslySetInnerHTML={{ __html: detailSkeletonBody() }} />
 );
 
-/* 点浮窗外面就退出。原生模态里「外面」还是这个 dialog 自己——遮罩归它，落在遮罩上的事件 target
-   就是它本人，所以判据取坐标不取 target：按 target 判，浮窗身上任何一块不属于内容的地方都会被算成
-   点了外面。只看坐标也不够：播放器全屏后铺满整个视口，浮窗的矩形仍是详情排版里那块，点进度条右段
-   或底部控制栏会落在矩形外。所以两条都要成立：target 是 dialog 本身，坐标在浮窗外。 */
+/* Clicking outside the popover exits. Inside a native modal, "outside" is still this dialog itself: the mask belongs to it,
+   and an event landing on the mask has the dialog as its target, so the criterion takes coordinates, not the target: judging
+   by target, any part of the popover that is not content would count as an outside click. Coordinates alone are not enough
+   either: after the player goes fullscreen it covers the whole viewport while the popover's rectangle is still the details
+   layout's block, so clicking the progress bar's far end or the bottom control bar would land outside the rectangle. Both
+   must hold: the target is the dialog itself and the coordinates are outside the popover. */
 function outside(event: MouseEvent | PointerEvent): boolean {
   const dialog = event.currentTarget as HTMLElement;
   if (event.target !== dialog) return false;
@@ -120,11 +126,11 @@ function requestEscape(): void {
 
 function StageDialog({ view: current }: { view: View }) {
   const ref = useRef<HTMLDialogElement>(null);
-  /* 全局键盘入口与浮窗共用 requestEscape，在 keydown 上 preventDefault，避免焦点在 body 时
-     绕过弹层判断。原生 cancel 保留给其他关闭请求；不可取消的事件不能阻止浏览器关闭浮窗。 */
+  /* The global keyboard entry and overlays share requestEscape, calling preventDefault on keydown, so focus on body cannot bypass the popover check.
+     Native cancel is reserved for other close requests; a non-cancelable event cannot stop the browser from closing the overlay. */
   useLayoutEffect(() => {
     const dialog = ref.current!;
-    // 文件选择框的 cancel 会冒泡；详情只处理自己的关闭请求。
+    // The file picker's cancel bubbles; details only handle their own close requests.
     const cancel = (event: Event) => {
       if (event.target !== dialog) return;
       event.preventDefault();
@@ -134,16 +140,16 @@ function StageDialog({ view: current }: { view: View }) {
     return () => dialog.removeEventListener('cancel', cancel);
   }, []);
   const { phase, content } = current;
-  /* 原地换条时关注详情按条目重建：选中的那份媒体、写操作的忙碌与失败都只属于上一条。作品详情
-     自己按条目给 `Detail` 换键，队列取数留在外层不重来。 */
+  /* Switching entries in place rebuilds follow details per entry: the selected media, and the busy and failure states of write operations, all belong to the previous entry. Video details
+     swap the `Detail` key per entry themselves, and the queue fetch stays in the outer layer, not restarted. */
   const body = content.kind === 'item'
     ? <ItemDetailPage {...content.props} />
     : content.kind === 'jav' ? <JavDetailPage key={content.props.code} {...content.props} />
     : <FollowDetailPage key={content.props.id} {...content.props} />;
   return (
-    <dialog ref={ref} id="stage" data-stage="" data-stage-kind={content.kind} aria-label="作品详情"
+    <dialog ref={ref} id="stage" data-stage="" data-stage-kind={content.kind} aria-label="Video details"
       onKeyDown={(event) => {
-        /* 里层弹层（标签搜索框、右键菜单）先处理 Escape 并 `preventDefault`，这一下就不再关浮窗。 */
+        /* The inner popovers (tag search box, context menu) handle Escape first and call `preventDefault`, so it no longer closes the overlay. */
         if (event.key !== 'Escape' || event.defaultPrevented) return;
         event.preventDefault();
         requestEscape();
@@ -153,11 +159,13 @@ function StageDialog({ view: current }: { view: View }) {
       {phase === 'skeleton' ? <DetailSkeleton key="skeleton" /> : null}
       {phase === 'reveal' ? <div key="fade" data-stage-fade="" aria-hidden="true"><DetailSkeleton /></div> : null}
       {phase === 'skeleton' ? null : (
-        /* 窄屏下滚的是 `[data-stage-scroll]`，全站那条覆盖式滚动条挂在它的兄弟位置（`<dialog>` 在顶层，
-           轨道挂到它外面会落进遮罩底下）；「接着看」是 `[data-stage-grid]` 的兄弟，也得一起装进来。里面那层
-           `.peach-react` 不占盒子，token 与 Preflight 从它开始作用。
-           详情里打开的弹层、下拉与气泡（查找资源、裁剪封面、推荐理由）一律挂进这个 dialog：落在 `body`
-           上会被顶层的浮窗整个盖住，判据见 `overlay-host.ts`。 */
+        /* On narrow screens the scrolling is `[data-stage-scroll]`, and the site-wide overlay scrollbar hangs at its sibling position
+           (`<dialog>` is top-layer; a track hung outside it would land under the mask); "Continue watching" is a sibling of
+           `[data-stage-grid]` and must be included too. The inner `.peach-react` takes no box, and tokens and Preflight start
+           applying from it.
+           Popovers, dropdowns and tooltips opened inside details (find sources, crop cover, recommendation reason) all mount
+           into this dialog: landing on `body` would be covered entirely by the top-layer popover, criteria in
+           `overlay-host.ts`. */
         <div key="content" data-stage-scroll=""><div className="peach-react">
           <UNSAFE_PortalProvider getContainer={() => overlayHost(ref.current)}>{body}</UNSAFE_PortalProvider>
         </div></div>
@@ -178,8 +186,8 @@ function toggleStageModes(ambient: boolean, theater: boolean): void {
   dialog?.toggleAttribute('data-theater', theater);
 }
 
-/* 两座详情的动作经舞台包一层：关闭走 `requestClose`；画出来那一刻登记小窗元数据、切氛围光与剧场
-   模式；媒体框交给舞台的播放器。续播时刻只给第一次挂上的那一条。 */
+/* Both details surfaces wrap their actions through the stage: closing goes through `requestClose`; at render time the stage registers mini player metadata and switches ambient glow and theater
+   mode; the media frame is handed to the stage's player. The resume position is given only to the entry mounted the first time. */
 function contentFor(request: StageRequest): Content {
   if (request.kind === 'jav') return { kind: 'jav', props: { code: request.code, readOnly: request.readOnly,
     actions: { ...request.actions, close: requestClose } } };
@@ -190,7 +198,7 @@ function contentFor(request: StageRequest): Content {
     return hit;
   };
   const settings = () => stageHost().player.settings();
-  /* 原地换条沿用浮窗开着时的代次（dialog 不重建），所以按这一次打开的 request 认：换条与重开都换一份新的。 */
+  /* In-place entry swaps reuse the generation from when the overlay opened (the dialog is not rebuilt), so recognize by this open's request: swapping entries and reopening each get a fresh one. */
   const live = () => view?.request === request;
   if (request.kind === 'item') {
     const { kind: _kind, resume: _resume, actions: base, ...props } = request;
@@ -200,7 +208,7 @@ function contentFor(request: StageRequest): Content {
       present: (item, queue) => {
         const performers = item.performers as string[] | undefined;
         player.setStageMeta({ kind: 'item', item, title: String(item.title || item.name || ''),
-          sub: String(performers?.[0] || item.creator || '未归属') });
+          sub: String(performers?.[0] || item.creator || 'Unassigned') });
         toggleStageModes(settings().ambientMode, settings().theaterMode);
         queueMicrotask(() => { if (live()) base.present(item, queue) });
       },
@@ -226,7 +234,7 @@ function contentFor(request: StageRequest): Content {
   return { kind: 'follow', props: { ...props, actions } };
 }
 
-/* 骨架抬成一层淡出，内容同时从模糊里清晰起来；走完（或 1s 兜底）摘掉那一层。 */
+/* The skeleton lifts into a fade-out layer while the content sharpens out of blur; once done (or at the 1 s fallback) the layer is removed. */
 function startReveal(dialog: HTMLDialogElement, mine: number): void {
   const fade = dialog.querySelector<HTMLElement>(':scope > [data-stage-fade]');
   dialog.setAttribute('data-stage-reveal', '');
@@ -245,7 +253,7 @@ function startReveal(dialog: HTMLDialogElement, mine: number): void {
   timer = window.setTimeout(drop, 1000);
 }
 
-/** 浮窗开着同一种详情、不在退场：换条就原地换内容，不拆浮窗。 */
+/** The floating window shows the same kind of detail and is not exiting: switching entries swaps content in place instead of tearing down the window. */
 function swappable(kind: StageRequest['kind']): HTMLDialogElement | null {
   const dialog = stageDialog();
   if (!view || view.content.kind !== kind || closeRequested || !dialog?.open || dialog.hasAttribute('data-closing')) return null;
@@ -284,25 +292,25 @@ async function open(request: StageRequest): Promise<void> {
   try {
     await waiting;
   } catch {
-    // 中止就是用户已经走开。其余失败照画：原因和重试的节律都在详情自己手里。
+    // Aborting means the user has walked away. Other failures render as usual: the reason and retry cadence stay in the detail's hands.
     if (abort.signal.aborted) return;
   }
   if (mine !== generation || !view) return;
   if (cached) return;
-  /* 还没到显示门槛就已经取完：直接落内容，隐藏中的占位从未被人看见。 */
+  /* It finished before reaching the visibility threshold: content lands directly, and the hidden placeholder is never seen. */
   const direct = !!dialog.querySelector('.skeleton-awaiting');
   view = { ...view, phase: direct ? 'content' : 'reveal' };
   paint();
   if (!direct) startReveal(dialog, mine);
-  /* 浮窗里那两行标题跟着这一次重画揭示一遍。绕开正在淡出的那一层：骨架照着最终结构画，里面也有
-     一个 `[data-stage-side-content]`，按文档顺序找的话拿到的是它。 */
+  /* The two title lines in the overlay are revealed again by this repaint. It must dodge the layer still fading out: the skeleton is drawn to the final structure and also contains
+     a `[data-stage-side-content]`, which is what a document-order search would pick up. */
   revealTexts(dialog, ':scope>:not([data-stage-fade]) [data-reveal-line]');
-  /* 骨架里没有可聚焦的元素，`showModal()` 只能把焦点给 dialog 本身；内容到了交给关闭键。 */
+  /* The skeleton has no focusable element, so `showModal()` can only give focus to the dialog itself; once content arrives it moves to the close key. */
   const active = document.activeElement;
   if (active === dialog || !dialog.contains(active)) dialog.querySelector<HTMLElement>('#closeStage')?.focus();
 }
 
-/** 可立即完整呈现的详情沿用查询缓存，刷新只更新内容。 */
+/** Details that can render fully right away reuse the query cache; refreshing only updates content. */
 function cachedContent(content: Content): boolean {
   if (content.kind === 'jav') return !!queryClient.getQueryData(javDetailKey(content.props.code));
   if (content.kind === 'follow') return !!queryClient.getQueryData(followItemKey(content.props.id));
@@ -313,9 +321,9 @@ function cachedContent(content: Content): boolean {
   return current != null && !!queryClient.getQueryData(itemKey(current));
 }
 
-/* 详情开着时换到同一种的另一条（队列换卷、合集换版本、相关作品、后退前进）：浮窗、遮罩与进场都不
-   重演，也不回骨架。先把新的一条取齐，取的这段时间上一条照旧在放；取到再换内容，媒体框按条目卸下，
-   上一条的播放器随之拆掉（不进小窗）。 */
+/* Switching to another entry of the same kind while details is open (queue volume change, compilation edition change, related videos, back/forward): the overlay, scrim, and entrance do not
+   replay, nor return to skeleton. First fetch the new entry fully; during that stretch the previous one keeps playing; on arrival swap the content, the media frame unmounts by item,
+   and the previous entry's player is torn down with it (not into the mini player). */
 async function swap(request: StageRequest, dialog: HTMLDialogElement): Promise<void> {
   const mine = ++generation;
   controller?.abort();
@@ -337,12 +345,12 @@ async function swap(request: StageRequest, dialog: HTMLDialogElement): Promise<v
   closePlayerMenu();
   view = { ...view, request, content, phase: 'content' };
   paint();
-  /* 首次揭示还没走完就换了条：淡出那一层已经卸下，等不到它的 transitionend，模糊要当场摘掉。 */
+  /* The row changed before the first reveal finished: the fade layer is already unmounted and its transitionend never comes, so the blur has to be removed on the spot. */
   dialog.removeAttribute('data-stage-reveal');
   dialog.removeAttribute('data-stage-revealing');
   dialog.querySelector<HTMLElement>(':scope > [data-stage-scroll]')?.scrollTo({ top: 0 });
   revealTexts(dialog, ':scope>:not([data-stage-fade]) [data-reveal-line]');
-  /* 点下去的那一行随详情重建卸掉了，焦点落回 body：交给队列里新的当前行，没有队列交给关闭键。 */
+  /* The row that was clicked unmounted with the details rebuild and focus fell back to body: hand it to the queue's new current row, or to the close key when there is no queue. */
   const active = document.activeElement;
   if (active === dialog || !dialog.contains(active)) {
     (dialog.querySelector<HTMLElement>('[data-mix-item][aria-current="true"]')
@@ -350,10 +358,10 @@ async function swap(request: StageRequest, dialog: HTMLDialogElement): Promise<v
   }
 }
 
-/* 详情浮窗的退场跟设置弹层同一条：`data-closing` 让 `board-dialog-out` 和遮罩淡出演完，再拆。等待有
-   上限：`animation` 被别的规则关掉时 animationend 不会来。 */
+/* The details overlay's exit follows the settings modal's path: `data-closing` lets `board-dialog-out` and the scrim fade play out before teardown. Waiting has
+   a cap: when `animation` is turned off by another rule, animationend never comes. */
 function exit(): Promise<void> {
-  /* 退场动画的透明度会带着 dialog 里的 Toast 一起淡掉；先放回 body，让它随浮窗淡出露出来。 */
+  /* The exit animation's opacity would fade the Toast inside the dialog along with it; put it back into body first, so it shows through as the overlay fades out. */
   adoptToasts(null);
   const dialog = stageDialog();
   if (!dialog?.open || dialog.hasAttribute('data-closing') || matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -363,7 +371,7 @@ function exit(): Promise<void> {
   return new Promise((resolve) => {
     let timer = 0;
     const done = () => { clearTimeout(timer); dialog.removeEventListener('animationend', onEnd); resolve() };
-    // 浮窗里的控件也会冒泡出 animationend，只认目标就是舞台本身的那一条。
+    // Controls inside the floating window also bubble animationend; accept only the event whose target is the stage itself.
     const onEnd = (event: Event) => { if (event.target === dialog) done() };
     dialog.addEventListener('animationend', onEnd);
     timer = window.setTimeout(done, 380);
@@ -374,13 +382,13 @@ function dispose({ miniplayer = true }: { miniplayer?: boolean } = {}): void {
   generation++;
   controller?.abort();
   controller = null;
-  /* 离开详情时正在放的视频不销毁：整个播放器搬进小窗接着放。要在卸掉媒体框之前搬。 */
+  /* A video still playing when detail closes is not destroyed: the whole player moves into the mini player and keeps going. The move must happen before the media frame unmounts. */
   player.handOffStage(miniplayer);
   if (!view) return;
   const dialog = stageDialog();
-  // 舞台拆掉之前收起挂在舞台里的悬停预览（「接着看」那一排的卡）。
+  // Collapse the hover previews mounted in the stage before tearing the stage down (the cards in the 'Keep watching' row).
   if (dialog) releaseHoverPreviews(dialog);
-  // 右键菜单开着时挪进了舞台、Toast 栈打开时就挪了进来：先放回 body，别跟着浮窗一起被卸掉。
+  // The context menu moved into the stage while open, and the toast stack moved in when opened: put them back on body first so they are not unmounted along with the overlay.
   closePlayerMenu();
   adoptToasts(null);
   if (dialog?.open) dialog.close();
@@ -398,7 +406,7 @@ function dispose({ miniplayer = true }: { miniplayer?: boolean } = {}): void {
     }
   };
   restorePosition();
-  // 背景列表接管布局后的滚动锚定也回到打开详情时的位置。
+  // After the background list takes over the layout, scroll anchoring also returns to where it was when the detail opened.
   requestAnimationFrame(restorePosition);
 }
 
@@ -436,15 +444,15 @@ const api: StageApi = {
   miniplayerPlay: (id) => { void player.miniplayerPlay(id) },
 };
 
-/** 接上壳给的宿主，拿回舞台的命令式入口。先接播放器；小窗的节点在路由树打开这一面时画出来，第一次进小窗
- *  之前就在。 */
+/** Attach the shell's host and take back the stage's imperative entry. Attach the player first; the mini player's node renders when the route tree opens this panel, so it exists
+ *  before the first entry into the mini player. */
 export function configureStage(next: StageHost): StageApi {
   host = next;
   player.configureStagePlayer(next, { isOpen: () => !!view, requestClose });
   return api;
 }
 
-/** 常驻组件 `stage` 的组件：订阅本模块的 store。小窗节点无条件画着，播放器搬进搬出都命令式地落在它里面。 */
+/** The component of the resident `stage` component: subscribes to this module's store. The mini player node renders unconditionally, and the player moves in and out imperatively inside it. */
 export function StageSurface() {
   const at = useSyncExternalStore(subscribe, () => view);
   return host ? <StageTree view={at} /> : null;

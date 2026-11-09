@@ -17,25 +17,25 @@ import type { ReactNode } from 'react';
 import { cardClass } from './card';
 import { FIELDSET_BODY, FIELDSET_FOOT, fieldsetClass, type FieldsetLayout } from './fieldset-layout';
 
-/** 卡下面那块结果面板：同一副填充底、14px 圆角、不浮起。
- *  链接检查与资源同步把一趟后台任务的结论摆在这里，一段一段往下叠，段间一条发丝线。 */
+/** The result panel under the card: the same filled background, 14px corners, no elevation.
+ * Link check and resource sync place the conclusion of a background run here, stacked section by section, with a hairline between sections. */
 export const RESULT_PANEL = cardClass({
   padding: 'none', radius: 'surface', className: 'overflow-hidden',
 });
 
-/** 结果面板里的一段：16px 内边距，除第一段外顶上一条线。 */
+/** A section in the result panel: 16px padding, with a top border on every section except the first. */
 export const RESULT_SECTION = 'border-t border-border-button-default p-4 first:border-t-0';
 
-/** 卡外那一行分区标题（链接管理、资源同步），Title 2，与下面那张卡隔 16px。
+/** The section title row outside the cards (link management, resource sync), Title 2, 16px from the card below.
  *
- *  这一页挂在 `#stats` 里，遗留样式表那条 `.stats h2` 给所有二级标题定了 24px 与 4px 底距。
- *  它不在层里，工具类压不过，所以字形与外边距这两组带 `!`。 */
+ *  This page hangs in `#stats`, and the legacy sheet's `.stats h2` gives all second-level headings 24px and a 4px bottom margin.
+ *  It is not in a layer, so utilities cannot win; hence the `!` on both the type and margin groups. */
 export function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
   return <h2 id={id} className="text-title-2-medium! m-0! text-text-primary">{children}</h2>;
 }
 
-/** 卡上的标题。`gap` 是它和下面那一段之间的距离：整理与空文件夹 12px，链接与资源同步 8px；
- *  扫描与采集那两张的正文本身是一列 8px 间距，标题不另留。 */
+/** The card's title. `gap` is the distance to the paragraph below: 12px for Organize and Empty folders, 8px for Links and Resource sync;
+ *  the scan-and-collect pair's body is itself a column with 8px spacing, so the title reserves nothing extra. */
 export function FieldsetTitle(
   { id, gap = 'none', children }: { id?: string; gap?: 'none' | 'small' | 'medium'; children: ReactNode },
 ) {
@@ -47,13 +47,13 @@ export function Fieldset(
   { layout, label, labelledBy, id, footer, children, attributes }:
   {
     layout: FieldsetLayout;
-    /** 没有可见标题可指的时候（扫描与采集那两张的标题在正文那一列里）用它。 */
+    /** Use it when there is no visible heading to point at (the scan-and-collect cards keep their titles in the body column). */
     label?: string;
     labelledBy?: string;
     id?: string;
     footer?: ReactNode;
     children: ReactNode;
-    /** 冒烟与外观用例认卡的 `data-*`。类名给不了：生成出来的名字会和旧样式表撞。 */
+    /** The `data-*` attributes smoke and appearance tests use to find cards. Class names cannot do it: generated names would collide with the legacy stylesheet. */
     attributes?: Record<`data-${string}`, string>;
   },
 ) {

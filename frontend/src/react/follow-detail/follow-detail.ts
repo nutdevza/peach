@@ -1,8 +1,9 @@
-/* 关注详情 `/posts/:id` 的数据与判定（ADR-0031）。
+/* Follow detail `/posts/:id`'s data and criteria (ADR-0031).
  *
- * 这一块是舞台岛（`../stage/`）树里的子组件；舞台本身、进出场、小窗与 Video.js 归舞台岛
- * （JAV 详情也在用）。条目归这里：先扫关注页岛已缓存的那几页（`findFollowItem`）与已取过的详情，
- * 扫不到才单条取 `GET /api/follow?item=<id>`，响应形状同列表那一页，只含这一条所在的组。 */
+ * This block is a child of the stage island's (`../stage/`) tree; the stage itself, enter/exit, mini player and Video.js
+ * belong to the stage island (JAV details use them too). Entries belong here: it first scans the pages the follows page island
+ * has cached (`findFollowItem`) and the details already fetched, fetching singly with `GET /api/follow?item=<id>` only when
+ * the scan misses, with the response shaped like the list page and containing only the group this entry is in. */
 import type { QueryKey } from '@tanstack/react-query';
 import { apiGet } from '../../api';
 import {
@@ -13,9 +14,9 @@ import {
 import type { LightboxSlide } from '../photo-lightbox/photo-lightbox';
 import { queryClient } from '../query';
 
-/* ── 接口形状（`src/peach/web_follow.py`） ── */
+/* ---- API shapes (`src/peach/web_follow.py`) ---- */
 
-/** 条目里嵌着的一份媒体：详情比卡片多读名字、字节数、类型与网盘分组。 */
+/** One media file embedded in an entry: the details read name, byte size, type and cloud-drive grouping beyond what the card shows. */
 export interface FollowDetailMedia extends FollowMediaItem {
   name?: string;
   size?: number;
@@ -25,7 +26,7 @@ export interface FollowDetailMedia extends FollowMediaItem {
   resource_group_label?: string;
 }
 
-/** 详情读到的条目字段；其余原样留在 `FollowItem` 的索引签名里。 */
+/** Entry fields read by the details; the rest stay as-is in `FollowItem`'s index signature. */
 export interface FollowDetailItem extends FollowItem {
   url?: string;
   summary?: string;
@@ -45,7 +46,7 @@ export interface FollowDetailItem extends FollowItem {
   media_items?: FollowDetailMedia[];
 }
 
-/** 一条详情要的全部：条目、它所在的组，以及署名要读的来源与别名。 */
+/** Everything one detail needs: the entry, its group, and the sources and aliases the credits read. */
 export interface FollowDetailData {
   item: FollowDetailItem;
   group: FollowGroup | null;
@@ -53,7 +54,7 @@ export interface FollowDetailData {
   aliases: unknown[];
 }
 
-/* ── 取数 ── */
+/* ── Fetching ── */
 
 export const followItemKey = (id: number): QueryKey => ['follow-item', id];
 
@@ -61,12 +62,12 @@ export const FOLLOW_ITEM_URL = (id: number) => `/api/follow?item=${encodeURIComp
 export const FOLLOW_SAVE_URL = '/api/follow/save';
 export const FOLLOW_MEDIA_HIDE_URL = '/api/follow/media/hide';
 
-/** 条目已不存在：重试也取不回来，详情给的是「回到关注」而不是重试。 */
+/** The entry no longer exists: a retry cannot bring it back, so the detail offers "Back to follows" instead of retry. */
 export class FollowItemGone extends Error {
-  constructor() { super('这条关注内容已不存在') }
+  constructor() { super('This followed content no longer exists') }
 }
 
-/** 单条取：响应只含这一条所在的组。条目已不存在时服务端回空组，这里报成 `FollowItemGone`。 */
+/** Single fetch: the response holds only the group this entry sits in. When the entry is gone the server answers with an empty group, reported here as `FollowItemGone`. */
 export async function fetchFollowItem(id: number, signal?: AbortSignal): Promise<FollowDetailData> {
   const page = await apiGet<FollowPage>(FOLLOW_ITEM_URL(id), signal);
   for (const group of page.groups || []) {
@@ -76,8 +77,8 @@ export async function fetchFollowItem(id: number, signal?: AbortSignal): Promise
   throw new FollowItemGone();
 }
 
-/** 已经取过的详情里，组里有这一条的那一份：合集换版本、多媒体换到组里另一条，组就是舞台上
- *  正摆着的那一份，单条取回来的也只是同一组。 */
+/** Among already-fetched details, the one whose group contains this entry: when a compilation switches editions or multimedia switches to another entry in the group, the group is
+ *  the one currently on stage, and the single entry fetched back is the same group anyway. */
 function findDetailGroupItem(id: number): FollowDetailData | null {
   for (const [, data] of queryClient.getQueriesData<FollowDetailData>({ queryKey: ['follow-item'] })) {
     if (!data?.group) continue;
@@ -87,8 +88,8 @@ function findDetailGroupItem(id: number): FollowDetailData | null {
   return null;
 }
 
-/** 首屏：列表缓存里有就直接用（关掉详情回列表也不重取）；这一条取过、或者就在舞台上那一组里，
- *  也不再问服务端——点下去到换过去之间没有等待。都没有才单条取；凭据没取过才取。 */
+/** First screen: use the list cache when it has the data (returning from details to the list does not refetch); when this entry was fetched before, or is already in the group on stage,
+ *  the server is not asked again, so there is no wait between clicking and switching. Only otherwise fetch the single entry; credentials are fetched only when never fetched. */
 export async function prefetchFollowDetail(props: { id: number }, signal: AbortSignal): Promise<void> {
   const key = followItemKey(props.id);
   const hit = findFollowItem(props.id);
@@ -102,58 +103,58 @@ export async function prefetchFollowDetail(props: { id: number }, signal: AbortS
   await credentials;
 }
 
-/* ── 壳递进来的那几样 ── */
+/* ── The pieces the shell hands in ── */
 
 export interface FollowDetailActions {
-  /** 关闭详情回到来处（壳的 `closeDetail`：退场动画、拆舞台、推回列表地址）。 */
+  /** Close details and return to where you came from (the shell's `closeDetail`: exit animation, stage teardown, push back to the list address). */
   close(): void;
-  /** 换到组里的另一条：经壳换地址（`preserveReturn` 语义），舞台原地换内容。 */
+  /** Switch to another item in the group: the address changes through the shell (`preserveReturn` semantics) and the stage swaps content in place. */
   openItem(id: number, mediaIndex?: number | null): void;
   openAuthor(name: string): void;
-  /** 点详情里的一枚标签：壳切换那一枚筛选，回到带上它的列表。 */
+  /** Click a tag in details: the shell switches to that one filter and returns to the list carrying it. */
   openTag(tag: string): void;
-  /** 这一条、这一份媒体画出来了：壳据此更新小窗元数据、侧栏标签抽屉与舞台的氛围光、剧场模式。 */
+  /** This item and media are now rendered: from this the shell updates mini player metadata, the sidebar's tag drawer, and the stage's ambient light and theater mode. */
   present(item: FollowDetailItem, kind: string): void;
-  /** 把媒体框交给舞台挂播放器（同作品详情：`<video>` 由舞台建在框里）。`onError` 是片源报错，
-   *  详情据此说明这一份没放出来。返回的清理在这块媒体区卸下时调。 */
+  /** Hands the media frame to the stage to attach a player (same as video details: the stage builds the `<video>` inside the frame). `onError` is a source error,
+   *  which details use to explain that this copy would not play. The returned cleanup runs when this media area unmounts. */
   mountPlayer(frame: HTMLElement, item: FollowDetailItem, media: FollowDetailMedia | null,
     options: { onError(): void }): () => void;
-  /** 操作回执；给了 `undo` 就带一颗撤销键。失败走 `failure`。 */
+  /** Action receipt; when `undo` is given it carries an undo button. Failures go through `failure`. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
   failure(action: string, error: unknown): void;
-  /** 接着看里的一叠能不能悬停翻卡：和关注列表同一个判据（多选、遮挡、减少动效、滚动中都回 false）。 */
+  /** Whether a stack in the continue-watching list can flip on hover: the same criterion as the following list (multi-select, occlusion, reduced motion, and scrolling all return false). */
   canFlip(): boolean;
 }
 
 export interface FollowDetailProps {
   id: number;
-  /** 进来时要看的那份媒体（`media_items[].index`）；空就按当前视图挑第一份。 */
+  /** The media to show on entry (`media_items[].index`); when empty, pick the first one for the current view. */
   mediaIndex: number | null;
-  /** 列表停在视频还是图片：多媒体帖先挑这种媒体。 */
+  /** Whether the list rests on video or image: a multi-media post picks that media first. */
   mediaView: FollowMedia;
   relatedLimit: number;
   helpers: FollowFeedHelpers;
   actions: FollowDetailActions;
 }
 
-/* ── 媒体判定 ── */
+/* ── Media decisions ── */
 
 export interface DetailMedia {
   embedded: FollowDetailMedia[];
   selected: FollowDetailMedia | null;
   kind: string;
   images: FollowDetailMedia[];
-  /** 当前这张在图片里的位置；不是图片时是 -1。 */
+  /** The current item's position within the images; -1 when it is not an image. */
   position: number;
   carousel: boolean;
-  /** 多份媒体又不是纯图轮播：右边摆多媒体队列。 */
+  /** Multiple media items and not a pure image carousel: the multimedia queue goes on the right. */
   embeddedQueue: boolean;
-  /** 条目自己没有嵌入媒体、组里却有几条可播视频：右边摆合集队列。 */
+  /** The entry has no embedded media of its own while its group holds playable videos: the compilation queue goes on the right. */
   collection: FollowGroup | null;
-  /** 画框比例跟整组图走、不跟当前这张：换图时详情不忽高忽低，图没加载完也先占住位置。
-   *  有尺寸的图里取最高的那张（宽高比最小）；一张都没有时轮播用方框，单图由图片自己撑开。 */
+  /** The frame ratio follows the whole image set, not the current image: details do not jump in height when images change, and space is held before images finish loading.
+   *  Take the tallest image among those with dimensions (smallest aspect ratio); with none, the carousel uses a square frame and a single image sizes itself. */
   frameRatio: number;
-  /** 正片地址（`/follow-stream`）；条目不可播时是空串。 */
+  /** The feature stream address (`/follow-stream`); an empty string when the entry is not playable. */
   src: string;
 }
 
@@ -178,12 +179,12 @@ export function detailMedia(item: FollowDetailItem, group: FollowGroup | null, m
   return { embedded, selected, kind, images, position, carousel, embeddedQueue, collection, frameRatio, src };
 }
 
-/** 组里挂着网盘分组媒体的那一条：合集队列改列它的媒体，不列回复。 */
+/** The entry in the group with grouped cloud drive media attached: the compilation queue lists its media instead of replies. */
 export const groupedMediaOwner = (group: FollowGroup): FollowDetailItem | undefined =>
   collectionItems(group).find((item) => ((item as FollowDetailItem).media_items || [])
     .some((media) => media.resource_group)) as FollowDetailItem | undefined;
 
-/* ── 文案 ── */
+/* ── Copy ── */
 
 const RESOURCE_HOSTS: Record<string, string> = {
   'gofile.io': 'Gofile', 'pixeldrain.com': 'Pixeldrain', 'mega.nz': 'MEGA', 'mega.io': 'MEGA',
@@ -193,48 +194,48 @@ const RESOURCE_PROVIDERS: Record<string, string> = {
   gofile: 'Gofile', pixeldrain: 'Pixeldrain', mega: 'MEGA', mediafire: 'MediaFire', google_drive: 'Google Drive',
 };
 
-/** 外部文件页那一排的站名：认得的网盘写品牌名，其余写主机名。 */
+/** The site names in the external files page's row: recognized cloud drives show their brand name, everything else shows the hostname. */
 export function resourceLabel(url: string): string {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '');
     return RESOURCE_HOSTS[host] || host;
   } catch {
-    return '外部文件页';
+    return 'External files page';
   }
 }
 
-/** 灯箱角上那一行出处：网盘分组的媒体写网盘，其余写来源站。 */
+/** The source line in the lightbox corner: media from cloud drive groups say cloud drive, the rest name the source site. */
 export function mediaSourceLabel(media: FollowDetailMedia | null | undefined, item: FollowDetailItem): string {
-  return RESOURCE_PROVIDERS[media?.resource_provider || ''] || item.provider_label || item.provider || '在线图片';
+  return RESOURCE_PROVIDERS[media?.resource_provider || ''] || item.provider_label || item.provider || 'Online images';
 }
 
-/** 合集队列一行的行首标记与正文。线程标题不能冒充每条回复的正文，行首说明它与主条目的关系；
- *  发布时间单独显示，不能再伪装成版本或类型标签。 */
+/** Leading marker and body of a compilation queue row. The thread title must not masquerade as each reply's body; the lead explains its relation to the main entry;
+ *  publish time is shown separately and can no longer pose as an edition or type label. */
 export function collectionCopy(group: FollowGroup, item: FollowDetailItem, mark = ''): { label: string; title: string } {
   let label = mark;
   if (!label && group.is_release) label = item.variant_label || item.variant_kind || '';
-  if (!label) label = item.variant_kind === 'wip' ? 'WIP' : (item.variant_label || item.variant_kind || '视频');
-  const body = group.is_release ? (item.summary || (item.has_media ? '（仅附件）' : '（无正文）')) : item.title;
-  return { label, title: group.is_release && item.author ? `${item.author}：${body}` : body };
+  if (!label) label = item.variant_kind === 'wip' ? 'WIP' : (item.variant_label || item.variant_kind || 'Videos');
+  const body = group.is_release ? (item.summary || (item.has_media ? '(attachments only)' : '(no body)')) : item.title;
+  return { label, title: group.is_release && item.author ? `${item.author}: ${body}` : body };
 }
 
-/** 多媒体队列一行的名字：关注媒体不是 JAV，只去掉首尾空白（同遗留层 `javDisplayName` 的非 JAV 分支）。 */
+/** The name of a multimedia queue row: follow media is not JAV, so only trim surrounding whitespace (same as the non-JAV branch of the legacy layer's `javDisplayName`). */
 export const mediaName = (media: FollowDetailMedia) => String(media.name || '').trim();
 
-/** 来源记下的标签类型；没记的是 `unknown`，保持中性色——不按词形猜类型是关注标签的既有门槛。 */
+/** The tag type the source recorded; unrecorded ones are `unknown` and keep the neutral color. Guessing the type from word shape is off limits by design for follow tags. */
 export const tagType = (item: FollowDetailItem, tag: string) => item.tag_types?.[tag] || 'unknown';
 
-/** 标签着色那一档（`data-tag-cat`，色板在 `../styles.css`）：来源认得的五类各有颜色，没记类型的
- *  是中性色，其余类型（booru 各站自己多出来的）按 general 着色。 */
+/** The tag coloring tier (`data-tag-cat`, palette in `../styles.css`): the five types the source recognizes each have a color, untyped ones are neutral,
+ *  and the remaining types (the booru sites' extras) color as general. */
 const COLORED_TYPES = new Set(['artist', 'character', 'copyright', 'metadata', 'unknown']);
 export function tagCategory(item: FollowDetailItem, tag: string): string {
   const type = tagType(item, tag);
   return `r34-${COLORED_TYPES.has(type) ? type : 'general'}`;
 }
 
-/* 详情标签按 rule34.xxx 帖子页 `#tag-sidebar` 的类型顺序分组，组内按名升序——证据见
-   docs/reference-snapshots/rule34-follow-tags-and-collections.md，缺的类型直接跳过不占位。
-   卡片只消费 general 内容投影；详情保留来源记录的全部类型。 */
+/* Detail tags are grouped in the type order of the rule34.xxx post page's `#tag-sidebar`, ascending by name within a group; evidence in
+   docs/reference-snapshots/rule34-follow-tags-and-collections.md; missing types are skipped without leaving a slot.
+   The card only consumes the general projection; details keep all types of the source record. */
 const TAG_ORDER = ['copyright', 'character', 'artist', 'general', 'metadata'];
 export function detailTags(item: FollowDetailItem, label: (tag: string) => string): string[] {
   const tags = item.detail_tags || item.tags || [];
@@ -245,7 +246,7 @@ export function detailTags(item: FollowDetailItem, label: (tag: string) => strin
   return [...tags].sort((a, b) => rank(a) - rank(b) || label(a).localeCompare(label(b)));
 }
 
-/** 署名那一组来源：同一创作者的全部来源，认不出创作者时只有这一条自己的来源。 */
+/** The credited group of sources: all sources of the same creator, or just this one source of its own when the creator cannot be recognized. */
 export function authorSources(item: Pick<FollowItem, 'source_id'>, sources: readonly FollowSource[]): FollowSource[] {
   const source = sources.find((row) => row.id === item.source_id);
   const group = sources.filter((row) => source?.author_key && row.author_key === source.author_key);
@@ -257,9 +258,9 @@ export const detailContext = (data: FollowDetailData, credentials: ReadonlySet<s
   sources: data.sources, aliases: data.aliases, credentials,
 });
 
-/* ── 灯箱 ──
-   详情里点图开大图，跟女优页同一个灯箱。多图时把整组交进去，左右翻页就能看完一条帖子的所有图；
-   取不到正片就退而用缩略图——看小图总比点了没反应强。 */
+/* -- Lightbox --
+   Clicking an image in details opens the large view, the same lightbox as the performer page. With multiple images, hand over the whole set so paging through shows every image in a post;
+   when originals are unavailable, fall back to thumbnails; a small image beats a click that does nothing. */
 const sized = (media: FollowDetailMedia | null) => (media?.size ? { size: media.size } : {});
 
 export function detailSlides(item: FollowDetailItem, media: DetailMedia): LightboxSlide[] {
@@ -276,10 +277,10 @@ export function detailSlides(item: FollowDetailItem, media: DetailMedia): Lightb
       ...sized(selected) }];
   }
   return item.thumb_url ? [{ src: item.thumb_url, thumb: item.thumb_url, name: item.title,
-    source: item.provider_label || item.provider || '在线图片' }] : [];
+    source: item.provider_label || item.provider || 'Online images' }] : [];
 }
 
-/* ── 写完之后 ── */
+/* ── After writing ── */
 
-/** 状态回执的说法与撤销：保存进数据库的不给撤销，那是另一件事。 */
-export const statusReceipt = (to: string) => (to === 'seen' ? '已标记看过' : '已更新关注状态');
+/** The wording of status receipts and undo: anything saved into the database offers no undo; that is a different matter. */
+export const statusReceipt = (to: string) => (to === 'seen' ? 'Marked as watched' : 'Follow state updated');

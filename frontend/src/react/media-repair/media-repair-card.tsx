@@ -1,7 +1,7 @@
-/* 数据管理页上的「媒体修复」卡片：选一个媒体库，把里面播不了或播不顺的 MP4 批量修好。
+/* The "media repair" card on the data management page: pick a library and batch-fix the MP4s inside that cannot play or play poorly.
  *
- * 卡片和「扫描与采集」同一副形状：左边讲这件事和此刻的进度，页脚放媒体库与起停键；
- * 这一趟的下场挂在卡片外面。跑动时两秒问一次，空闲时不问。 */
+ * The card shares the shape of "scan and collect": the left explains the job and current progress, the footer holds the library and start/stop keys;
+ * this run's outcome hangs outside the card. While running it asks every two seconds; while idle it does not ask. */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { confirmModal, MEDIA_SOURCE_ICONS } from '@peach/legacy/ui';
@@ -47,7 +47,7 @@ export function MediaRepairCard({ toast = () => {} }: { toast?(message: string):
   const libraries = useOrderedLibraries(choices.data ?? [], row => row.id);
   const running = state.status === 'running';
 
-  // 跑着的那一轮握着下拉框；空闲时是人选的那个，没选过就是上一轮修的库，再没有就是第一个。
+  // The running round holds the dropdown; when idle it is the user's choice, otherwise the library the last round repaired, otherwise the first one.
   const selected = libraries.find((row) => row.id === (running ? state.library : chosen))
     ?? libraries.find((row) => row.id === state.library) ?? libraries[0];
 

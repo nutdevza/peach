@@ -1,14 +1,14 @@
-/* 弹层该挂到哪个容器里。
+/* Which container a popover should mount into.
  *
- * 默认那一个在 `body` 末尾（`providers.tsx` 的 `overlayContainer`），对整页 island 够用。
- * 详情浮窗不是：舞台用 `showModal()` 开一个原生 `<dialog>`，而顶层元素排在所有 z-index
- * 之上——弹层落在 `body` 上就被详情页整个盖住，再大的 z-index 也压不过顶层，而盖住的样子
- * 和「弹层没画出来」在屏幕上看不出区别。所以弹层挂进那个已打开的 dialog；找不到就还是 `body`。
- * 舞台在自己那一层统一给出这个容器（`stage.tsx` 的 `UNSAFE_PortalProvider`），详情里的
- * 弹层、下拉与气泡不必各自包一层。
+ * The default one at the end of `body` (`overlayContainer` in `providers.tsx`) is enough for whole-page islands. The details
+ * popover is not: the stage opens a native `<dialog>` with `showModal()`, and top-layer elements rank above all z-indexes.
+ * A popover landing on `body` is covered entirely by the details page, and no z-index beats the top layer, while the covered
+ * look and "the popover did not render" are indistinguishable on screen. So popovers mount into that open dialog; falling
+ * back to `body` when not found. The stage provides this container uniformly for its layer (`UNSAFE_PortalProvider` in
+ * `stage.tsx`), so popovers, dropdowns and tooltips inside details need no wrapper of their own.
  *
- * token、Preflight 与焦点规则都作用在 `.peach-react` 上，所以容器自己带这个类。
- * 每个 dialog 复用同一个容器，弹层关掉之后它留在那儿，下一次不必再建。
+ * Tokens, Preflight and focus rules all apply on `.peach-react`, so the container carries that class itself.
+ * Each dialog reuses one container; after a popover closes it stays there and need not be rebuilt next time.
  */
 function hostIn(parent: HTMLElement): HTMLElement {
   const existing = parent.querySelector<HTMLElement>(':scope > [data-react-overlays]');
@@ -20,7 +20,7 @@ function hostIn(parent: HTMLElement): HTMLElement {
   return host;
 }
 
-/** `node` 所在的那一层该用的弹层容器。 */
+/** The popover container that the layer containing `node` should use. */
 export function overlayHost(node: Element | null | undefined): HTMLElement {
   const document = node?.ownerDocument ?? globalThis.document;
   const modal = node?.closest('dialog[open]');
@@ -29,8 +29,8 @@ export function overlayHost(node: Element | null | undefined): HTMLElement {
 
 const LAYER = '[role="dialog"],[role="listbox"],[role="menu"]';
 
-/** 挂在 `modal` 里最上面那层弹层的对话框、列表或菜单；没有开着的层时为 `null`。
- *  容器里还有焦点范围的哨兵等非弹层节点，按从后往前取第一个是层或含层的子元素。 */
+/** The dialog, list or menu of the topmost popover layer inside `modal`; `null` when no layer is open.
+ *  The container also holds focus-trap sentinels and other non-popover nodes; take the last child that is a layer or contains one, scanning backward. */
 export function topOverlay(modal: HTMLElement): HTMLElement | null {
   const host = modal.querySelector(':scope > [data-react-overlays]');
   for (let node = host?.lastElementChild; node; node = node.previousElementSibling) {
@@ -40,10 +40,11 @@ export function topOverlay(modal: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** 全站 Toast 栈（`#toasts`）跟着模态 dialog 进出：传开着的 dialog 就挪进去，传 `null` 放回 `body`。
- *  栈留在 `body` 上时被顶层的详情浮窗整个盖住，回执发了也看不见；挪进 dialog 才在它之上，
- *  也不落进模态 dialog 之外那片 inert 区，「撤销」照样点得到。dialog 卸掉之前必须先放回，
- *  否则栈跟着 dialog 一起离开文档。 */
+/** The site-wide Toast stack (`#toasts`) follows modal dialogs in and out: pass the open dialog and it moves in; pass `null`
+ *  and it returns to `body`.
+ *  Left on `body`, the stack is covered entirely by the top-layer details popover and receipts would go unseen; moved into the
+ *  dialog it sits above it and stays out of the inert region outside the modal dialog, so "Undo" stays clickable. It must be
+ *  returned before the dialog unmounts, or the stack leaves the document with the dialog. */
 export function adoptToasts(modal: HTMLDialogElement | null): void {
   const host = document.getElementById('toasts');
   const parent = modal?.open ? modal : document.body;

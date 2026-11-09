@@ -1,5 +1,5 @@
-/* 首页那一行新作（`feed-new` 页面内组件，路由树画进 `#feedNew`）。只在目录路径上画：离开目录页由壳收起，人还在目录页里换
- * 筛选时这一行不重挂、不重取——它不随筛选变。取回来的卡 portal 回宿主 `#feedNew` 本身。 */
+/* The home new-releases row (the `feed-new` in-page component, rendered by the route tree into `#feedNew`). Only painted on catalog paths: leaving the catalog the shell retracts it, and while the person changes
+ * filters within the catalog this row does not remount or refetch, since it does not follow filters. The fetched cards portal back into the host `#feedNew` itself. */
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';

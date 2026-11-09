@@ -1,10 +1,11 @@
-/* 独立页面的外框：页面底色上居中一张描边卡，卡头是站标、标题和可选的一句引言。
+/* The standalone pages' outer frame: one outlined card centered on the page background, with the site mark, title and an
+ * optional lead line in the card head.
  *
- * 注册表里没有 Auth Card，用 BoardUI token 组合，分层同配置页的设置区：整页 `background-full`
- * （由 `pages.css` 落在 body 上），卡面 `background-secondary-default` 加一条 `separator-border`，
- * 卡里的输入框与分段是 tertiary、文件夹行与次级按钮是 primary，深浅两色下都比卡面亮一档。
- * 24px 圆角，窄屏收内边距。
- * `busy` 时卡上写 `aria-busy`，题目还没取回来。 */
+ * The registry has no Auth Card, so BoardUI tokens are composed, layered like the configuration page's settings sections: the
+ * page takes `background-full` (applied to body by `pages.css`), the card face `background-secondary-default` plus a
+ * `separator-border`; inputs and segments inside the card are tertiary, folder rows and secondary buttons primary, one tier
+ * brighter than the card face in both themes. 24px radius, narrower padding on small screens.
+ * While `busy`, the card carries `aria-busy` and the title has not returned yet. */
 import type { ReactNode } from 'react';
 
 export function AuthCard({ title, lede, busy = false, children }: {
@@ -29,7 +30,7 @@ export function AuthCard({ title, lede, busy = false, children }: {
   );
 }
 
-/** 卡里的一组：上面一条分隔线，24px 留白。第一组紧跟卡头，不画线。 */
+/** A group inside the card: a separator on top and 24px padding. The first group follows the card header with no line. */
 export function CardGroup({ first = false, labelledBy, children }: {
   first?: boolean;
   labelledBy?: string;
@@ -43,7 +44,7 @@ export function CardGroup({ first = false, labelledBy, children }: {
   );
 }
 
-/** 一级分组的标题。 */
+/** The top-level group heading. */
 export function GroupTitle({ id, children }: { id?: string; children: ReactNode }) {
   return <h2 id={id} className="text-body-semibold text-text-primary">{children}</h2>;
 }

@@ -1,6 +1,6 @@
-/* 创作者别名：同一个人在几个站上用几个名字，合并之后按一位创作者归组。
+/* Creator aliases: one person uses several names across sites; after merging, group under a single creator.
  *
- * 待合并是带依据的候选，合并永远由人点：服务端不自行升级，页面也不替他勾。 */
+ * Pending merges are candidates with evidence, and merging is always clicked by a person: the server never promotes on its own, and the page does not check it for them. */
 import { useMemo, useRef, useState } from 'react';
 import { RiCloseLine, RiUserLine } from '@remixicon/react';
 import { useMutation } from '@tanstack/react-query';
@@ -38,15 +38,15 @@ import { AuthorAvatar } from './source-view';
 import { AliasRenameDialog } from './alias-rename-dialog';
 import { TableSelectionHeader } from '../components/table-selection-header';
 
-const REMOVE_BODY = (alias: string) => `将移除别名「${alias}」，对应来源恢复为独立创作者组。`;
+const REMOVE_BODY = (alias: string) => `The alias "${alias}" will be removed and its source restored to a standalone creator group.`;
 const suggestionFeatures = tableFeatures({ rowSelectionFeature, rowSortingFeature, rowPaginationFeature, columnVisibilityFeature,
   sortedRowModel: createSortedRowModel(), paginatedRowModel: createPaginatedRowModel() });
 const savedFeatures = suggestionFeatures;
-const selectColumn = { id: 'select', label: '选择', width: 48, min: 48, max: 48, required: true };
-const identityColumn = { id: 'canonical', label: '统一名称', width: 280, min: 240, required: true, flex: true };
-const suggestionPreferences = [selectColumn, identityColumn, { id: 'alias', label: '平台别名', width: 240 },
-  { id: 'evidence', label: '依据', width: 320 }, { id: 'actions', label: '操作', width: 112 }];
-const savedPreferences = [selectColumn, identityColumn, { id: 'aliases', label: '平台别名', width: 400 }, { id: 'actions', label: '操作', width: 184, min: 168 }];
+const selectColumn = { id: 'select', label: 'Select', width: 48, min: 48, max: 48, required: true };
+const identityColumn = { id: 'canonical', label: 'Canonical name', width: 280, min: 240, required: true, flex: true };
+const suggestionPreferences = [selectColumn, identityColumn, { id: 'alias', label: 'Platform alias', width: 240 },
+  { id: 'evidence', label: 'Basis', width: 320 }, { id: 'actions', label: 'Actions', width: 112 }];
+const savedPreferences = [selectColumn, identityColumn, { id: 'aliases', label: 'Platform alias', width: 400 }, { id: 'actions', label: 'Actions', width: 184, min: 168 }];
 
 export interface AliasManagerProps {
   groups: AliasGroup[];
@@ -56,11 +56,11 @@ export interface AliasManagerProps {
   toast(message: string): void;
 }
 
-/** 一条待合并的身份：一个别名只可能归进一个规范名，所以用别名本身当键。 */
+/** One identity pending merge: an alias can only map into one canonical name, so the alias itself serves as the key. */
 const suggestionKey = (item: AliasSuggestion) => item.alias;
 
 function authorSources(sources: FollowSource[], name: string, canonicalKey?: string) {
-  /* 建过档的作者键是 `entity:<id>`，别名表上记的仍是名字键：按名字键找不到就按名字认。 */
+  /* A filed author's key is `entity:<id>`, while the alias table still records the name key: if the name key lookup misses, recognize by name. */
   const expected = canonicalKey ? `name:${canonicalKey}` : '';
   const anchor = (expected && sources.find((source) => source.author_key === expected))
     || sources.find((source) => source.author_name === name || source.entity_name === name);
@@ -96,8 +96,8 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
   const [canonical, setCanonical] = useState('');
   const [alias, setAlias] = useState('');
 
-  /* 合并按顺序一条一条发：一次失败要报出「还有几组没合」，而并发发出去的话，说不清
-     停在了哪里。 */
+  /* Merges go out one by one, in order: a failure has to report how many groups are still unmerged, and fired concurrently there would be no saying
+     where it stopped. */
   const merge = useMutation({
     mutationFn: async (items: AliasSuggestion[]) => {
       let done = 0;
@@ -105,9 +105,9 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
         try {
           await addAlias(item.canonical, item.alias);
         } catch (cause) {
-          /* 半路断了要说清停在哪儿：已经合上的那几组先落回列表里去掉，再点一次只发剩下的。 */
+          /* If it breaks midway, say where it stopped: the already-closed groups drop back into the list, and clicking again sends only what remains. */
           if (done) void reloadFollowManage();
-          throw new Error(`${errorMessage(cause)}（还有 ${items.length - done} 组没有合并）`);
+          throw new Error(`${errorMessage(cause)} (${items.length - done} groups left unmerged)`);
         }
         done += 1;
       }
@@ -117,7 +117,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
       setProblem('');
       setRowSelection({});
       void reloadFollowManage();
-      toast(`已合并 ${result.done} 组创作者别名`);
+      toast(`Merged ${result.done} creator alias groups`);
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
@@ -129,7 +129,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
       setCanonical('');
       setAlias('');
       void reloadFollowManage();
-      toast('已保存创作者别名');
+      toast('Saved creator aliases');
     },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
@@ -141,27 +141,27 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
       try {
         for (const name of pending) { await removeAlias(name); done += 1; }
       } catch (cause) {
-        throw new Error(`${errorMessage(cause)}（已移除 ${done} 个别名，还有 ${pending.length - done} 个未移除）`);
+        throw new Error(`${errorMessage(cause)} (removed ${done} aliases, ${pending.length - done} left unremoved)`);
       } finally { void reloadFollowManage(); }
     },
-    onSuccess: () => { setProblem(''); setSavedSelection({}); toast('已移除创作者别名') },
+    onSuccess: () => { setProblem(''); setSavedSelection({}); toast('Removed the creator alias') },
     onError: (cause) => setProblem(errorMessage(cause)),
   });
 
   const mergeSome = (items: AliasSuggestion[], all: boolean) => {
     if (!items.length) return;
     void confirmModal({
-      title: all ? '合并全部创作者别名' : '合并所选创作者别名',
-      body: `将合并以下 ${items.length} 组创作者：${items.map(
-        (item) => `「${item.alias}」归入「${item.canonical}」`).join('；')}。`,
-      confirmLabel: all ? '合并全部别名' : '合并所选别名',
+      title: all ? 'Merge all creator aliases' : 'Merge selected creator aliases',
+      body: `Will merge the following ${items.length} creator groups: ${items.map(
+        (item) => `"${item.alias}" into "${item.canonical}"`).join('; ')}.`,
+      confirmLabel: all ? 'Merge all aliases' : 'Merge selected aliases',
       onConfirm: () => merge.mutateAsync(items),
     });
   };
 
   const removeSome = (name: string) => void confirmModal({
-    title: '移除创作者别名', body: REMOVE_BODY(name),
-    confirmLabel: '移除创作者别名',
+    title: 'Remove creator alias', body: REMOVE_BODY(name),
+    confirmLabel: 'Remove creator alias',
     onConfirm: () => drop.mutateAsync(name),
   });
   const handlers = useRef({ sources, readOnly, merging: merge.isPending,
@@ -175,29 +175,29 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
       column.display({
         id: 'select',
         header: (context) => (
-          <TableSelectionHeader table={context.table} label="全选待合并别名" />
+          <TableSelectionHeader table={context.table} label="Select all pending-merge aliases" />
         ),
         cell: (context) => (
           <Checkbox slot={null} isSelected={context.row.getIsSelected()}
-            aria-label={`选择别名 ${context.row.original.alias}，归入 ${context.row.original.canonical}`}
+            aria-label={`Choose alias ${context.row.original.alias} to merge into ${context.row.original.canonical}`}
             onChange={(on) => context.row.toggleSelected(on)} />
         ),
       }),
       column.accessor('canonical', {
-        header: '统一名称',
+        header: 'Canonical name',
         cell: (context) => <AuthorIdentity sources={handlers.current.sources} name={context.getValue()} />,
       }),
-      column.accessor('alias', { header: '平台别名', cell: (context) => context.getValue() }),
+      column.accessor('alias', { header: 'Platform alias', cell: (context) => context.getValue() }),
       column.accessor('evidence', {
-        header: '依据',
+        header: 'Basis',
         cell: (context) => <span className="text-body-2-regular text-text-secondary">{context.getValue()}</span>,
       }),
       column.display({
-        id: 'actions', header: '操作',
+        id: 'actions', header: 'Actions',
         cell: (context) => (
           <Button variant="secondary" size="small" disabled={handlers.current.readOnly}
             {...busyProps(handlers.current.merging)}
-            onClick={() => handlers.current.merge([context.row.original], false)}>合并</Button>
+            onClick={() => handlers.current.merge([context.row.original], false)}>Merge</Button>
         ),
       }),
     ]);
@@ -206,20 +206,20 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
     const column = createColumnHelper<typeof savedFeatures, AliasGroup>();
     return column.columns([
       column.display({ id: 'select', header: ({ table }) => (
-        <TableSelectionHeader table={table} label="全选已保存别名" />
+        <TableSelectionHeader table={table} label="Select all saved aliases" />
       ), cell: ({ row }) => (
-        <Checkbox slot={null} aria-label={`选择已保存别名 ${row.original.canonical_name}`}
+        <Checkbox slot={null} aria-label={`Select saved alias ${row.original.canonical_name}`}
           isSelected={row.getIsSelected()} onChange={(on) => row.toggleSelected(on)} />
       ) }),
       column.accessor('canonical_name', {
-        id: 'canonical', header: '统一名称',
+        id: 'canonical', header: 'Canonical name',
         cell: (context) => (
           <AuthorIdentity sources={handlers.current.sources} name={context.getValue()}
             canonicalKey={context.row.original.canonical_key} />
         ),
       }),
       column.accessor('aliases', {
-        header: '平台别名',
+        header: 'Platform alias',
         sortFn: (a, b) => a.original.aliases.map((item) => item.name).join(' ').localeCompare(b.original.aliases.map((item) => item.name).join(' '), 'zh-CN'),
         cell: (context) => (
           <span className="flex flex-wrap items-center gap-1.5">
@@ -228,7 +228,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
                 className="inline-flex items-center gap-1 rounded-md bg-background-secondary-default px-1.5 py-1 text-caption-1-medium text-text-secondary">
                 {item.name}
                 <Button variant="ghost" size="xs" iconOnly leadingIcon={RiCloseLine}
-                  aria-label={`移除别名 ${item.name}`} disabled={handlers.current.readOnly}
+                  aria-label={`Remove alias ${item.name}`} disabled={handlers.current.readOnly}
                   {...busyProps(handlers.current.removing)}
                   onClick={() => handlers.current.remove(item.name)} />
               </span>
@@ -236,9 +236,9 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
           </span>
         ),
       }),
-      column.display({ id: 'actions', header: '操作', cell: ({ row }) => <Button variant="secondary" size="small"
-        disabled={handlers.current.readOnly} aria-label={`修改 ${row.original.canonical_name} 的统一名称`}
-        onClick={() => handlers.current.rename(row.original)}>修改统一名称</Button> }),
+      column.display({ id: 'actions', header: 'Actions', cell: ({ row }) => <Button variant="secondary" size="small"
+        disabled={handlers.current.readOnly} aria-label={`Edit the canonical name of ${row.original.canonical_name}`}
+        onClick={() => handlers.current.rename(row.original)}>Edit the canonical name</Button> }),
     ]);
   }, []);
   const suggestionTable = useTable({
@@ -270,19 +270,19 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
 
   return (
     <div className={cardClass({ padding: 'none', className: 'flex flex-col gap-4 px-6 py-5 max-sm:px-4' })}>
-      <h3 className="text-title-2-medium text-text-primary">创作者别名</h3>
+      <h3 className="text-title-2-medium text-text-primary">Creator aliases</h3>
 
       <div className="flex flex-col gap-2">
-        <FieldLabel>手动添加别名</FieldLabel>
+        <FieldLabel>Add an alias manually</FieldLabel>
         <div className="flex flex-wrap items-end gap-2">
-          <Input aria-label="统一名称" placeholder="在 Peach 中统一显示的名称" value={canonical}
+          <Input aria-label="Canonical name" placeholder="The name shown consistently across Peach" value={canonical}
             onChange={setCanonical} isDisabled={readOnly} className="w-56" />
-          <Input aria-label="平台别名" placeholder="平台别名" value={alias}
+          <Input aria-label="Platform alias" placeholder="Platform alias" value={alias}
             onChange={setAlias} isDisabled={readOnly} className="w-56" />
           <Button variant="primary" disabled={readOnly || !canonical.trim() || !alias.trim()}
             {...busyProps(save.isPending)}
             onClick={() => save.mutate({ canonical: canonical.trim(), alias: alias.trim() })}>
-            保存别名
+            Save alias
           </Button>
         </div>
       </div>
@@ -293,27 +293,27 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
         <div className="flex flex-col gap-2">
           <div data-responsive-toolbar="">
             <div data-toolbar-heading="">
-            <FieldLabel>待合并</FieldLabel>
+            <FieldLabel>Pending merge</FieldLabel>
             <span className="text-body-2-regular text-text-secondary">
-              {`${suggestions.length} 组`}
+              {`${suggestions.length} groups`}
             </span>
             </div>
             <div data-toolbar-actions="">
             <Button variant="primary" size="small" disabled={readOnly} {...busy}
-              onClick={() => mergeSome(suggestions, true)}>{`全部合并（${suggestions.length}）`}</Button>
-            <DataTableSort label="待合并创作者别名" sorting={sorting}
-              options={[{ id: 'canonical', label: '统一名称' }, { id: 'alias', label: '平台别名' }, { id: 'evidence', label: '依据' }]}
+              onClick={() => mergeSome(suggestions, true)}>{`Merge all (${suggestions.length})`}</Button>
+            <DataTableSort label="Creator aliases pending merge" sorting={sorting}
+              options={[{ id: 'canonical', label: 'Canonical name' }, { id: 'alias', label: 'Platform alias' }, { id: 'evidence', label: 'Basis' }]}
               onChange={(next) => { setSorting(next); setPagination((now) => ({ ...now, pageIndex: 0 })); }} />
-            <TableColumnControls preferences={suggestionView} label="待合并创作者别名" />
+            <TableColumnControls preferences={suggestionView} label="Creator aliases pending merge" />
             </div>
           </div>
-          <SelectionDock label="待合并别名批量操作" visible={chosen.length > 0} count={`已选 ${chosen.length} 组`}>
+          <SelectionDock label="Pending alias bulk operations" visible={chosen.length > 0} count={`${chosen.length} groups selected`}>
             <Button variant="secondary" size="small" disabled={readOnly} {...busy}
-              onClick={() => mergeSome(chosen, false)}>{`合并所选（${chosen.length}）`}</Button>
-            <Button variant="ghost" size="small" onClick={() => setRowSelection({})}>取消选择</Button>
+              onClick={() => mergeSome(chosen, false)}>{`Merge selected (${chosen.length})`}</Button>
+            <Button variant="ghost" size="small" onClick={() => setRowSelection({})}>Clear selection</Button>
           </SelectionDock>
           <DataTableFrame follow preferences={suggestionView} onRowClick={id => suggestionTable.getRow(id)?.toggleSelected()}>
-            <Table aria-label="待合并创作者别名" size="sm"
+            <Table aria-label="Creator aliases pending merge" size="sm"
               sortDescriptor={sorting[0] ? { column: sorting[0].id, direction: sorting[0].desc ? 'descending' : 'ascending' } : undefined}
               onSortChange={(sort) => suggestionTable.getColumn(String(sort.column))?.toggleSorting(sort.direction === 'descending')}>
             <TableHeader>
@@ -325,7 +325,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
                   </span><TableColumnResizer preferences={suggestionView} id={header.id} /></>}
                 </TableColumn>
               ))}
-              <TableColumn id="remaining-space" aria-label="行空白区域" data-table-space="" width={suggestionView.spaceWidth} minWidth={0} />
+              <TableColumn id="remaining-space" aria-label="Row empty space" data-table-space="" width={suggestionView.spaceWidth} minWidth={0} />
             </TableHeader>
             <TableBody>
               {suggestionTable.getRowModel().rows.map((row) => (
@@ -339,37 +339,37 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
             </TableBody>
             </Table>
           </DataTableFrame>
-          <DataTableFooter label="待合并创作者别名" unit="组" total={suggestions.length} pagination={suggestionPage} onChange={setPagination} />
+          <DataTableFooter label="Creator aliases pending merge" unit="groups" total={suggestions.length} pagination={suggestionPage} onChange={setPagination} />
         </div>
       ) : null}
 
       <div className="flex flex-col gap-2">
         <div data-responsive-toolbar="">
           <div data-toolbar-heading="">
-          <FieldLabel>已保存别名</FieldLabel>
-          <span className="text-body-2-regular text-text-secondary">{`${groups.length} 组`}</span>
+          <FieldLabel>Saved aliases</FieldLabel>
+          <span className="text-body-2-regular text-text-secondary">{`${groups.length} groups`}</span>
           </div>
           <div data-toolbar-actions="">
-          <DataTableSort label="已保存创作者别名" sorting={savedSorting}
-            options={[{ id: 'canonical', label: '统一名称' }, { id: 'aliases', label: '平台别名' }]}
+          <DataTableSort label="Saved creator aliases" sorting={savedSorting}
+            options={[{ id: 'canonical', label: 'Canonical name' }, { id: 'aliases', label: 'Platform alias' }]}
             onChange={(next) => { setSavedSorting(next); setSavedPagination((now) => ({ ...now, pageIndex: 0 })); }} />
-          <TableColumnControls preferences={savedView} label="已保存创作者别名" />
+          <TableColumnControls preferences={savedView} label="Saved creator aliases" />
           </div>
         </div>
-        <SelectionDock label="已保存别名批量操作" visible={savedNames.length > 0} count={`已选 ${savedNames.length} 个别名`}>
+        <SelectionDock label="Saved alias bulk operations" visible={savedNames.length > 0} count={`Selected ${savedNames.length} aliases`}>
           <Button variant="secondary" size="small" disabled={readOnly} {...busyProps(drop.isPending)}
-            onClick={() => void confirmModal({ title: '移除所选创作者别名',
-              body: `将移除以下 ${savedNames.length} 个别名，对应来源恢复为独立创作者组。`,
+            onClick={() => void confirmModal({ title: 'Remove selected creator aliases',
+              body: `Will remove the following ${savedNames.length} aliases, restoring their sources as separate creator groups.`,
               items: savedNames,
-              confirmLabel: '移除所选别名', onConfirm: () => drop.mutateAsync(savedNames) })}>
-            {`移除所选别名（${savedNames.length}）`}
+              confirmLabel: 'Remove selected aliases', onConfirm: () => drop.mutateAsync(savedNames) })}>
+            {`Remove selected aliases (${savedNames.length})`}
           </Button>
-          <Button variant="ghost" size="small" onClick={() => setSavedSelection({})}>取消选择</Button>
+          <Button variant="ghost" size="small" onClick={() => setSavedSelection({})}>Clear selection</Button>
         </SelectionDock>
         {groups.length ? (
           <>
           <DataTableFrame follow preferences={savedView} onRowClick={id => savedTable.getRow(id)?.toggleSelected()}>
-            <Table aria-label="已保存创作者别名" size="sm"
+            <Table aria-label="Saved creator aliases" size="sm"
               sortDescriptor={savedSorting[0] ? { column: savedSorting[0].id, direction: savedSorting[0].desc ? 'descending' : 'ascending' } : undefined}
               onSortChange={(sort) => savedTable.getColumn(String(sort.column))?.toggleSorting(sort.direction === 'descending')}>
             <TableHeader>
@@ -381,7 +381,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
                   </span><TableColumnResizer preferences={savedView} id={header.id} /></>}
                 </TableColumn>
               ))}
-              <TableColumn id="remaining-space" aria-label="行空白区域" data-table-space="" width={savedView.spaceWidth} minWidth={0} />
+              <TableColumn id="remaining-space" aria-label="Row empty space" data-table-space="" width={savedView.spaceWidth} minWidth={0} />
             </TableHeader>
             <TableBody>
               {savedTable.getRowModel().rows.map((row) => (
@@ -395,12 +395,12 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
             </TableBody>
             </Table>
           </DataTableFrame>
-          <DataTableFooter label="已保存创作者别名" unit="组" total={groups.length} pagination={savedPage} onChange={setSavedPagination} />
+          <DataTableFooter label="Saved creator aliases" unit="groups" total={groups.length} pagination={savedPage} onChange={setSavedPagination} />
           </>
         ) : (
-          <EmptyState size="compact" icon={RiUserLine} title="还没有保存创作者别名"
-            actions={!readOnly ? <EmptyFocusButton target='input[aria-label="统一名称"]'>添加别名</EmptyFocusButton> : undefined}>
-            填写统一名称，以及该创作者在其他平台使用的名字。
+          <EmptyState size="compact" icon={RiUserLine} title="No saved creator aliases yet"
+            actions={!readOnly ? <EmptyFocusButton target='input[aria-label="Canonical name"]'>Add alias</EmptyFocusButton> : undefined}>
+            Fill in the unified name plus the names this creator uses on other platforms.
           </EmptyState>
         )}
       </div>

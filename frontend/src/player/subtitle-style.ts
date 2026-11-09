@@ -1,15 +1,15 @@
-/* 字幕外观持久化与 TextTrack 时间轴显示。 */
+/* Subtitle appearance persistence and TextTrack timeline display. */
 import type { playerMemory } from './memory';
 export const CAPTION_OPTIONS = {
-  font: { label: '字体', values: [['sans', '无衬线'], ['mono', '等宽无衬线'], ['serif', '衬线'], ['mono-serif', '等宽衬线'], ['casual', '休闲'], ['cursive', '手写'], ['small-caps', '小型大写字母']] },
-  size: { label: '字号', values: ['50', '75', '100', '150', '200', '300', '400'].map(value => [value, `${value}%`]) },
-  color: { label: '文字颜色', values: [['white', '白色'], ['yellow', '黄色'], ['green', '绿色'], ['cyan', '青色'], ['blue', '蓝色'], ['magenta', '品红'], ['red', '红色'], ['black', '黑色']] },
-  opacity: { label: '文字不透明度', values: ['25', '50', '75', '100'].map(value => [value, `${value}%`]) },
-  background: { label: '背景颜色', values: [['black', '黑色'], ['white', '白色'], ['red', '红色'], ['green', '绿色'], ['blue', '蓝色'], ['yellow', '黄色'], ['magenta', '品红'], ['cyan', '青色']] },
-  backgroundOpacity: { label: '背景不透明度', values: ['0', '25', '50', '75', '100'].map(value => [value, `${value}%`]) },
-  window: { label: '窗口颜色', values: [['black', '黑色'], ['white', '白色'], ['red', '红色'], ['green', '绿色'], ['blue', '蓝色'], ['yellow', '黄色'], ['magenta', '品红'], ['cyan', '青色']] },
-  windowOpacity: { label: '窗口不透明度', values: ['0', '25', '50', '75', '100'].map(value => [value, `${value}%`]) },
-  edge: { label: '字符边缘样式', values: [['none', '无'], ['raised', '凸起'], ['depressed', '凹陷'], ['outline', '描边'], ['shadow', '阴影']] },
+  font: { label: 'Font', values: [['sans', 'Sans-serif'], ['mono', 'Monospace sans-serif'], ['serif', 'Serif'], ['mono-serif', 'Monospace serif'], ['casual', 'Casual'], ['cursive', 'Handwriting'], ['small-caps', 'Small caps']] },
+  size: { label: 'Font size', values: ['50', '75', '100', '150', '200', '300', '400'].map(value => [value, `${value}%`]) },
+  color: { label: 'Text color', values: [['white', 'White'], ['yellow', 'Yellow'], ['green', 'Green'], ['cyan', 'Cyan'], ['blue', 'Blue'], ['magenta', 'Magenta'], ['red', 'Red'], ['black', 'Black']] },
+  opacity: { label: 'Text opacity', values: ['25', '50', '75', '100'].map(value => [value, `${value}%`]) },
+  background: { label: 'Background color', values: [['black', 'Black'], ['white', 'White'], ['red', 'Red'], ['green', 'Green'], ['blue', 'Blue'], ['yellow', 'Yellow'], ['magenta', 'Magenta'], ['cyan', 'Cyan']] },
+  backgroundOpacity: { label: 'Background opacity', values: ['0', '25', '50', '75', '100'].map(value => [value, `${value}%`]) },
+  window: { label: 'Window color', values: [['black', 'Black'], ['white', 'White'], ['red', 'Red'], ['green', 'Green'], ['blue', 'Blue'], ['yellow', 'Yellow'], ['magenta', 'Magenta'], ['cyan', 'Cyan']] },
+  windowOpacity: { label: 'Window opacity', values: ['0', '25', '50', '75', '100'].map(value => [value, `${value}%`]) },
+  edge: { label: 'Character edge style', values: [['none', 'none'], ['raised', 'Raised'], ['depressed', 'Depressed'], ['outline', 'Outline'], ['shadow', 'Shadow']] },
 } as const;
 export type CaptionKey = keyof typeof CAPTION_OPTIONS;
 export type CaptionStyle = Record<CaptionKey, string>;
@@ -21,7 +21,7 @@ const EDGES: Record<string, string> = { none: 'none', raised: '-1px -1px 0 #ddd,
 
 export function readCaptionStyle(): CaptionStyle {
   let saved: Partial<CaptionStyle> = {};
-  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {} } catch { /* 使用默认外观 */ }
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {} } catch { /* Use the default appearance */ }
   return Object.fromEntries(Object.entries(DEFAULTS).map(([key, fallback]) => [key,
     CAPTION_OPTIONS[key as CaptionKey].values.some(([value]) => value === saved[key as CaptionKey]) ? saved[key as CaptionKey] : fallback])) as CaptionStyle;
 }
@@ -71,9 +71,9 @@ export function mountCaptionStyle(root: HTMLElement, video: HTMLVideoElement, si
       for (const key of Object.keys(DEFAULTS) as CaptionKey[]) if (!touched.has(key)) style[key] = restored[key];
       paintStyle();
     } else {
-      // 浏览器里保存的外观作为这部视频的初始值，服务端清单承载持久记忆。
+      // The appearance saved in the browser is this video's initial value; the server manifest carries the persistent memory.
       let legacy = false;
-      try { legacy = !!localStorage.getItem(KEY) } catch { /* 使用默认外观 */ }
+      try { legacy = !!localStorage.getItem(KEY) } catch { /* Use the default appearance */ }
       if (legacy && !touched.size) void memory.save({ caption_style: style }).catch(() => {});
     }
   });

@@ -1,13 +1,15 @@
-/* 垃圾队列里的一张卡：上面 16:9 的预览格（没有预览时是类型字形），下面名字、类型、理由与
- * 大小，底部三颗等宽的键：打开位置、判断（不是垃圾／重新判断）、移入回收站，再一行状态。
+/* A card in the junk queue: a 16:9 preview cell on top (the type glyph when there is no preview), then name, type, reason and
+ * size, with three equal-width keys at the bottom: open location, judgment (not junk / re-judge), move to trash, plus a status
+ * line.
  *
- * 卡片盒复用馆藏作品卡的钩子（`data-media-card`／`data-media-pic`／`data-media-badge`／
- * `data-media-check`）：预览格、来源角标、选中描边与勾是同一套，Shift 连选时壳按
- * `[data-media-grid] > [data-media-card]` 数本页的卡，垃圾卡也在其中。垃圾卡自己的几何
- * （描边面、元信息区、键行）写在 `./junk-queue.css`，钩子是 `data-junk-*`。
+ * The card box reuses the library video card's hooks (`data-media-card`/`data-media-pic`/`data-media-badge`/
+ * `data-media-check`): preview cell, source badge, selection outline and check are one set, and during Shift range selection
+ * the shell counts the page's cards by `[data-media-grid] > [data-media-card]`, junk cards included. The junk card's own
+ * geometry (outlined face, meta area, key row) lives in `./junk-queue.css`, with hooks `data-junk-*`.
  *
- * 标题照遗留层写成转义后的 HTML：`data-middle-truncate` 由中段截断（`src/ui-kit/middle-truncate.ts`）按宽度
- * 从中间截断，它直接改写这一格的文字，交给 React 管的话下一次重画会和它互相覆盖。 */
+ * Titles render as escaped HTML like the legacy layer: `data-middle-truncate` is cut from the middle by middle-truncate
+ * (`src/ui-kit/middle-truncate.ts`) according to width, and it rewrites this cell's text directly; handing it to React would
+ * make the next re-render fight it. */
 import { memo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { esc, fmtSize } from '@peach/legacy/core';
 import { spinnerHtml } from '@peach/legacy/ui';
@@ -19,7 +21,7 @@ import {
 import { suppressShiftTextSelection } from '../components/row-click';
 import { t } from '../../i18n';
 
-/** 雪碧图里的一枚字形，写法同遗留层 `icon()`：尺寸与描边由样式表按位置给。 */
+/** A sprite glyph, written like the legacy layer's `icon()`: size and stroke come from the stylesheet by position. */
 function Icon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><use href={`#i-${name}`} /></svg>;
 }
@@ -48,7 +50,7 @@ function JunkCardView({ item, view, selected, selectMode, helpers, actions }: Ju
   const preview = kind === 'video' ? `/thumb?id=${item.id}&c=4` : kind === 'image' ? `/photo-thumb?id=${item.id}` : '';
   const openable = kind === 'video' || kind === 'image';
 
-  /* 多选与修饰键优先：点在卡上任何地方（键行除外）都是切换选中。 */
+  /* Multi-select and modifier keys take priority: a click anywhere on the card (except the button row) toggles selection. */
   const clickCard = (event: MouseEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest('[data-junk-actions]')) return;
     if (!picking(selectMode, event)) return;
@@ -72,7 +74,7 @@ function JunkCardView({ item, view, selected, selectMode, helpers, actions }: Ju
     setStatus('');
     void actions.reveal(item).then(setStatus, () => {}).finally(() => setBusy(''));
   };
-  /* 写 ledger 的三颗键。成功后壳重读队列，这张卡随之离开；失败由壳报，键恢复成可点。 */
+  /* The three keys that write the ledger. On success the shell re-reads the queue and this card leaves with it; on failure the shell reports and the keys become clickable again. */
   const operate = (operation: JunkOperation) => (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -130,5 +132,5 @@ function JunkCardView({ item, view, selected, selectMode, helpers, actions }: Ju
   );
 }
 
-/** 一屏上百张，选择之外的重画不该连带每一张：比较的都是引用，壳递进来的助手与动作身份不变。 */
+/** Over a hundred cards per screen; re-renders beyond selection must not drag every card along: comparisons are by reference, and the helpers and actions the shell passes in keep their identity. */
 export const JunkCard = memo(JunkCardView);

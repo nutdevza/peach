@@ -1,9 +1,9 @@
-/** 首次采集的历史范围；值为提交给设置接口的天数，0 表示不限时间。 */
+/** History range for the first collection; the value is days submitted to the settings API, 0 means no time limit. */
 export const FOLLOW_INITIAL_RANGE_OPTIONS = [
-  ['0', '不限时间'],
-  ['7', '最近 7 天'],
-  ['30', '最近 30 天'],
-  ['90', '最近 90 天'],
+  ['0', 'Any duration'],
+  ['7', 'Last 7 days'],
+  ['30', 'Last 30 days'],
+  ['90', 'Last 90 days'],
 ] as const satisfies readonly (readonly [value: string, label: string])[];
 
 export type InitialFollowRange = typeof FOLLOW_INITIAL_RANGE_OPTIONS[number][0];

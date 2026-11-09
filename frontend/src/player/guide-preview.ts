@@ -1,6 +1,6 @@
 let active = false;
 
-/** 导览只展示真实播放器控件，不修改持久偏好或读取视频正片。 */
+/** The tour only displays real player controls; it doesn't modify persistent preferences or read the video content. */
 export const isPlayerGuidePreview = () => active;
 export function beginPlayerGuidePreview(): () => void {
   active = true;

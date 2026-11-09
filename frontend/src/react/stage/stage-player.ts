@@ -1,14 +1,15 @@
-/* 舞台与小窗共用的那一个播放器（ADR-0031 第 11a 步）。不含 React：舞台岛的媒体框在 layout effect
- * 里调 `attachStagePlayer`，小窗组件把自己的节点登记进来，其余都是命令式的。
+/* The one player shared by the stage and the mini player (ADR-0031 step 11a). No React: the stage island's media frame calls
+ * `attachStagePlayer` in a layout effect, the mini player component registers its node, and everything else is imperative.
  *
- * 照 YouTube 桌面版的 miniplayer（docs/reference-snapshots/youtube-miniplayer-measured.md）：离开详情
- * 时正在放的视频不销毁，Video.js 的壳整块搬进小窗接着放；小窗开着时点别的卡片就在小窗里换片；
- * 点标题或「展开」回到详情，同一个实例搬回舞台的媒体框，不重建；拖到哪个象限就吸附到哪个角。
- * 上游只把播放列表内的切换留在小窗里，Peach 按用户要求把卡片点击也收进来。
+ * Modeled on YouTube desktop's miniplayer (docs/reference-snapshots/youtube-miniplayer-measured.md): the video playing when
+ * you leave details is not destroyed; Video.js's shell moves wholesale into the mini player and keeps playing; with the mini
+ * player open, clicking other cards switches videos inside it; clicking the title or "Expand" returns to details, moving the
+ * same instance back into the stage's media frame without rebuilding; drag to any quadrant and it snaps to that corner.
+ * Upstream keeps only in-playlist switching inside the mini player; Peach also takes card clicks into it, per user request.
  *
- * 舞台与小窗同一时刻只放一条，所以只有两个位置：`attached` 是舞台媒体框里的那一个，`held`
- * 是小窗里的那一个。一个实例从 `attached` 交到 `held`（离开详情），或从 `held` 认领回
- * `attached`（展开），不会同时在两处。 */
+ * Stage and mini player play one video at a time, so there are only two positions: `attached` is the one in the stage's media
+ * frame, `held` is the one in the mini player. An instance moves from `attached` to `held` (leaving details) or is claimed
+ * back from `held` to `attached` (expand), never in both at once. */
 import { api, fmtClock, realDuration } from '@peach/legacy/core';
 import { iconSwapHtml, setIconSwap } from '@peach/legacy/ui';
 
@@ -20,21 +21,21 @@ import {
 
 export type StageKind = 'item' | 'follow';
 
-/** 舞台此刻画着的那一条：小窗的标题与来源、右键菜单复制网址用的种类都从这里取。 */
+/** The item the stage is currently painting: the mini player's title and source, and the kind used by the context menu's copy URL, all come from here. */
 export interface StageMeta { kind: StageKind; item: PlayerItem; title: string; sub: string }
 
-/** 舞台与小窗向壳要的东西。播放器宿主里的舞台元素由舞台自己补上。 */
+/** What the stage and mini player ask the shell for. The stage element inside the player host is filled in by the stage itself. */
 export interface StagePlayerHost {
   player: Omit<PlayerHost, 'stage'>;
-  /** 这个来源此刻是不是脱盘。 */
+  /** Whether this source is currently unmounted. */
   sourceOffline(location: string): boolean;
-  /** 小窗里的「展开」：回到这一条的详情，壳负责地址与来处。 */
+  /** 'Expand' in the mini player: back to this entry's details, with the shell handling the address and the origin. */
   expand(kind: StageKind, id: number, mediaIndex: number | null): void;
-  /** 小窗接不了的卡片照常打开详情。 */
+  /** Cards the mini player cannot take still open details as usual. */
   openItem(id: number): void;
 }
 
-/** 小窗组件画好之后登记进来的节点；播放态、时间与比例随播放器事件直接写在它们身上。 */
+/** Nodes registered after the mini player component paints; playing state, time and rate are written onto them directly from player events. */
 export interface MiniplayerDom {
   root: HTMLElement;
   frame: HTMLElement;
@@ -70,8 +71,8 @@ let held: Held | null = null;
 let attached: Attached | null = null;
 let meta: StageMeta | null = null;
 let dom: MiniplayerDom | null = null;
-/* 右键菜单与 i 键的「迷你播放器」：越过播放态判定，把舞台上这一个送进小窗。关窗有退场动画，
-   所以它一直留到舞台真正拆掉的那一刻才消费。 */
+/* The context menu and i-key "mini player" action: bypasses the playing-state check and sends the current stage entry into the mini player. Closing has an exit animation,
+   so it stays until the stage is actually torn down before being consumed. */
 let requested = false;
 let token = 0;
 let requestClose: (() => void) | null = null;
@@ -93,21 +94,21 @@ export function configureStagePlayer(next: StagePlayerHost, stage: {
     expand: () => expandMiniplayer(),
     toMiniplayer: () => toggleMiniplayer(),
   });
-  // 离开页面时收掉详情这一路的清晰度探测与转码会话，服务端不留孤儿进程。
+  // Leaving the page tears down this detail's quality probing and transcode sessions, so the server keeps no orphan processes.
   if (!pagehideWired) { pagehideWired = true; addEventListener('pagehide', () => cancelDetailStream()) }
 }
 let pagehideWired = false;
 
 function stageHost(): StagePlayerHost {
-  if (!host) throw new Error('舞台播放器还没有接上宿主（configureStagePlayer）');
+  if (!host) throw new Error('The stage player has no host attached yet (configureStagePlayer)');
   return host;
 }
 
-/** 舞台画出一条时登记它的标题与来源；舞台拆掉时清掉。 */
+/** When the stage draws one, register its title and source; clear them when the stage is torn down. */
 export function setStageMeta(next: StageMeta | null): void { meta = next }
 export const stageMeta = (): StageMeta | null => meta;
 
-/* ── 舞台媒体框 ── */
+/* ── Stage media frame ── */
 
 export interface StagePlayerOptions {
   kind: StageKind;
@@ -115,18 +116,19 @@ export interface StagePlayerOptions {
   media?: PlayerMedia | null | undefined;
   autoplay?: boolean | undefined;
   resume?: PlayerResume | null | undefined;
-  /** `<video>` 的 id：作品详情那一枚是 `vid`，键盘与 e2e 按它找播放区。 */
+  /** The `<video>` id: the video details one is `vid`; keyboard and e2e find the playback area by it. */
   id?: string | undefined;
   poster?: string | undefined;
-  /** 原生 `<video>` 报错（关注条目据此说明片源失败）。 */
+  /** Native `<video>` errors (follows entries use this to explain a failed video source). */
   onError?: (() => void) | undefined;
 }
 
-/** 给舞台里一块媒体框挂播放器，返回卸下它的函数。
+/** Mounts a player on a media frame in the stage and returns the teardown.
  *
- *  小窗正放着同一条（同种类、同 id、同一份媒体）就把那一个实例认领回来：Video.js 的壳整块搬进
- *  这块框，读数重新接上，播放不断。否则新建一个 `<video>` 交给 `mountPlayer`。卸下时这个实例
- *  已经被小窗接走就只摘读数，没被接走就连流会话一起拆掉。 */
+ *  If the mini player is playing the same entry (same kind, same id, same media), claim that instance back: Video.js's shell
+ *  moves wholesale into this frame, telemetry reconnects, and playback never stops. Otherwise build a new `<video>` and hand
+ *  it to `mountPlayer`. On teardown, if the instance was already taken by the mini player only the telemetry is removed;
+ *  otherwise the stream session is dismantled with it. */
 export function attachStagePlayer(frame: HTMLElement, options: StagePlayerOptions): () => void {
   const { kind, item, media = null } = options;
   const key = playerKey(kind, item.id, media?.index ?? null);
@@ -153,25 +155,25 @@ export function attachStagePlayer(frame: HTMLElement, options: StagePlayerOption
     if (attached === slot) attached = null;
     release();
     if (handed) return;
-    /* Video.js 没拉到时是裸 `<video>` 在放：节点离开文档照样出声，先停下再清掉片源。 */
+    /* When Video.js did not load, a bare `<video>` is playing: it keeps sounding even after leaving the document, so stop it before clearing the source. */
     if (!slot.player) { video.pause(); video.removeAttribute('src'); video.load() }
     cancelDetailStream();
   };
 }
 
-/** 墙面接收已选定的本地视频条目；计费与在线作品使用详情的来源门槛。 */
+/** The wall receives already-chosen local video entries; billing and online videos use the detail's source gating. */
 export async function mountWallPlayer(summary: PlayerItem, frame: HTMLElement, signal: AbortSignal): Promise<(continuePlaying?: boolean) => void> {
   const item = await api(`/api/item?id=${summary.id}`, { signal }) as PlayerItem & { error?: string };
   signal.throwIfAborted();
-  if (!item || item.error) throw new Error(item?.error || '作品未取得');
-  if (item.medium && item.medium !== 'video') throw new Error('这条作品没有可播放的视频');
-  if (item.location === 'online') throw new Error('请打开详情播放在线作品');
-  if (item.cost === 'metered') throw new Error('请打开详情确认计费来源');
+  if (!item || item.error) throw new Error(item?.error || 'Video not fetched');
+  if (item.medium && item.medium !== 'video') throw new Error('This title has no playable video');
+  if (item.location === 'online') throw new Error('Open details to play online videos');
+  if (item.cost === 'metered') throw new Error('Open details to confirm the metered source');
   const sources = await stageHost().player.loadSourceStatus();
   signal.throwIfAborted();
   if (sources[String(item.root_id || item.location || '')] === false) throw new Error(stageHost().player.offlineReason(String(item.root_id || item.location || '')));
   const metadata: StageMeta = { kind: 'item', item, title: String(item.title || item.name || ''),
-    sub: String((item.performers as string[] | undefined)?.[0] || item.creator || '未归属') };
+    sub: String((item.performers as string[] | undefined)?.[0] || item.creator || 'Unassigned') };
   setStageMeta(metadata);
   const release = attachStagePlayer(frame, { kind: 'item', item, autoplay: true });
   let released = false;
@@ -207,15 +209,15 @@ function claimHeld(frame: HTMLElement, from: Held): () => void {
   };
 }
 
-/** 舞台此刻挂着的那个播放器（右键菜单、i 键与剧场模式要）。 */
+/** The player currently mounted on the stage (needed by the context menu, the i key, and theater mode). */
 export const stagePlayer = (): VjsPlayer | null => {
   const player = attached?.player;
   return player && !player.isDisposed() ? player : null;
 };
 
-/** 舞台要拆了：舞台上正在放的这一个该不该进小窗。`allow` 是这次离开允不允许进小窗——显式
- *  关闭（叉、Escape）、换成别的详情与删掉当前条目都不允许；右键菜单与 i 键请求过的例外。
- *  展开之后还没来得及认领的那一个（取数改道、盘没挂上）在这里一起收掉。 */
+/** The stage is being torn down: should the currently playing one go to the mini player. `allow` is whether this exit permits the mini player;
+ *  explicit close (X, Escape), switching to another details entry, and deleting the current item all forbid it; the context menu and the i key are the requested exceptions.
+ *  The one that opened but was never claimed (fetch rerouted, disk not mounted) is collected here too. */
 export function handOffStage(allow: boolean): void {
   const wanted = requested;
   requested = false;
@@ -230,8 +232,8 @@ export function handOffStage(allow: boolean): void {
   enterMiniplayer({ player, kind: slot.kind, item: slot.item, mediaIndex: slot.mediaIndex, key: slot.key }, current);
 }
 
-/** 舞台打开这一条之前：小窗放着的不是它就先关掉，两个播放器不同时出声；是它就先藏起来，
- *  等媒体框画出来再认领。 */
+/** Before the stage opens this entry: if the mini player holds something else, close it first so the two players never sound at once; if it holds this one, hide it first,
+ *  and claim it back once the media frame renders. */
 export function prepareStageFor(kind: StageKind, id: number): void {
   requested = false;
   if (!held) return;
@@ -243,7 +245,7 @@ export function prepareStageFor(kind: StageKind, id: number): void {
   closeMiniplayer();
 }
 
-/* ── 小窗 ── */
+/* ── Mini player ── */
 
 export function registerMiniplayer(next: MiniplayerDom | null): void {
   dom = next;
@@ -256,8 +258,8 @@ export function miniplayerVideo(): HTMLVideoElement | null {
   return miniplayerActive() ? dom?.frame.querySelector('video') ?? null : null;
 }
 
-/** 此刻该响应播放快捷键的 video：舞台开着取舞台里的，否则取小窗里的。直接操作原生元素而不是
- *  Video.js 实例：挂载后 `#vid` 是 Video.js 的 div，真正的媒体元素是 `#vid_html5_api`。 */
+/** The video that should respond to playback shortcuts right now: the stage's when open, otherwise the mini player's. It operates the native element directly rather than the
+ *  Video.js instance: after mount `#vid` is Video.js's div, and the real media element is `#vid_html5_api`. */
 export function activeStageVideo(): HTMLVideoElement | null {
   if (stageOpen()) return document.getElementById('stage')?.querySelector('video') ?? null;
   return stagePlayer()?.el().querySelector('video') ?? miniplayerVideo();
@@ -267,11 +269,11 @@ function paintMeta(next: { title: string; sub: string }): void {
   if (!dom) return;
   dom.title.textContent = next.title || '';
   dom.sub.textContent = next.sub || '';
-  dom.info.setAttribute('aria-label', next.title ? `展开到详情：${next.title}` : '展开到详情');
+  dom.info.setAttribute('aria-label', next.title ? `Expand to details: ${next.title}` : 'Expand to details');
 }
 
-/* 画面区按视频比例给高：上游 4:3 的片子小窗就是 400×300。竖片压到 1:1 以内，400 宽的 9:16
-   会高过视口。 */
+/* The picture area takes its height from the video ratio: a 4:3 video gives a 400×300 mini player. Portrait is clamped to within 1:1, since 400-wide 9:16
+   would exceed the viewport height. */
 function syncAspect(item: PlayerItem | undefined = held?.item): void {
   if (!dom) return;
   const video = dom.frame.querySelector('video');
@@ -284,9 +286,9 @@ function syncPlayState(): void {
   const player = held?.player;
   if (!player || player.isDisposed() || !dom) return;
   const paused = player.paused();
-  dom.play.setAttribute('aria-label', paused ? '播放' : '暂停');
-  /* 主播放器那一枚走的是 path 形变，迷你条上这一枚只有 20px，形变看不出来，走两枚字形叠着换。
-     换的只是容器状态，不改 `use` 的 href——改 href 是硬切。 */
+  dom.play.setAttribute('aria-label', paused ? 'Play' : 'Paused');
+  /* The main player's icon morphs along a path; the mini bar's is only 20px, too small for a morph to read, so it crossfades two stacked glyphs.
+     Only the container state changes and the `use`'s href stays, since changing href is a hard cut. */
   if (!dom.play.querySelector('[data-icon-swap]')) dom.play.innerHTML = iconSwapHtml('player-pause', 'player-play', paused ? 'b' : 'a');
   setIconSwap(dom.play, paused ? 'b' : 'a');
 }
@@ -300,12 +302,12 @@ function syncTime(): void {
 
 const seekStep = (): number => Math.max(1, Number(stageHost().player.settings().seekSeconds) || 10);
 
-/* 步长跟设置走，标签里带着这个数：读屏用户按之前听得到自己会跳多远。每次接手播放器时重写
-   一遍，设置改完开的下一个小窗就是新的秒数。 */
+/* The step follows the setting, and the label carries the number so screen reader users hear how far they will jump before pressing. Rewrite it every time the player is taken over,
+   and the next mini player opened after the setting changes uses the new seconds. */
 function syncSeekLabels(): void {
   if (!dom || !host) return;
   const step = seekStep();
-  for (const [button, text] of [[dom.back, `后退 ${step} 秒`], [dom.ahead, `前进 ${step} 秒`]] as const) {
+  for (const [button, text] of [[dom.back, `Back ${step} sec`], [dom.ahead, `Forward ${step} sec`]] as const) {
     button.setAttribute('aria-label', text);
     button.title = text;
   }
@@ -314,7 +316,7 @@ function syncSeekLabels(): void {
 function bindHeld(slot: Held): void {
   const on = (events: string | string[], handler: () => void) => {
     slot.player.on(events, handler);
-    slot.off.push(() => { try { slot.player.off(events, handler) } catch { /* 已拆 */ } });
+    slot.off.push(() => { try { slot.player.off(events, handler) } catch { /* Torn down */ } });
   };
   on(['play', 'pause', 'ended'], syncPlayState);
   on(['timeupdate', 'durationchange', 'loadedmetadata'], syncTime);
@@ -377,7 +379,7 @@ export function expandMiniplayer(): void {
   stageHost().expand(kind, item.id, mediaIndex);
 }
 
-/** i 键与 YouTube 同义：详情里进小窗，小窗里展开回详情。 */
+/** The i key means what it does on YouTube: mini player from the detail, expand back to the detail from the mini player. */
 export function toggleMiniplayer(): void {
   if (miniplayerActive() && !stageOpen()) { expandMiniplayer(); return }
   if (stageOpen() && stagePlayer() && requestClose) { requested = true; requestClose() }
@@ -389,8 +391,8 @@ export function playMiniplayer(): void {
   if (player.paused()) player.play()?.catch(() => {}); else player.pause();
 }
 
-/* 时长取不到时不封顶：直播和还没读到元数据的片子 `duration()` 是 NaN，拿它去 `Math.min` 会把进度
-   直接扔成 NaN，视频停在原地不动。 */
+/* No cap when duration is unavailable: for live streams and videos whose metadata has not been read, `duration()` is NaN, and feeding it to `Math.min` throws the progress
+   straight to NaN, freezing the video in place. */
 export function seekMiniplayer(side: 1 | -1): void {
   const player = held?.player;
   if (!player || player.isDisposed()) return;
@@ -399,8 +401,8 @@ export function seekMiniplayer(side: 1 | -1): void {
   player.currentTime(total ? Math.min(total, at) : at);
 }
 
-/** 小窗里能直接换的只有普通视频卡：分卷／版次组要先选卷，计费、脱盘和反查不到关注条目的在线
- *  资产都要先过详情里那道门。 */
+/** Only plain video cards can be switched directly in the mini player: volume/edition groups must pick a volume first, and metered, off-disk, and online assets that cannot be traced back to a follow entry
+ *  all have to pass the gate in details first. */
 export function miniplayerTakesCard(item: PlayerItem | null | undefined): boolean {
   if (!miniplayerActive() || !item) return false;
   if (item.part_group || item.edition_group) return false;
@@ -411,8 +413,8 @@ export function miniplayerTakesCard(item: PlayerItem | null | undefined): boolea
   return true;
 }
 
-/** 在小窗里换一条作品。换片就是一条新视频，重新挂一个播放器最干净：上一条的错误兜底、观看
- *  上报和清晰度表都绑在旧实例的闭包里，复用它只会把新片的行为记到旧片头上。 */
+/** Switches to another video inside the mini player. A new video is a new video, and attaching a fresh player is the cleanest: the previous entry's error fallback, watch
+ *  reporting and quality list are all bound in the old instance's closures, and reusing it books the new video's behavior against the old one. */
 export async function miniplayerPlay(id: number): Promise<void> {
   if (!miniplayerActive() || !held || !dom) return;
   const mine = ++token;
@@ -432,8 +434,8 @@ export async function miniplayerPlay(id: number): Promise<void> {
   video.preload = 'metadata';
   dom.frame.prepend(video);
   const nextMeta: StageMeta = { kind: 'item', item, title: String(item.title || item.name || ''),
-    sub: String((item.performers as string[] | undefined)?.[0] || item.creator || '未归属') };
-  /* 换片期间 `held` 仍指着旧的那一格（标成已拆），小窗不因为挂载要等一拍而收起。 */
+    sub: String((item.performers as string[] | undefined)?.[0] || item.creator || 'Unassigned') };
+  /* During a swap `held` still points at the old cell (marked as torn down), and the mini player does not collapse just because mounting waits a beat. */
   paintMeta(nextMeta);
   mountPlayer(video, {
     kind: 'item', item, autoplay: true, chrome: false,

@@ -1,18 +1,22 @@
-/* 详情类历史条目的背景（ADR-0031「覆盖式路由」）：作品详情、四种队列与关注详情压在一页上面，
- * 它们的历史条目在 `usr` 里记下压在哪一页上（`backgroundLocation`），条目自己说得清背景。
+/* The background of detail-class history entries (ADR-0031, "overlay routing"): video details, the four queues and follow
+ * details stack on top of a page, and their history entries record in `usr` which page they stack on (`backgroundLocation`),
+ * so the entry states its own background.
  *
- * 写：壳在决定打开详情的那一刻调 `holdOverlayBackground` 记下背景，push 详情地址时用 `overlayState` 带上；
- * 队列地址要等取完数才 push，背景仍是决定那一刻的，不是 push 那一刻的地址。详情之间换条沿用上一条的
- * 背景、不嵌套；只存路径、查询串与锚点，不存 DOM、对象或条目 `key`（刷新后对不上任何活条目）。
+ * Write: the shell calls `holdOverlayBackground` the moment it decides to open details and carries it in `overlayState` when
+ * pushing the details address; queue addresses wait to push until fetching completes, and the background is still the one from
+ * the decision moment, not the address at push time. Switching entries between details reuses the previous entry's background
+ * and does not nest; only path, query string and hash are stored, never DOM, objects or entry `key` (which would match no live
+ * entry after refresh).
  *
- * 读：后退前进落到详情条目上时，路由树的覆盖元素（`react/router/pages/overlay.tsx`）调 `adoptOverlayState`
- * 接上这一条记的背景，壳打开详情的那一处再用 `takeOverlayReturn` 取来处，关掉回到那一页。冷启动（刷新、
- * 新标签页、深链）不读：条目跨刷新仍带着 `usr`，下面那页却从没画过，页面组照没有背景补画（`/assets/:id` 补画
- * 目录网格），关掉回各自的缺省来处。 */
+ * Read: when back/forward lands on a details entry, the route tree's overlay element (`react/router/pages/overlay.tsx`) calls
+ * `adoptOverlayState` to adopt the recorded background, and wherever the shell opened details uses `takeOverlayReturn` to get
+ * the origin, returning to that page on close. Cold start (refresh, new tab, deep link) reads none: the entry keeps `usr`
+ * across refresh but the page underneath was never rendered, so the page group backfills as if there were no background
+ * (`/assets/:id` backfills the catalog grid), and closing returns to each one's default origin. */
 import { matchPath } from 'react-router';
 import { isPreferencePath } from './settings-route';
 
-/** 覆盖在页面上的那几种地址。不进 `isRoutedPath`：页面宿主不画它们。 */
+/** The addresses that overlay the page. They stay out of `isRoutedPath`: the page host does not paint them. */
 export const OVERLAY_PATHS = [
   '/assets/:id',
   '/posts/:id',
@@ -23,7 +27,7 @@ export type OverlayPath = typeof OVERLAY_PATHS[number];
 
 export type OverlayKind = 'item' | 'follow' | 'jav';
 
-/** 一条覆盖地址要打开的那一条：作品详情、关注详情，或四种队列里的一条（`key` 是种子或播放列表）。 */
+/** What an overlay URL opens: a video detail, a follow detail, or one of the four queues (`key` is the seed or the playlist). */
 export type OverlayTarget =
   | { kind: 'jav'; code: string }
   | { kind: 'item' | 'follow'; id: number }
@@ -31,7 +35,7 @@ export type OverlayTarget =
 
 const QUEUES = ['mix', 'parts', 'editions', 'playlist'] as const;
 
-/** 地址匹配哪一条覆盖路径；本地条目使用数字，库外作品使用有效番号。 */
+/** Which overlay path the address matches; local entries use a number, out-of-library videos use a valid code. */
 export function overlayMatch(pathname: string, search = ''): { path: OverlayPath; target: OverlayTarget } | null {
   const address = new URL(pathname, 'https://peach.invalid');
   pathname = address.pathname;
@@ -63,7 +67,7 @@ export function overlayMatch(pathname: string, search = ''): { path: OverlayPath
   return null;
 }
 
-/** 地址要打开的那一条覆盖；路径或身份参数无效时是 null。 */
+/** The overlay entry the address should open; null when the path or identity parameter is invalid. */
 export const overlayTarget = (pathname: string, search = ''): OverlayTarget | null => overlayMatch(pathname, search)?.target ?? null;
 
 export interface BackgroundLocation {
@@ -72,7 +76,7 @@ export interface BackgroundLocation {
   hash?: string;
 }
 
-/** 详情条目的 `usr`：压在哪一页上，压着的是哪一种详情。 */
+/** The detail entry's `usr`: which page it presses on, and which kind of detail is pressed. */
 export interface OverlayState {
   backgroundLocation: BackgroundLocation;
   overlay: OverlayKind;
@@ -82,7 +86,7 @@ export const isOverlayPath = (pathname: string): boolean => (
   isPreferencePath(pathname.split(/[?#]/)[0]!) || OVERLAY_PATHS.some((pattern) => matchPath(pattern, pathname.split(/[?#]/)[0]!) !== null)
 );
 
-/** 条目里记的背景：详情与队列条目的 `usr` 里有 `{ backgroundLocation, overlay }`，别的条目没有。 */
+/** Background recorded on the entry: details and queue entries carry `{ backgroundLocation, overlay }` in `usr`; other entries do not. */
 export function backgroundOf(state: unknown): BackgroundLocation | null {
   const background = (state as { backgroundLocation?: Partial<BackgroundLocation> } | null)?.backgroundLocation;
   if (typeof background?.pathname !== 'string') return null;
@@ -91,25 +95,25 @@ export function backgroundOf(state: unknown): BackgroundLocation | null {
 }
 
 let held: BackgroundLocation | null = null;
-/* 后退前进接上的那一条的来处，打开详情时取一次就清：只给条目自己打开的那一下用，换条、展开小窗、
- * 盘回来重开这些在打开之后才发生的动作照旧按壳记的来处走。 */
+/* The origin of the entry back/forward landed on is taken once when details open and then cleared: it serves only the moment the entry itself opens, while later actions like switching entries, expanding the mini player,
+ *  or reopening after returning from disk still follow the origin the shell recorded. */
 let pendingReturn: string | null = null;
 
-/** 决定打开详情的那一刻：当前在页面上就记下这一页；已经在详情地址上（同队列换条、关注组内换条、
- * 从详情点开另一条）沿用已记的背景，没有就不记，不把详情地址当背景。 */
+/** Decides the moment details open: when the current page is on screen, record it; already on a details URL (switching entries in the same queue, switching within a follow group,
+ *  opening another entry from details) reuses the recorded background, and with none, records nothing, never treating a details URL as the background. */
 export function holdOverlayBackground(): void {
   const { pathname, search, hash } = window.location;
   if (!isOverlayPath(pathname)) held = { pathname, search, ...(hash ? { hash } : {}) };
 }
 
-/** 真正离开详情时清掉：关掉详情、删掉当前条目、后退前进与启动。 */
+/** Cleared when truly leaving the detail: closing it, deleting the current entry, back and forward, and startup. */
 export function clearOverlayBackground(): void {
   held = null;
   pendingReturn = null;
 }
 
-/** 后退前进落到一条历史条目上：条目记了背景就接上，之后从这条详情换条、展开小窗照样带同一个背景；
- * 打开详情的那一处由 `takeOverlayReturn` 取它作来处。条目没记背景时什么都不做。 */
+/** Back/forward landing on a history entry: if the entry recorded a background it reconnects, and from this details entry switching entries or expanding the mini player carries the same background;
+ * the place that opened details takes it as the origin via `takeOverlayReturn`. Without a recorded background, do nothing. */
 export function adoptOverlayState(state: unknown): void {
   const background = backgroundOf(state);
   if (!background) return;
@@ -117,14 +121,14 @@ export function adoptOverlayState(state: unknown): void {
   pendingReturn = background.pathname + background.search + (background.hash || '');
 }
 
-/** 打开详情时取后退前进接上的来处（路径、查询串与锚点），取一次就清；没有就是 null，壳用自己的缺省。 */
+/** When a detail opens, takes the origin the back/forward stack carried in (path, query string, and hash), once, then clears it; null when there is none, and the shell uses its own default. */
 export function takeOverlayReturn(): string | null {
   const path = pendingReturn;
   pendingReturn = null;
   return path;
 }
 
-/** push 详情地址时带的 `usr`；没有背景就不带，和页面条目一样。 */
+/** The `usr` carried when pushing a detail address; omitted when there is no backdrop, same as page entries. */
 export function overlayState(overlay: OverlayKind): OverlayState | undefined {
   return held ? { backgroundLocation: { ...held }, overlay } : undefined;
 }

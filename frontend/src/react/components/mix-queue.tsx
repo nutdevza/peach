@@ -1,8 +1,8 @@
-/* 详情浮窗右侧那一列队列（Mix、分卷、版本、播放列表、关注的合集与多媒体）。
+/* The queue column on the right side of the details overlay (Mix, volumes, editions, playlists, followed compilations and multi-media).
  *
- * 队列、行与条目各挂一枚 `data-mix-*`，样式在
- * `stage/stage.css`，作品详情与关注详情共用。一列十几条要能拖着横滚（窄屏下队列是横排），
- * 拖动借壳的 `wireDrag`，由调用方经 `listRef` 接上。 */
+ * Queue, rows, and items each carry a `data-mix-*`; styles in
+ * `stage/stage.css`, shared by video details and follows details. A dozen-odd items per column must drag-scroll horizontally (the queue is horizontal on narrow screens);
+ * dragging borrows the shell's `wireDrag`, wired up by the caller via `listRef`. */
 import { useCallback, useLayoutEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from 'react';
 import { icon } from '@peach/legacy/core';
 
@@ -11,7 +11,7 @@ export function MixQueue({ kind, title, summary, onClose, actions, listRef, chil
   title: string;
   summary: string;
   onClose(): void;
-  /** 关闭键前面的动作键（保存为播放列表之类）。 */
+  /** Action buttons before the close button (things like save as playlist). */
   actions?: ReactNode;
   listRef?: Ref<HTMLDivElement>;
   children: ReactNode;
@@ -22,8 +22,8 @@ export function MixQueue({ kind, title, summary, onClose, actions, listRef, chil
     if (typeof listRef === 'function') listRef(node);
     else if (listRef) listRef.current = node;
   }, [listRef]);
-  /* 换条时详情按条目重建，队列跟着从头挂：把正在看的那一行滚进列表可见处。只动列表自己的滚动，
-     `scrollIntoView` 会连浮窗和页面一起滚。 */
+  /* Switching entries rebuilds details per entry and the queue remounts from the top: scroll the row being watched into the list's visible area. Move only the list's own scrolling;
+     `scrollIntoView` would scroll the overlay and the page along with it. */
   useLayoutEffect(() => {
     const box = list.current;
     const row = box?.querySelector<HTMLElement>('[data-mix-item][aria-current="true"]');
@@ -36,12 +36,12 @@ export function MixQueue({ kind, title, summary, onClose, actions, listRef, chil
   return (
     <aside data-mix-queue="" data-queue-kind={kind} {...data}>
       <div data-mix-queue-head="">
-        {/* 作用域 Preflight 把标题字重清成 inherit，这里按字重三档取 semibold。 */}
+        {/* Scoped Preflight resets heading font weight to inherit, so this picks semibold from the three weight tiers. */}
         <div><h2 className="font-semibold">{title}</h2><span>{summary}</span></div>
         <div data-mix-queue-actions="">
           {actions}
-          {/* 详情底部的队列头不放关闭键，关舞台用媒体框上那一枚（`stage.css`）。 */}
-          <button type="button" data-queue-close="" title="关闭" aria-label="关闭" onClick={onClose}
+          {/* The queue header at the detail bottom carries no close key; closing the stage uses the one on the media frame (`stage.css`). */}
+          <button type="button" data-queue-close="" title="Close" aria-label="Close" onClick={onClose}
             dangerouslySetInnerHTML={{ __html: icon('x') }} />
         </div>
       </div>
@@ -50,9 +50,9 @@ export function MixQueue({ kind, title, summary, onClose, actions, listRef, chil
   );
 }
 
-/** 队列里的一行：左边缩略图（时长角标由调用方放进 `pic`），右边两行字。作品队列的字前面还有
- *  一枚署名头像（`lead`，和卡片的署名层同一套）；播放列表的行尾多一组抓手与移出（`after`），
- *  拖动排序认的是行上的 `row` 属性。 */
+/** A queue row: thumbnail on the left (duration badge placed into `pic` by the caller), two lines of text on the right. Video queues also have an attribution avatar before the text
+ *  (`lead`, same set as the card's attribution layer); playlist rows end with a drag handle and remove (`after`),
+ *  and drag-reorder recognizes the row's `row` attribute. */
 export function MixQueueRow({ current, pic, lead, after, row, children, ...button }: {
   current: boolean;
   pic: ReactNode;
@@ -73,7 +73,7 @@ export function MixQueueRow({ current, pic, lead, after, row, children, ...butto
   );
 }
 
-/** 网盘分组的小标题：组名加条数。 */
+/** Cloud drive group subtitle: group name plus item count. */
 export const MixGroupLabel = ({ label, count }: { label: string; count: number }) => (
   <h3 data-mix-group-label="">{label} <span>{count}</span></h3>
 );

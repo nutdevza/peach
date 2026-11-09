@@ -1,17 +1,19 @@
-/* 首页筛选条（`catalog-filter` 岛）挂上之前的那一份骨架。
+/* The skeleton laid before the home filter bar (`catalog-filter` island) mounts.
  *
- * 冷启动时两排头像与标签条要等 `/api/facets` 与 `/api/tops`，约一秒；React 包也还在路上。这段时间
- * 壳把这一串 HTML 铺进宿主，岛挂上时整块换掉。结构与属性照 `react/catalog-filter/catalog-filter-page.tsx`
- * 渲染出来的静止态写（浮层几何是 `FilterGlassRows` 合并后的类），几何在
- * `react/catalog-filter/catalog-filter.css` 一处定，所以换掉那一下不跳。
+ * On cold start the two avatar rows and the tag bar wait on `/api/facets` and `/api/tops`, about a second; the React bundle is
+ * also still in flight. During that time the shell lays this HTML into the host and the island swaps it wholesale on mount.
+ * Structure and attributes follow the static state rendered by `react/catalog-filter/catalog-filter-page.tsx` (the overlay
+ * geometry is `FilterGlassRows`'s merged classes), and geometry is defined in one place,
+ * `react/catalog-filter/catalog-filter.css`, so the swap does not jump.
  *
- * 四枚视图由 state 决定，这一趟取数不改它们，所以现在就画成最终样子：`href` 是真地址，壳在宿主上
- * 委托接住点击。头像与标签只画占位，读数是一条宽度定死的微光。 */
+ * The four view keys are decided by state and unaffected by this fetch, so they render in final form now: `href` is a real
+ * address and the shell catches clicks by delegation on the host. Avatars and tags render only placeholders, and the readout
+ * is one fixed-width shimmer. */
 import { rememberedTiers, type CatalogFilterProps, type CatalogView } from './react/catalog-filter/catalog-filter';
 import { islandShortcutsEntry } from './island-skeleton';
 import { filterControlsSkeletonHtml } from './filter-controls-skeleton';
 
-/** 每排摆多少格，同岛里空馆藏占位的 `EMPTY_SLOTS`，由容器裁到可用宽度。 */
+/** Cells per row, same as the island's `EMPTY_SLOTS` for empty-library placeholders, clamped to the available width by the container. */
 const EMPTY_SLOTS = 64;
 
 const esc = (value: string): string => value.replace(/[&<>"]/g, (ch) =>
@@ -19,25 +21,25 @@ const esc = (value: string): string => value.replace(/[&<>"]/g, (ch) =>
 
 const slots = (html: string): string => html.repeat(EMPTY_SLOTS);
 
-/** 女优或厂牌那一排的占位格；JAV 新作分区的两排等数据时也用这一份。 */
+/** The placeholder cells for the actress or label row; the two rows in the JAV New Releases section also use this while waiting for data. */
 export const tierPlaceholdersHtml = (kind: 'performer' | 'studio'): string =>
   slots(`<span data-catalog-placeholder="${kind}" aria-hidden="true"><span></span><span>&nbsp;</span></span>`);
 
 export function catalogFilterSkeletonHtml(views: readonly CatalogView[], state: string, head?: Pick<CatalogFilterProps, 'sorts' | 'layout'>): string {
   const viewHtml = views.map((view) => `<a href="${esc(view.href)}" data-catalog-view="${esc(view.k)}"`
     + ` data-entity-press="" aria-pressed="${state === view.k}">${esc(view.label)}</a>`).join('');
-  /* 两排照本机上次画好时的结构：上次没人的那排取回后也是收起的。 */
+  /* Both rows follow the structure from this machine's last render: the row that was empty last time stays collapsed after its fetch. */
   const shape = rememberedTiers();
   return `<div class="peach-react"><div class="contents" data-catalog-root="" data-loading="">`
     + `<div data-catalog-tiers="" aria-busy="true"${shape.performers || shape.studios ? '' : ' hidden'}>`
     + (shape.performers ? `<div data-catalog-tier="performers" data-skeleton="tiers">${tierPlaceholdersHtml('performer')}</div>` : '')
     + (shape.studios ? `<div data-catalog-tier="studios">${tierPlaceholdersHtml('studio')}</div>` : '')
     + `</div>`
-    + `<div role="group" aria-label="筛选与排序" data-filter-glass="" data-glass-pane="" data-filter-frame=""`
+    + `<div role="group" aria-label="Filter and sort" data-filter-glass="" data-glass-pane="" data-filter-frame=""`
     + ` data-catalog-frame="" class="sticky top-topbar z-10 mb-5.5 flex flex-col mx-4">`
-    + `<div role="group" aria-label="视图与标签" data-filter-row="top"`
+    + `<div role="group" aria-label="Views and tags" data-filter-row="top"`
     + ` class="flex h-12 min-w-0 items-center overscroll-x-contain px-3 py-2 gap-1.5 overflow-visible">`
-    + `<div data-catalog-scroll=""><div role="group" aria-label="视图" data-catalog-views="">${viewHtml}`
+    + `<div data-catalog-scroll=""><div role="group" aria-label="Views" data-catalog-views="">${viewHtml}`
     + `<span data-entity-sep="" aria-hidden="true"></span></div>`
     + `<div data-catalog-tags=""><span data-catalog-placeholder="tag" aria-hidden="true">`
     + '<span></span>'.repeat(EMPTY_SLOTS) + `</span></div></div></div>`

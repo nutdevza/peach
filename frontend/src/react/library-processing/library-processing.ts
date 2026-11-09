@@ -1,39 +1,41 @@
-/* 扫描与采集的数据契约、轮询节律与纯折算。
+/* Scan and collect's data contract, polling cadence and pure reductions.
  *
- * 数据管理页卡片、常驻任务面与缺预览提示读同一个 `queryKey`，使用同一份任务快照。
- * 轮询也由 Query 合成一份，进度、失败与完成状态由服务端统一提供。
- * 端点在 `frontend/src` 里只在这里声明一次（`tests/test_frontend_build.py` 盯着）。 */
+ * The data management page's card, the resident job surface and the missing-preview notice read the same `queryKey` and use
+ * the same job snapshot.
+ * Polling is likewise composed into one copy by Query, with progress, failure and completion states provided uniformly by the
+ * server.
+ * The endpoint is declared once in `frontend/src`, here only (`tests/test_frontend_build.py` watches this). */
 import { apiGet } from '../../api';
 import { elapsedText, progressText } from '../activity/tasks';
 import { queryClient } from '../query';
 
 export const LIBRARY_PROCESSING_URL = '/api/library-processing';
 
-/** 卡片与常驻任务面共用这一个键。 */
+/** The card and the persistent task panel share this one key. */
 export const LIBRARY_PROCESSING_KEY = ['library-processing'] as const;
 
-/** 处理过程中记下的一条问题。`asset_id` 为空时说的是媒体来源本身。 */
+/** One issue recorded during processing. When `asset_id` is empty it refers to the media source itself. */
 export interface LibraryProcessingIssue {
   asset_id: number | null;
   title?: string;
   path?: string;
   message: string;
-  /** `paused` 是来源限流没轮到这一项，等来源放开再跑就有；`error` 是它自己出的事。 */
+  /** `paused` means source throttling has not reached this item yet, and it will appear once the source frees up; `error` is something that went wrong with the item itself. */
   severity?: 'info' | 'error' | 'paused';
 }
 
-/** 一趟扫描与采集的快照。字段以 `q_library_processing`（`src/peach/web_library_processing.py`）为准。 */
+/** A snapshot of one scan-and-collect run. Fields follow `q_library_processing` (`src/peach/web_library_processing.py`). */
 export interface LibraryProcessingData {
   library_id?: string | null;
   library_name?: string;
   metadata_only?: boolean;
   /** `idle` | `running` | `pausing` | `paused` | `stopping` | `cancelled` | `complete` | `failed`。 */
   status: string;
-  /** 本轮各阶段已处理完但留有问题，或执行中断。 */
+  /** Every stage of this round finished processing but left problems, or execution was interrupted. */
   outcome?: 'complete' | 'partial' | 'interrupted' | 'cancelled';
   archived?: boolean;
   new_asset_count?: number;
-  /** 进行中这一轮在任务中心记的发起方式：`manual` | `scheduled` | `startup` | `cli`。 */
+  /** The initiation method the task center records for this in-progress round: `manual` | `scheduled` | `startup` | `cli`. */
   trigger?: string;
   speed_mode?: ProcessingSpeed;
   eta_seconds_min?: number | null;
@@ -54,14 +56,14 @@ export interface LibraryProcessingData {
   auto_applied?: number;
   covers?: number;
   previews?: number;
-  /* 落库之后补齐女优资料那一步的四个读数：别名、头像、交回人工的冲突、没取到的头像。 */
+  /* Four readouts from the post-ingest performer details step: aliases, avatars, conflicts returned to a human, and avatars that could not be fetched. */
   performer_aliases?: number;
   performer_avatars?: number;
   performer_profile_conflicts?: number;
   performer_profile_failed?: number;
   error?: string;
   issue_count?: number;
-  /** `issue_count` 里卡在来源限流上的那些，等来源放开再跑一次就有。 */
+  /** The part of `issue_count` stuck on source rate limits; one more run after the source opens up resolves them. */
   paused_count?: number;
   issue_preview?: LibraryProcessingIssue[];
   issues_log?: string;
@@ -72,7 +74,7 @@ export interface LibraryProcessingData {
   current_asset_name?: string;
   current_action?: string;
   current_started_at?: number;
-  /** 当前这一项正在等的外部来源；`network` 是它这次请求走的那条路。 */
+  /** The external source the current item is waiting on; `network` is the route its request took this time. */
   current_source?: { key: string; label: string; network?: string };
   skip_requested?: boolean;
   last_progress_at?: number;
@@ -120,7 +122,7 @@ export const fetchProcessingEstimate = (command: LibraryProcessingCommand, signa
   return apiGet<{ traffic: ProcessingTraffic }>(`${LIBRARY_PROCESSING_URL}?${params}`, signal);
 };
 
-/** 一次写操作的请求体：指定处理阶段与影片，或者按任务号重试失败项。 */
+/** A write request body: specify a processing stage and videos, or retry failed items by task number. */
 export type ProcessingSpeed = 'low' | 'standard' | 'high';
 export interface LibraryProcessingCommand {
   library_id?: string;
@@ -137,13 +139,13 @@ export type ProcessingControlCommand =
   | { action: 'set_speed'; speed_mode: ProcessingSpeed; job_id?: string }
   | { action: 'skip_current'; job_id: string; asset_id: number };
 
-/** 单部影片问外部来源超过这么久，就把跳过与改走代理摆出来。 */
+/** When one film has queried external sources longer than this, surface skip and switch to proxy. */
 export const SLOW_ITEM_SECONDS = 120;
-const SLOW_ACTIONS: Record<string, string> = { fetching_cover: '封面', querying_metadata: '资料' };
+const SLOW_ACTIONS: Record<string, string> = { fetching_cover: 'Cover', querying_metadata: 'Profile' };
 
 export interface SlowItem { what: string; source?: LibraryProcessingData['current_source'] }
 
-/** 跳过入口属于外部资料与封面采集，扫描和生成预览使用各自的任务控制。 */
+/** The skip entry belongs to external profile and cover collection; scanning and preview generation have their own task controls. */
 export function slowItem(state?: LibraryProcessingData): SlowItem | null {
   if (state?.status !== 'running' || state.current_asset_id == null) return null;
   const what = SLOW_ACTIONS[state.current_action || ''];
@@ -152,45 +154,45 @@ export function slowItem(state?: LibraryProcessingData): SlowItem | null {
 }
 
 export function slowItemText({ what, source }: SlowItem): string {
-  const who = `${source?.label ? `${source.label} ` : '外部来源'}迟迟没有返回${what}`;
-  return `${who}。可以先跳过这部，任务结束后再重试。`;
+  const who = `${source?.label ? `${source.label} ` : 'The external source'}is very slow to return ${what}`;
+  return `${who} You can skip this one for now and retry after the task ends.`;
 }
 
-/** 暂停中的任务仍占用同一份处理范围，可继续并持续读取状态。 */
+/** A paused task still holds the same processing scope; it can be resumed and its state keeps being readable. */
 export const processingActive = (state?: LibraryProcessingData) =>
   !!state && ['running', 'pausing', 'paused', 'stopping'].includes(state.status);
 
 export const processingHasPartialResult = (state?: LibraryProcessingData) =>
   state?.status === 'failed' && state.outcome === 'partial';
 
-export const PARTIAL_RESULT_TEXT = '已入库的视频可在全部内容中浏览，未完成项可单独重试。';
+export const PARTIAL_RESULT_TEXT = 'Intaked videos browse under all content, and unfinished items can retry individually.';
 export const ALL_CONTENT_URL = '/?loc=&thumb=0';
 
-/** 时间向分钟取整；区间两端始终使用同一单位。 */
+/** Times round to the minute; both ends of the range always use the same unit. */
 export function remainingTime(state: LibraryProcessingData): string {
   if (!processingActive(state)) return '';
-  if (state.status === 'stopping') return '正在取消，等待当前步骤退出；已取得的结果会保留';
-  if (state.status === 'paused') return '已暂停，继续后更新预估';
-  if (state.status === 'pausing') return '正在暂停，当前步骤结束后暂停';
-  if (state.stalled) return '等待当前文件响应，剩余时间待更新';
+  if (state.status === 'stopping') return 'Cancelling, waiting for the current step to exit; results already obtained are kept';
+  if (state.status === 'paused') return 'Paused; estimates update after resuming';
+  if (state.status === 'pausing') return 'Pausing; it pauses once the current step ends';
+  if (state.stalled) return 'Waiting on the current file\'s response; time remaining pending update';
   const low = state.eta_seconds_min, high = state.eta_seconds_max;
   if (low == null || high == null || !Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low)
-    return '正在估算剩余时间…';
-  if (high < 60) return '预计剩余不到 1 分钟';
+    return 'Estimating remaining time…';
+  if (high < 60) return 'Less than a minute remaining';
   const unit = high >= 86400 ? 86400 : high >= 3600 ? 3600 : 60;
-  const label = unit === 86400 ? '天' : unit === 3600 ? '小时' : '分钟';
+  const label = unit === 86400 ? 'days' : unit === 3600 ? 'hours' : 'min';
   const precision = unit === 60 ? 1 : 10;
   const start = Math.max(1 / precision, Math.floor(low / unit * precision) / precision);
   const end = Math.max(start, Math.ceil(high / unit * precision) / precision);
   const span = start === end ? `${end}` : `${start}–${end}`;
-  const rough = state.eta_initial || state.eta_kind !== 'measured' ? '（粗估）' : '';
-  return `预计剩余约 ${span} ${label}${rough}${state.eta_scope ? ` · ${state.eta_scope}` : ''}`;
+  const rough = state.eta_initial || state.eta_kind !== 'measured' ? ' (rough)' : '';
+  return `About ${span} ${label} remaining${rough}${state.eta_scope ? ` · ${state.eta_scope}` : ''}`;
 }
 
 export const fetchLibraryProcessing = (signal?: AbortSignal) =>
   apiGet<LibraryProcessingData>(LIBRARY_PROCESSING_URL, signal);
 
-/** 首屏。中止时 `fetchQuery` 把 `AbortError` 抛回挂载方，它据此放弃这一次。 */
+/** First screen. On abort, `fetchQuery` throws `AbortError` back to the caller, which gives up on this attempt. */
 export async function prefetchLibraryProcessing(signal: AbortSignal): Promise<void> {
   await queryClient.fetchQuery({
     queryKey: LIBRARY_PROCESSING_KEY,
@@ -198,33 +200,33 @@ export async function prefetchLibraryProcessing(signal: AbortSignal): Promise<vo
   });
 }
 
-/** 在跑的时候两秒问一次，和别的后台任务同一个节律。 */
+/** While running, poll every two seconds, the same cadence as the other background tasks. */
 export const RUNNING_POLL_MS = 2000;
-/** 闲着时也接着问：任务由后台自己起，两个读者都要认出「现在跑起来了」。 */
+/** Keep asking even when idle: the task starts on its own in the background, and both readers must recognize 'it is running now'. */
 export const IDLE_POLL_MS = 10_000;
 
-/** 读失败时页面上留的那句话。上一份数据不撤，下一轮轮询自己会接上。 */
-export const DISCONNECTED_TEXT = '连接中断，正在重新读取处理进度';
+/** The sentence left on the page when a read fails. The previous data stays, and the next poll picks up on its own. */
+export const DISCONNECTED_TEXT = 'Connection dropped; re-reading processing progress';
 
-/** 任务的发起方式写进句子里用的说法；`TRIGGER_LABELS` 是任务中心列表的短标签，放进句子读不通。 */
+/** The way a task is triggered, phrased for use in a sentence; TRIGGER_LABELS are short labels for the task center list, which don't read well in a sentence. */
 const TRIGGER_PHRASES: Record<string, string> = {
-  manual: '在网页发起', scheduled: '定时发起', startup: '服务启动时自动发起', cli: '由命令行或托盘发起',
+  manual: 'Start from the web page', scheduled: 'Start on a schedule', startup: 'Start automatically on service startup', cli: 'Started from the command line or tray',
 };
 
-/** 保存媒体库设置会重启 Peach：在跑的这一轮会怎样，按它跑在哪个进程、是否已暂停分开说。
- * 命令行与托盘起的是独立的 `peach process` 进程，重载只停服务；服务内的任务由启动恢复接着跑，
- * 用户暂停的那一轮恢复时跳过。勾了「保存后扫描」的那一趟要等全库处理锁，排在后面。 */
+/** Saving library settings restarts Peach: what happens to the running round depends on which process it runs in and whether it's paused — explained separately.
+ * The command-line and tray launches are independent `peach process` instances; reload only stops the service; the service's tasks resume from boot and keep running,
+ * while the round the user paused is skipped on resume. The run with "Scan after save" checked must wait for the full-library processing lock, so it goes last. */
 export function restartEffectText(state: LibraryProcessingData, scanAfterSave: boolean): string {
-  const effect = state.trigger === 'cli' ? '这个任务由命令行或托盘发起，在独立进程里运行，不受重启影响。'
-    : state.status === 'paused' ? '已暂停的任务会保持暂停，重启后点继续即可接着处理。'
-    : '正在进行的任务会随重启中断，重启后从中断处继续。';
-  return `保存后 Peach 会重新启动。${effect}${scanAfterSave ? '勾选的「保存后扫描并补全资料」会排在当前任务之后。' : ''}`;
+  const effect = state.trigger === 'cli' ? 'This task is started from the command line or tray, runs in a separate process, and is unaffected by restart.'
+    : state.status === 'paused' ? 'A paused task stays paused; after a restart, click continue to resume.'
+    : 'Running tasks are interrupted by a restart and resume from the interruption afterward.';
+  return `After saving, Peach will restart. ${effect}${scanAfterSave ? 'The checked "Scan after save and fill in metadata" will queue after the current task.' : ''}`;
 }
 
-/** 已有任务在跑时点同步的回执，写明这一轮是怎么发起的。 */
+/** The receipt when sync is clicked while a task is running, stating how this round was started. */
 export function busyText(state: LibraryProcessingData): string {
   const origin = TRIGGER_PHRASES[state.trigger || ''];
-  return `当前的扫描与采集任务${origin ? `（${origin}）` : ''}还没结束，等它完成或取消后再开始新的同步`;
+  return `The current scan and collection task${origin ? `(${origin})` : ''} hasn't finished yet; wait for it to complete or be cancelled before starting a new sync`;
 }
 
 export function pollInterval(
@@ -235,54 +237,54 @@ export function pollInterval(
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  scanning_files: '扫描文件',
-  reading_local: '检查配套文件',
-  reading_local_cover: '读取配套图片',
-  querying_metadata: '查询外部资料',
-  fetching_cover: '采集缺失封面',
-  skipped: '已跳过',
-  generating_preview: '生成视频预览',
-  writing_candidates: '保存待确认资料',
+  scanning_files: 'Scan files',
+  reading_local: 'Check companion files',
+  reading_local_cover: 'Read companion images',
+  querying_metadata: 'Query external details',
+  fetching_cover: 'Scrape missing covers',
+  skipped: 'Skipped',
+  generating_preview: 'Generate video previews',
+  writing_candidates: 'Save profiles pending confirmation',
 };
 
-/* 来源说「没有」按类型报一个数，不进问题清单：馆藏里大量独立资源和创作者作品
-   任何目录站都收不到，它们不是待办。键与 `library_processing.MISS_MESSAGES` 同源。 */
+/* Sources reporting "none" show one count by type and stay out of the issue list: many standalone resources and creator works in the library
+   are invisible to any catalog site, so they are not pending work. Keys share a source with `library_processing.MISS_MESSAGES`. */
 const NOTE_LABELS: Record<string, string> = {
-  querying_metadata: '没有资料',
-  fetching_cover: '没有封面',
+  querying_metadata: 'No details',
+  fetching_cover: 'No cover',
 };
 
 export function notesLine(notes: Record<string, number>): string {
   const parts = Object.entries(notes)
     .filter(([key, count]) => NOTE_LABELS[key] && count > 0)
-    .map(([key, count]) => `${NOTE_LABELS[key]} ${count.toLocaleString()} 部`);
-  return parts.length ? `外部来源${parts.join('、')}，7 天内不再问。` : '';
+    .map(([key, count]) => `${NOTE_LABELS[key]} ${count.toLocaleString()} videos`);
+  return parts.length ? `External sources ${parts.join(', ')} will not be asked again for 7 days.` : '';
 }
 
-/** 此刻在做什么：哪个文件、哪一步、等了多久。 */
+/** What it is doing right now: which file, which step, how long it has waited. */
 export function currentLine(state: LibraryProcessingData): string {
-  if (state.status === 'paused') return '已暂停';
-  if (state.status === 'pausing') return '正在暂停';
-  const action = ACTION_LABELS[state.current_action || ''] || state.stage || '正在处理';
-  const waited = state.waited_seconds ? ` · 已等待 ${elapsedText(state.waited_seconds)}` : '';
+  if (state.status === 'paused') return 'Paused';
+  if (state.status === 'pausing') return 'Pausing';
+  const action = ACTION_LABELS[state.current_action || ''] || state.stage || 'Processing';
+  const waited = state.waited_seconds ? ` · waited ${elapsedText(state.waited_seconds)}` : '';
   return state.current_asset_name
-    ? `当前：${state.current_asset_name} · ${action}${waited}`
+    ? `Current: ${state.current_asset_name} · ${action}${waited}`
     : action + waited;
 }
 
-/** 已知总量显示实际完成数；扫描目录期间显示持续发现的文件数。 */
+/** With a known total, show the actual completed count; while scanning a directory, show the count of files discovered so far. */
 export function processingLine(state: LibraryProcessingData): string {
-  const count = state.total ? `${progressText(state.checked, state.total)} 项`
-    : state.current_action === 'scanning_files' || state.stage === '扫描文件'
-      ? `已发现 ${(state.scanned || 0).toLocaleString()} 个文件` : '';
+  const count = state.total ? `${progressText(state.checked, state.total)} items`
+    : state.current_action === 'scanning_files' || state.stage === 'Scan files'
+      ? `${(state.scanned || 0).toLocaleString()} files discovered` : '';
   return currentLine(state) + (count ? ` · ${count}` : '');
 }
 
-/** 折叠起来的问题清单：一句结论 + 逐条明细 + 完整日志的地址。没有问题时是 `null`。 */
+/** The collapsed problem list: one conclusion line + itemized details + the address of the full log. `null` when there are no problems. */
 export interface IssueDetails {
   label: string;
   items: { key: string; label: string; href: string; note: string; hint: string }[];
-  /** 完整记录的本机路径，原样一串：前缀文字和打开它的那颗键归页面，那里才知道摆在哪。 */
+  /** The full record's local path, one verbatim string: the prefix text and the open button belong to the page, which is the only place that knows where it sits. */
   log: string;
 }
 
@@ -291,11 +293,11 @@ export function issueDetails(state: LibraryProcessingData): IssueDetails | null 
   if (!issues.length) return null;
   return {
     label: state.issues_truncated
-      ? `问题清单：共 ${state.issue_count || 0} 项，展开查看前 ${issues.length} 项`
-      : `问题清单：共 ${state.issue_count || 0} 项`,
+      ? `Issue list: ${state.issue_count || 0} items; expand to view the first ${issues.length}`
+      : `Issue list: ${state.issue_count || 0} items`,
     items: issues.map((issue, at) => ({
       key: `${issue.asset_id ?? 'source'}-${at}`,
-      label: issue.title || (issue.asset_id ? `视频 ${issue.asset_id}` : '媒体来源'),
+      label: issue.title || (issue.asset_id ? `Video ${issue.asset_id}` : 'Media sources'),
       href: issue.asset_id ? `/assets/${issue.asset_id}` : '',
       note: issue.message,
       hint: issue.path || '',
@@ -304,9 +306,9 @@ export function issueDetails(state: LibraryProcessingData): IssueDetails | null 
   };
 }
 
-/* 完成用通知报一次。常驻任务面和数据管理页的卡片看的是同一个任务，谁先看到结束谁报，
-   另一处按任务号认出来就不再报。首次引导添加文件夹后那一趟常在跳到目录页之前就跑完
-   （一个文件一秒），任务面从没见过「运行中」，所以刚结束的任务第一次读到时也报。 */
+/* Completion is announced once via a notification. The resident tasks surface and the data management card watch the same task; whoever sees the end first reports,
+   and the other recognizes it by task number and stays quiet. The run after onboarding's first folder add often finishes before the jump to the catalog page
+   (one file a second), so the tasks surface never saw "running"; a just-finished task is reported on first read too. */
 const ANNOUNCED_KEY = 'peach.library-processing.announced';
 const FRESH_COMPLETION_SECONDS = 120;
 
@@ -323,12 +325,12 @@ export function announceCompletion(
   try {
     if (state.job_id && localStorage.getItem(ANNOUNCED_KEY) === state.job_id) return;
     if (state.job_id) localStorage.setItem(ANNOUNCED_KEY, state.job_id);
-  } catch { /* 存储不可用时照常提示，最多重复一次 */ }
+  } catch { /* When storage is unavailable, still show the toast, at most one repeat */ }
   if (state.requested_stage === 'previews') {
-    toast(`视频预览已生成：${state.previews || 0} 部`);
+    toast(`Video previews generated: ${state.previews || 0}`);
     return;
   }
-  toast(`扫描与资料采集已完成：识别 ${state.identified || 0} 个番号，`
-    + `取得 ${state.candidates || 0} 组作品资料，自动保存 ${state.auto_applied || 0} 条`
-    + (state.previews ? `，生成 ${state.previews} 部视频预览` : ''));
+  toast(`Scan and profile collection finished: identified ${state.identified || 0} codes,`
+    + `Fetched ${state.candidates || 0} sets of video details, auto-saved ${state.auto_applied || 0}`
+    + (state.previews ? `, generating ${state.previews} video previews` : ''));
 }

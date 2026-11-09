@@ -2,7 +2,7 @@ import { cardClass } from './card';
 
 export type FieldsetLayout = 'split' | 'stack';
 
-/** 内容态与骨架共用卡面、正文及操作区的布局。 */
+/** The content state and skeleton share the card face, body, and action area layout. */
 export const FIELDSET_FACE = cardClass({ padding: 'none', className: 'overflow-hidden' });
 
 export const FIELDSET_BODY: Record<FieldsetLayout, string> = {

@@ -1,20 +1,21 @@
-/* Geist Modal 的两种正文：一句待确认的话（`confirmModal`）与要填的一份表单（`formModal`）。
-   由共享源码直接引用，随 `peach-app.js` 发出；壳与 React 子树打开的是同一份，
-   标题 id 的序号因此全页连续。 */
+/* Geist Modal's two body types: one sentence to confirm (`confirmModal`) and a form to fill (`formModal`).
+   Referenced from shared source directly and shipped with `peach-app.js`; the shell and the React subtree open the same copy,
+   so title id numbering stays continuous page-wide. */
 import { setActionBusy } from './controls';
 import { noteHtml } from './markup';
 import { playUiSound } from './sounds';
 import { attachOverlayScrollbar } from './overlay-scrollbar';
 
-/* Geist Modal 的另一种正文：要填的一份表单，而不是一句待确认的话。
-
-   壳、遮罩、焦点陷阱、Escape 和关掉后把焦点还给触发钮全部来自 confirmModal 用的那身
-   `.geist-modal`，两者的差别只有正文和主按钮做什么。所以弹层的几何只有一处：标题
-   20px/26px 的 h3、正文 20px 内边距、操作条粘在底两端对齐、主按钮在右下角。
-
-   返回值里的 `dialog` 交给调用方接自己的行事件，`done` 在弹层关掉时兑现。 */
+/* Geist Modal's other body: a form to fill, not a sentence to confirm.
+ *
+ * The shell, mask, focus trap, Escape and returning focus to the trigger on close all come from the `.geist-modal` outfit
+ * confirmModal uses; the only differences are the body and what the primary button does. So the popover's geometry has one
+ * home: title a 20px/26px h3, body 20px padding, action bar stuck to the bottom justified between, primary button in the
+ * bottom-right corner.
+ *
+ * The `dialog` in the return value lets the caller wire its own row events, and `done` resolves when the popover closes. */
 let formModalSeq=0;
-export function formModal({title,description='',body='',confirmLabel,cancelLabel='取消',
+export function formModal({title,description='',body='',confirmLabel,cancelLabel='Cancel',
                            onConfirm=null,confirmDisabled=false}:{
   title?: string; description?: string; body?: string; confirmLabel?: string; cancelLabel?: string;
   onConfirm?: (()=>unknown)|null; confirmDisabled?: boolean;
@@ -49,7 +50,7 @@ export function formModal({title,description='',body='',confirmLabel,cancelLabel
   },{once:true}));
   cancel.onclick=()=>{if(!busy)dialog.close()};
   dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});
-  // 遮罩上的点击落在 <dialog> 自己身上；这里没有不可逆的动作，允许点外面关掉。
+  // Clicks on the backdrop land on the <dialog> itself; there is no irreversible action here, so clicking outside to close is allowed.
   dialog.addEventListener('click',event=>{if(event.target===dialog&&!busy)dialog.close()});
   dialog.querySelector('form')!.onsubmit=async event=>{
     event.preventDefault();
@@ -60,7 +61,7 @@ export function formModal({title,description='',body='',confirmLabel,cancelLabel
       settled={confirmed:true,result:await onConfirm()};
       dialog.close();
     }catch(error:any){
-      failure.innerHTML=noteHtml(error.message||'操作未完成',{variant:'error'});
+      failure.innerHTML=noteHtml(error.message||'Action not completed',{variant:'error'});
       setActionBusy(accept,false);
     }finally{busy=false}
   };
@@ -71,23 +72,24 @@ export function formModal({title,description='',body='',confirmLabel,cancelLabel
   return {dialog,confirmButton:accept,done,close:()=>dialog.close()};
 }
 
-/* Geist Modal：一次写操作落库前的确认。
-
-   实测 https://vercel.com/geist/modal（2026-09-04）：卡片 540px 宽、12px 圆角、窄屏两侧
-   各留 10px，正文 20px 内边距、14px/20px，标题是 20px/26px 的 600 字重 h3，底部操作条
-   12px 内边距、粘在底、两端对齐，按钮 32px 高、6px 圆角、14px/500，遮罩纯黑不带模糊。
-   标题写成陈述句而不是问句；主按钮是与标题同一个动词的「动词+名词」，取消键就写「取消」；
-   成功后的 Toast 与主按钮共用那个动词。
-
-   用原生 <dialog> 承载：焦点陷阱、Escape、背景 inert 和关掉后把焦点还给触发钮都由它给，
-   自己搭一遍只会少掉其中一两样。onConfirm 失败时弹层不关，原因留在原位等重试。 */
+/* Geist Modal: confirmation before a write operation commits.
+ *
+ * Measured at https://vercel.com/geist/modal (2026-09-04): card 540px wide with 12px radius, 10px side margins on narrow
+ * screens, body 20px padding at 14px/20px, title a 20px/26px 600-weight h3, bottom action bar 12px padding stuck to the
+ * bottom and justified between, buttons 32px tall with 6px radius at 14px/500, and a pure black mask without blur.
+ * The title is a statement, not a question; the primary button is "verb + noun" sharing the title's verb, and the cancel key
+ * just says "Cancel"; the success Toast reuses that verb.
+ *
+ * Carried by a native <dialog>: focus trap, Escape, background inert, and returning focus to the trigger on close all come
+ * from it; rebuilding them by hand would lose one or two. When onConfirm fails, the popover stays open with the reason left
+ * in place for the retry. */
 let modalSeq=0;
 export function confirmModal(options:{
   title: string; body: string; confirmLabel: string; cancelLabel?: string; danger?: boolean;
   items?: readonly string[];
   onConfirm?: () => Promise<unknown>;
 }):Promise<{confirmed:boolean;result?:unknown}>;
-export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='取消',onConfirm=null,danger=false}:{
+export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='Cancel',onConfirm=null,danger=false}:{
   title?: string; body?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean;
   items?: readonly string[];
   onConfirm?: (()=>unknown)|null;
@@ -98,7 +100,7 @@ export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='取�
   const titleId=`geist-modal-title-${++modalSeq}`;
   dialog.setAttribute('aria-labelledby',titleId);
   dialog.setAttribute('aria-describedby',`${titleId}-body`);
-  // 不可撤销的确认读作 alertdialog：读屏进来先念标题和那句后果，而不是当成普通对话框（同 BoardUI Modal）。
+  // An irreversible confirmation is read as an alertdialog: the screen reader announces the title and that consequence line on entry, instead of treating it as a plain dialog (same as BoardUI Modal).
   if(danger)dialog.setAttribute('role','alertdialog');
   dialog.innerHTML=`<header class="ui-geist-modal-header"><h3 id="${titleId}"></h3></header>
     <div class="ui-geist-modal-scroll"><div class="ui-geist-modal-body">
@@ -114,7 +116,7 @@ export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='取�
     const host=document.createElement('div');
     host.className='ui-geist-modal-list';
     list=document.createElement('ul');
-    list.setAttribute('aria-label','所选记录');
+    list.setAttribute('aria-label','Selected records');
     list.tabIndex=0;
     for(const text of items){
       const item=document.createElement('li');
@@ -141,8 +143,8 @@ export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='取�
     },{once:true});
     cancel.onclick=()=>{if(!busy)dialog.close()};
     dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});
-    /* 遮罩上的点击落在 <dialog> 自己身上，卡片里的落在子元素上。这个动作可撤销，
-       按 Geist 的判据允许点外面关掉。 */
+    /* Clicks on the scrim land on the <dialog> itself, clicks in the card land on child elements. This action is undoable,
+       and by Geist's criteria outside clicks may close it. */
     dialog.addEventListener('click',event=>{if(event.target===dialog&&!busy&&!danger)dialog.close()});
     accept.onclick=async()=>{
       if(busy)return;
@@ -154,7 +156,7 @@ export function confirmModal({title,body,items=[],confirmLabel,cancelLabel='取�
         settled={confirmed:true,result:await onConfirm()};
         dialog.close();
       }catch(error:any){
-        failure.innerHTML=noteHtml(error.message||'操作未完成',{variant:'error'});
+        failure.innerHTML=noteHtml(error.message||'Action not completed',{variant:'error'});
         setActionBusy(accept,false);
       }finally{busy=false}
     };

@@ -1,6 +1,6 @@
-/* 内部常驻组件与页面的类型契约。
- * application-residents.ts 与 entry.tsx 在主界面同一源码图内组合这些接口，不发布独立运行时桥包。
- * 配置数据以 /api/configuration（src/peach/routes_configuration.py）为准。 */
+/* Type contracts for internal resident components and pages.
+ * application-residents.ts and entry.tsx compose these interfaces within the main UI's single source graph; no standalone runtime bridge package is published.
+ * Configuration data defers to /api/configuration (src/peach/routes_configuration.py). */
 import type { QualityGoal } from './quality-goals/quality-goals';
 import type { IndexProps } from './index/index-data';
 import type { CatalogGridProps } from './catalog-grid/types';
@@ -39,18 +39,18 @@ export interface TunnelState {
   error: string;
   available: boolean;
   mode: 'quick' | 'named';
-  /** 命名隧道绑定的公开主机名，临时链接模式下为空。 */
+  /** The public hostname the named tunnel is bound to; empty in temporary link mode. */
   hostname: string;
-  /** 隧道令牌存没存过。令牌本身不回传，页面只据此显示已保存。 */
+  /** Whether a tunnel token was ever saved. The token itself is not returned; the page only uses this to show 'saved'. */
   token_set: boolean;
-  /** 这台部署能不能用命名隧道；独立包为 false，那一块整个不渲染。 */
+  /** Whether this deployment can use named tunnels; false for the standalone package, and that whole block does not render. */
   named_available: boolean;
 }
 
 export interface AccessSettingsProps {
   initial: AccessState;
   receipt(message: string): void;
-  /** 需要登录时紧跟在密码分区下面的设备列表；改密码后拿到新 `revision` 重新画。 */
+  /** The device list right below the password section when login is required; after changing the password, a new revision is fetched and redrawn. */
   devices?(state: AccessState): import('react').ReactNode;
   /** 不论访问方式都跟在后面的分区（访问口令）；确认文案随当前访问方式变。 */
   after?(state: AccessState): import('react').ReactNode;
@@ -64,7 +64,7 @@ export interface UninstallState {
   available: boolean; full_available: boolean; message: string; data_root: string; directories: string[];
 }
 
-/** 数据目录里的一类数据。`reclaimable` 是清理这一类能腾出的字节。 */
+/** One category in the data catalog. `reclaimable` is the bytes cleaning this category would free. */
 export interface StorageCategory {
   key: string; label: string; description: string; note: string; cleanable: boolean;
   bytes: number; files: number; reclaimable: number;
@@ -101,7 +101,7 @@ export interface StoragePolicy {
 
 export interface PeachProxyState { mode: string; proxy_saved: boolean; needs_selection: boolean }
 
-/** 一个能换镜像域名的外部入口站点。`host` 为空串就是没换过，走 `default_host`。 */
+/** An external entry site whose mirror domain can be switched. An empty `host` means never switched; use `default_host`. */
 export interface EntryLinkSite {
   key: string;
   label: string;
@@ -111,7 +111,7 @@ export interface EntryLinkSite {
 
 export interface EntryLinksState { sites: EntryLinkSite[] }
 
-/** 一条「CloudDrive2 里的路径前缀 → 哪个媒体根」的对应。 */
+/** A mapping from a path prefix in CloudDrive2 to which media root. */
 export interface PushDiscoveryPrefix { prefix: string; root: string }
 
 export interface PushDiscoveryQueue {
@@ -125,7 +125,7 @@ export interface PushDiscoveryState {
   watch_local: boolean;
   cloud: boolean;
   prefixes: PushDiscoveryPrefix[];
-  /** 这台机器是数据库写入端才为真；只读端不起任何监听。 */
+  /** True only when this machine is the database write side; the read-only side starts no listeners at all. */
   available: boolean;
   secret: string;
   secret_set: boolean;
@@ -134,11 +134,11 @@ export interface PushDiscoveryState {
   local_message: string;
   local_roots: string[];
   queue: PushDiscoveryQueue;
-  /** 可选的媒体根，前缀表里的下拉就从这里取。 */
+  /** The optional media root; the prefix table's dropdown takes its options from here. */
   media_roots: string[];
-  /** CloudDrive2 该往哪个地址推。没开 TLS 或这台机器不知道自己的地址时是空串。 */
+  /** The address CloudDrive2 should push to. An empty string when TLS is off or this machine does not know its own address. */
   origin: string;
-  /** 整段抄进 CloudDrive2「配置内容」的 TOML；地址或密钥缺一样就是空串。 */
+  /** The TOML block to paste whole into CloudDrive2's "config content"; empty string when the address or the secret is missing. */
   config_toml: string;
 }
 
@@ -146,60 +146,60 @@ export interface AutomaticUpdateState {
   mode: string; interval_hours: number; available: boolean; download_available: boolean; error?: string;
 }
 
-/** 媒体库中可用的直连渠道与 CloudDrive2 路径渠道。 */
+/** The direct channels available in the media library and CloudDrive2 path channels. */
 export type DownloadProviderKey = '115' | 'pikpak' | `clouddrive:${string}:${string}`;
 
 export interface DownloadConfig {
   clouddrive_address: string;
   targets: Record<string, string>;
-  /** PikPak 根目录对应的数据库路径前缀，空串表示还没选。 */
+  /** The database path prefix matching the PikPak root directory; an empty string means nothing is chosen yet. */
   pikpak_root: string;
   wait_hours: number;
 }
 
 export type PikPakBrowserState = 'idle' | 'waiting' | 'done' | 'cancelled' | 'timeout' | 'failed';
 
-/** 设置页的云下载块。凭据只报存没存过，不回值。 */
+/** The cloud drive download block on the settings page. Credentials only report whether one was ever saved, never the value. */
 export interface DownloadSettingsState {
   problems?: string[];
   media_sources: string[];
   available: boolean;
   config: DownloadConfig;
   token_set: boolean;
-  /** `method`：`browser` 是浏览器登录取来的网页端会话，`password` 是账号密码换的令牌。 */
+  /** `method`: `browser` is a web session obtained through browser sign-in, `password` is a token exchanged for account and password. */
   pikpak: { logged_in: boolean; username: string; remember: boolean; method: 'browser' | 'password' };
-  /** 浏览器登录（ADR-0093）：这台电脑有没有 Chrome 或 Edge，登录窗口此刻在哪一步。 */
+  /** Browser sign-in (ADR-0093): whether this machine has Chrome or Edge, and which step the sign-in window is at right now. */
   pikpak_browser: { available: boolean; state: PikPakBrowserState; message: string };
   pikpak_roots: string[];
   providers: { key: DownloadProviderKey; label: string }[];
   max_wait_hours: number;
 }
 
-/** 「保存配置」的响应：设置块加一份按已保存配置做的检查报告，没有令牌时为 null。 */
+/** The "save config" response: the settings block plus a check report built from the saved config, null when there is no token. */
 export interface DownloadSaveResult extends DownloadSettingsState {
   report?: DownloadCheckReport | null;
 }
 
-/** 检查的结果：每一项各自报，一项失败不挡住其余几项。 */
+/** The check results: each item reports on its own, and one failure does not block the others. */
 export interface DownloadCheckReport {
   ok: boolean;
-  /** 实际查的 CloudDrive2 地址。表单留空时是探测到的本机地址，探测不到时为空串。 */
+  /** The CloudDrive2 address actually queried. When the form is left empty, the detected local address; an empty string when detection fails. */
   address: string;
   permissions: { name: string; label: string; granted: boolean }[];
   missing: string[];
   root: string;
   folder: { path: string; can_offline: boolean; cloud: string } | null;
   quota: { total: number; used: number; left: number } | null;
-  /** 115 目标目录留空时按推送发现推的目录；`exists` 为假时 CloudDrive2 里还没有它。 */
+  /** The 115 target folder when left empty is the folder pushed by push discovery; `exists` false means CloudDrive2 does not have it yet. */
   suggested_target: { path: string; exists: boolean } | null;
-  /** 未选择 PikPak 对应目录时，按推送发现的配置建议数据库路径前缀；无法确定时为空串。 */
+  /** When no PikPak folder is selected, suggests a database path prefix from push-discovered configuration; an empty string when it cannot be determined. */
   suggested_pikpak_root: string;
   problems: string[];
 }
 
 export interface PikPakLoginResult {
   ok: boolean;
-  /** 要人机验证时给验证页地址，用户在浏览器里完成后再登录一次。 */
+  /** When a captcha is required, hand over the challenge page URL and have the user log in again after finishing it in the browser. */
   captcha_url?: string;
   message?: string;
   settings: DownloadSettingsState;
@@ -268,7 +268,7 @@ export interface ReleaseState {
   message: string;
   release_url: string;
   checked_at?: number;
-  /** `installer` 是 macOS 的 DMG：没有应用内安装，下载后手动替换。 */
+  /** The installer is macOS's DMG: there's no in-app installation; after downloading, replace it manually. */
   package_kind?: 'update' | 'full' | 'installer';
   asset_url?: string;
   asset_size?: number;
@@ -289,7 +289,7 @@ export interface MediaSource {
   root_id?: string; library_id?: string;
   /** `online`：挂载可达性快照，`null` 是检测超时或还没检测（`media_configuration.reachability_states`）。 */
   location: string; root: string; path: string; online?: boolean | null; library?: string; library_icon?: string; cost?: 'free' | 'metered';
-  /** 媒体库来源色（强调色键名，空串不上色）与处理方式；`library_stages` 是自定义时所选步骤，逗号分隔。 */
+  /** Library source color (accent color key name, empty string means no tint) and handling; `library_stages` holds the steps chosen for custom, comma separated. */
   library_color?: string; library_policy?: 'auto' | 'local' | 'custom'; library_stages?: string;
 }
 
@@ -323,13 +323,13 @@ export interface ConfigurationData {
   certificate?: import('./settings/certificate-trust').CertificateState | null;
   tunnel?: TunnelState;
   editable: boolean;
-  /** 不能编辑时给用户看的原因，可编辑时为空。 */
+  /** The reason shown to the user when editing is unavailable; empty when editable. */
   notice: string;
-  /** 设置文件的指纹，保存时带回去，服务端据此拒绝盖掉别处的改动。 */
+  /** The settings file's fingerprint, sent back on save so the server can refuse to overwrite changes made elsewhere. */
   revision: string;
   media_dirs: string[];
   media_sources?: MediaSource[];
-  /** 媒体库个数，服务端按侧栏媒体库切换器那一份分组数好（同名的文件夹算一个）。 */
+  /** The media library count, grouped and tallied server-side by the sidebar's library switcher copy (same-named folders count as one). */
   library_count: number;
   windows?: boolean;
   port: number;
@@ -342,17 +342,17 @@ export interface ConfigurationData {
   facts: ConfigurationFact[];
 }
 
-/** 配置页只要遗留层的 Toast：保存是写操作，回执归全站那一份。 */
+/** The config page only needs the legacy layer's Toast: saving is a write, and the receipt belongs to the site-wide one. */
 export interface ConfigurationProps {
-  /** 保存成功后的过去时回执（遗留层的 Toast）。 */
+  /** The past-tense receipt after a successful save (the legacy layer's Toast). */
   receipt(message: string): void;
-  /** 让安装教程重新出现：跳过与折叠归位、撤回数据库标记。 */
+  /** Make the setup guide reappear: reset skip and collapse, and withdraw the database marker. */
   reopenTutorial(): Promise<void>;
-  /** 首帧选中的那一组页签名（别处点「管理媒体库」「添加媒体目录」等进来）；认不出或没给就选第一组。 */
+  /** The tab group name selected on the first frame (entered by clicking "manage libraries", "add media folder", and the like elsewhere); when unrecognized or absent, select the first group. */
   section?: string;
 }
 
-/** 配置页按页签切分组时，一组的根节点作为第 `index` 格页签面板要带的属性；`active` 是此刻选中的那一组。 */
+/** Attributes for a group's root node as the `index`-th tab panel when the configuration page switches groups by tabs; `active` is the currently selected group. */
 export interface ConfigurationPanel {
   index: number;
   id: string;
@@ -360,253 +360,253 @@ export interface ConfigurationPanel {
   active: boolean;
 }
 
-/** Peach 配置的分组：媒体库与入库、来源与订阅、下载渠道、网络与访问、应用与维护。
- *  `panel` 只在配置页里给，单独挂一组时没有。 */
+/** Groups of the Peach configuration: library and adding to library, sources and subscriptions, download channels, network and access, app and maintenance.
+ *  `panel` is only provided on the configuration page, absent when mounting a single group. */
 export interface ConfigurationGroupProps extends Pick<ConfigurationProps, 'receipt'> {
   data: ConfigurationData;
   panel?: ConfigurationPanel;
   issues?: import('react').ReactNode;
 }
 
-/** 高清版目标页仍由遗留层提供的能力。全是纯函数或导航，页面不持有它们的状态。 */
+/** Capabilities the HD edition target page still gets from the legacy layer. All pure functions or navigation; the page holds none of their state. */
 export interface QualityGoalsProps {
-  /** 写操作在服务端落地之后的过去时回执。 */
+  /** The past-tense receipt after the write operation landed on the server. */
   toast(message: string): void;
-  /** 打开作品详情（遗留层的整页视图，含播放器与队列）。 */
+  /** Open video details (the legacy layer's full-page view, including the player and the queues). */
   openItem(id: number): void;
-  /** 番号 + 版次徽章 + 标题的 HTML。非 JAV 条目退化成转义后的文件名。 */
+  /** HTML of code + edition badge + title. Non-JAV entries degrade to the escaped file name. */
   javTitleHtml(item: QualityGoal): string;
-  /** 同一条目的纯文本形态，用于无障碍名称。 */
+  /** The plain text form of the same entry, for the accessible name. */
   javDisplayName(item: QualityGoal): string;
-  /** 来源徽标（含计费标记）的 HTML。 */
+  /** The HTML of the source badge (including the paid marker). */
   srcBadge(location: string, cost: string): string;
 }
 
-/** 统计页仍由遗留层提供的能力。都是纯函数或导航，页面不持有它们的状态。 */
+/** Capabilities the stats page still gets from the legacy layer. All pure functions or navigation; the page holds no state for them. */
 export interface StatsProps {
-  /** 标签键到界面上的名称（`core/tags.ts` 的 `tagLabel`）。 */
+  /** Tag key to display name (`tagLabel` in `core/tags.ts`). */
   tagLabel(key: string): string;
-  /** 点一个内容标签：回目录并按它筛选。整页换成目录由遗留壳做。 */
+  /** Clicking a content tag: return to the catalog filtered by it. Swapping the whole page to catalog is the legacy shell's job. */
   onTag(key: string): void;
 }
 
-/** 口味页仍由遗留层提供的能力。都是导航、查表或回执，页面不持有它们的状态。 */
+/** Capabilities the taste page still gets from the legacy layer. All of them are navigation, lookups or receipts; the page holds no state for them. */
 export interface TasteProps {
-  /** 点一条名次：回目录并按它筛选。`kind` 是 `tag`／`creator`／`performer`。 */
+  /** Clicking a ranking entry returns to the catalog and filters by it. `kind` is `tag` / `creator` / `performer`. */
   onSignal(kind: string, name: string): void;
-  /** 打开口味总结指向的页面。 */
+  /** Open the page the taste summary points to. */
   navigate(route: string): void;
-  /** 写操作在服务端落地之后的过去时回执。 */
+  /** The past-tense receipt after the write operation landed on the server. */
   toast(message: string): void;
-  /** 从引导流程进来（`?onboarding=1`）：浏览记录导入指南直接展开。 */
+  /** Arrived from onboarding (`?onboarding=1`): the browse history import guide starts expanded. */
   onboarding: boolean;
 }
 
-/** 来源和凭证页只要遗留层的 Toast：保存与撤销是写操作，回执归全站那一份。 */
+/** The sources and credentials page uses only the legacy Toast: save and undo are writes, and receipts belong to the site-wide one. */
 export interface ScrapingProps {
-  /** 写操作在服务端落地之后的过去时回执。 */
+  /** The past-tense receipt after the write operation landed on the server. */
   toast(message: string): void;
 }
 
-/** 关注管理页。
+/** Follows management page.
  *
- *  地址栏与个人偏好在这里分成两组：`tab`／`page`／`sort`／`dir` 外面链接得过来，跟着地址
- *  走；`pageSize`／`layout` 是这台浏览器的习惯，跟着 `appSettings` 走。两组都由壳持有存储、
- *  React 持有实时状态，各只有一份。 */
+ *  The address bar and personal preferences split into two groups here: `tab`/`page`/`sort`/`dir` can be linked from outside and follow the
+ *  address; `pageSize`/`layout` are this browser's habits and follow `appSettings`. Both groups are held by the shell for storage and
+ *  React for live state, each with only one copy. */
 export interface FollowManageProps {
-  /** 地址栏此刻带着的页签（`list`／`add`／`feeds`）。 */
+  /** The tab the address bar currently carries (`list` / `add` / `feeds`). */
   tab: string;
   page: number;
   sort: string;
   dir: string;
-  /** 把这四项写回地址栏。空串表示这一项此刻就是默认值，壳不写进去。 */
+  /** Writes these four items back to the address bar. An empty string means the item currently equals its default, and the shell omits it. */
   route(params: { tab: string; page: number; sort: string; dir: string }): void;
-  /** 这台浏览器的偏好当前值。 */
+  /** The current value of this browser's preference. */
   pageSize: number;
   layout: string;
-  /** 偏好改了：存储归壳（`appSettings`），页面不自己写一份。 */
+  /** Preferences changed: storage belongs to the shell (`appSettings`), and the page does not keep its own copy. */
   savePreference(patch: { pageSize?: number; layout?: string }): void;
-  /** 写操作在服务端落地之后的过去时回执。 */
+  /** The past-tense receipt after the write operation landed on the server. */
   toast(message: string): void;
-  /** 去「看更新」那一页（`/follow`）。整页换成哪一屏仍归遗留壳。 */
+  /** Go to the 'view updates' page (`/follow`). Which screen the full page becomes is still the legacy shell's call. */
   openFollow(): void;
-  /** 数据库只读：这台机器只能浏览，写操作全部不给点。 */
+  /** The database is read-only: this machine can only browse, and every write action is unclickable. */
   readOnly: boolean;
   readOnlyMessage: string;
-  /** 写入端上这一页的地址。取不到时门禁里不给去处。 */
+  /** This page's address on the write side. When it cannot be fetched, the gate offers no destination. */
   writerUrl: string;
 }
 
-/** 人工复核页。
+/** Manual review page.
  *
- *  `category` 是唯一进地址栏的那一项：十个分类是固定的一组身份，「在看哪一条队列」链接
- *  得过来，刷新也要还原。分组、筛选与页码是这一刻的看法，队列又是消耗性的（判一条就少
- *  一条），写进地址栏分享出去只会指向另一批东西。 */
+ *  `category` is the only thing entering the address bar: the ten categories are a fixed set of identities; "which queue is being viewed" can be
+ *  linked and must survive refresh. Grouping, filter, and page are this moment's view, and the queue is consumable (deciding one removes one), so writing
+ *  it into the address to share would only point at a different batch. */
 export interface ReviewProps {
-  /** 地址栏此刻带着的分类。不认识的值退回默认那一档。 */
+  /** The category the address bar currently carries. An unrecognized value falls back to the default tier. */
   category: string;
   queue?: string;
-  /** 把分类写回地址栏。空串表示这一项此刻就是默认值，壳不写进去。 */
+  /** Writes the category back to the address bar. An empty string means the item currently equals its default, and the shell omits it. */
   route(params: { category: string; queue?: string }): void;
-  /** 打开作品详情（遗留层的整页视图，含播放器与队列）。 */
+  /** Open video details (the legacy layer's full-page view, including the player and the queues). */
   openItem(id: number): void;
-  /** 打开实体资料页。`kind` 是 `creator`／`performer`。 */
+  /** Opens an entity profile page. `kind` is `creator`/`performer`. */
   openEntity(kind: string, name: string): void;
-  /** 在资源管理器里显示这个文件。成功由遗留层自己发回执，失败回一句原因。 */
+  /** Shows this file in the file manager. Success sends its own receipt from the legacy layer; failure returns a one-line reason. */
   revealSource(id: number): Promise<string>;
-  /** 写操作在服务端落地之后的过去时回执。 */
+  /** The past-tense receipt after the write operation landed on the server. */
   toast(message: string): void;
-  /** 数据库只读：这台机器只能浏览，判定与收录全部不给点，进页面也不发那一次自动落库。 */
+  /** Database is read-only: this machine can only browse, judging and claiming are all unclickable, and entering the page does not fire that automatic database write. */
   readOnly: boolean;
   readOnlyMessage: string;
-  /** 写入端上这一页的地址。取不到时门禁里不给去处。 */
+  /** This page's address on the write side. When it cannot be fetched, the gate offers no destination. */
   writerUrl: string;
 }
 
-/** 扫描与采集。同一份数据两个读者，所以同一个名字挂两种形态：数据管理页那张卡片，
- *  和目录页顶上那条横幅（`mode: 'notice'`）。 */
+/** Scan and scrape. Two readers of the same data, so one name carries two shapes: the card on the data management page,
+ *  and the banner at the top of the catalog page (`mode: 'notice'`). */
 export interface LibraryProcessingProps {
-  /** 任务跑完时的一次通知。同一趟按 `job_id` 只报一次，谁先看到结束谁报。 */
+  /** A one-time notification when a job finishes. One run reports once per `job_id`; whoever sees the end first reports it. */
   toast(message: string): void;
-  /** 这一趟从运行走到终态：让遗留层重画数据管理页那几个计数。 */
+  /** This run went from running to a final state: have the legacy layer redraw the data management page's counts. */
   onComplete?(): void;
-    /** 紧凑任务面持续观察后台状态。 */
+    /** The compact task panel keeps watching background state. */
   mode?: 'notice';
-  /** 卡片闲着时也接着问：任务由后台自己起，页面要认出「现在跑起来了」。 */
+  /** The card keeps asking while idle: the task starts on its own in the background, and the page must recognize 'it is running now'. */
   monitor?: boolean;
 }
 
-/** 换头像：资料页圆框角上那个加号，连同它点开的那一屏候选。资料卡（`entity-hero`）在自己
- *  的头像框上直接渲染它，不单独挂载。 */
+/** Avatar change: the plus sign at the corner of the profile page's round frame, together with the candidate screen it opens. The profile card (`entity-hero`) renders it directly
+ *  on its own avatar frame, no separate mount. */
 export interface AvatarPickerProps {
-  /** 实体类型（`performer`／`creator`）。 */
+  /** Entity type (`performer` or `creator`). */
   kind: string;
   entityId: number;
-  /** 页面上显示的这个人的名字，用在无障碍名称和那一句说明里。 */
+  /** The person's name as shown on the page, used in the accessible name and the description sentence. */
   name: string;
-  /** 换成功后让宿主重画头像。遗留层传的是「重新进这一页」。 */
+  /** After a successful swap, have the host redraw the avatar. The legacy layer passes 're-enter this page'. */
   onPicked(): void;
 }
 
-/** 裁剪封面：作品详情页标题旁那枚键，连同它点开的那一屏取景框。 */
+/** Crop cover: the button next to the title on the video detail page, together with the framing screen it opens. */
 export interface CoverCropProps {
-  /** 归一前的番号，原样回递给写端点。 */
+  /** The code before normalization, passed back to the write endpoint as is. */
   code: string;
-  /** 封面原图的地址（`/cover?code=`）。框量的是这张图的像素。 */
+  /** The original cover's address (`/cover?code=`). The frame measures this image's pixels. */
   coverUrl: string;
-  /** 当前生效的取景框，没有就是 null。形状同接口的 `poster_box`。 */
+  /** The currently active framing box, null when none. Same shape as the API's `poster_box`. */
   box: { x0: number; y0: number; x1: number; y1: number; px: number[] } | null;
-  /** 存好之后让宿主重画封面，`box` 是写端点回的新框（形状同 `box`）：作品详情重取这一条，
-   *  背后网格里同一番号的卡就地换上它。 */
+  /** After saving, have the host repaint the cover; `box` is the new box the write endpoint returned (same shape as `box`): the video details refetches this entry,
+   *  and the card with the same code in the grid behind swaps it in place. */
   onSaved(box: CoverCropProps['box']): void;
 }
 
-/** 数据管理页顶上那排读数卡各通往哪一页。`ads` 是垃圾文件。 */
+/** Where each stat card at the top of the data management page leads. `ads` is junk files. */
 export type DataCleanupSection = 'review' | 'quality' | 'duplicates' | 'ads' | 'trash';
 
-/** 数据管理页仍由遗留层提供的能力：回执和换页。 */
+/** Capabilities the data management page still gets from the legacy layer: receipts and pagination. */
 export interface DataCleanupProps {
   navigate(path: string): void;
-  /** 操作回执（遗留层 `actionReceipt`）。`warning` 是做完了但有一部分要留意，走警告音效。 */
+  /** Action receipt (legacy `actionReceipt`). `warning` means finished but partly worth attention, and plays the warning sound effect. */
   toast(message: string, options?: { warning?: boolean }): void;
-  /** 失败回执（遗留层 `actionFailure`）：`action` 是没做成的那件事。 */
+  /** Failure receipt (legacy layer `actionFailure`): `action` is the thing that failed. */
   failure(action: string, error: unknown): void;
-  /** 点一张读数卡：换到那一页。 */
+  /** Click a stats card: switch to that page. */
   open(section: DataCleanupSection): void;
 }
 
-/** 重复文件页仍由遗留层提供的能力。 */
+/** Capabilities the duplicate files page still gets from the legacy layer. */
 export interface DuplicatesProps {
-  /** 打开作品详情（遗留层的整页视图）。 */
+  /** Opens the video details (the legacy layer's full page view). */
   openItem(id: number): void;
-  /** 操作回执；给了 `undo` 就带一颗撤销键。 */
+  /** The operation receipt; when `undo` is provided, an undo button comes with it. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
   failure(action: string, error: unknown): void;
 }
 
-/** 播放列表页仍由遗留层提供的能力。 */
+/** Capabilities the playlist page still gets from the legacy layer. */
 export interface PlaylistsProps {
-  /** 打开一份列表的播放队列，从 `resumeAssetId` 那一个接着播。 */
+  /** Opens a list's play queue, resuming from the `resumeAssetId` item. */
   openPlaylist(id: number, resumeAssetId: number): void;
-  /** 点署名行的头像：去这个人的资料页。`kind` 是 `performer`／`creator`。 */
+  /** Click the avatar on the byline row: go to that person's profile page. `kind` is `performer` or `creator`. */
   openEntity(kind: string, name: string): void;
-  /** 此刻能不能悬停翻页：壳的多选、遮挡、减少动效与滚动中都回 false。 */
+  /** Whether hover paging is allowed right now: returns false during shell multi-select, occlusion, reduced motion and scrolling. */
   canFlip(): boolean;
-  /** 操作回执（遗留层 `actionReceipt`）；给了 `undo` 就带一颗撤销键。撤销抛错时回执自己
-   *  换成「撤销失败」，页面不另报一次。 */
+  /** The action receipt (legacy `actionReceipt`); with `undo` given it carries an undo key. When undo throws, the receipt itself
+   *  switches to "Undo failed" and the page does not report it a second time. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
-  /** 刷新代次。壳在这一页上要求重读（顶栏「换一批」、从别处写完回来）时加一，页面据此重取，不重挂。 */
+  /** Refresh epoch. Incremented when the shell asks this page to re-read (top bar "shuffle", or returning after a write elsewhere); the page refetches on it without remounting. */
   revision?: number;
 }
 
-/** 全站 Toast 的两枚字形，遗留层 `icon()` 画好的 SVG 片段。 */
+/** The two glyphs of the site-wide Toast, SVG snippets pre-drawn by the legacy layer's `icon()`. */
 export interface ToastIcons { success: string; error: string }
 
-/** 一条回执。`html` 已由遗留层的 `toastBody` 按调用点的声明转义或原样放行。 */
+/** One receipt. `html` was already escaped or passed through as-is by the legacy layer's `toastBody`, per the call site's declaration. */
 export interface ToastRequest {
   html: string;
   alert: boolean;
-  /** 毫秒；0 与负数按默认的 6 秒，`Infinity` 表示不自己消失。 */
+  /** Milliseconds; 0 and negatives use the default 6 seconds, `Infinity` means it never dismisses itself. */
   timeout: number;
   action: { label: string; run(button: HTMLButtonElement): void } | null;
 }
 
 export type { StageApi, StageHost, StagePatch, StageRequest } from './stage/stage-api';
 
-/** 接上壳给的宿主，拿回舞台的命令式入口（`stage/stage.tsx`）。只调一次；这一面由 `application-residents.ts` 的
- *  `loadStage` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back the stage's imperative entry (`stage/stage.tsx`). Called once; this surface is opened in the route tree by `application-residents.ts`'s
+ *  `loadStage` via `openResidentSurface` from the resident table. */
 export declare function configureStage(host: StageHost): StageApi;
 
 export type {
   SettingsEffect, SettingsPanelApi, SettingsPanelHost,
 } from './settings-panel/settings-panel-api';
 
-/** 接上壳给的宿主，拿回设置面板的命令式入口（`settings-panel/settings-panel.tsx`）。只调一次；这一面由
- *  `application-residents.ts` 的 `loadSettingsPanel` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back the settings panel's imperative entry (`settings-panel/settings-panel.tsx`). Called once; this surface is then
+ *  opened in the route tree by `application-residents.ts`'s `loadSettingsPanel` via `openResidentSurface` from the resident table. */
 export declare function configureSettingsPanel(host: SettingsPanelHost): SettingsPanelApi;
 
 export type { ImmerseApi, ImmerseHost } from './immerse/immerse-api';
 
-/** 接上壳给的宿主，拿回沉浸模式的命令式入口（`immerse/immerse-island.tsx`）。只调一次；这一面由
- *  `application-residents.ts` 的 `loadImmerse` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back immersive mode's imperative entry (`immerse/immerse-island.tsx`). Called once; this surface is then
+ *  opened in the route tree by `application-residents.ts`'s `loadImmerse` via `openResidentSurface` from the resident table. */
 export declare function configureImmerse(host: ImmerseHost): ImmerseApi;
 
 export type {
   SidebarApi, SidebarChip, SidebarContent, SidebarDot, SidebarFacets, SidebarHost, SidebarProps,
 } from './sidebar/sidebar-api';
 
-/** 接上壳给的宿主，拿回侧栏的命令式入口（`sidebar/sidebar-island.tsx`）。只调一次；这一面由 `application-residents.ts` 的
- *  `loadSidebar` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back the sidebar's imperative entry (`sidebar/sidebar-island.tsx`). Called once; this surface is opened in the route tree by `application-residents.ts`'s
+ *  `loadSidebar` via `openResidentSurface` from the resident table. */
 export declare function configureSidebar(host: SidebarHost): SidebarApi;
 
 export type {
   ManageEntry, ManageHeaderApi, ManageHeaderHost, ManageHeaderProps, TrashCount,
 } from './manage-header/manage-header-api';
 
-/** 接上壳给的宿主，拿回管理区页头的命令式入口（`manage-header/manage-header-island.tsx`）。只调一次；这一面由
- *  `application-residents.ts` 的 `loadManageHeader` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back the manage header's imperative entry (`manage-header/manage-header-island.tsx`). Called once; this surface is then
+ *  opened in the route tree by `application-residents.ts`'s `loadManageHeader` via `openResidentSurface` from the resident table. */
 export declare function configureManageHeader(host: ManageHeaderHost): ManageHeaderApi;
 
 export type {
   BatchAction, BatchContext, BatchDockApi, BatchDockHost, BatchDockProps, BatchGroup,
 } from './batch-dock/batch-dock-api';
 
-/** 接上壳给的宿主，拿回批量条的命令式入口（`batch-dock/batch-dock-island.tsx`）。只调一次；这一面由
- *  `application-residents.ts` 的 `loadBatchDock` 接着经常驻表的 `openResidentSurface` 在路由树里打开。 */
+/** Wire up the host the shell provides and take back the batch dock's imperative entry (`batch-dock/batch-dock-island.tsx`). Called once; this surface is then
+ *  opened in the route tree by `application-residents.ts`'s `loadBatchDock` via `openResidentSurface` from the resident table. */
 export declare function configureBatchDock(host: BatchDockHost): BatchDockApi;
 
 export type { GlowPickerHost } from './glow-picker/glow-picker-api';
 
-/** 接上壳给的宿主（`glow-picker/glow-picker-island.tsx`）。只调一次；卡的内容由 `application-residents.ts` 的
- *  `loadGlowPicker` 接着经常驻表的 `openResidentSurface` 在路由树里画。 */
+/** Wire up the host the shell provides (`glow-picker/glow-picker-island.tsx`). Called once; the card's content is drawn in the route tree by `application-residents.ts`'s
+ *  `loadGlowPicker` via `openResidentSurface` from the resident table. */
 export declare function configureGlowPicker(host: GlowPickerHost): void;
 
 export type { ManagedOpenProps, ManagedPath, ShellActions } from './router/shell-actions';
 
-/** 路由树那几页的首屏取数（`@peach/history` 的 `openManagedRoute` 经 `connectManagedRoutes` 调它）。 */
+/** First-screen fetching for the router tree's pages (`openManagedRoute` in `@peach/history` calls it through `connectManagedRoutes`). */
 export declare function prefetchManagedRoute(path: string, open: object, signal: AbortSignal): Promise<void>;
 
-/** 在 `host` 上挂全站唯一的 Toaster；重复调用是空操作。 */
+/** Mounts the site-wide single Toaster on `host`; repeat calls are no-ops. */
 export declare function mountToaster(host: Element, icons: ToastIcons): void;
-/** 发出一条回执；同一个 `id` 再调一次就是改写那一条。 */
+/** Emit one receipt; calling again with the same `id` rewrites that entry. */
 export declare function showToast(id: string, request: ToastRequest): void;

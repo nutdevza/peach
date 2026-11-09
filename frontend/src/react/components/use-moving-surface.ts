@@ -2,13 +2,13 @@ import { spring } from 'motion';
 import { animate } from 'motion/mini';
 import { useLayoutEffect, useState } from 'react';
 
-/** Fluid 的短程、无回弹档；页面语义与配色仍由 BoardUI 提供。 */
+/** Fluid's short-travel, no-bounce tier; page semantics and colors still come from BoardUI. */
 export const SURFACE_SPRING = {
   selection: { type: spring, duration: 0.16, bounce: 0 },
   hover: { type: spring, duration: 0.08, bounce: 0 },
 } as const;
 
-/** 装饰节点不加入 React Aria 的 collection；生命周期与测量均归这个 hook。 */
+/** Decorative nodes do not join React Aria's collection; lifecycle and measurement both belong to this hook. */
 export function useMovingSurface(mode: 'selection' | 'hover') {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -58,7 +58,7 @@ export function useMovingSurface(mode: 'selection' | 'hover') {
       const width = box.width / sx;
       const height = box.height / sy;
       const next = `${x},${y},${width},${height}`;
-      // 同一个位置的重复通知不截断正在移动的底板；键盘和媒体设置变化仍即时落位。
+      // A repeated notice at the same position does not interrupt the plate mid-move; keyboard and media settings changes still land immediately.
       if (pointerInput && mouse.matches && !reduced.matches && previous === target && destination === next) return;
       const live = pane.hidden ? null : pane.getBoundingClientRect();
       animation?.cancel();

@@ -1,12 +1,15 @@
-/* 活动页「云下载」段：提交过的离线下载任务。提交在各页原地的弹层里（`cloud-download-dialog.tsx`）。
+/* The activity page's "Cloud download" section: offline download jobs that were submitted. Submission happens in the in-place
+ * popover on each page (`cloud-download-dialog.tsx`).
  *
- * 任务表是 `/api/downloads` 自己的一份，不并进 `/api/tasks`：离线任务跑在网盘那头，一跑
- * 几小时到几天，是一条带远端编号的提交记录，不是这台电脑上的一轮批处理。所以这一段自己取数、
- * 自己轮询：有任务还在远端跑或等着落盘时五秒一次，全是终态三十秒一次。后台的对账节律由
- * 服务端定（提交后约十秒查一次，之后退避），这里只是把它查到的结果读出来。
+ * The job table is `/api/downloads`' own copy, not merged into `/api/tasks`: offline jobs run on the cloud drive side, take
+ * hours to days, and are a submission record with a remote id, not a batch round on this computer. So this section fetches
+ * and polls on its own: every five seconds while a job is running or waiting to land remotely, every thirty seconds when
+ * everything is terminal. The background reconciliation cadence is set by the server (about ten seconds after submission,
+ * then backing off); this page only reads out what it found.
  *
- * 一条任务都没有时整段不画。失败的任务给中文原因；失败、取消与停滞的可以重新提交，被判
- * 违规的不给（服务端也会拒）。每张卡都能复制磁力：接口失效时退回手动添加。 */
+ * With no jobs at all the section is not rendered. Failed jobs show the reason text; failed, cancelled and stalled ones can
+ * be resubmitted, and ones flagged as violations cannot (the server would refuse too). Every card can copy its magnet link:
+ * when the endpoint breaks, fall back to manual adding. */
 import { useId, useState, type CSSProperties } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { showToast } from '../toaster';
@@ -51,15 +54,15 @@ const taskName = (task: DownloadTask) => {
   const { title } = javTitleParts({
     is_jav: Boolean(code), code, name: task.display_title ?? task.title ?? task.display_name ?? task.remote_name,
   });
-  return [code, title].filter(Boolean).join(' · ') || `磁力 ${task.info_hash?.slice(0, 8) ?? task.id}`;
+  return [code, title].filter(Boolean).join(' · ') || `Magnet ${task.info_hash?.slice(0, 8) ?? task.id}`;
 };
 
 export const failureText = (task: DownloadTask) =>
-  task.failure_label ? [task.failure_label, task.failure_detail].filter(Boolean).join('：') : '';
+  task.failure_label ? [task.failure_label, task.failure_detail].filter(Boolean).join(': ') : '';
 
 const postprocessDetail = (task: DownloadTask) => (task.postprocess_detail || '')
-  .replace('正片已绑定', '已确认主视频对应的作品')
-  .replace('整理跳过：', '未整理文件：');
+  .replace('Main video linked', 'Confirmed the video matching the main video')
+  .replace('Organize skipped:', 'Unorganized files:');
 
 export function DownloadsPanel() {
   const id = useId();
@@ -78,14 +81,14 @@ export function DownloadsPanel() {
   if (!tasks.length && !query.error) return null;
   return (
     <section id="cloudDownloads" aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
-      <h3 id={id} className="text-title-2-medium text-text-primary">云下载</h3>
+      <h3 id={id} className="text-title-2-medium text-text-primary">Cloud download</h3>
       {query.error ? <Note tone="error">{errorMessage(query.error)}</Note> : null}
       {tasks.length
         ? <ul aria-live="polite" className="flex min-w-0 flex-col gap-3">
             {tasks.map((task) => <TaskCard key={task.id} task={task} writable={data?.available ?? false} />)}
           </ul>
         : null}
-      <DataTableFooter label="云下载" total={data?.total ?? tasks.length}
+      <DataTableFooter label="Cloud download" total={data?.total ?? tasks.length}
         pagination={{ pageIndex: (data?.page || page) - 1, pageSize }}
         onChange={(next) => {
           if (next.pageIndex + 1 === page && next.pageSize === pageSize) void query.refetch();
@@ -101,14 +104,14 @@ function TaskCard({ task, writable }: { task: DownloadTask; writable: boolean })
   const action = useAction();
   const [fullTitle, setFullTitle] = useState(false);
   const titleId = useId();
-  /* 还在对账的任务没有失败分类：暂时性故障只记下原因、退避后再查，底栏照样把它读出来。 */
+  /* Jobs still reconciling have no failure category: transient faults only record the cause and retry after backoff, and the bottom bar still reads them out. */
   const reason = failureText(task)
-    || (task.cancellable && task.failure_detail ? `稍后自动重试 · ${task.failure_detail}` : '');
+    || (task.cancellable && task.failure_detail ? `Will retry automatically · ${task.failure_detail}` : '');
   const artwork = task.artwork;
   const people = artwork?.performer_entities || [];
   const detailHref = task.state === 'ingested' && task.asset_id ? `/assets/${task.asset_id}` : undefined;
   const failed = task.state === 'failed' || task.postprocess_state === 'failed';
-  const meta = [task.display_code || task.code ? '' : '番号未识别', task.target, momentText(task.submitted_at)]
+  const meta = [task.display_code || task.code ? '' : 'Code not recognized', task.target, momentText(task.submitted_at)]
     .filter(Boolean).join(' · ');
   const refresh = () => { void client.invalidateQueries({ queryKey: DOWNLOADS_KEY }) };
 
@@ -122,8 +125,8 @@ function TaskCard({ task, writable }: { task: DownloadTask; writable: boolean })
   };
   const copy = () => {
     void navigator.clipboard.writeText(task.source_uri).then(
-      () => showToast(`download-copy-${task.id}`, { html: '已复制磁力', alert: false, timeout: 4000, action: null }),
-      () => showToast(`download-copy-${task.id}`, { html: '复制失败，请检查剪贴板权限', alert: true, timeout: 6000, action: null }));
+      () => showToast(`download-copy-${task.id}`, { html: 'Magnet link copied', alert: false, timeout: 4000, action: null }),
+      () => showToast(`download-copy-${task.id}`, { html: 'Copy failed; check clipboard permissions', alert: true, timeout: 6000, action: null }));
   };
   const retryPostprocess = () => {
     void action.run('postprocess', (signal) => apiSend(
@@ -139,10 +142,10 @@ function TaskCard({ task, writable }: { task: DownloadTask; writable: boolean })
         <div data-download-cover="" data-media-pic=""
           style={{ '--card-ratio': String(COVER_FRONT_RATIO) } as CSSProperties}
           className="w-20 shrink-0 self-start text-caption-1-regular text-text-secondary sm:w-32">
-          {!artwork?.has_cover ? <span data-media-nopic="">无封面</span> : null}
+          {!artwork?.has_cover ? <span data-media-nopic="">No cover</span> : null}
           {artwork?.has_cover ? <ArtSlot artwork={{ kind: 'cover', html: coverImage(artwork, 'big') }}
             relayout={(root) => relayoutCovers(root, 'big')} /> : null}
-          {detailHref ? <a data-download-cover-link="" href={detailHref} aria-label={`打开作品详情：${taskName(task)}`}
+          {detailHref ? <a data-download-cover-link="" href={detailHref} aria-label={`Opening video details: ${taskName(task)}`}
             className="absolute inset-0 z-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus-ring" /> : null}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -163,35 +166,35 @@ function TaskCard({ task, writable }: { task: DownloadTask; writable: boolean })
         {people.length ? <div className="flex min-w-0 items-center gap-2">
           <div className="flex shrink-0 items-center gap-1">
             {people.slice(0, 3).map((person) => <a key={person.id || person.name} data-media-avatar=""
-              href={entityPath('performer', person.name, person.id)} aria-label={`打开女优页：${entityDisplayName('performer', person.name, person.id)}`} title={entityDisplayName('performer', person.name, person.id)}
+              href={entityPath('performer', person.name, person.id)} aria-label={`Open performer page: ${entityDisplayName('performer', person.name, person.id)}`} title={entityDisplayName('performer', person.name, person.id)}
               dangerouslySetInnerHTML={{ __html: avatarInner(person.name, person, null) }} />)}
           </div>
           <span className="min-w-0 truncate text-caption-1-regular text-text-secondary"
-            title={people.map((person) => entityDisplayName('performer', person.name, person.id)).join('、')}>{people.map((person) => entityDisplayName('performer', person.name, person.id)).join('、')}{(artwork?.performer_total || 0) > people.length ? ` 等 ${artwork!.performer_total} 人` : ''}</span>
+            title={people.map((person) => entityDisplayName('performer', person.name, person.id)).join('、')}>{people.map((person) => entityDisplayName('performer', person.name, person.id)).join('、')}{(artwork?.performer_total || 0) > people.length ? ` and ${artwork!.performer_total} people` : ''}</span>
         </div> : null}
         {task.state === 'remote_running' && task.progress != null
-          ? <Progress label="远端下载进度" value={Math.round(task.progress * 100)} max={100} />
+          ? <Progress label="Remote download progress" value={Math.round(task.progress * 100)} max={100} />
           : null}
         {task.ledger_path
           ? <p className="min-w-0 truncate text-caption-1-regular text-text-secondary" title={task.ledger_path}>{task.ledger_path}</p>
           : null}
         {action.error ? <ErrorText>{action.error}</ErrorText> : null}
-        {/* 辅助的（看标题、抄磁力）靠左，改动这条任务的靠右，最右是这张卡此刻的主动作。 */}
+        {/* Auxiliary actions (view title, copy magnet link) go left, actions that modify this job go right, and the far right is the card's primary action right now. */}
         <div data-download-actions="" className="flex flex-wrap items-center gap-2 pt-1 sm:mt-auto">
           <Button variant="ghost" size="small" aria-expanded={fullTitle} aria-controls={titleId}
-            onClick={() => setFullTitle(!fullTitle)}>{fullTitle ? '收起标题' : '展开标题'}</Button>
-          <Button variant="ghost" size="small" onClick={copy}>复制磁力</Button>
+            onClick={() => setFullTitle(!fullTitle)}>{fullTitle ? 'Collapse title' : 'Expand title'}</Button>
+          <Button variant="ghost" size="small" onClick={copy}>Copy magnet</Button>
           {writable && (task.cancellable || task.resubmittable || task.postprocess_retryable)
             ? <div className="ml-auto flex flex-wrap items-center gap-2">
                 {task.cancellable
-                  ? <Button variant="secondary" size="small" {...busyProps(action.busy === 'cancel')} onClick={cancel}>取消</Button>
+                  ? <Button variant="secondary" size="small" {...busyProps(action.busy === 'cancel')} onClick={cancel}>Cancel</Button>
                   : null}
                 {task.resubmittable
-                  ? <Button variant="secondary" size="small" {...busyProps(action.busy === 'resubmit')} onClick={resubmit}>重新提交</Button>
+                  ? <Button variant="secondary" size="small" {...busyProps(action.busy === 'resubmit')} onClick={resubmit}>Submit again</Button>
                   : null}
                 {task.postprocess_retryable
                   ? <Button variant="secondary" size="small" {...busyProps(action.busy === 'postprocess')}
-                      onClick={retryPostprocess}>重试入库后整理</Button>
+                      onClick={retryPostprocess}>Retry organize after import</Button>
                   : null}
               </div>
             : null}

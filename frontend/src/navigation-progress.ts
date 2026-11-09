@@ -1,15 +1,15 @@
-/* 换页进度条：页面顶边一条 2px 的细条，顶替浏览器自己的加载条。
+/* Page-change progress bar: a 2px thin strip along the top edge of the page, standing in for the browser's own loading bar.
  *
- * 换页走 pushState，浏览器不再亮它的加载条；骨架在 100ms 内就铺上，可服务端慢的时候骨架一停十几秒，
- * 用户分不清是在等还是卡死了。这一条只回答「还在取」，不报百分比：取数没有可信的总量，按时间涨的
- * 进度是编的（组件契约「等待与回执」）。
+ * Page changes go through pushState, so the browser no longer lights its loading bar; the skeleton is laid within 100ms, but when the server is slow the skeleton can stall for over ten seconds,
+ * and the user can't tell whether they're waiting or it's frozen. This bar only answers "still fetching"; it reports no percentage: there's no trustworthy total for the fetch, and a progress that grows by elapsed time
+ * would be made up (component contract "waiting and acknowledgment").
  *
- * 判据两路：壳在取某一页的首屏（`managedLoading`），或者屏上有组件在等它的第一份数据——查询有观察者、
- * 从没取到过、正在取（换筛选时列表保留旧行，新条件那一份就是这一种）。已经有数据的后台重取、
- * 失败后的轮询、没人看的预取都不算，否则轮询会让它隔几秒闪一次。
+ * The trigger has two paths: the shell is fetching the first screen of some page (`managedLoading`), or a component on screen is waiting for its first data — the query has observers,
+ * has never fetched yet, and is fetching now (when changing a filter the list keeps its old rows, and the fetch for the new condition is this one). Background refetches that already have data,
+ * polling after a failure, and prefetches nobody is watching don't count; otherwise polling would make it flicker every few seconds.
  *
- * 命中缓存的换页在 200ms 内就画完，这一条不出现；出现了至少停 400ms，结束时铺满再淡出，
- * 不闪一下就没。 */
+ * A cached page change paints within 200ms, so the bar doesn't appear; once it appears it stops for at least 400ms, fills to full at the end, then fades out,
+ * rather than flashing and vanishing. */
 import type { Query } from '@tanstack/query-core';
 
 import { listenManagedLoading, managedLoading } from './history/managed';
@@ -19,7 +19,7 @@ const SHOW_DELAY = 200;
 const MIN_SHOWN = 400;
 const FADE = 240;
 
-/** 装上进度条，返回卸载函数。 */
+/** Mount the progress bar and return an unmount function. */
 export function installNavigationProgress(): () => void {
   const bar = document.createElement('div');
   bar.className = 'navprogress';
@@ -60,7 +60,7 @@ export function installNavigationProgress(): () => void {
       }, FADE);
     }, Math.max(0, MIN_SHOWN - (performance.now() - shownAt)));
   };
-  /* 壳换页时先中止上一趟、再登记这一趟，同一个任务里会先假后真；攒到微任务再读，这一下不算结束。 */
+  /* When the shell switches pages, it first aborts the previous trip, then registers this one; within the same task it's fake first, then real; batch until the microtask before reading, so this doesn't count as the end. */
   const schedule = () => {
     if (queued) return;
     queued = true;
@@ -70,7 +70,7 @@ export function installNavigationProgress(): () => void {
     });
   };
 
-  /* 没数据的查询重取时 Query 把状态退回 pending，失败后的轮询看着和首取一样；失败过的不算首取。 */
+  /* When a no-data query refetches, Query reverts the status to pending; polling after failure looks like the first fetch; a failed one doesn't count as the first fetch. */
   const track = (query: Query) => {
     const { status, fetchStatus, errorUpdateCount } = query.state;
     if (status === 'pending' && fetchStatus === 'fetching' && !errorUpdateCount && query.getObserversCount() > 0) {

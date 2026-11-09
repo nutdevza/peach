@@ -1,21 +1,21 @@
-/* 界面标注工具 Agentation 的挂载入口，只由 `vite.agentation.config.ts` 构建。
+/* The UI annotation tool Agentation's mount entry, built only by `vite.agentation.config.ts`.
  *
- * 产物落在 `build/agentation/`，不进 Git 也不进独立包；Application 在当前地址明确启用时才
- * `import('/dev/agentation.js')`。它自带一份 React，挂在 `<body>` 末尾自己的根上，
- * 和页面里的 React 子树互不相干。用法见 docs/FRONTEND.md「界面标注」。 */
+ * The output lands in `build/agentation/`, out of Git and out of the standalone bundle; Application imports
+ * `import('/dev/agentation.js')` only when the current address explicitly enables it. It ships its own React, mounted on its
+ * own root at the end of `<body>`, unrelated to the page's React subtree. Usage in docs/FRONTEND.md, "UI annotation". */
 import { Agentation } from 'agentation';
 import { createRoot } from 'react-dom/client';
 
 import { identifyAgentationFields } from './agentation-fields';
 
-/** 本机 `agentation-mcp` 的 HTTP 端口。服务没起时标注照样存在浏览器里，起来后自动补传。 */
+/** The HTTP port of the local `agentation-mcp`. While the service is down the annotation still lands in the browser and is backfilled automatically once it is up. */
 const ENDPOINT = 'http://localhost:4747';
 
 const host = document.createElement('div');
 host.dataset.agentation = '';
 identifyAgentationFields(host);
 document.body.append(host);
-// Peach 自己占着全局快捷键（Esc 收起面板、方向键翻图），标注工具只走工具栏按钮。
+// Peach holds the global shortcuts itself (Esc collapses the panel, arrow keys flip images), so the annotation tool works only through toolbar buttons.
 createRoot(host).render(
   <Agentation appName="Peach" endpoint={ENDPOINT} portalContainer={host} enableKeyboardShortcuts={false} />,
 );

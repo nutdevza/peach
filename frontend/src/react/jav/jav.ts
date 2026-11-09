@@ -9,7 +9,7 @@ import { RELEASE_SORTS, type DiscoveryDirection, type DiscoverySort, type Releas
 
 export { JAV_TABS, javTab, javPath, javLibraryPath } from './jav-navigation';
 
-/** 分区里的筛选写进地址栏：替换当前记录，不多压一条历史。 */
+/** Filters in a section are written into the address bar: they replace the current record rather than pushing an extra history entry. */
 export function writeJavQuery(patch: Record<string, string>): void {
   const params = new URLSearchParams(location.search);
   for (const [key, value] of Object.entries(patch)) { if (value) params.set(key, value); else params.delete(key) }
@@ -114,7 +114,7 @@ export function controlDiscoveryMetadata(action: 'start' | 'refresh' | 'cancel',
   }, 'POST', signal);
 }
 
-/** 新作分区的筛选与排序：都写在地址栏里，刷新与返回原样恢复。`seed` 只在换一批时有值。 */
+/** The new-releases section's filter and sort: both written in the address bar, so refresh and back restore them as-is. seed only has a value when cycling to a new batch. */
 export interface ReleaseFilters {
   page: number; size: number; performer: string; studio: string; tag: string; q: string;
   sort: ReleaseSort; dir: DiscoveryDirection; seed: string;
@@ -164,7 +164,7 @@ export function discoveryArtwork(item: Discovery, layout: 'big' | 'small', javIm
   const remote = esc(remoteCoverUrl(item));
   return coverImage(item, layout).replace(/ src="[^"]*"/,
     ` src="${remote}" data-jav-image="${item.id}" data-jav-cover="${remote}" data-jav-thumb="" data-jav-image-layout="${layout}"${layout === 'big' ? ' data-panel-prior="1"' : ''}`)
-    .replace('data-drop="self"', 'data-drop="initial" data-initial="封面未取得" data-drop-class="media-nopic"');
+    .replace('data-drop="self"', 'data-drop="initial" data-initial="No cover available" data-drop-class="media-nopic"');
 }
 
 export async function prefetchJav(tab: string, signal: AbortSignal) {

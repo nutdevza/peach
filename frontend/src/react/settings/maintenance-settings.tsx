@@ -21,7 +21,7 @@ import { Disclosure, ErrorText, ExternalLink, Fact, FactList, Footer, Help, Rows
 import { StorageSettings } from './storage-settings';
 import { busyProps, useAction } from './use-action';
 
-const INTERVALS = [['6', '每 6 小时'], ['24', '每天'], ['168', '每周']] as const;
+const INTERVALS = [['6', 'Every 6 hours'], ['24', 'Daily'], ['168', 'Weekly']] as const;
 
 export function MaintenanceSettings(
   { data, receipt, reopenTutorial, panel }: ConfigurationGroupProps & Pick<ConfigurationProps, 'reopenTutorial'>,
@@ -30,7 +30,7 @@ export function MaintenanceSettings(
     <div {...groupRoot(panel)}>
       {data.storage ? <StorageSettings initial={data.storage} receipt={receipt} /> : null}
       {data.storage ? <LedgerBackupSettings receipt={receipt} /> : null}
-      {data.remote_reporting || data.library_sharing ? <Section id="librarySharing" guide="reporting" title="数据上传">
+      {data.remote_reporting || data.library_sharing ? <Section id="librarySharing" guide="reporting" title="Data uploads">
         {data.remote_reporting ? <RemoteReportingSettings initial={data.remote_reporting} receipt={receipt} /> : null}
         {data.library_sharing ? <div className="border-t border-separator-border">
           <LibrarySharingSettings initial={data.library_sharing} receipt={receipt} />
@@ -43,12 +43,12 @@ export function MaintenanceSettings(
   );
 }
 
-/** 恢复账本共享的教程入口，保留首次设置与章节进度。 */
+/** Restore the ledger's shared tutorial entry, keeping first-run setup and chapter progress. */
 export function TutorialSettings({ reopenTutorial }: ConfigurationProps) {
   return (
-    <section aria-label="新手教程" className="w-full"><SettingsCard>
-      <Rows><SettingsRow label="新手教程" description="在所有设备上恢复右上角教程入口，保留已读进度">
-        <Button variant="secondary" onClick={() => void reopenTutorial()}>重新打开</Button>
+    <section aria-label="Guided tour" className="w-full"><SettingsCard>
+      <Rows><SettingsRow label="Guided tour" description="Brings the tour entry back to the top bar on every device and keeps your reading progress">
+        <Button variant="secondary" onClick={() => void reopenTutorial()}>Reopen</Button>
       </SettingsRow></Rows>
     </SettingsCard></section>
   );
@@ -63,28 +63,28 @@ export function AutomaticUpdates({ initial, receipt }: { initial: AutomaticUpdat
     event.preventDefault();
     if (!initial.available) return;
     void action.run('save', (signal) => apiSend<AutomaticUpdateState>('/api/configuration/automatic-updates',
-      { mode, interval_hours: hours }, 'POST', signal), () => receipt('已保存配置'));
+      { mode, interval_hours: hours }, 'POST', signal), () => receipt('Configuration saved'));
   };
 
   const help = !initial.available
-    ? '自动更新需要由托盘管理的服务。'
+    ? 'Auto-update needs the tray-managed service.'
     : initial.download_available
-      ? '下载完成后在这里确认重启安装。'
+      ? 'After downloading, confirm the restart install here.'
       : undefined;
   return (
-    <Section id="automaticUpdates" guide="automatic-updates" title="自动更新" onSubmit={submit}>
+    <Section id="automaticUpdates" guide="automatic-updates" title="Auto-update" onSubmit={submit}>
       <Rows>
-        <SettingsRow label="自动检查新版本">
-          <Switch aria-label="自动检查新版本" isSelected={mode !== 'off'} isDisabled={!initial.available}
+        <SettingsRow label="Automatically check for new versions">
+          <Switch aria-label="Automatically check for new versions" isSelected={mode !== 'off'} isDisabled={!initial.available}
             onChange={(on) => setMode(on ? 'check' : 'off')} />
         </SettingsRow>
-        <SettingsRow label="自动下载更新" description="发现新版本后先下载，重启安装前会询问。">
-          <Switch aria-label="自动下载更新" isSelected={mode === 'download'}
+        <SettingsRow label="Download updates automatically" description="After finding a new version, it downloads first and asks before installing on the next restart.">
+          <Switch aria-label="Download updates automatically" isSelected={mode === 'download'}
             isDisabled={!initial.available || !initial.download_available || mode === 'off'}
             onChange={(on) => setMode(on ? 'download' : 'check')} />
         </SettingsRow>
-        <SettingsRow label="检查频率" description={help}>
-          <Select aria-label="检查频率" selectedKey={String(hours)} isDisabled={!initial.available}
+        <SettingsRow label="Check frequency" description={help}>
+          <Select aria-label="Check frequency" selectedKey={String(hours)} isDisabled={!initial.available}
             onSelectionChange={(key) => { if (key !== null) setHours(Number(key)); }}>
             {INTERVALS.map(([key, name]) => <SelectItem key={key} id={key}>{name}</SelectItem>)}
           </Select>
@@ -92,7 +92,7 @@ export function AutomaticUpdates({ initial, receipt }: { initial: AutomaticUpdat
       </Rows>
       {action.error ? <Stack divided><ErrorText>{action.error}</ErrorText></Stack> : null}
       <Footer>
-        <Button type="submit" disabled={!initial.available} {...busyProps(action.busy === 'save')}>保存配置</Button>
+        <Button type="submit" disabled={!initial.available} {...busyProps(action.busy === 'save')}>Save configuration</Button>
       </Footer>
     </Section>
   );
@@ -110,7 +110,7 @@ function Facts({ facts: loaded, receipt }: { facts: ConfigurationFact[]; receipt
     receipt(result.message);
   });
   return (
-    <Section guide="facts" title="运行信息">
+    <Section guide="facts" title="Runtime info">
       <FactList>
         {facts.map(({ term, value, install_tool: tool, download_url: url, download_label: label }) => (
           <Fact key={term} term={term}>
@@ -118,7 +118,7 @@ function Facts({ facts: loaded, receipt }: { facts: ConfigurationFact[]; receipt
             {tool ? <span className="flex min-w-0 items-center gap-3">
               <span className="min-w-0">{value}</span>
               <Button size="small" className="shrink-0" onClick={() => install(tool)}
-                {...busyProps(action.busy === tool)}>安装</Button>
+                {...busyProps(action.busy === tool)}>Install</Button>
             </span> : <>
               {value}
               {url ? <ExternalLink href={url}>{label}</ExternalLink> : null}
@@ -137,38 +137,38 @@ export function UninstallSettings(
   const [removeData, setRemoveData] = useState(false);
   const [accepted, setAccepted] = useState('');
   const remove = () => void confirmModal({
-    title: '卸载 Peach',
+    title: 'Uninstall Peach',
     danger: true,
     body: removeData
-      ? '将退出 Peach，移除程序、开机自启、桌面图标、设置、本地数据库、观看记录、凭据和缓存。原始媒体文件保留。'
-      : '将退出 Peach 并移除程序、开机自启和桌面图标。设置、本地数据库、观看记录与缓存保留。',
-    confirmLabel: '卸载 Peach',
+      ? 'This quits Peach and removes the program, autostart, desktop icons, settings, the local database, watch history, credentials, and caches. Original media files are kept.'
+      : 'Will quit Peach and remove the program, launch at startup and desktop icons. Settings, local database, watch history and cache are kept.',
+    confirmLabel: 'Uninstall Peach',
     onConfirm: async () => {
-      const result = await apiSend<{ message: string }>('/api/configuration/uninstall', { delete_data: removeData, confirmation: '卸载 Peach' });
+      const result = await apiSend<{ message: string }>('/api/configuration/uninstall', { delete_data: removeData, confirmation: 'Uninstall Peach' });
       setAccepted(result.message);
     },
   });
-  // 底栏左边一句说这颗按钮此刻意味着什么：拦住卸载的理由（源码安装、更新还在跑）和按下去
-  // 之后的回执都在答「这颗现在能不能按」，摆在正文末尾就得先读完整段说明才找得到。
+  // The bottom bar's left line says what this button means right now: the reasons uninstall is blocked (source install, an update still running) and what pressing it
+  // The later receipts all answer 'can this button be pressed right now'; placed at the end of the body, they can only be found after reading the whole explanation.
   const status = accepted || uninstall.message;
   const paths = [...new Set([uninstall.data_root, ...uninstall.directories])];
   return (
-    <Section id="uninstallPeach" guide="uninstall" title="卸载 Peach">
-      {uninstall.available ? <Stack><Help>卸载移除 Peach 程序本身，原始媒体文件保留。</Help></Stack> : null}
+    <Section id="uninstallPeach" guide="uninstall" title="Uninstall Peach">
+      {uninstall.available ? <Stack><Help>Uninstalling removes the Peach program itself; original media files are kept.</Help></Stack> : null}
       <Rows>
-        <SettingsRow label="完全卸载" description="同时删除设置、本地数据库、观看记录、凭据和缓存">
-          <Switch aria-label="完全卸载" isSelected={removeData} isDisabled={!uninstall.full_available || Boolean(accepted)} onChange={setRemoveData} />
+        <SettingsRow label="Full uninstall" description="Also delete settings, the local database, watch history, credentials, and caches">
+          <Switch aria-label="Full uninstall" isSelected={removeData} isDisabled={!uninstall.full_available || Boolean(accepted)} onChange={setRemoveData} />
         </SettingsRow>
       </Rows>
       <Stack divided>
-        <Disclosure summary="数据目录">
+        <Disclosure summary="Data directory">
           {paths.map((path) => (
             <PathLine key={path} path={path} className="text-body-2-regular text-text-secondary" onRevealed={receipt} />
           ))}
         </Disclosure>
       </Stack>
       <Footer status={status ? <p role={accepted ? 'status' : undefined}>{status}</p> : null}>
-        <Button variant="danger" disabled={!uninstall.available || Boolean(accepted)} onClick={remove}>卸载 Peach</Button>
+        <Button variant="danger" disabled={!uninstall.available || Boolean(accepted)} onClick={remove}>Uninstall Peach</Button>
       </Footer>
     </Section>
   );

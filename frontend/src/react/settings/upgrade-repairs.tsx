@@ -1,4 +1,4 @@
-/** 升级补修与程序安装分别显示；复核和重试都由用户明确发起。 */
+/** Upgrade repair and program installation display separately; both review and retry are explicitly user-initiated. */
 import { useEffect, useState } from 'react';
 import { RiArrowRightLine } from '@remixicon/react';
 import { Button } from '@/components/base/buttons/button';
@@ -12,8 +12,8 @@ import { StatusLabel } from '../components/status-label';
 import { ErrorText, ExternalLink, Fact, FactList, Footer, Help, Section, Stack, TaskCenterLink } from './section';
 import { useAction } from './use-action';
 
-const LABELS: Record<string, string> = { pending: '等待修复', running: '正在修复', failed: '需要重试',
-  review: '需要复核', complete: '已完成', unavailable: '当前部署未启用' };
+const LABELS: Record<string, string> = { pending: 'Awaiting repair', running: 'Repairing', failed: 'Needs retry',
+  review: 'Needs review', complete: 'Completed', unavailable: 'Not enabled in this deployment' };
 
 export function UpgradeRepairs() {
   const { snapshot } = useClientUpdates();
@@ -30,21 +30,21 @@ export function UpgradeRepairs() {
     setSaved(next);
     document.dispatchEvent(new Event('peach:client-updates'));
   });
-  return <Section id="upgradeRepairs" title="自动修复" aside={<StatusLabel
+  return <Section id="upgradeRepairs" title="Auto repair" aside={<StatusLabel
     tone={state === 'failed' ? 'error' : state === 'running' ? 'progress' : state === 'review' ? 'warning'
       : state === 'complete' ? 'success' : 'neutral'}><span key={state}
-        data-copy-key={`upgradeRepairs.${state}.status`}>{LABELS[state] || '未取得'}</span></StatusLabel>}>
+        data-copy-key={`upgradeRepairs.${state}.status`}>{LABELS[state] || 'Not fetched'}</span></StatusLabel>}>
     <FactList>
-      <Fact term="待完成"><span><AnimatedNumber value={pending} /> 项</span></Fact>
-      <Fact term="失败"><span><AnimatedNumber value={failed} /> 项</span></Fact>
-      <Fact term="待复核"><span><AnimatedNumber value={review} /> 项</span></Fact>
+      <Fact term="To do"><span><AnimatedNumber value={pending} /> items</span></Fact>
+      <Fact term="Failed"><span><AnimatedNumber value={failed} /> items</span></Fact>
+      <Fact term="To review"><span><AnimatedNumber value={review} /> items</span></Fact>
     </FactList>
     {data?.message || action.error ? <Stack><ErrorText>{action.error || data?.message}</ErrorText></Stack> : null}
-    {state === 'running' ? <Stack><Help>资料与预览正在后台补全。</Help><TaskCenterLink /></Stack> : null}
-    <Footer status={review ? <ExternalLink href="/api/configuration/upgrade-repairs/review">下载复核记录</ExternalLink> : null}>
-      <LinkButton href={REPAIR_CENTER_PATH} size="small" trailingIcon={RiArrowRightLine}>修复与迁移</LinkButton>
+    {state === 'running' ? <Stack><Help>Details and previews are completing in the background.</Help><TaskCenterLink /></Stack> : null}
+    <Footer status={review ? <ExternalLink href="/api/configuration/upgrade-repairs/review">Download the review records</ExternalLink> : null}>
+      <LinkButton href={REPAIR_CENTER_PATH} size="small" trailingIcon={RiArrowRightLine}>Repairs and migrations</LinkButton>
       <Button size="small" variant="secondary" disabled={!data?.available || state === 'running' || !!action.busy || (!failed && state !== 'failed')}
-        onClick={retry}>重试失败项</Button>
+        onClick={retry}>Retry failed items</Button>
     </Footer>
   </Section>;
 }

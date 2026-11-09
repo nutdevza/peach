@@ -9,7 +9,7 @@ export function browserIconId(name: string): string | undefined {
   return icons.get(normalize(name));
 }
 
-/** `className` 换掉默认尺寸（独立图块 24px）；行内跟文字时传更小的尺寸。 */
+/** className overrides the default size (standalone block 24px); when inline with text, pass a smaller size. */
 export function BrowserIcon({ name, className }: {name:string; className?:string}) {
   const [failed,setFailed] = useState('');
   const id = browserIconId(name);

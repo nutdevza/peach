@@ -14,10 +14,10 @@ function subscribe(listener: () => void) {
   return () => { listeners.delete(listener) };
 }
 
-/** 只控制当前浏览器页签的任务提示；任务查询与运行状态独立。 */
+/** Only controls the task toast for the current browser tab; task queries and run state are independent. */
 export function setProcessingNoticeVisible(jobId: string, visible: boolean): void {
   fallback = `${visible ? 'shown' : 'hidden'}:${jobId}`;
-  try { sessionStorage.setItem(KEY, fallback) } catch { /* 存储不可用时保留当前页面的选择。 */ }
+  try { sessionStorage.setItem(KEY, fallback) } catch { /* When storage is unavailable, keep the current page's selection. */ }
   listeners.forEach(listener => listener());
 }
 

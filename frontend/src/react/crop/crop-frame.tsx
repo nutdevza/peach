@@ -1,11 +1,12 @@
-/* 在一张图上框一块。头像和封面共用这一份。
+/* Boxing a region on one image. Avatars and covers share it.
  *
- * 不引裁剪库：要的就是「一个能拖能缩的矩形」，算术全在 `crop-geometry.ts` 里，
- * 画面是一张图加五个绝对定位的块。引一个库进来换到的只有把手样式，代价是一条
- * 新依赖和一套它自己的坐标约定。
+ * No crop library is imported: what is wanted is "a rectangle that drags and resizes", the arithmetic all in
+ * `crop-geometry.ts`, and the picture is one image plus five absolutely positioned blocks. Importing a library buys only
+ * handle styling at the cost of one new dependency and its own coordinate conventions.
  *
- * 框的坐标一律是**源图像素**，进出这一层时各换算一次；屏幕上量到的显示像素不
- * 往外传。确认之后由后端按同一组整数裁，两边不会各取各的整。
+ * Box coordinates are always **source-image pixels**, converted once on entering and once on leaving; display pixels measured
+ * on screen are never passed out. After confirming, the backend crops by the same integers, so the two sides never round
+ * differently.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
@@ -19,27 +20,27 @@ import {
 
 export interface CropFrameProps {
   src: string;
-  /** 宽/高。给了就锁比例，拖动只改位置和大小、不改形状。 */
+  /** Width/height. When given, the ratio locks and dragging changes only position and size, never shape. */
   aspect: number | null;
   box: CropBox | null;
   size: CropSize | null;
   onBox(box: CropBox): void;
   onSize(size: CropSize): void;
-  /** 无障碍名称，说清在框哪张图的哪一块。 */
+  /** The accessible name, saying exactly which part of which image in the frame. */
   label: string;
 }
 
-/** 键盘一步走框宽的这个比例。一屏之内按住方向键能从一边走到另一边，又不至于
- *  一下越过一张脸。 */
+/** One keyboard step covers this fraction of the frame width. Holding an arrow key crosses from one side to the other within a screen, yet
+ *  never jumps past a face in a single press. */
 const KEY_STEP = 0.02;
-/** 滚轮一格缩放的倍率。 */
+/** The zoom factor per wheel notch. */
 const WHEEL_STEP = 1.08;
 
 export function CropFrame({ src, aspect, box, size, onBox, onSize, label }: CropFrameProps) {
   const image = useRef<HTMLImageElement>(null);
   const drag = useRef<{ mode: 'move' | 'resize'; x: number; y: number; box: CropBox } | null>(null);
   const [failed, setFailed] = useState(false);
-  /* 图当前的显示尺寸，只用来判断框在屏幕上够不够大、角柄放框里还是框外。 */
+  /* The image's current display size, used only to judge whether the frame is big enough on screen and whether the corner handles go inside or outside it. */
   const [shown, setShown] = useState<CropSize | null>(null);
 
   useEffect(() => { setFailed(false) }, [src]);
@@ -51,7 +52,7 @@ export function CropFrame({ src, aspect, box, size, onBox, onSize, label }: Crop
     return () => observer.disconnect();
   }, []);
 
-  /** 显示像素的位移 → 源图像素。图片按 `max-w-full` 缩放，两个轴的比例一样。 */
+  /** Display pixel offsets to source image pixels. The image scales by `max-w-full`, so both axes share one ratio. */
   const scale = useCallback((dx: number, dy: number) => {
     const node = image.current;
     if (!node || !size) return { dx: 0, dy: 0 };
@@ -111,8 +112,8 @@ export function CropFrame({ src, aspect, box, size, onBox, onSize, label }: Crop
 
   const rect = box && size ? boxPercent(clampBox(box, size, aspect), size) : null;
   const outside = rect ? handleOutside(rect, shown) : false;
-  /* 位置只经自定义属性进 CSS：六个百分数挂在容器上，压暗块与框本身各自用类名取用，
-     样式仍然全在类里（`docs/FRONTEND.md`）。 */
+  /* Positions reach CSS only through custom properties: six percentages hang on the container, and the dimming block and the frame itself each consume them by class name,
+     so styles still live entirely in classes (`docs/FRONTEND.md`). */
   const frame = rect ? {
     '--crop-l': `${rect.left}%`, '--crop-t': `${rect.top}%`,
     '--crop-w': `${rect.width}%`, '--crop-h': `${rect.height}%`,
@@ -131,14 +132,14 @@ export function CropFrame({ src, aspect, box, size, onBox, onSize, label }: Crop
         className="block max-h-crop-frame max-w-full object-contain" />
       {failed || !rect ? null : (
         <>
-          {/* 框外压暗。四块而不是一圈巨大的 box-shadow：后者在这一层的圆角与
-              overflow 下会溢到弹层外面去。 */}
+          {/* Dimming outside the frame. Four blocks rather than one giant box-shadow: the latter would spill outside the popover under this layer's
+              rounding and overflow. */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-(--crop-t) bg-scrim" />
           <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 top-(--crop-b) bg-scrim" />
           <div aria-hidden className="pointer-events-none absolute left-0 top-(--crop-t) h-(--crop-h) w-(--crop-l) bg-scrim" />
           <div aria-hidden className="pointer-events-none absolute right-0 left-(--crop-r) top-(--crop-t) h-(--crop-h) bg-scrim" />
-          {/* 框本身。整块可拖，右下角那枚小方块改大小；方向键与加减号做同样两件事。
-              框在屏幕上很小（极扁、极长的图）时角柄整枚挪到框外右下，框里留给拖动。 */}
+          {/* The box itself. The whole thing drags; the small square at the bottom-right resizes; the arrow keys and plus/minus do the same two things.
+              When the box is tiny on screen (very flat, very long images) the handle moves entirely outside the box's bottom-right, leaving the box to dragging. */}
           <div role="group" tabIndex={0} aria-label={label} data-crop-box
             onPointerDown={start('move')} onPointerMove={move}
             onPointerUp={end} onPointerCancel={end} onKeyDown={keys}
@@ -154,7 +155,7 @@ export function CropFrame({ src, aspect, box, size, onBox, onSize, label }: Crop
         </>
       )}
       {failed
-        ? <p className="p-4 text-body-2-regular text-text-secondary">这张图读不出来，换一张再框。</p>
+        ? <p className="p-4 text-body-2-regular text-text-secondary">This image cannot be read. Pick another one to crop.</p>
         : null}
     </div>
   );

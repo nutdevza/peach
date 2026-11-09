@@ -1,5 +1,6 @@
-/* React 子树取 TanStack Query 客户端的入口（ADR-0031「前端基础库随页面引入」）。
+/* The React subtree's entry to the TanStack Query client (ADR-0031, "frontend base libraries ship with the page").
  *
- * 实例建在 `src/query/client.ts`，按 `@peach/query` 引用，别名直接解析到同一份源码：
- * 壳启动时取的筛选栏数据、页面级 `prefetch` 与组件里的 `useQuery` 读的是同一份缓存。 */
+ * The instance is built in `src/query/client.ts` and referenced via `@peach/query`, with the alias resolving directly to the
+ * same source: the filter bar data the shell fetches at startup, page-level `prefetch` and components' `useQuery` all read
+ * the same cache. */
 export { queryClient } from '@peach/query';

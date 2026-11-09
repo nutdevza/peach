@@ -1,18 +1,20 @@
-/* 字段、分区、页面旁的持久提示。配置页与活动页共用这一份。
+/* Persistent notices beside fields, sections, and pages. Shared by the config page and the activity page.
  *
- * 注册表里没有行内 Note：`notification` 条目是带关闭键和计时的浮动通知。这里按语气取
- * `status-*` 与 `notification-*` token 组合，差异登记在 `../boardui/ORIGIN.md`。 */
+ * The registry has no inline Note: a `notification` entry is a floating toast with a close key and a timer. Here the tone picks a
+ * `status-*` / `notification-*` token combination; differences are registered in `../boardui/ORIGIN.md`. */
 import type { ReactNode } from 'react';
 import { cx } from '@/utils/cx';
 
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
 
-/** 没有密码、保存失败、数据库缺表这类是当前状态，不和字段说明共用灰色小字。
+/** No password, save failure, missing database table: these are current states and do not share the gray small text of field
+ *  descriptions.
  *
- *  `action` 是这条提示要人当场做的那件事，正文与动作放得下就并排；below 布局独占下一行。
- *  `extra` 收结论以外的东西（折叠起来的问题清单）：它们讲的是
- *  同一件事，摆到 Note 外面就成了一句话加一块不知道属于谁的内容。
- *  正文是段落，塞不进这些块级内容。 */
+ *  `action` is the one thing this note asks to be done now; body and action sit side by side when they fit, and the below
+ *  layout takes its own line.
+ *  `extra` holds things beyond the conclusion (a collapsed problem list): they speak of the same matter, and outside the Note
+ *  they would read as one sentence plus a block belonging to nobody.
+ *  The body is a paragraph and cannot hold these block contents. */
 export function Note(
   { tone, title, action, extra, children, actionLayout = 'inline', className }:
   { tone: Tone; title?: string; action?: ReactNode; extra?: ReactNode; children: ReactNode; actionLayout?: 'inline' | 'below'; className?: string },
@@ -22,7 +24,7 @@ export function Note(
       <div data-note-layout="" className={cx('flex gap-3', actionLayout === 'inline'
         ? 'flex-wrap items-center justify-between' : 'flex-col items-start')}>
         <div className={cx('flex min-w-0 flex-auto flex-col justify-center gap-0.5', actionLayout === 'below' && 'w-full')}>
-          {/* 正文常是服务端原话：长 URL、堆栈和多行原因照原样换行，不撑宽所在的卡。 */}
+          {/* The body is often the server's own words: long URLs, stack traces and multi-line reasons wrap as-is and never stretch the card they sit in. */}
           {title ? <p className="text-body-medium wrap-anywhere">{title}</p> : null}
           <p className="whitespace-pre-line text-body-2-regular wrap-anywhere">{children}</p>
         </div>

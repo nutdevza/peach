@@ -80,36 +80,36 @@ function Completion({ assetIds, meteredIds, onComplete, className }: {
       || completed.current === started) return;
     completed.current = started;
     if (state.status === 'complete') {
-      setOutcome(`补全完成：取得 ${state.covers || 0} 张封面，生成 ${state.previews || 0} 部视频预览。`);
+      setOutcome(`Backfill complete: fetched ${state.covers || 0} covers and generated ${state.previews || 0} video previews.`);
     }
     void queryClient.invalidateQueries({ queryKey: ['catalog-grid'] });
     onComplete?.();
   }, [state, started, onComplete]);
-  // 运行时保留缺图数量；新范围等待当前任务结束，不隐式追加或替换。
+  // Keep the missing-image count at runtime; a new scope waits for the current task to end rather than implicitly appending or replacing.
   const busy = start.isPending || processingActive(state);
   const problem = start.error ? errorMessage(start.error) : job.error ? DISCONNECTED_TEXT
-    : started && state?.job_id === started && state.status === 'failed' ? state.error || '补全未完成' : '';
-  const later = processingActive(state) ? '当前任务结束后可单独补全。' : '';
+    : started && state?.job_id === started && state.status === 'failed' ? state.error || 'Completion unfinished' : '';
+  const later = processingActive(state) ? 'Can be filled in separately after the current task finishes.' : '';
   const total = new Set([...assetIds, ...meteredIds]).size.toLocaleString();
   const metered = meteredIds.length.toLocaleString();
   const summary = !assetIds.length
-    ? `这批影片中有 ${metered} 部暂无预览，都在流量保护目录，同步时不抽帧，${later || '可单独补全预览。'}`
+    ? `${metered} of these videos have no preview yet and all sit in traffic-protected folders; syncing skips frame extraction, ${later || 'previews can be completed separately.'}`
     : meteredIds.length
-      ? `这批影片中有 ${total} 部暂无预览，其中 ${metered} 部在流量保护目录，${later || '可补全资料与图片。'}`
-      : `这批影片中有 ${total} 部暂无预览，${later || '可补全资料与图片。'}`;
-  const message = problem || (start.isPending ? '正在启动补全…' : outcome || summary);
+      ? `${total} of these videos have no preview yet, ${metered} of them in traffic-protected folders; ${later || 'profiles and images can be completed.'}`
+      : `${total} of these videos have no preview yet; ${later || 'profiles and images can be completed.'}`;
+  const message = problem || (start.isPending ? 'Starting completion…' : outcome || summary);
   const meteredRun = async () => {
     if (busy || !await confirmMeteredPreviews(meteredIds.length)) return;
     setOutcome('');
     start.mutate('metered');
   };
-  const blocked = state?.metadata_only ? '请先在媒体库设置中开启视频预览生成' : '';
+  const blocked = state?.metadata_only ? 'Turn on video preview generation in library settings first' : '';
   // 主按钮在最右：两批都有时「同步这些影片」是主操作，流量保护那批是它左边的次要按钮。
-  return <section aria-label="补全预览" aria-live="polite" data-library-completion="" className={cx('@container', className)}>
+  return <section aria-label="Complete previews" aria-live="polite" data-library-completion="" className={cx('@container', className)}>
     <Note tone={problem ? 'warning' : 'neutral'} action={<div className="flex flex-wrap items-center gap-2">
       {meteredIds.length ? <Button variant={assetIds.length ? 'secondary' : 'primary'} disabled={!!blocked}
         title={blocked || undefined} {...busyProps(busy)} onClick={() => { void meteredRun() }}>
-        {assetIds.length ? `补全流量保护的 ${metered} 部` : `补全这 ${metered} 部的预览`}</Button> : null}
+        {assetIds.length ? `Complete previews for the ${metered} traffic-protected videos` : `Complete previews for these ${metered} videos`}</Button> : null}
       {assetIds.length ? <ProcessingActions busy={busy} metadataOnly={state?.metadata_only} onRun={command => {
         if (busy) return;
         setOutcome('');
@@ -117,7 +117,7 @@ function Completion({ assetIds, meteredIds, onComplete, className }: {
       }} /> : null}
     </div>}>
       {message}{' '}<LinkButton href="/data-cleanup#libraryProcessing" size="small" trailingIcon={RiArrowRightLine}>
-      {problem ? '打开扫描与采集' : '查看处理详情'}
+      {problem ? 'Open scan and capture' : 'View processing details'}
     </LinkButton></Note>
   </section>;
 }

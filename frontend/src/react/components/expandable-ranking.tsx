@@ -10,7 +10,7 @@ interface ExpandableRankingProps {
   previewCount?: number;
 }
 
-/** 排名只露前几项；点箭头后保留同一棵列表，用测得的高度完成展开与折叠。 */
+/** The ranking shows only the first few items; after clicking the arrow the same list is kept, expanding and collapsing with the measured height. */
 export function ExpandableRanking(
   { children, className = '', previewCount = 10 }: ExpandableRankingProps,
 ) {
@@ -53,7 +53,7 @@ export function ExpandableRanking(
       </ol>
       {expandable ? (
         <button type="button" data-ranking-toggle aria-controls={listId} aria-expanded={expanded}
-          aria-label={expanded ? '收起排名' : '展开更多排名'}
+          aria-label={expanded ? 'Collapse ranking' : 'Show more ranking'}
           onClick={() => { setAnimating(true); setExpanded((current) => !current) }}>
           <RiArrowDownSLine aria-hidden />
         </button>

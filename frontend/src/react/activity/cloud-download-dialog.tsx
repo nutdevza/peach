@@ -1,5 +1,5 @@
-/* 资源查找弹层：JAV、想要与高清版目标共用搜索、作品资料和下载提交。
- * 下载配置在弹层打开时读取；已提交的任务在活动页查看。 */
+/* The resource finder popover: JAV, wanted, and HD release targets share search, video details, and download submission.
+ * Download settings are read when the popover opens; submitted jobs are viewed on the activity page. */
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heading } from 'react-aria-components';
@@ -20,23 +20,23 @@ import { ResourceSearch } from './resource-search';
 import { sameWorkCode } from './work-code';
 import { SourceLabel } from '../components/source-label';
 
-/** 入口带进来的上下文。`origin` 记在任务上，如 `asset:12`、`wishlist:5`。 */
+/** The context carried in at the entry point. `origin` is recorded on the task, e.g. `asset:12`, `wishlist:5`. */
 export interface DownloadPrefill { code?: string; title?: string; origin?: string; searchReason?: string;
   cover?: string; performers?: string; release_date?: string; duration?: number | null; studio?: string }
 
 const RECEIPTS: Partial<Record<DownloadSubmitResult['outcome'], string>> = {
-  submitted: '已提交离线下载，进度在任务中心',
-  adopted: '这个磁力已有任务，没有重复提交',
-  adopted_remote: '网盘中已有相同的下载任务，Peach 已开始跟踪进度',
-  deferred: '网盘暂时没有响应，Peach 会自动重新提交，进度在任务中心',
+  submitted: 'Offline download submitted; progress lives in the task center',
+  adopted: 'This magnet already has a task and was not submitted twice',
+  adopted_remote: 'An identical download task already exists on the drive; Peach has started tracking its progress',
+  deferred: 'The cloud drive is not responding; Peach will resubmit automatically, and progress is in the task center',
 };
 
 export function CloudDownloadDialog({ prefill, close, receipt, provider }: {
-  /** 空就是关着；不带番号与标题的空对象是「随手贴一条磁力」。 */
+  /** Empty means off; an empty object with no code and no title means 'paste a magnet link in passing'. */
   prefill: DownloadPrefill | null;
   close(): void;
   receipt(message: string): void;
-  /** 打开时先选中的下载方式，入库页把页上那一份交进来。 */
+  /** The download method selected first on open; the add-to-library page passes in the copy from the page. */
   provider?: string;
 }) {
   return (
@@ -57,8 +57,8 @@ function Body({ prefill, close, receipt, provider }: {
   const data = query.data;
   const header = (
     <div className="flex items-center justify-between gap-4 px-5 pt-5">
-      <Heading slot="title" className="text-title-2-semibold text-text-primary">查找资源</Heading>
-      <Button variant="ghost" iconOnly leadingIcon={RiCloseLine} aria-label="关闭资源面板" onClick={close} />
+      <Heading slot="title" className="text-title-2-semibold text-text-primary">Find resources</Heading>
+      <Button variant="ghost" iconOnly leadingIcon={RiCloseLine} aria-label="Close resource panel" onClick={close} />
     </div>
   );
   if (data) {
@@ -71,7 +71,7 @@ function Body({ prefill, close, receipt, provider }: {
         {query.error ? <Note tone="error">{errorMessage(query.error)}</Note> : null}
       </div>
       <div className="flex justify-end p-3">
-        <Button variant="secondary" onClick={close}>关闭</Button>
+        <Button variant="secondary" onClick={close}>Off</Button>
       </div>
     </div>
   );
@@ -110,21 +110,21 @@ function SubmitForm({ header, snapshot, prefill, close, receipt, provider: prefe
         const text = RECEIPTS[next.outcome];
         if (next.ok && text) { receipt(text); close(); return }
         const reason = failureText(next.task);
-        setFailure(next.outcome === 'refused' ? '这个资源被判为违规，不再提交。'
-          : reason ? `提交没有成功：${reason}` : '提交没有成功。');
+        setFailure(next.outcome === 'refused' ? 'This resource was judged a violation and will not be submitted again.'
+          : reason ? `Submit did not succeed: ${reason}` : 'The submit did not go through.');
       });
   };
 
   return (
-    <form aria-label="提交下载" noValidate onSubmit={submit} className="flex min-h-0 flex-col">
+    <form aria-label="Submit download" noValidate onSubmit={submit} className="flex min-h-0 flex-col">
       {header}
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
         {work?.code || code.trim() ? <div className="flex min-w-0 items-start gap-4" data-resource-work="">
           {work?.cover ? <img src={work.cover} alt="" referrerPolicy="no-referrer" onError={event => event.currentTarget.remove()}
             className="w-card-cover shrink-0 rounded-2lg" /> : null}
           <div className="flex min-w-0 flex-col gap-2">
-            <p className="break-words text-body-medium text-text-primary">{work ? [work.code, work.title].filter(Boolean).join(' · ') : '作品资料未取得'}</p>
-            {work ? <Help>{[work.performers, work.studio, work.release_date, work.duration ? `${Math.round(work.duration / 60)} 分钟` : ''].filter(Boolean).join(' · ')}</Help> : null}
+            <p className="break-words text-body-medium text-text-primary">{work ? [work.code, work.title].filter(Boolean).join(' · ') : 'Video details unfetched'}</p>
+            {work ? <Help>{[work.performers, work.studio, work.release_date, work.duration ? `${Math.round(work.duration / 60)} min` : ''].filter(Boolean).join(' · ')}</Help> : null}
           </div>
         </div> : null}
         <ResourceSearch initialCode={prefill.code ?? ''} reason={prefill.searchReason} onSearch={requested => {
@@ -135,30 +135,30 @@ function SubmitForm({ header, snapshot, prefill, close, receipt, provider: prefe
           : sameWorkCode(current?.code, prefill.code) ? current : null)} choose={(uri, selectedCode) => {
           setMagnet(uri); setCode(selectedCode); input.current?.focus();
         }} />
-        <Input ref={input} label="磁力链接" placeholder="magnet:?xt=urn:btih:…" autoComplete="off" maxLength={4000}
+        <Input ref={input} label="Magnet link" placeholder="magnet:?xt=urn:btih:…" autoComplete="off" maxLength={4000}
           value={magnet} onChange={setMagnet} />
         <div className="flex flex-col gap-1">
-          <FieldLabel>下载到</FieldLabel>
-          <Select aria-label="下载到" selectedKey={provider || null} isDisabled={!configured.length}
+          <FieldLabel>Download to</FieldLabel>
+          <Select aria-label="Download to" selectedKey={provider || null} isDisabled={!configured.length}
             onSelectionChange={(key) => { if (key !== null) choose(String(key) as DownloadProviderKey) }}>
             {configured.map((row) => <SelectItem key={row.key} id={row.key} textValue={row.label}><SourceLabel source={row.key} label={row.label} /></SelectItem>)}
           </Select>
-          {provider === '115' ? <Help>每提交一次扣一条离线配额，重新提交也算。</Help> : null}
+          {provider === '115' ? <Help>Each submission spends one offline quota item, resubmissions included.</Help> : null}
         </div>
-        {!snapshot.available ? <Note tone="neutral">云下载只在允许修改数据库的设备上可用。</Note> : null}
-        {!configured.length ? <Note tone="neutral">尚未配置下载渠道。<a href={'/settings/library?section=' + encodeURIComponent('下载渠道')}>下载渠道设置</a></Note> : null}
-        <Input label="目标目录" placeholder="/云下载" autoComplete="off" maxLength={300}
+        {!snapshot.available ? <Note tone="neutral">Cloud download is only available on devices allowed to modify the database.</Note> : null}
+        {!configured.length ? <Note tone="neutral">No download channel configured yet.<a href={'/settings/library?section=' + encodeURIComponent('Download channels')}>Download channel settings</a></Note> : null}
+        <Input label="Target folder" placeholder="/cloud-download" autoComplete="off" maxLength={300}
           value={target} onChange={setTarget} />
-        {/* 带着番号进来时它和搜索框是同一个值，选中候选也会跟着换，不再单列一格。 */}
+        {/* When arriving with a code it shares the search box's value, and picking a candidate updates it too, so it no longer gets its own cell. */}
         {prefill.code ? null
-          : <Input label="番号" placeholder="可不填" autoComplete="off" maxLength={60} value={code} onChange={value => {
+          : <Input label="Code" placeholder="Optional" autoComplete="off" maxLength={60} value={code} onChange={value => {
             setCode(value); if (!sameWorkCode(value, work?.code)) setWork(null);
           }} />}
         {failure || action.error ? <ErrorText>{failure || action.error}</ErrorText> : null}
       </div>
       <div className="flex justify-between gap-4 p-3">
-        <Button variant="secondary" onClick={close}>取消</Button>
-        <Button type="submit" disabled={!magnet.trim() || !usable} {...busyProps(action.busy === 'submit')}>提交下载</Button>
+        <Button variant="secondary" onClick={close}>Cancel</Button>
+        <Button type="submit" disabled={!magnet.trim() || !usable} {...busyProps(action.busy === 'submit')}>Submit download</Button>
       </div>
     </form>
   );

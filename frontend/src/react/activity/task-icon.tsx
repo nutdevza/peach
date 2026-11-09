@@ -1,5 +1,5 @@
-/* 任务卡标题前的图标：按任务做的事分十类，同类共用一枚。关注、数据管理、口味三类与导航里对应页面同一枚，
- * 其余按对象选。35 种任务各配一枚会有一半长得差不多，反而认不出来。不在表里的任务用通用任务图标。 */
+/* The icon before a task card's title: ten categories by what the task does, same icon within a category. Follow, data management, and taste share the icons of their corresponding pages in the nav;
+ * the rest are picked by object. Giving each of the 35 task types its own icon would make half look alike, and be unrecognizable instead. Tasks not in the table use the generic task icon. */
 import type { RemixiconComponentType } from '@remixicon/react';
 import {
   RiDownloadCloud2Line, RiFileSearchLine, RiFilmLine, RiHardDrive3Line, RiHeart3Line, RiImage2Line,

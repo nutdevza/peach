@@ -1,9 +1,9 @@
 /**
- * Geist Collapse：原生 `<details>` 不过渡高度，所以把 summary 以外的内容包进
- * `.ui-fcollapse`，开合时量 `scrollHeight` 写 inline `height` 让它过渡。
- * （试过 `::details-content`，那条路会吞掉内容，已弃。）
+ * Geist Collapse: a native `<details>` does not transition height, so everything but the summary is wrapped in
+ * `.ui-fcollapse`, and open/close measures `scrollHeight` and writes an inline `height` to make it transition.
+ * (`::details-content` was tried; that path swallows the content and was abandoned.)
  *
- * 同一个 `details` 只接一次，重绘后原样再调用是安全的。
+ * The same `details` is wired only once, and calling again after a re-render is safe.
  */
 export function wireCollapse(
   root: ParentNode | null | undefined, selector: string, idPrefix: string, triggerSelector = 'summary',
@@ -11,8 +11,8 @@ export function wireCollapse(
   root?.querySelectorAll<HTMLDetailsElement>(selector).forEach((details,index)=>{
     if(details.querySelector(':scope > .ui-fcollapse'))return;
     const body=document.createElement('div');body.className='ui-fcollapse';
-    /* 内边距放在内层 .fcollapsebody：.ui-fcollapse 自身不带 padding，height 才能真正
-       过渡到 0，否则 border-box 会卡在内边距上、收起末尾跳一下。 */
+    /* Padding goes on the inner .fcollapsebody: .ui-fcollapse itself carries no padding so height can truly
+       transition to 0, otherwise border-box would catch on the padding and the collapse end would jump. */
     const inner=document.createElement('div');inner.className='fcollapsebody';
     [...details.children].forEach(child=>{
       if(child.tagName==='SUMMARY')return;
@@ -24,9 +24,9 @@ export function wireCollapse(
     let expanded=details.open;
     body.id=`${idPrefix}-${index}`;
     body.inert=!expanded;
-    /* 高度过渡要 `overflow:hidden`，可展开着不动时它还在裁——里面最后那一行卡片的落影
-       正好落在下沿外，被切掉半条，读出来是这一列没排完。过渡跑完（或一开始就是展开的）
-       就摘掉那道裁边；收起那一下先装回去，否则内容会在高度收到 0 的过程中一直露在外面。 */
+    /* Height transitions need `overflow:hidden`, yet while expanded and idle it still clips; the last row of cards' shadow
+       lands just past the bottom edge and gets half-cut, reading as an unfinished column. Once the transition ends (or it started expanded),
+       remove the clip; on collapse, put it back first, otherwise content stays exposed while the height goes to 0. */
     if(expanded)body.classList.add('ui-fcollapse-settled');
     summary.setAttribute('aria-controls',body.id);
     summary.setAttribute('aria-expanded',String(expanded));
@@ -40,15 +40,15 @@ export function wireCollapse(
 }
 
 /**
- * 把一个 Collapse 开到或收到 `expanded`，`body` 是 summary 后面那层容器，`.ui-fcollapse` 由这里挂上。
- * `wireCollapse`、React 设置页的 `Disclosure` 与侧栏分组共用这一份；过渡途中又被反向点按时，前一次的收尾不再做。
+ * Open a Collapse to or collapse it to `expanded`; `body` is the container after summary, and `.ui-fcollapse` is attached here.
+ * Shared by `wireCollapse`, the React settings page's `Disclosure`, and sidebar groups; when re-clicked in the opposite direction mid-transition, the previous finish is skipped.
  */
 const collapseRuns=new WeakMap<HTMLElement,number>();
 export function setCollapseOpen(details: HTMLDetailsElement, body: HTMLElement, expanded: boolean): void {
   transitionCollapse(body,expanded,()=>details.open,open=>{details.open=open});
 }
 
-/** 外置按钮控制的折叠正文与原生 details 共用高度过渡和反向点击保护。 */
+/** The collapsible body driven by an external button shares the height transition and reverse-click protection with the native details element. */
 export function setCollapseRegionOpen(body: HTMLElement, expanded: boolean): void {
   transitionCollapse(body,expanded,()=>!body.hidden,open=>{body.hidden=!open});
 }
@@ -70,7 +70,7 @@ function transitionCollapse(body: HTMLElement, expanded: boolean, visible: () =>
   }
 }
 
-/* 高度过渡跑完再收尾；减少动效时没有 transitionend，260ms 兜底。 */
+/* Finalize only after the height transition completes; with reduced motion there is no transitionend, hence the 260 ms fallback. */
 function settleHeight(body: HTMLElement, fn: () => void): void {
   let done=false,timer:ReturnType<typeof setTimeout>|undefined;
   const finish=(e?:TransitionEvent)=>{
@@ -84,8 +84,8 @@ function settleHeight(body: HTMLElement, fn: () => void): void {
 }
 
 /**
- * `.ui-fcollapse` 从 `start` 长到内容此刻的高度，跑完交回 `auto` 并摘掉裁边。Collapse 展开与
- * 侧栏名单摊开共用这一份。`isCurrent` 返回 false 说明中途又被收起，收尾就不做。
+ * `.ui-fcollapse` grows from `start` to the content's current height, then hands back `auto` and removes the clip on completion. Shared by Collapse expansion and
+ * the sidebar list's unfold. `isCurrent` returning false means it was collapsed again mid-way, and the finish is skipped.
  */
 export function growCollapse(body: HTMLElement, start: number, isCurrent: () => boolean = ()=>true): void {
   body.classList.remove('ui-fcollapse-settled');

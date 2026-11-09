@@ -1,12 +1,12 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "ac546f39-c2bf-4cda-aa2d-9617574f1a8c", e._sentryDebugIdIdentifier = "sentry-dbid-ac546f39-c2bf-4cda-aa2d-9617574f1a8c");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "33977d54-6891-4183-aa6c-d7ccba6d0b0e", e._sentryDebugIdIdentifier = "sentry-dbid-33977d54-6891-4183-aa6c-d7ccba6d0b0e");
 	} catch {}
 })();
 import { $2ec61d1d4f780267$export$a8a3e93435678ff9 as e, $542a13ca2fa5b484$export$5b6b19405a83ff9d as t, Button as n, EmptyFocusButton as r, EmptyState as i, Input as a, MENU_ITEM as o, MENU_ITEM_INTERACTIVE as s, MENU_POPOVER_SURFACE as c, MenuDialog as l, MixCard as u, ModalFrame as d, ObjectOrderDialog as f, PLAYLISTS_KEY as p, RetryNote as m, __toESM as h, busyProps as g, confirmModal as _, createPlaylist as v, cx as y, deletePlaylist as b, errorMessage as x, fetchPlaylist as S, fetchPlaylists as C, keepPlaylist as w, posterUrl as T, recreatePlaylist as E, refreshPlaylists as D, renamePlaylist as O, reorderPlaylist as k, require_jsx_runtime as A, require_react as j, resumeAssetId as M, spriteGlyph as N, useMutation as P, useQuery as F } from "./peach-app.js";
 // src/react/playlists/playlists-page.tsx
-var I = /* @__PURE__ */ h(j(), 1), L = A(), R = N("ellipsis"), z = N("pencil"), B = N("trash"), V = N("playlist"), H = y(o, s, "text-body-2-medium"), U = "播放列表名称不能为空", W = (e) => async () => {
+var I = /* @__PURE__ */ h(j(), 1), L = A(), R = N("ellipsis"), z = N("pencil"), B = N("trash"), V = N("playlist"), H = y(o, s, "text-body-2-medium"), U = "The playlist name cannot be empty", W = (e) => async () => {
 	try {
 		await e();
 	} finally {
@@ -17,13 +17,13 @@ function G({ toast: e }) {
 	let [t, r] = (0, I.useState)(""), [i, o] = (0, I.useState)(""), s = P({
 		mutationFn: (e) => v(e),
 		onSuccess: (t) => {
-			r(""), o(""), D(), e("已新建播放列表", { undo: W(() => b(t.playlist.id)) });
+			r(""), o(""), D(), e("Playlist created", { undo: W(() => b(t.playlist.id)) });
 		},
-		onError: (e) => o(x(e) || "新建失败")
+		onError: (e) => o(x(e) || "Creating failed")
 	});
 	return /* @__PURE__ */ (0, L.jsxs)("form", {
 		"data-playlist-create": "",
-		"aria-label": "新建播放列表",
+		"aria-label": "New playlist",
 		onSubmit: (e) => {
 			e.preventDefault(), s.isPending || (t.trim() ? s.mutate(t) : o(U));
 		},
@@ -31,8 +31,8 @@ function G({ toast: e }) {
 		children: [/* @__PURE__ */ (0, L.jsx)("div", {
 			className: "min-w-50 max-w-80 flex-1 basis-50 max-board-narrow:min-w-0 max-board-narrow:max-w-none",
 			children: /* @__PURE__ */ (0, L.jsx)(a, {
-				label: "新播放列表",
-				placeholder: "输入名称",
+				label: "New playlist",
+				placeholder: "Enter a name",
 				maxLength: 80,
 				value: t,
 				onChange: (e) => {
@@ -45,7 +45,7 @@ function G({ toast: e }) {
 		}), /* @__PURE__ */ (0, L.jsx)(n, {
 			type: "submit",
 			...g(s.isPending),
-			children: "新建"
+			children: "New"
 		})]
 	});
 }
@@ -62,7 +62,7 @@ function K({ target: t, close: r, toast: i }) {
 	let f = P({
 		mutationFn: ({ row: e, value: t }) => O(e.id, t),
 		onSuccess: (e, { row: t }) => {
-			r(), D(), i("已重命名播放列表", { undo: W(() => O(t.id, t.name)) });
+			r(), D(), i("Renamed the playlist", { undo: W(() => O(t.id, t.name)) });
 		},
 		onError: (e) => l(x(e))
 	});
@@ -88,11 +88,11 @@ function K({ target: t, close: r, toast: i }) {
 				children: [/* @__PURE__ */ (0, L.jsx)(e, {
 					slot: "title",
 					className: "text-title-2-semibold text-text-primary",
-					children: "编辑名称"
+					children: "Edit name"
 				}), /* @__PURE__ */ (0, L.jsx)(a, {
 					ref: u,
-					label: "名称",
-					placeholder: "输入名称",
+					label: "Name",
+					placeholder: "Enter a name",
 					maxLength: 80,
 					value: o,
 					onChange: (e) => {
@@ -107,11 +107,11 @@ function K({ target: t, close: r, toast: i }) {
 				children: [/* @__PURE__ */ (0, L.jsx)(n, {
 					variant: "secondary",
 					onClick: r,
-					children: "取消"
+					children: "Cancel"
 				}), /* @__PURE__ */ (0, L.jsx)(n, {
 					type: "submit",
 					...g(f.isPending),
-					children: "保存名称"
+					children: "Save name"
 				})]
 			})]
 		})
@@ -124,8 +124,8 @@ function q({ name: e, onRename: n, onDelete: r, onSort: i }) {
 	return /* @__PURE__ */ (0, L.jsxs)(L.Fragment, { children: [/* @__PURE__ */ (0, L.jsx)("button", {
 		ref: a,
 		type: "button",
-		title: "更多操作",
-		"aria-label": `播放列表操作：${e}`,
+		title: "More actions",
+		"aria-label": `Playlist actions: ${e}`,
 		"aria-haspopup": "dialog",
 		"aria-expanded": o,
 		"data-playlist-menu": "",
@@ -143,7 +143,7 @@ function q({ name: e, onRename: n, onDelete: r, onSort: i }) {
 		offset: 4,
 		className: c,
 		children: /* @__PURE__ */ (0, L.jsxs)(l, {
-			"aria-label": `播放列表操作：${e}`,
+			"aria-label": `Playlist actions: ${e}`,
 			className: "flex w-37.5 flex-col gap-0.5 outline-none",
 			children: [
 				/* @__PURE__ */ (0, L.jsxs)("button", {
@@ -153,7 +153,7 @@ function q({ name: e, onRename: n, onDelete: r, onSort: i }) {
 					children: [/* @__PURE__ */ (0, L.jsx)(z, {
 						"aria-hidden": !0,
 						className: "size-(--icon-inline) shrink-0"
-					}), "编辑名称"]
+					}), "Edit name"]
 				}),
 				/* @__PURE__ */ (0, L.jsxs)("button", {
 					type: "button",
@@ -162,7 +162,7 @@ function q({ name: e, onRename: n, onDelete: r, onSort: i }) {
 					children: [/* @__PURE__ */ (0, L.jsx)(V, {
 						"aria-hidden": !0,
 						className: "size-(--icon-inline) shrink-0"
-					}), "调整播放顺序"]
+					}), "Reorder playback          "]
 				}),
 				/* @__PURE__ */ (0, L.jsxs)("button", {
 					type: "button",
@@ -171,7 +171,7 @@ function q({ name: e, onRename: n, onDelete: r, onSort: i }) {
 					children: [/* @__PURE__ */ (0, L.jsx)(B, {
 						"aria-hidden": !0,
 						className: "size-(--icon-inline) shrink-0"
-					}), "删除播放列表"]
+					}), "Delete playlist"]
 				})
 			]
 		})
@@ -187,13 +187,13 @@ function J({ openPlaylist: e, openEntity: t, canFlip: n, toast: a, revision: o }
 	}, [o]);
 	let g = s.data, v = g?.items ?? [], y = (e) => {
 		_({
-			title: "删除播放列表",
-			body: "这个播放列表将被删除，视频文件保留。",
-			confirmLabel: "删除播放列表",
+			title: "Delete playlist",
+			body: "This playlist will be deleted; the video files are kept.",
+			confirmLabel: "Delete playlist",
 			danger: !0,
 			onConfirm: async () => {
 				let t = await w(e.id);
-				await b(e.id), D(), a("已删除播放列表", t ? { undo: W(() => E(t)) } : void 0);
+				await b(e.id), D(), a("Playlist deleted", t ? { undo: W(() => E(t)) } : void 0);
 			}
 		});
 	};
@@ -204,10 +204,10 @@ function J({ openPlaylist: e, openEntity: t, canFlip: n, toast: a, revision: o }
 				className: "mb-4 flex items-start justify-between gap-4.5 max-board-narrow:flex-col max-board-narrow:items-stretch",
 				children: [/* @__PURE__ */ (0, L.jsxs)("div", { children: [/* @__PURE__ */ (0, L.jsx)("h2", {
 					className: "mb-1 text-display-4-medium! text-text-primary",
-					children: "播放列表"
+					children: "Playlists"
 				}), /* @__PURE__ */ (0, L.jsx)("p", {
 					className: "text-body-2-regular text-text-secondary",
-					children: "保存 Mix，按自己的顺序继续播放。"
+					children: "Save the Mix to keep playing in your own order."
 				})] }), /* @__PURE__ */ (0, L.jsx)(G, { toast: a })]
 			}),
 			/* @__PURE__ */ (0, L.jsx)("div", {
@@ -216,11 +216,11 @@ function J({ openPlaylist: e, openEntity: t, canFlip: n, toast: a, revision: o }
 					"data-playlist-grid": "",
 					className: "card-grid-cover gap-4.5",
 					children: v.map((r) => {
-						let i = M(r), a = r.name.trim() || "未命名播放列表";
+						let i = M(r), a = r.name.trim() || "Untitled playlist";
 						return /* @__PURE__ */ (0, L.jsx)(u, {
 							"data-playlist-card": String(r.id),
 							name: a,
-							caption: r.source_kind === "mix" ? "由 Mix 保存" : "手动播放列表",
+							caption: r.source_kind === "mix" ? "Saved by Mix" : "Manual playlists",
 							count: r.item_count,
 							poster: r.preview_asset_id ? T(r.preview_asset_id) : null,
 							flipImages: async () => (r.preview_ids || []).map(T),
@@ -228,7 +228,7 @@ function J({ openPlaylist: e, openEntity: t, canFlip: n, toast: a, revision: o }
 							faces: r.faces || [],
 							onOpenEntity: t,
 							...i ? { onOpen: () => e(r.id, i) } : {},
-							openLabel: `打开播放列表 ${a}`,
+							openLabel: `Open playlist ${a}`,
 							menu: /* @__PURE__ */ (0, L.jsx)(q, {
 								name: a,
 								onRename: () => l(r),
@@ -239,14 +239,14 @@ function J({ openPlaylist: e, openEntity: t, canFlip: n, toast: a, revision: o }
 					})
 				}) : /* @__PURE__ */ (0, L.jsx)(i, {
 					icon: V,
-					title: "还没有播放列表",
+					title: "No playlists yet",
 					actions: /* @__PURE__ */ (0, L.jsx)(r, {
 						target: "[data-playlist-create] input",
-						children: "新建播放列表"
+						children: "New playlist"
 					}),
-					children: "保存 Mix 或新建列表后，会在这里按自己的顺序继续播放。"
+					children: "After saving a Mix or creating a list, it continues playing here in your own order."
 				}) : s.isError ? /* @__PURE__ */ (0, L.jsx)(m, {
-					message: x(s.error) || "播放列表读取失败",
+					message: x(s.error) || "Reading the playlist failed",
 					onRetry: () => void s.refetch()
 				}) : null
 			}),
@@ -277,7 +277,7 @@ function Y({ row: e, close: t, toast: r }) {
 			e || t();
 		},
 		width: "form",
-		label: "调整播放顺序",
+		label: "Reorder playback",
 		children: /* @__PURE__ */ (0, L.jsxs)("div", {
 			className: "p-5",
 			children: [i.isError ? /* @__PURE__ */ (0, L.jsx)(m, {
@@ -285,25 +285,25 @@ function Y({ row: e, close: t, toast: r }) {
 				onRetry: () => void i.refetch()
 			}) : /* @__PURE__ */ (0, L.jsx)("p", {
 				role: "status",
-				children: "正在读取播放列表"
+				children: "Reading playlists"
 			}), /* @__PURE__ */ (0, L.jsx)(n, {
 				variant: "secondary",
 				onClick: t,
-				children: "取消"
+				children: "Cancel"
 			})]
 		})
 	}) : /* @__PURE__ */ (0, L.jsx)(f, {
-		title: `调整播放顺序 · ${e.name}`,
+		title: `Reorder playback · ${e.name}`,
 		close: t,
 		items: a.items.map((e) => ({
 			id: String(e.id),
-			name: e.title || e.name || `影片 ${e.id}`
+			name: e.title || e.name || `Video ${e.id}`
 		})),
 		save: async (t) => {
-			await k(e.id, t.map(Number)), D(), r("播放顺序已保存", { undo: W(() => k(e.id, a.items.map((e) => e.id))) });
+			await k(e.id, t.map(Number)), D(), r("Playback order saved", { undo: W(() => k(e.id, a.items.map((e) => e.id))) });
 		}
 	});
 }
 export { J as PlaylistsPage };
 
-//# debugId=ac546f39-c2bf-4cda-aa2d-9617574f1a8c
+//# debugId=33977d54-6891-4183-aa6c-d7ccba6d0b0e

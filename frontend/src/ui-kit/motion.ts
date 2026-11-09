@@ -1,22 +1,24 @@
-/* 原地换态的一组辅助：字形互换、文字换行、读数错峰、清空输入框、计数徽标与标题逐行揭示。
-   由共享源码直接引用，随 `peach-app.js` 发出；计数徽标上一次的值是模块级状态，只有一份。
-
-   形状和 CSS 在同目录的 `motion.css`（文字换行那一条在 `web/css/25-motion.css`），那里也写着每一条的
-   来源与取值。这一层只负责
-   「什么时候换」：动画本身一律交给 CSS，JS 不读也不写具体的毫秒数。 */
+/* A set of in-place state helpers: glyph swap, text re-wrap, staggered readouts, clearing inputs, count badges and the
+   title's line-by-line reveal.
+   Imported from shared source and shipped with `peach-app.js`; the count badge's previous value is module-level state with
+   one copy.
+ *
+ * Shapes and CSS live in the same directory's `motion.css` (the text re-wrap rule in `web/css/25-motion.css`), which also
+ * records each one's origin and values. This layer only decides "when to swap": the animation itself always goes to CSS, and
+ * JS neither reads nor writes concrete millisecond numbers. */
 import { esc, icon } from '../core';
 
 /**
- * 两枚字形叠在一格里，换态只改容器上的 `data-icon-state`。
+ * Two glyphs stacked in one cell; state changes only touch the container's `data-icon-state`.
  *
- * 直接 `innerHTML=icon(...)` 的地方都可以换成它：重写 innerHTML 会把旧字形连同它正在
- * 走的动画一起丢掉，新字形也没有起点可走，读出来是一次硬切。
+ * Anywhere doing `innerHTML=icon(...)` can switch to this: rewriting innerHTML throws away the old glyph together with its running
+ * animation, and the new glyph has no starting point either; it reads as a hard cut.
  */
 export function iconSwapHtml(a:string,b:string,state:'a'|'b'|(string&{})='a',{className='',iconClass='',label=''}={}):string{
   return `<span class="iconswap${className?' '+esc(className):''}" data-icon-swap data-icon-state="${state==='b'?'b':'a'}"${
     label?` aria-label="${esc(label)}"`:''}><span data-icon="a">${icon(a,iconClass)}</span><span data-icon="b">${icon(b,iconClass)}</span></span>`;
 }
-/** 把 `iconSwapHtml` 画出来的那一枚切到 a 或 b；`root` 可以是它本身或它的祖先。 */
+/** Switches the icon painted by `iconSwapHtml` to a or b; `root` may be the icon itself or one of its ancestors. */
 export function setIconSwap(root:any,state:'a'|'b'|boolean|(string&{})):any{
   const el=root&&(root.matches?.('[data-icon-swap]')?root:root.querySelector?.('[data-icon-swap]'));
   if(el)el.dataset.iconState=state==='b'||state===true?'b':'a';
@@ -24,10 +26,10 @@ export function setIconSwap(root:any,state:'a'|'b'|boolean|(string&{})):any{
 }
 
 /**
- * 一行字换成另一行字：旧字往上糊掉，新字从下方回到原位。
+ * One line of text swapped for another: the old text blurs upward, the new returns to place from below.
  *
- * 值没变就什么也不做——同一次重绘里把同样的字再写一遍是常态，跟着抖一下会让页面看起来
- * 一直在变。首次写入（这一格还空着）也不放动画：那是内容第一次出现，归骨架那一段。
+ * An unchanged value does nothing; rewriting the same text within one repaint is normal, and jittering along would make the page look
+ * perpetually changing. The first write (the cell still empty) also skips the animation: that is content's first appearance, belonging to the skeleton phase.
  */
 export function swapText(el:any,text:unknown,{html=false}={}):void{
   if(!el)return;
@@ -51,15 +53,15 @@ export function swapText(el:any,text:unknown,{html=false}={}):void{
   };
   const done=(event:Event)=>{if(event.target!==el)return;el.removeEventListener('transitionend',done);enter()};
   el.addEventListener('transitionend',done);
-  /* 兜底：`--motion-swap` 归零或元素此刻不可见时 `transitionend` 不会来，
-     不兜的话这一行就永远停在透明。 */
+  /* Fallback: when `--motion-swap` is zero or the element is invisible at the moment, `transitionend` never fires;
+     without the fallback this row would stay transparent forever. */
   setTimeout(()=>{if(el.classList.contains('leaving')){el.removeEventListener('transitionend',done);enter()}},400);
 }
 
 /**
- * 读数按位错峰长出来。把 `text` 拆成一个个字符，数字各占一档延迟，分隔符跟着前一档。
+ * Readouts grow in staggered steps per position. `text` is split into characters, digits each get a delay tier, separators follow the previous tier.
  *
- * 和 `swapText` 一样只在值真变时触发，首次写入不放动画。
+ * Like `swapText`, it only triggers when the value actually changes; the first write does not animate.
  */
 export function popCount(el:any,text:unknown):void{
   if(!el)return;
@@ -71,8 +73,8 @@ export function popCount(el:any,text:unknown):void{
     if(/\d/.test(ch))at+=1;
     return `<span style="--digit-at:${Math.max(at,0)}">${esc(ch)}</span>`;
   }).join('')}</span>`;
-  /* 上一个值没登记过（这一格第一次出现）或压根没变，就只把字写上去。调用点整块重绘时
-     把上一次的读数写回 `dataset.popCount` 再调，这一格才知道自己是换了值还是刚建出来。 */
+  /* If the previous value was never recorded (first appearance of this cell) or has not changed at all, just write the text. When the caller repaints the whole block,
+     it writes the last readout back into `dataset.popCount` before calling, so this cell knows whether its value changed or it was just created. */
   if(previous===undefined||previous===next)return;
   const group=el.firstElementChild;
   group.getBoundingClientRect();
@@ -80,11 +82,11 @@ export function popCount(el:any,text:unknown):void{
 }
 
 /**
- * 清空输入框，框里那段字往上飘着糊掉。
+ * Clear the input box while its text floats up and blurs away.
  *
- * 输入框的 value 是一瞬间没的，动画只能挂在别处：这里照着它此刻的位置和字体摆一份同样
- * 的字，让那一份去飘，真正的输入框当场就空了，光标和输入法一刻也不等。`host` 缺省取
- * 输入框的父元素，它必须是定位祖先，否则这一层会飘到页面左上角去。
+ * The input's value disappears in an instant, so the animation must hang elsewhere: this lays out an identical copy of the text at its current
+ * position and font and lets that copy float, while the real input empties on the spot, cursor and IME not waiting a moment. `host` defaults to
+ * the input's parent, which must be the positioned ancestor, otherwise this layer floats to the page's top-left.
  */
 export function dissolveValue(input:any,host:any=input&&input.parentElement,
   {text=input&&input.value,scrollLeft=input&&input.scrollLeft||0}:{text?:string;scrollLeft?:number}={}):()=>void{
@@ -112,13 +114,13 @@ export function dissolveValue(input:any,host:any=input&&input.parentElement,
     if(!host.querySelector(':scope > .cleardissolve'))input.classList.remove('dissolving');
   };
   ghost.addEventListener('animationend',drop);
-  /* 兜底：`--motion-reveal` 归零或这一刻元素不可见时 `animationend` 不会来，
-     不兜的话这份复制品就永远盖在输入框上。 */
+  /* Fallback: when `--motion-reveal` is zero or the element is not visible at this moment, `animationend` never fires;
+     without the fallback this copy would sit over the input forever. */
   timer=setTimeout(drop,1000);
   return drop;
 }
 
-/** 照输入框此刻的位置、内边距和字体摆一层空的覆盖层，字落在框里同一处；框不可见时是 null。 */
+/** Lay an empty overlay following the input box's current position, padding, and font, so the text lands at the same spot in the box; it's null when the box is invisible. */
 function inputGhost(input:any,host:any,className:string):HTMLSpanElement|null{
   const box=input.getBoundingClientRect(),frame=host.getBoundingClientRect();
   if(!box.width)return null;
@@ -134,11 +136,11 @@ function inputGhost(input:any,host:any,className:string):HTMLSpanElement|null{
 }
 
 /**
- * 输入框的占位字换一句：旧字往上糊掉，新字从下方回到原位，同 `swapText`。
+ * Swap the input box's placeholder text: the old text blurs away upward, the new text returns from below to its position, like `swapText`.
  *
- * 占位字是输入框自己画的，做不了动画：这里照它的位置和颜色摆一层，让那一层去换，换的这段
- * 时间收起框里的占位字，换完摘掉这一层。`placeholder` 当场就改成新的，读屏和回车读到的都是它。
- * 框里有字、框不可见或要求减弱动效时直接改，不放动画。返回撤销函数：动画中途开始打字就收掉。
+ * The placeholder is drawn by the input itself, so it can't be animated: here a layer is placed over it matching its position and color, and that layer is swapped; during the swap
+ * the placeholder inside the box is hidden, and the layer is removed after. `placeholder` is changed to the new value immediately, so screen readers and the Enter key reads all get it.
+ * When the box has text, is invisible, or reduced motion is requested, change it directly with no animation. Returns an undo function: if typing starts mid-animation, cancel it.
  */
 export function rollPlaceholder(input:any,next:string,host:any=input&&input.parentElement):()=>void{
   if(!input)return ()=>{};
@@ -166,19 +168,19 @@ export function rollPlaceholder(input:any,next:string,host:any=input&&input.pare
     ghost.remove();
     if(!host.querySelector(':scope > .placeholderroll'))input.classList.remove('placeholderrolling');
   };
-  /* 退场与进场各一段 `--motion-swap`；`swapText` 自己的兜底是 400ms，这里留足两段再收。 */
+  /* Exit and entry each get a --motion-swap; swapText's own fallback is 400ms; here allow a full two segments before closing. */
   const timer=setTimeout(drop,900);
   return drop;
 }
 
-/* 计数徽标上一次是多少。徽标所在的那一排每次筛选都整块重画，节点本身留不住上一个值，
-   所以记在这里，键由调用方给的范围加徽标自己的键拼成。 */
+/* What the count badge was last time. The row holding the badge repaints wholesale on every filter change, and the node itself cannot keep the previous value,
+   so it is recorded here; the key is the caller's scope plus the badge's own key. */
 const badgeCounts=new Map<string,string>();
 /**
- * 一排计数徽标里值真变了的那几枚弹一下，其余的不动。
+ * Only the count badges whose values really changed pop; the rest stay still.
  *
- * 首次见到某一枚不弹：那是它第一次出现在这个范围里，整排一起弹是一屏烟花，而它要说的
- * 是「这一枚刚变了」。`scope` 区分同一个键在不同排里的计数（顶部筛选条和抽屉各有一份）。
+ * First sight of a badge does not pop: that is its first appearance in this scope, and the whole row popping at once is fireworks on a screen, while what it must
+ * say is "this one just changed". `scope` distinguishes the same key's counts in different rows (top filter bar and drawer each have one).
  */
 export function popBadges(root:any,scope=''):void{
   if(!root)return;
@@ -195,17 +197,17 @@ export function popBadges(root:any,scope=''):void{
 }
 
 /**
- * 一段标题从模糊里逐行揭示出来。
+ * A heading revealed line by line out of blur.
  *
- * 按行不按词：逐词要把整句拆成一串 `<span>`，复制出来的文字会跟着散架，而这几处标题
- * 正是最常被复制走的那几段字。走完把类名和行序一起摘掉，终点帧不留下 `filter`。
+ * By line, not by word: per-word would split the sentence into a string of `<span>`s, and copied text would fall apart, and these headings
+ * are exactly the most-copied text. On completion the classes and line order are removed together, leaving no `filter` on the final frame.
  */
 export function revealTexts(root:any,selector='[data-reveal-line]'):void{
   if(!root)return;
   const lines:HTMLElement[]=[...root.querySelectorAll(selector)];
   if(!lines.length)return;
-  /* 起止两个状态都挂在行自己身上，不挂在外面那一层：这几处标题里有一对是 `<body>` 的
-     直接子元素（页面标题和它的说明行），要共同的祖先就只剩 body 本身。 */
+  /* Both the start and end states hang on the rows themselves, not on an outer layer: one pair of these headings are direct children of `<body>`
+     (the page title and its description line), and their only common ancestor is body itself. */
   lines.forEach((el,i)=>{el.classList.remove('revealing');el.classList.add('revealline');
     el.style.setProperty('--reveal-at',String(i))});
   lines[0]!.getBoundingClientRect();

@@ -1,16 +1,17 @@
-/* 未入库的新作那一行（ADR-0042）：首页那一行与资料页那一行共用的取数、查询键与写操作。
+/* The new-releases row not yet added to the library (ADR-0042): fetching, query keys and write operations shared by the home
+ * row and the profile page row.
  *
- * 两行读同一个端点（`/api/feeds/discoveries`），资料页多带一个 `entity`；查询键同族
- * （`['feed-new', 实体 id | 'home']`），一处改了合集开关，按 `['feed-new']` 一次就能把两行都作废。
- * 卡片的 HTML 仍由壳拼（`feedRowHtml`）：封面取景、版次字样与那条连接方式的 Note 都是遗留层
- * 那一份，取图失败时的兜底链也直接改节点。 */
+ * Both rows read the same endpoint (`/api/feeds/discoveries`) with the profile page adding `entity`; the query keys are one
+ * family (`['feed-new', entity id | 'home']`), so flipping the compilation switch in one place invalidates both rows in one
+ * go by `['feed-new']`. Card HTML is still assembled by the shell (`feedRowHtml`): cover framing, the edition mark and the
+ * connection-method Note are the legacy layer's copies, and the image-failure fallback chain mutates nodes directly. */
 import { appSettingsStore } from '@peach/appearance';
 import type { CoverState } from '@peach/card-art';
 import { api } from '@peach/legacy/core';
 
 import { queryClient } from '../query';
 
-/** `/api/feeds/discoveries` 的回话：条目与最近一轮取封面断在连接上的部数。 */
+/** The reply from `/api/feeds/discoveries`: the items plus how many videos had their cover fetch dropped on the connection in the latest round. */
 export interface FeedDiscoveries { items?: FeedNewItem[]; cover_network?: number; error?: string }
 
 /** 一行里的一部：判有没有、哪几部的封面还在排队（这一行的一键插队只管这几部）。 */
@@ -23,10 +24,10 @@ export interface FeedNew {
   fetching?: boolean;
 }
 
-/** 壳拼的整段 HTML：连不上图片主机时的 Note 与一排卡（`feedNewCardHtml`）。 */
+/** The whole HTML assembled by the shell: the Note for when the image host is unreachable and a row of cards (`feedNewCardHtml`). */
 export type FeedRowHtml = (data: FeedDiscoveries | null, allHref?: string) => string;
 
-/** 资料页那一行用实体 id，首页那一行不分人。 */
+/** The profile page row keys by entity id; the home page row does not distinguish people. */
 export const feedNewKey = (entityId: number | null) => ['feed-new', entityId ?? 'home'] as const;
 
 /** 拉取由定时器做，页面只读已经发现的那些：进这一页顺手发一轮请求，等于把每次刷新都变成对别人
@@ -38,7 +39,7 @@ export async function fetchFeedNew(entityId: number | null, rowHtml: FeedRowHtml
   const data = await api(`/api/feeds/discoveries?${query}`) as FeedDiscoveries;
   if (data.error) throw new Error(data.error);
   const items = data.items || [];
-  // 首页那一行在行尾带「查看全部新作」，资料页那一行只列这个人的，不带。
+  // The home-page row ends with “View all new releases”; the profile page row lists only this person's and doesn't have that.
   const html = rowHtml(data, entityId ? '' : '/jav?tab=releases');
   return { items, html, fetching: items.some(item => item.cover_state === 'fetching') };
 }
@@ -50,25 +51,25 @@ export const feedNewOptions = (entityId: number | null, rowHtml: FeedRowHtml) =>
   refetchInterval: (query: { state: { data?: FeedNew } }) => query.state.data?.fetching ? 2000 : false,
 });
 
-/** 卡上那三颗键（想要、不想看、标为已看过）。都是标记，写失败了卡片照样换样子：这一行下次取数时
- *  会按服务端的现状重排。 */
+/** The three buttons on the card (Want, Not interested, Mark watched). All are marks; on write failure the card still changes look, since this row re-sorts by the server's
+ *  actual state at the next fetch. */
 export const postFeedAction = (feedId: number, action: string): Promise<void> =>
   (api('/api/feeds/discovery', { method: 'POST', body: JSON.stringify({ action, ids: [feedId] }) }) as Promise<unknown>)
     .then(() => undefined, () => undefined);
 
-/** 首页那一行（`feed-new` island）。宿主是 `index.html` 里那块常驻的 `#feedNew`：岛的根挂在它
- *  里面的 `.peach-react` 上，卡片 portal 回宿主本身，落在 Preflight 的范围外。 */
+/** The home row (`feed-new` island). The host is `index.html`'s resident `#feedNew`: the island's root hangs on its
+ *  `.peach-react`, cards portal back to the host itself, landing outside Preflight's scope. */
 export interface FeedNewProps {
   host: HTMLElement;
-  /** 合集开关改了就换一个代次，这一行照新的筛法重取。 */
+  /** Changing the compilation switch issues a new epoch; this row refetches with the new filter. */
   revision: number;
   helpers: {
     feedRowHtml: FeedRowHtml;
-    /** 拖动、滚轮，按设置接自动滚动。 */
+    /** Drag, wheel, and auto-scroll wired up per settings. */
     wireFeedRow(row: Element | null): void;
   };
   actions: {
-    /** 这一行有没有卡：取回来、或最后一张被收起时报一次，壳按它决定下次进首页铺不铺骨架。 */
+    /** Whether this row stalled: reported once when fetched, or when the last card is collapsed; the shell uses it to decide whether the next home page entry lays a skeleton. */
     settled(hasItems: boolean): void;
   };
 }

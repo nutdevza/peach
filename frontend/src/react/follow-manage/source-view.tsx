@@ -1,8 +1,7 @@
-/* 一条关注来源在屏幕上的那几格：站标、头像、状态徽章、来源名。
+/* A followed source's on-screen cells: site mark, avatar, status badge, source name.
  *
- * 创作者卡片、表格视图和别名清单读的是同一份，所以这几格摆在这里而不是各画一次：
- * 同一条来源在两种视图里的状态写法一旦分开写，就会出现同一行在卡片里说「未检查」、
- * 在表格里说「正常」。 */
+ * Creator cards, table view, and the alias list read the same copy, so these cells live here instead of being painted per view:
+ * once one source's status wording diverges between the two views, the same row says "unchecked" on the card and "OK" in the table. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { RiExternalLinkLine } from '@remixicon/react';
 
@@ -16,14 +15,14 @@ import {
   type FollowSource,
 } from './follow-manage';
 
-/** 关注来源的站标，尺寸与回退和采集来源站标同一枚；站名由旁边的文字或外层的读屏文字说。 */
+/** The followed source's site icon, same size and fallback as the scrape-source icon; the site name comes from adjacent text or the outer screen-reader text. */
 export function SourceIcon({ provider }: { provider: string }) {
   return <MarkImage src={sourceIconUrl(provider)} />;
 }
 
-/** 创作者圆标：官方来源的头像优先，归档来源回退，都取不到就用首字母。
+/** Creator round badges: the official source's avatar first, archive sources as fallback, and the initial when neither works.
  *
- * 首字母取自创作者名而不是某条来源的标签——那会切出「初」「一」这类和创作者无关的字。 */
+ * The initial comes from the creator's name, not from some source's tag; that would carve out lone characters unrelated to the creator. */
 export function AuthorAvatar({ group, name }: { group: FollowSource[]; name: string }) {
   const { src, fallback } = authorAvatar(group);
   const [at, setAt] = useState(0);
@@ -31,7 +30,7 @@ export function AuthorAvatar({ group, name }: { group: FollowSource[]; name: str
   const current = chain[at];
   if (!current) {
     return (
-      <span title="没有可用头像"
+      <span title="No avatar available"
         className="inline-grid size-8 shrink-0 place-items-center rounded-full bg-background-tertiary-default text-caption-1-semibold text-text-secondary">
         {authorInitial(name)}
       </span>
@@ -44,7 +43,7 @@ export function AuthorAvatar({ group, name }: { group: FollowSource[]; name: str
   );
 }
 
-/** 状态徽章。三档颜色对应三件事：要处理的、正常的、还没有结论的。 */
+/** Status badges. Three colors for three things: needs attention, normal, and no verdict yet. */
 export function StatusBadge({ source }: { source: FollowSource }) {
   const color = !source.enabled || source.history_exhausted ? 'gray' : isBroken(source) ? 'rose'
     : source.enabled && source.last_status === 'ok' ? 'lime'
@@ -52,10 +51,10 @@ export function StatusBadge({ source }: { source: FollowSource }) {
   return <Chip variant="caption" color={color}>{statusText(source)}</Chip>;
 }
 
-/** 来源名连到站上的原页面，名字后跟外链字形。新标签页不继承这一页的会话，来源地址也不带走 Peach 自己的地址。 */
+/** The source name links to the original page on the site, with an external-link glyph after the name. The new tab does not inherit this page's session, and the source URL does not carry Peach's own address along. */
 export function SourceLink({ source }: { source: FollowSource }) {
   return (
-    <a href={source.url} target="_blank" rel="noopener noreferrer" title="打开原来源"
+    <a href={source.url} target="_blank" rel="noopener noreferrer" title="Open original source"
       className="max-w-full min-w-0 self-start text-body-medium wrap-anywhere text-text-primary underline-offset-2 hover:underline">
       {source.label}
       <RiExternalLinkLine aria-hidden className="size-(--icon-inline) shrink-0" />
@@ -63,8 +62,8 @@ export function SourceLink({ source }: { source: FollowSource }) {
   );
 }
 
-/** 一条报错：列表里只露一行（`errorHeadline`），放不下就截断；多于这一行或被截了时给「查看详情」原地展开全文。
- *  来源的上次检查、JAV 入库的刮削失败都用它，后端常回整页 HTML 或整段 traceback。 */
+/** An error entry: lists show one line (`errorHeadline`), truncated when it does not fit; beyond that line or when truncated, "View details" expands the full text in place.
+ *  Sources' last check and JAV import's scraping failures use it; the backend often returns whole HTML pages or whole tracebacks. */
 export function ErrorLine({ text, prefix = '', tone = 'error' }: { text: string; prefix?: string; tone?: 'error' | 'muted' }) {
   const line = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(false);
@@ -89,7 +88,7 @@ export function ErrorLine({ text, prefix = '', tone = 'error' }: { text: string;
       {more ? (
         <Button variant="ghost" size="small" data-error-line-toggle="" data-error-details-toggle="" aria-expanded={open} className="-ml-2"
           onClick={() => setOpen(!open)}>
-          {open ? '收起详情' : '查看详情'}
+          {open ? 'Collapse details' : 'View details'}
         </Button>
       ) : null}
     </span>

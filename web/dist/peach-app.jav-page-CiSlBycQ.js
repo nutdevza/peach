@@ -1,20 +1,20 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "f84c196f-7d78-4e46-8fe9-18071f993a4c", e._sentryDebugIdIdentifier = "sentry-dbid-f84c196f-7d78-4e46-8fe9-18071f993a4c");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "7549f6ef-1720-482f-b1dd-2ee29850e999", e._sentryDebugIdIdentifier = "sentry-dbid-7549f6ef-1720-482f-b1dd-2ee29850e999");
 	} catch {}
 })();
 import { $2ec61d1d4f780267$export$a8a3e93435678ff9 as e, $76d00c5a4edb230a$export$76ccd210b9029917 as t, $76d00c5a4edb230a$export$816b5d811295e6bc as n, $76d00c5a4edb230a$export$b59bdbef9ce70de2 as r, $76d00c5a4edb230a$export$f6f0c3fe4ec306ea as i, $76d00c5a4edb230a$export$f850895b287ef28e as a, $fe21c36db05242bb$export$d7b12c4107be0d61 as o, ArtSlot as s, Button as c, ButtonLink as l, Bx as u, COVER_STATE_TITLE as d, CatalogViewToggle as f, Checkbox as p, ChevronSortDown as m, Chip as h, CloudDownloadDialog as g, CoverQueue as _, DISCOVERY_METADATA_KEY as v, DISCOVERY_REFRESH_MS as y, DISCOVERY_SORTS as b, DOWNLOADS_KEY as x, DOWNLOADS_URL as S, DataTableFooter as C, DataTableFrame as w, E3 as T, EmptyFocusButton as E, EmptyState as ee, FilterGlassRows as te, FilterIconButton as ne, FilterPill as re, GlassPill as ie, Help as D, IndexSearch as O, Input as ae, JAV_LAYOUTS as oe, JAV_RECOMMENDATION_GRID as se, JAV_SELECTION_EVENT as k, JavHeader as A, LibraryShortcuts as j, M6 as M, ModalFrame as N, Note as P, P7 as ce, PHASES as F, RELEASE_COLUMN_VISIBILITY_KEY as I, RELEASE_COLUMN_WIDTHS_KEY as L, RELEASE_PAGE_SIZES as le, RELEASE_SORTS as ue, RELEASE_SORT_COLUMNS as R, SEGMENT as z, SEGMENTED_TRACK as B, SegmentedRadioGroup as V, Segments as de, SelectionDock as H, Shuffle as fe, SortKeys as pe, SourceAvatar as me, Table as he, TableColumnControls as ge, TableColumnResizer as U, TaskProgress as _e, WANTS_KEY as W, WantMagnets as ve, Wt as ye, __toESM as be, addWant as xe, apiGet as Se, appSettingsStore as Ce, avatarInner as we, busyProps as G, cachedMagnetStates as Te, cardClass as Ee, cardRatio as De, catalogListSkeletonCellHtml as Oe, composingKey as ke, controlDiscoveryMetadata as Ae, controlReleaseMetadata as je, coverArrived as Me, coverFetching as Ne, coverFetchingHtml as Pe, coverStateAction as Fe, coverUrl as Ie, discoveryArtwork as Le, discoveryKey as Re, discoveryScore as ze, entityDisplayName as Be, entityFaceImg as Ve, entityPath as He, errorMessage as K, esc as Ue, facePos as We, fetchCoverNow as Ge, fetchDiscoveries as Ke, fetchDiscoveryMetadata as qe, fetchReleases as Je, fetchWants as Ye, firstGrapheme as Xe, fmtDur as Ze, gridLayout as Qe, invalidateWants as q, javContentSkeleton as $e, javLayout as et, javTagSkeleton as tt, keepPreviousData as nt, leadingGraphemes as rt, logoUrl as it, pageWindow as at, qE as ot, queryClient as st, recommendationScore as ct, relayoutCovers as lt, releaseColumns as ut, releaseFilters as dt, releaseKey as ft, removeWants as pt, require_jsx_runtime as mt, require_react as ht, resetWants as gt, searchNote as _t, selectRange as vt, selectionSummary as yt, spriteGlyph as bt, storeJavLayout as xt, suppressShiftTextSelection as St, textLang as Ct, tierPlaceholdersHtml as wt, useAction as J, useCatalogView as Tt, useEntityNames as Et, useQuery as Y, useTablePreferences as Dt, wantName as X, wireHorizontalScroller as Ot, writeJavQuery as Z } from "./peach-app.js";
-import { ErrorLine as kt } from "./peach-app.source-view-DalWfDkm.js";
+import { ErrorLine as kt } from "./peach-app.source-view-Cr-fzNHo.js";
 // src/react/wants/want-list.tsx
 var Q = /* @__PURE__ */ be(ht(), 1), $ = mt(), At = {
-	code: "手动添加",
-	feed: "订阅新作",
-	follow: "关注"
+	code: "Add manually",
+	feed: "Subscribe to new releases",
+	follow: "Follows"
 }, jt = [
-	["all", "全部"],
-	["available", "有磁链"],
-	["missing", "没磁链"]
+	["all", "All"],
+	["available", "Has magnet link"],
+	["missing", "No magnet link"]
 ], Mt = (e) => [
 	e.release_date,
 	e.studio,
@@ -26,7 +26,7 @@ function Nt({ want: e }) {
 		className: "relative inline-grid w-card-cover shrink-0 aspect-card-cover place-items-center overflow-hidden rounded-2lg bg-background-tertiary-default max-sm:w-24",
 		children: [/* @__PURE__ */ (0, $.jsx)("span", {
 			className: "text-caption-1-regular text-text-secondary",
-			children: "无封面"
+			children: "No cover"
 		}), e.cover ? /* @__PURE__ */ (0, $.jsx)("img", {
 			src: e.cover,
 			alt: "",
@@ -68,7 +68,7 @@ function Pt({ want: e, readOnly: t, busy: n, onReset: r, onRemove: i, onCloudDow
 					}) : null,
 					e.scrape_error ? /* @__PURE__ */ (0, $.jsx)(kt, {
 						text: e.scrape_error,
-						prefix: "资料未取得：",
+						prefix: "Details unfetched: ",
 						tone: "muted"
 					}) : null,
 					/* @__PURE__ */ (0, $.jsxs)("div", {
@@ -82,7 +82,7 @@ function Pt({ want: e, readOnly: t, busy: n, onReset: r, onRemove: i, onCloudDow
 								href: p,
 								target: "_blank",
 								rel: "noopener noreferrer",
-								children: "来源页"
+								children: "Source page"
 							}) : null,
 							/* @__PURE__ */ (0, $.jsx)(c, {
 								variant: "secondary",
@@ -91,7 +91,7 @@ function Pt({ want: e, readOnly: t, busy: n, onReset: r, onRemove: i, onCloudDow
 								disabled: t,
 								...G(n === `remove:${e.id}`),
 								onClick: i,
-								children: "移除"
+								children: "Remove"
 							}),
 							e.phase === "given_up" ? /* @__PURE__ */ (0, $.jsx)(c, {
 								variant: "secondary",
@@ -99,13 +99,13 @@ function Pt({ want: e, readOnly: t, busy: n, onReset: r, onRemove: i, onCloudDow
 								disabled: t,
 								...G(n === `reset:${e.id}`),
 								onClick: r,
-								children: "重新查找"
+								children: "Look up again"
 							}) : null,
 							e.phase === "searching" || e.phase === "given_up" ? /* @__PURE__ */ (0, $.jsx)(c, {
 								variant: "secondary",
 								size: "small",
 								onClick: a,
-								children: "查找资源"
+								children: "Find resources"
 							}) : null
 						]
 					})
@@ -138,7 +138,7 @@ function Ft({ phase: e, label: t, rows: n, row: r }) {
 					})]
 				}), e === "searching" ? /* @__PURE__ */ (0, $.jsx)(V, {
 					name: "want-magnet-filter",
-					"aria-label": "待找磁链筛选",
+					"aria-label": "To-find magnet filter",
 					orientation: "horizontal",
 					value: u,
 					className: B,
@@ -159,13 +159,13 @@ function Ft({ phase: e, label: t, rows: n, row: r }) {
 			h.length ? null : /* @__PURE__ */ (0, $.jsx)(ee, {
 				size: "compact",
 				icon: ot,
-				title: "暂无符合条件的作品",
+				title: "No matching videos yet",
 				actions: /* @__PURE__ */ (0, $.jsx)(c, {
 					size: "small",
 					onClick: () => {
 						d("all"), a(1);
 					},
-					children: "查看全部"
+					children: "View all"
 				}),
 				children: null
 			}),
@@ -185,7 +185,7 @@ function Ft({ phase: e, label: t, rows: n, row: r }) {
 					onChange: (e) => {
 						l(e.pageSize), a(e.pageIndex + 1);
 					},
-					unit: "条"
+					unit: "items"
 				})
 			})
 		]
@@ -200,17 +200,17 @@ function It({ readOnly: e, toast: t, query: n = "", clearQuery: r }) {
 	}), d = () => {
 		let n = i.trim();
 		n && !e && l.run("add", (e) => xe({ code: n }, e), (e) => {
-			t(e.created ? `已加入想要：${X(e.want)}` : `${X(e.want)} 已经在想要里`), a(""), q();
+			t(e.created ? `Added to wants: ${X(e.want)}` : `${X(e.want)} is already in wants`), a(""), q();
 		});
 	}, f = (e) => {
 		e.key === "Enter" && !ke(e.nativeEvent) && (e.preventDefault(), d());
 	}, p = (e) => {
 		l.run(`remove:${e.id}`, (t) => pt([e.id], t), () => {
-			t(`已移除：${X(e)}`), q();
+			t(`Removed: ${X(e)}`), q();
 		});
 	}, m = (e) => {
 		l.run(`reset:${e.id}`, (t) => gt([e.id], t), () => {
-			t(`${X(e)} 回到待找`), q();
+			t(`${X(e)} back to the wanted list`), q();
 		});
 	}, h = u.data, _ = (h?.items || []).filter((e) => !n || [
 		e.code,
@@ -233,15 +233,15 @@ function It({ readOnly: e, toast: t, query: n = "", clearQuery: r }) {
 				children: [
 					/* @__PURE__ */ (0, $.jsx)("h3", {
 						className: "text-title-2-medium text-text-primary",
-						children: "按番号添加"
+						children: "Add by code"
 					}),
 					/* @__PURE__ */ (0, $.jsxs)("div", {
 						className: "flex flex-wrap items-end gap-2",
 						children: [/* @__PURE__ */ (0, $.jsx)("div", {
 							className: "min-w-64 grow max-sm:min-w-0",
 							children: /* @__PURE__ */ (0, $.jsx)(ae, {
-								"aria-label": "番号",
-								placeholder: "输入番号，例如 SSIS-950",
+								"aria-label": "Code",
+								placeholder: "Enter a code, e.g. SSIS-950",
 								value: i,
 								isDisabled: e,
 								onChange: a,
@@ -252,59 +252,59 @@ function It({ readOnly: e, toast: t, query: n = "", clearQuery: r }) {
 							disabled: e || !i.trim(),
 							...G(l.busy === "add"),
 							onClick: d,
-							children: "添加"
+							children: "Add"
 						})]
 					}),
 					l.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 						tone: "error",
-						title: "这一次没有完成",
+						title: "This run did not finish",
 						children: l.error
 					}) : null
 				]
 			}),
 			u.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
-				title: "想要清单读取失败",
+				title: "Reading the want list failed",
 				children: K(u.error)
 			}) : null,
 			u.isPending ? /* @__PURE__ */ (0, $.jsx)("div", {
 				role: "status",
-				"aria-label": "正在读取想要",
+				"aria-label": "'Loading wants'",
 				dangerouslySetInnerHTML: { __html: $e("wants") }
 			}) : null,
 			h?.scraping ? /* @__PURE__ */ (0, $.jsx)(D, {
 				role: "status",
-				children: "正在给刚加入的番号取资料与封面。"
+				children: "Fetching details and covers for the codes just added."
 			}) : null,
 			v.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
-				title: "下载配置未取得",
+				title: "Download configuration not fetched",
 				children: K(v.error)
 			}) : null,
 			v.data && !y.length ? /* @__PURE__ */ (0, $.jsxs)(P, {
 				tone: "neutral",
-				children: ["尚未配置下载渠道。", /* @__PURE__ */ (0, $.jsx)("a", {
-					href: "/settings/library?section=%E4%B8%8B%E8%BD%BD%E6%B8%A0%E9%81%93",
-					children: "下载渠道设置"
+				children: ["No download channel configured yet.", /* @__PURE__ */ (0, $.jsx)("a", {
+					href: "/settings/library?section=Download%20channels",
+					children: "Download channel settings"
 				})]
 			}) : null,
 			v.data && !v.data.available ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "neutral",
-				children: "云下载只在允许修改数据库的设备上可用。"
+				children: "Cloud download is only available on devices allowed to modify the database."
 			}) : null,
 			h && !_.length ? /* @__PURE__ */ (0, $.jsx)(ee, {
 				size: "compact",
 				icon: ot,
-				title: n ? "没有符合条件的作品" : "还没有想要的作品",
+				title: n ? "No matching videos" : "No wanted videos yet",
 				actions: n && r ? /* @__PURE__ */ (0, $.jsx)(c, {
 					size: "small",
 					onClick: r,
-					children: "清除搜索"
+					children: "Clear the search"
 				}) : !n && !e ? /* @__PURE__ */ (0, $.jsx)(E, {
-					target: "input[aria-label=\"番号\"]",
-					children: "添加作品"
+					target: "input[aria-label=\"code\"]",
+					children: "Add videos"
 				}) : void 0,
-				children: n ? "试试其他番号、女优或标题。" : "输入番号，添加想看的作品。"
+				children: n ? "Try another code, performer or title." : "Enter a code to add a video to watch."
 			}) : null,
 			F.map(([n, r]) => {
 				let i = _.filter((e) => e.phase === n);
@@ -363,7 +363,7 @@ function Lt({ items: t, close: n, readOnly: r, receipt: i }) {
 				children: [
 					/* @__PURE__ */ (0, $.jsx)("span", {
 						"data-copy-key": "jav.resources.title",
-						children: "查找所选资源"
+						children: "Find resources for the selection"
 					}),
 					" · ",
 					t?.length || 0,
@@ -373,14 +373,14 @@ function Lt({ items: t, close: n, readOnly: r, receipt: i }) {
 				iconOnly: !0,
 				variant: "ghost",
 				leadingIcon: ce,
-				"aria-label": "关闭批量资源查找",
+				"aria-label": "Close bulk resource search",
 				onClick: n
 			})]
 		}), /* @__PURE__ */ (0, $.jsxs)("div", {
 			className: "flex min-w-0 flex-col gap-6 p-5",
 			children: [a.error ? /* @__PURE__ */ (0, $.jsxs)(P, {
 				tone: "error",
-				children: ["下载配置未取得：", K(a.error)]
+				children: ["'Download configuration not obtained:'", K(a.error)]
 			}) : null, t?.map((e) => /* @__PURE__ */ (0, $.jsxs)("section", {
 				"aria-label": e.code,
 				className: "flex min-w-0 flex-col gap-2",
@@ -477,7 +477,7 @@ function Ut({ children: e, readOnly: t, receipt: n }) {
 					try {
 						await xe({ code: n.code }, e);
 					} catch (e) {
-						throw Error(`已加入 ${t} 部；${n.code} 未完成：${K(e)}`);
+						throw Error(`Added ${t}; ${n.code} unfinished: ${K(e)}`);
 					}
 					e.throwIfAborted(), t++, s((e) => {
 						let t = new Map(e);
@@ -488,7 +488,7 @@ function Ut({ children: e, readOnly: t, receipt: n }) {
 			} finally {
 				q();
 			}
-		}, (e) => n(`已加入想要 ${e} 部`));
+		}, (e) => n(`Added ${e} to Wanted`));
 	};
 	return /* @__PURE__ */ (0, $.jsxs)(Bt.Provider, {
 		value: {
@@ -510,8 +510,8 @@ function Ut({ children: e, readOnly: t, receipt: n }) {
 			}),
 			/* @__PURE__ */ (0, $.jsxs)(H, {
 				visible: i,
-				count: `已选 ${o.size} 部`,
-				label: "作品批量操作",
+				count: `${o.size} selected`,
+				label: "Bulk work actions",
 				children: [
 					m.error ? /* @__PURE__ */ (0, $.jsx)("p", {
 						role: "alert",
@@ -525,7 +525,7 @@ function Ut({ children: e, readOnly: t, receipt: n }) {
 						onClick: b,
 						children: /* @__PURE__ */ (0, $.jsx)("span", {
 							"data-copy-key": `jav.selection.page.${g.all ? "clear" : "all"}`,
-							children: g.all ? "取消本页" : "全选本页"
+							children: g.all ? "Deselect this page" : "Select this page"
 						})
 					}),
 					/* @__PURE__ */ (0, $.jsx)(c, {
@@ -534,20 +534,20 @@ function Ut({ children: e, readOnly: t, receipt: n }) {
 						disabled: t || !S.length,
 						...G(m.busy === "want"),
 						onClick: C,
-						children: "加入想要"
+						children: "Add to Wanted"
 					}),
 					/* @__PURE__ */ (0, $.jsx)(c, {
 						size: "small",
 						variant: "secondary",
 						disabled: !o.size || !!m.busy,
 						onClick: () => f([...o.values()]),
-						children: "查找资源"
+						children: "Find resources"
 					}),
 					/* @__PURE__ */ (0, $.jsx)(c, {
 						size: "small",
 						variant: "ghost",
 						onClick: y,
-						children: "取消选择"
+						children: "Clear selection"
 					})
 				]
 			}),
@@ -572,7 +572,7 @@ function Wt({ item: e }) {
 			"data-media-avatar": "",
 			style: r,
 			href: He("performer", t.name, t.id),
-			"aria-label": `打开女优页：${Be("performer", t.name, t.id)}`,
+			"aria-label": `Open performer page: ${Be("performer", t.name, t.id)}`,
 			...i
 		}, t.name) : /* @__PURE__ */ (0, $.jsx)("span", {
 			"data-media-avatar": "",
@@ -599,12 +599,12 @@ function qt({ item: e, readOnly: t }) {
 	let a = e.cover_state;
 	if (!a) return /* @__PURE__ */ (0, $.jsx)("span", {
 		"data-media-nopic": "",
-		children: "无封面"
+		children: "No cover"
 	});
 	if (a === "fetching" || Ne.has(e.code)) return /* @__PURE__ */ (0, $.jsx)("span", { dangerouslySetInnerHTML: { __html: Pe() } });
 	let o = () => {
 		n.run("cover", (t) => Ge(e.code, t), (t) => {
-			t.has_cover ? Me(e.code, t) : i(t.message || "没有找到可用的官方封面");
+			t.has_cover ? Me(e.code, t) : i(t.message || "No usable official cover found");
 		});
 	}, s = r || n.error ? "missing" : a, l = n.error || r || e.cover_reason;
 	return /* @__PURE__ */ (0, $.jsxs)("div", {
@@ -646,7 +646,7 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 		children: [
 			v ? /* @__PURE__ */ (0, $.jsx)("a", {
 				href: y,
-				"aria-label": `查看 ${e.code} 详情`,
+				"aria-label": `View ${e.code} details`,
 				onClick: (e) => {
 					e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0 || (e.preventDefault(), i(y));
 				},
@@ -673,7 +673,7 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 			m?.mode ? /* @__PURE__ */ (0, $.jsx)("button", {
 				type: "button",
 				"data-media-check": "",
-				"aria-label": `选择 ${e.code}`,
+				"aria-label": `Select ${e.code}`,
 				"aria-pressed": !!h,
 				children: /* @__PURE__ */ (0, $.jsx)("svg", {
 					viewBox: "0 0 24 24",
@@ -689,14 +689,14 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 						/* @__PURE__ */ (0, $.jsxs)("h3", {
 							"data-jav-title": "",
 							"data-media-title": "",
-							title: `${e.code} · ${e.title || "标题未取得"}`,
+							title: `${e.code} · ${e.title || "Title unavailable"}`,
 							children: [
 								/* @__PURE__ */ (0, $.jsx)("b", { children: e.code }),
 								" ",
 								e.title ? /* @__PURE__ */ (0, $.jsx)("span", {
 									lang: Ct(e.title),
 									children: e.title
-								}) : "标题未取得"
+								}) : "Title not fetched"
 							]
 						}),
 						/* @__PURE__ */ (0, $.jsxs)("div", {
@@ -723,9 +723,9 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 								(e.performer_refs?.length || 0) > 1 ? /* @__PURE__ */ (0, $.jsxs)("span", {
 									"data-media-who-more": "",
 									children: [
-										"等 ",
+										"and ",
 										e.performer_refs.length,
-										" 人"
+										" people"
 									]
 								}) : null,
 								e.release_date ? /* @__PURE__ */ (0, $.jsx)("span", {
@@ -768,14 +768,14 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 						variant: "secondary",
 						size: g ? "small" : "medium",
 						iconOnly: g,
-						"aria-label": "作品来源",
-						title: "作品来源",
+						"aria-label": "Work sources",
+						title: "Work sources",
 						leadingIcon: g ? ye : void 0,
 						trailingIcon: g ? void 0 : ye,
 						href: e.link,
 						target: "_blank",
 						rel: "noopener noreferrer",
-						children: g ? null : "作品来源"
+						children: g ? null : "Video sources"
 					}) : null,
 					/* @__PURE__ */ (0, $.jsx)(c, {
 						variant: "ghost",
@@ -783,13 +783,13 @@ function Jt({ item: e, layout: t, javImage: n, readOnly: r, navigate: i, tag: a,
 						disabled: r || e.wanted || !!e.asset_id,
 						...G(u),
 						onClick: d,
-						children: e.asset_id ? "已入库" : e.wanted ? "已想要" : "想要"
+						children: e.asset_id ? "In library" : e.wanted ? "Wanted" : "Want"
 					}),
 					/* @__PURE__ */ (0, $.jsx)(c, {
 						variant: "secondary",
 						size: g ? "small" : "medium",
 						onClick: f,
-						children: "查找资源"
+						children: "Find resources"
 					})
 				]
 			})
@@ -844,7 +844,7 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 								relayout: (e) => lt(e, "small")
 							}) : /* @__PURE__ */ (0, $.jsx)("span", {
 								title: t.cover_reason || void 0,
-								children: t.cover_state ? d[t.cover_state] : "无封面"
+								children: t.cover_state ? d[t.cover_state] : "No cover"
 							})
 						})
 					}), /* @__PURE__ */ (0, $.jsx)("span", {
@@ -852,8 +852,8 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 						children: /* @__PURE__ */ (0, $.jsxs)("button", {
 							type: "button",
 							"data-list-name": "",
-							title: `${t.code} · ${t.title || "标题未取得"}`,
-							"aria-label": `查看 ${t.code} 详情`,
+							title: `${t.code} · ${t.title || "Title unavailable"}`,
+							"aria-label": `View ${t.code} details`,
 							onClick: te(t),
 							children: [
 								/* @__PURE__ */ (0, $.jsx)("b", { children: t.code }),
@@ -861,7 +861,7 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 								t.title ? /* @__PURE__ */ (0, $.jsx)("span", {
 									lang: Ct(t.title),
 									children: t.title
-								}) : "标题未取得"
+								}) : "Title not fetched"
 							]
 						})
 					})]
@@ -882,9 +882,9 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 					(t.performer_refs?.length || 0) > 1 ? /* @__PURE__ */ (0, $.jsxs)("span", {
 						"data-media-who-more": "",
 						children: [
-							"等 ",
+							"and ",
 							t.performer_refs.length,
-							" 人"
+							" people"
 						]
 					}) : null
 				]
@@ -918,12 +918,12 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 					disabled: h || t.wanted || !!t.asset_id,
 					...G(y(t)),
 					onClick: () => b(t),
-					children: t.wanted ? "已想要" : "想要"
+					children: t.wanted ? "Wanted" : "Want"
 				}), /* @__PURE__ */ (0, $.jsx)(c, {
 					size: "small",
 					variant: "secondary",
 					onClick: () => x(t),
-					children: "查找资源"
+					children: "Find resources"
 				})]
 			});
 		}
@@ -935,19 +935,19 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 		children: [/* @__PURE__ */ (0, $.jsx)("div", {
 			className: "flex flex-wrap justify-end gap-2",
 			role: "toolbar",
-			"aria-label": "新作列表工具栏",
+			"aria-label": "New work list toolbar",
 			children: /* @__PURE__ */ (0, $.jsx)("div", {
 				"data-toolbar-actions": "",
 				children: /* @__PURE__ */ (0, $.jsx)(ge, {
 					preferences: C,
-					label: "新作列表"
+					label: "New work list"
 				})
 			})
 		}), /* @__PURE__ */ (0, $.jsx)(w, {
 			follow: !0,
 			preferences: C,
 			children: /* @__PURE__ */ (0, $.jsxs)(he, {
-				"aria-label": "新作列表",
+				"aria-label": "New work list",
 				size: "sm",
 				sortDescriptor: E ? {
 					column: E,
@@ -961,10 +961,10 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 					S?.mode ? /* @__PURE__ */ (0, $.jsx)(n, {
 						id: "selection",
 						width: 44,
-						"aria-label": "选择作品",
+						"aria-label": "Select works",
 						children: /* @__PURE__ */ (0, $.jsx)(p, {
 							slot: null,
-							"aria-label": "全选本页作品",
+							"aria-label": "Select all videos on this page",
 							isSelected: S.all,
 							isIndeterminate: S.mixed,
 							isDisabled: o || !e.length,
@@ -990,13 +990,13 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 					}, e.id)),
 					/* @__PURE__ */ (0, $.jsx)(n, {
 						id: "remaining-space",
-						"aria-label": "行空白区域",
+						"aria-label": "Row empty space",
 						"data-table-space": "",
 						width: C.spaceWidth,
 						minWidth: 0
 					})
 				] }), /* @__PURE__ */ (0, $.jsx)(t, {
-					renderEmptyState: () => "没有符合条件的新作",
+					renderEmptyState: () => "No new works match the filter",
 					children: o ? Array.from({ length: 6 }, (e, t) => /* @__PURE__ */ (0, $.jsxs)(r, {
 						id: `skeleton-${t}`,
 						"data-list-skeleton-row": "",
@@ -1013,7 +1013,7 @@ function Zt({ items: e, waiting: o, filters: l, studios: u, javImage: f, readOnl
 						children: [
 							S?.mode ? /* @__PURE__ */ (0, $.jsx)(i, { children: /* @__PURE__ */ (0, $.jsx)(p, {
 								slot: null,
-								"aria-label": `选择 ${e.code}`,
+								"aria-label": `Select ${e.code}`,
 								isSelected: S.selected.has(e.code),
 								onChange: () => S.toggle(e)
 							}) }) : null,
@@ -1039,7 +1039,7 @@ function en({ value: e }) {
 	let t = ct(e);
 	return /* @__PURE__ */ (0, $.jsx)("span", {
 		"data-jav-taste-score": "",
-		title: `口味 ${t.score}`,
+		title: `Taste ${t.score}`,
 		children: /* @__PURE__ */ (0, $.jsx)(h, {
 			color: t.color,
 			children: t.label
@@ -1182,7 +1182,7 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 	}, [I, F]);
 	let L = J(), R = (e) => {
 		L.run(String(e.id), (t) => xe({ code: e.code }, t), () => {
-			t("已加入想要"), q(), D.refetch();
+			t("Added to wants"), q(), D.refetch();
 		});
 	}, z = D.data;
 	Ht(z?.items || []);
@@ -1199,7 +1199,7 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 		H
 	]), /* @__PURE__ */ (0, $.jsxs)("section", {
 		ref: p,
-		"aria-label": "订阅新作",
+		"aria-label": "Subscribe to new releases",
 		"aria-busy": B || D.isFetching,
 		className: "flex min-w-0 scroll-mt-24 flex-col gap-4",
 		children: [
@@ -1214,12 +1214,12 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				children: [z.facets.performers.length ? /* @__PURE__ */ (0, $.jsx)("div", {
 					"data-catalog-tier": "performers",
 					role: "group",
-					"aria-label": "按女优筛选",
+					"aria-label": "Filter by performer",
 					children: z.facets.performers.map((e) => /* @__PURE__ */ (0, $.jsxs)("button", {
 						type: "button",
 						"data-tier-performer": "",
 						"aria-pressed": o.performer === e.name,
-						title: `${Be("performer", e.name, e.id)} · ${e.count} 部`,
+						title: `${Be("performer", e.name, e.id)} · ${e.count} titles`,
 						onClick: () => d("performer", e.name),
 						children: [/* @__PURE__ */ (0, $.jsx)("span", {
 							"data-tier-ring": "",
@@ -1232,12 +1232,12 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				}) : null, z.facets.studios.length ? /* @__PURE__ */ (0, $.jsx)("div", {
 					"data-catalog-tier": "studios",
 					role: "group",
-					"aria-label": "按厂牌筛选",
+					"aria-label": "Filter by studio",
 					children: z.facets.studios.map((e) => /* @__PURE__ */ (0, $.jsxs)("button", {
 						type: "button",
 						"data-tier-studio": "",
 						"aria-pressed": o.studio === e.name,
-						title: `${e.name} · ${e.count} 部`,
+						title: `${e.name} · ${e.count} works`,
 						onClick: () => d("studio", e.name),
 						children: [
 							/* @__PURE__ */ (0, $.jsx)(tn, { studio: e }),
@@ -1251,8 +1251,8 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				}) : null]
 			}) : null,
 			/* @__PURE__ */ (0, $.jsx)(te, {
-				label: "新作筛选",
-				topLabel: "新作标签",
+				label: "New work filter",
+				topLabel: "New work tag",
 				attrs: {
 					"data-filter-frame": "",
 					"data-jav-filter": "",
@@ -1285,11 +1285,11 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 							"data-skeleton": "count",
 							"aria-hidden": !0,
 							className: "relative inline-block h-3.5 w-37.5 rounded-md align-middle skeleton-sheen"
-						}) : V ? `${z?.total || 0} / ${z?.candidate_total || 0} 部` : `${z?.total || 0} 部`
+						}) : V ? `${z?.total || 0} / ${z?.candidate_total || 0} works` : `${z?.total || 0} works`
 					}),
 					V ? /* @__PURE__ */ (0, $.jsx)(ie, {
 						onPress: h,
-						children: "清除筛选"
+						children: "Clear filters"
 					}) : null,
 					/* @__PURE__ */ (0, $.jsxs)("span", {
 						"data-entity-sorts": "",
@@ -1299,7 +1299,7 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 								busy: o.sort === "random" && D.isFetching
 							}),
 							T === "cards" ? /* @__PURE__ */ (0, $.jsx)(de, {
-								label: "JAV 卡片版式",
+								label: "JAV card layout",
 								value: w,
 								options: oe,
 								onChange: xt
@@ -1321,44 +1321,44 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 			}),
 			B && T === "cards" ? /* @__PURE__ */ (0, $.jsx)("div", {
 				role: "status",
-				"aria-label": "正在读取新作",
+				"aria-label": "Loading new works",
 				dangerouslySetInnerHTML: { __html: $e("discover", w) }
 			}) : null,
 			D.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
-				title: "新作未取得",
+				title: "New work unavailable",
 				children: K(D.error)
 			}) : null,
 			M && j ? /* @__PURE__ */ (0, $.jsx)("div", {
 				"data-jav-metadata": "",
 				className: "min-w-0",
 				children: /* @__PURE__ */ (0, $.jsx)(_e, {
-					label: `正在读取作品资料 · ${j.completed} / ${j.total} 部`,
+					label: `Reading video details · ${j.completed} / ${j.total}`,
 					value: j.completed,
 					total: j.total
 				})
 			}) : null,
 			e ? null : /* @__PURE__ */ (0, $.jsx)(_, {
-				scope: "本页",
+				scope: "This page",
 				fetchOne: nn,
 				codes: (z?.items || []).filter((e) => e.cover_state === "queued" && !e.cover_url).map((e) => e.code),
 				settled: (e, n) => {
-					t(e === n ? `已取到 ${n} 部封面` : `已取到 ${e} / ${n} 部封面，没取到的在卡上写了原因`), D.refetch();
+					t(e === n ? `Fetched ${n} covers` : `Fetched ${e} / ${n} covers; the misses have their reasons on the card`), D.refetch();
 				}
 			}),
 			!B && !D.error && !z?.items.length ? /* @__PURE__ */ (0, $.jsx)(ee, {
 				icon: u,
-				title: V ? "没有符合条件的新作" : "暂无未入库的新作",
+				title: V ? "No new works match the filter" : "No new works not yet indexed",
 				actions: V ? /* @__PURE__ */ (0, $.jsx)(c, {
 					size: "small",
 					onClick: h,
-					children: "清除筛选"
+					children: "Clear filters"
 				}) : /* @__PURE__ */ (0, $.jsx)(l, {
 					size: "small",
 					href: "/subscriptions?tab=add",
-					children: "添加订阅"
+					children: "Add subscription"
 				}),
-				children: V ? "清除筛选后查看全部新作。" : "订阅女优或厂牌后，还没入库的新作会出现在这里。"
+				children: V ? "Clear the filter to view all new works." : "After following a performer or studio, new works not yet indexed appear here."
 			}) : null,
 			L.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
@@ -1396,15 +1396,15 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				}, t.id))
 			}),
 			z ? /* @__PURE__ */ (0, $.jsx)(C, {
-				label: "新作",
+				label: "New releases",
 				total: z.total,
 				pagination: {
 					pageIndex: o.page - 1,
 					pageSize: o.size
 				},
 				onChange: m,
-				unit: "部作品",
-				pageUnit: "部",
+				unit: "videos",
+				pageUnit: "videos",
 				pageSizes: le
 			}) : null
 		]
@@ -1412,9 +1412,9 @@ function rn({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 }
 // src/react/jav/jav-page.tsx
 var an = bt("x"), on = bt("refresh-cw"), sn = {
-	releases: "筛选新作",
-	discover: "筛选推荐",
-	wants: "筛选想要"
+	releases: "Filter new works",
+	discover: "Filter recommendations",
+	wants: "Filter wants"
 };
 function cn({ tab: e, readOnly: t, navigate: n, receipt: r }) {
 	let [i, a] = (0, Q.useState)(null), [o, s] = (0, Q.useState)(() => new URLSearchParams(location.search).get("q") || ""), c = (e) => {
@@ -1431,7 +1431,7 @@ function cn({ tab: e, readOnly: t, navigate: n, receipt: r }) {
 					navigate: n,
 					find: () => a({}),
 					search: /* @__PURE__ */ (0, $.jsx)(O, {
-						label: sn[e] || "筛选",
+						label: sn[e] || "Filters",
 						value: o,
 						onQuery: c
 					})
@@ -1536,13 +1536,13 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 	].join(" ").toLocaleLowerCase().includes(r.toLocaleLowerCase()))), W = M.isPending;
 	return Ht(U), /* @__PURE__ */ (0, $.jsxs)("section", {
 		ref: E,
-		"aria-label": "为你推荐",
+		"aria-label": "Recommended for you",
 		"aria-busy": W,
 		className: "flex min-w-0 flex-col gap-4",
 		children: [
 			/* @__PURE__ */ (0, $.jsx)(te, {
-				label: "发现筛选与排序",
-				topLabel: "发现范围与标签",
+				label: "Discover filters and sorting",
+				topLabel: "Discover scope and tags",
 				attrs: {
 					"data-filter-frame": "",
 					"data-jav-filter": "",
@@ -1555,7 +1555,7 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 					"data-catalog-scroll": "",
 					children: [/* @__PURE__ */ (0, $.jsxs)("div", {
 						"data-catalog-views": "",
-						children: [[["external", "库外发现"], ["library", "馆藏探索"]].map(([e, t]) => /* @__PURE__ */ (0, $.jsx)(re, {
+						children: [[["external", "Out-of-library discoveries"], ["library", "Library explore"]].map(([e, t]) => /* @__PURE__ */ (0, $.jsx)(re, {
 							"data-entity-tag": e,
 							"data-entity-press": "",
 							pressed: s === e,
@@ -1589,14 +1589,14 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 							"data-skeleton": "count",
 							"aria-hidden": !0,
 							className: "relative inline-block h-3.5 w-37.5 rounded-md align-middle skeleton-sheen"
-						}) : `${U.length} 部`
+						}) : `${U.length} videos`
 					}),
 					/* @__PURE__ */ (0, $.jsx)(j, { currentHref: () => location.pathname + location.search }),
 					r || d ? /* @__PURE__ */ (0, $.jsx)(ie, {
 						onPress: () => {
 							S(""), a();
 						},
-						children: "清除筛选"
+						children: "Clear filters"
 					}) : null,
 					/* @__PURE__ */ (0, $.jsxs)("span", {
 						"data-entity-sorts": "",
@@ -1604,7 +1604,7 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 							s === "external" ? /* @__PURE__ */ (0, $.jsx)(ne, {
 								"data-entity-batch": "",
 								"data-jav-metadata-update": "",
-								label: I?.status === "running" ? "停止读取" : "更新资料",
+								label: I?.status === "running" ? "Stop reading" : "Update details",
 								disabled: W,
 								"data-skeleton-action": W ? "" : void 0,
 								busy: !!B.busy,
@@ -1612,7 +1612,7 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 								onPress: () => H(I?.status === "running" ? "stop" : "update")
 							}) : null,
 							/* @__PURE__ */ (0, $.jsx)(de, {
-								label: "JAV 卡片版式",
+								label: "JAV card layout",
 								value: O,
 								options: oe,
 								onChange: xt
@@ -1635,19 +1635,19 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 			}),
 			W ? /* @__PURE__ */ (0, $.jsx)("div", {
 				role: "status",
-				"aria-label": "正在读取推荐",
+				"aria-label": "Loading recommendations",
 				dangerouslySetInnerHTML: { __html: $e("discover", O) }
 			}) : null,
 			M.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
-				title: "推荐未取得",
+				title: "Recommendations not fetched",
 				children: K(M.error)
 			}) : null,
 			s === "external" && I?.status === "running" ? /* @__PURE__ */ (0, $.jsx)("div", {
 				"data-jav-metadata": "",
 				className: "min-w-0",
 				children: /* @__PURE__ */ (0, $.jsx)(_e, {
-					label: `正在读取作品资料 · ${I.completed} / ${I.total} 部`,
+					label: `Reading video details · ${I.completed} / ${I.total}`,
 					value: I.completed,
 					total: I.total
 				})
@@ -1657,11 +1657,11 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				action: /* @__PURE__ */ (0, $.jsx)(c, {
 					variant: "secondary",
 					...G(B.busy === "retry"),
-					"aria-label": "立即重试读取作品资料",
+					"aria-label": "Retry reading video details now",
 					onClick: () => H("retry"),
-					children: "立即重试"
+					children: "Retry now"
 				}),
-				children: I.message || `作品资料 ${I.completed} / ${I.total} 部`
+				children: I.message || `Video profiles ${I.completed} / ${I.total} videos`
 			}) : null,
 			B.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
@@ -1669,12 +1669,12 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 			}) : null,
 			!W && !M.error && !U.length ? /* @__PURE__ */ (0, $.jsx)(ee, {
 				icon: T,
-				title: r || d ? "没有符合条件的推荐" : "暂无匹配口味的作品",
+				title: r || d ? "No matching recommendations" : "No videos matching your taste yet",
 				actions: /* @__PURE__ */ (0, $.jsxs)($.Fragment, { children: [/* @__PURE__ */ (0, $.jsx)(l, {
 					size: "small",
 					href: "/taste",
 					variant: "secondary",
-					children: "查看口味"
+					children: "View taste"
 				}), r || d ? /* @__PURE__ */ (0, $.jsx)(c, {
 					variant: "primary",
 					size: "small",
@@ -1684,19 +1684,19 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 							tag: ""
 						});
 					},
-					children: "清除筛选"
+					children: "Clear filters"
 				}) : s === "library" ? /* @__PURE__ */ (0, $.jsx)(l, {
 					variant: "primary",
 					size: "small",
 					href: "/",
-					children: "浏览馆藏"
+					children: "Browse library"
 				}) : /* @__PURE__ */ (0, $.jsx)(c, {
 					variant: "primary",
 					size: "small",
 					onClick: () => n({}),
-					children: "查找作品"
+					children: "Find videos"
 				})] }),
-				children: r || d ? "清除筛选后查看其他作品。" : s === "library" ? "观看或标记作品后，可以探索少看的馆藏。" : "可以查找番号，或更新关注来源。"
+				children: r || d ? "Clear filters to see other videos." : s === "library" ? "After watching or marking videos, you can explore rarely watched parts of the library." : "You can search codes, or refresh follow sources."
 			}) : null,
 			z.error ? /* @__PURE__ */ (0, $.jsx)(P, {
 				tone: "error",
@@ -1709,9 +1709,9 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 				children: U.map((r) => {
 					let a = ct(r.taste_score ?? r.score), o = [
 						a.label,
-						`口味 ${ze(r.taste_score ?? r.score)}`,
-						M.data?.ranking_method === "mmr" && r.ranking_score != null ? `排序 ${ze(r.ranking_score)}` : "",
-						r.source_score == null ? "" : `来源评分 ${r.source_score.toFixed(1)} / 5`,
+						`Taste ${ze(r.taste_score ?? r.score)}`,
+						M.data?.ranking_method === "mmr" && r.ranking_score != null ? `Ranking ${ze(r.ranking_score)}` : "",
+						r.source_score == null ? "" : `Source rating ${r.source_score.toFixed(1)} / 5`,
 						...r.reasons || []
 					].filter(Boolean).join(" · ");
 					return /* @__PURE__ */ (0, $.jsx)(Jt, {
@@ -1725,7 +1725,7 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 						wanting: z.busy === String(r.id),
 						onWant: () => {
 							z.run(String(r.id), (e) => xe({ code: r.code }, e), () => {
-								t("已加入想要"), q(), M.refetch();
+								t("Added to wants"), q(), M.refetch();
 							});
 						},
 						onResource: () => n(Gt(r)),
@@ -1733,7 +1733,7 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 							"data-jav-taste-score": "",
 							type: "button",
 							title: o,
-							"aria-label": `推荐分 ${a.score}，${a.label}`,
+							"aria-label": `Recommendation score ${a.score}, ${a.label}`,
 							className: "rounded-md outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
 							children: /* @__PURE__ */ (0, $.jsx)(h, {
 								color: a.color,
@@ -1748,4 +1748,4 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 }
 export { cn as JavPage };
 
-//# debugId=f84c196f-7d78-4e46-8fe9-18071f993a4c
+//# debugId=7549f6ef-1720-482f-b1dd-2ee29850e999

@@ -1,21 +1,28 @@
-/* 索引五页与资料页的路由元素（ADR-0031「索引页与资料页同样由路由树按匹配打开」）：页面组匹配到
- * `INDEX_ROUTES` 或 `ENTITY_ROUTES` 时挂上，从地址读出这一页是谁、带什么参数，再按地址打开那一页。
+/* The route elements of the five index pages and the profile page (ADR-0031, "index and profile pages likewise open by route
+ * tree match"): mounts when the page group matches `INDEX_ROUTES` or `ENTITY_ROUTES`, reads from the address who this page is
+ * and with what parameters, then opens that page by address.
  *
- * 元素自己什么都不画：页面经 `openManagedRoute` 登记进 `#index`，由 `ManagedSurface` 画。打开前先报
- * `surfaceChanged` 让壳收起别的面、铺开首页那一侧，再铺骨架，首屏取齐那一刻骨架与整页一起换掉。
+ * The element renders nothing itself: pages register into `#index` via `openManagedRoute` and are rendered by
+ * `ManagedSurface`. Before opening it first reports `surfaceChanged` so the shell tears down other surfaces and spreads the
+ * home side open, then lays the skeleton; the moment the first screen is fetched, skeleton and full page swap together.
  *
- * 什么时候打开：
- * - 索引元素按页面打开序号（`useOpenEpoch()`）挂 key：后退前进与不认领的跳转各领一个代次，就重挂、按地址重开；
- *   页内写地址（过滤词、页签）由壳认领，代次不变，不重挂。
- * - 资料页元素按种类与名字挂 key：换一位就重挂；同一位领了新代次（后退前进到另一份筛选）只把地址上的新筛选
- *   推给画着的那一页，那一页没画着才整页重开。
- * - 壳要求按当前地址从头重开（`@peach/shell` 的 `pageOpens` 加一：批量写回之后、点开的正是画着的那一位）时，
- *   两种元素都整页重开。`pageOpens` 还是 0 时壳没开始路由，元素只挂着。
- * - 挂上或领代次那一刻这一页被详情压着（页面组按背景匹配）：不重开。关掉详情时这一页要是没开过、下面也没画着
- *   （后退落到压在别处之上的详情才挂上），按地址整页打开；画着就不动。
+ * When they open:
+ * - Index elements key by page-open epoch (`useOpenEpoch()`): back/forward and unclaimed jumps each take a generation, so they
+ *   remount and reopen by address; in-page address writes (filter words, tabs) are claimed by the shell, generation unchanged,
+ *   no remount.
+ * - Profile page elements key by kind and name: a different person remounts; the same person taking a new generation
+ *   (back/forward to a different filter state) only pushes the new filters from the address to the rendered page, and the whole
+ *   page reopens only if that page is not rendered.
+ * - When the shell asks for a full reopen at the current address (`pageOpens` +1 in `@peach/shell`: after a batch write-back,
+ *   or the opened person is the one already rendered), both element kinds reopen fully. While `pageOpens` is still 0 the shell
+ *   has not started routing and the element only mounts.
+ * - If details are stacked on this page at mount or epoch time (the page group matches on background): no reopen. When details
+ *   close, if this page was never opened and nothing is rendered underneath (back/forward landed on details stacked over
+ *   something else, mounted already covered), open the whole page by address; if rendered, leave it alone.
  *
- * 打开排进微任务：路由根在历史变化的同一次调用里同步提交，打开时收起上一页与画首帧都要同步提交，在提交阶段里
- * 做会出 flushSync 告警。壳订阅历史早于路由根，它写标题与侧栏的那一轮排在前面。 */
+ * Opening queues into microtasks: the router root commits synchronously in the same call as the history change, and tearing
+ * down the previous page and rendering the first frame must also commit synchronously; doing it in the commit phase triggers
+ * flushSync warnings. The shell subscribes to history before the router root, so its title and sidebar round runs first. */
 import { useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router';
 import { pageNavigationReady, rememberPageState, restoredPageState, restoringPage } from '../../../history/page-navigation';
@@ -37,20 +44,20 @@ const readOpens = () => pageOpens;
 const readSelectMode = () => selectMode;
 const indexHost = () => document.getElementById('index');
 
-/** `usePageOpen` 的两个可选判断。`shown()`：这一页此刻画着没有，没开过的元素在详情关掉时据此决定要不要打开。
- *  `onCovered()`：挂上或领代次那一刻被详情压着时调一次。 */
+/** `usePageOpen`'s two optional judgments. `shown()`: whether this page is painted right now, by which never-opened elements decide whether to open when details close.
+ *  `onCovered()`: called once when mounted or when taking a generation while covered by details. */
 export interface PageOpenOptions {
   readonly shown?: () => boolean;
   readonly onCovered?: () => void;
 }
 
-/** 这一格什么时候按地址打开。`run(fresh, live)`：`fresh` 为真是整页打开（挂上、壳要求重开），为假是同一个
- *  元素领了新代次；`live()` 在元素卸下或又开了一次之后回 false。关注页与播放列表页的元素也用它。 */
+/** When this cell opens by address. `run(fresh, live)`: `fresh` true is a whole-page open (mounted, or the shell requests a reopen), false is the same
+ *  element receiving a new generation; `live()` returns false after the element unmounts or opens again. The follows page and playlist page elements use it too. */
 export function usePageOpen(
   epoch: number, run: (fresh: boolean, live: () => boolean) => void, options: PageOpenOptions = {},
 ): void {
   const opens = useSyncExternalStore(subscribeShell, readOpens);
-  /* 每次导航都重渲染一次，详情压上来、撤下去都看得见。页面组给的是背景那一份地址，压没压着看真实地址。 */
+  /* Re-renders on every navigation, so details stacking on and coming off are both visible. The page group supplies the background address; whether something is stacked on is read from the real address. */
   useLocation();
   const covered = isOverlayPath(peachHistory.navigation.location.pathname);
   const seen = useRef({ mounted: true, epoch: -1, opens: -1, run: 0, opened: false });
@@ -66,7 +73,7 @@ export function usePageOpen(
     queueMicrotask(() => {
       const mark = seen.current;
       if (!mark.mounted) return;
-      /* 读这一刻的 `pageOpens`：壳写地址挂上这一格、紧接着要求重开时，两边合成一次打开。 */
+      /* Read `pageOpens` at this moment: when the shell writes the address and mounts this cell and then immediately asks for a reopen, the two merge into one open. */
       const stale = mark.epoch !== epoch || mark.opens !== pageOpens;
       let fresh = mark.opens !== pageOpens;
       mark.epoch = epoch;
@@ -89,7 +96,7 @@ export function usePageOpen(
   }, [epoch, opens, covered]);
 }
 
-/* ── 索引 ── */
+/* ── Index ── */
 
 async function openIndex(actions: ShellActions, kind: IndexPageKind, search: string, live: () => boolean) {
   const host = indexHost();
@@ -103,8 +110,8 @@ async function openIndex(actions: ShellActions, kind: IndexPageKind, search: str
     paintIndexSkeleton(host, params, layout);
     void pageNavigationReady(live, host, { pending: true });
   }
-  /* 页内换档、存版式、退出选择、头像与去处都在 `ShellActions` 里，跟着打开走的只有地址上那四项与此刻的版式、
-     选择键和配置权限。 */
+  /* In-page tier switching, saving layout, exiting selection, avatar, and destination all live in `ShellActions`; what travels with the open is only those four address items plus the current layout,
+     selection key, and configuration permission. */
   const painted = await openManagedRoute(path,
     { ...params, layout, selectMode, configurable: !!actions.configurable?.() }, {
       container: host, isCurrent: live, reuse,
@@ -115,7 +122,7 @@ async function openIndex(actions: ShellActions, kind: IndexPageKind, search: str
   }
 }
 
-/* `#index` 里画着、露着的是这一页索引。 */
+/* What is drawn and shown inside `#index` is this page's index. */
 function indexShown(path: string): boolean {
   const host = indexHost();
   const entry = host ? managedEntry(host) : null;
@@ -132,7 +139,7 @@ function IndexOpen({ epoch }: { epoch: number }) {
   return null;
 }
 
-/** 索引五页共用的元素。选择键归壳：开关一变就推给画着的标签页，页面关掉时随之清空所选。 */
+/** Elements shared by the five index pages. Selection keys belong to the shell: the moment a toggle changes it is pushed to the painted tab, and closing a page clears its selection. */
 export function IndexMatch() {
   const epoch = useOpenEpoch();
   const on = useSyncExternalStore(subscribeShell, readSelectMode);
@@ -145,9 +152,9 @@ export function IndexMatch() {
   return <IndexOpen key={epoch} epoch={epoch} />;
 }
 
-/* ── 资料 ── */
+/* ── Profile ── */
 
-/** 地址上的这一位：先整段解码再按段切开（名字里的斜杠吃掉剩下全部段，空段不算），同壳的 `matchPath`。 */
+/** This piece of the URL: decode the whole thing first, then split by segment (a slash inside a name swallows every remaining segment, empty segments do not count), same as the shell's `matchPath`. */
 export function entityTarget(pathname: string): { segment: string; kind: string; name: string } | null {
   let path: string;
   try { path = decodeURIComponent(pathname) } catch { return null }
@@ -157,8 +164,8 @@ export function entityTarget(pathname: string): { segment: string; kind: string;
   return kind && name ? { segment, kind, name } : null;
 }
 
-/* 卡片的助手与动作就是目录那一份，名册一格的取图同索引页，照片墙多一样：灯箱里定位本地图片的源文件。按壳交进来的
-   那一组记一份，每次打开交出去的是同一个对象。 */
+/* The cards' helpers and actions are the catalog's own, roster cells fetch images like the index page, and the photo wall adds one thing: locating the source file of a local image in the lightbox. One copy is kept per
+   set the shell hands in, and every open hands out the same object. */
 const cards = new WeakMap<ShellActions, EntityPageProps['card']>();
 function entityCard(actions: ShellActions): EntityPageProps['card'] {
   let card = cards.get(actions);
@@ -172,7 +179,7 @@ function entityCard(actions: ShellActions): EntityPageProps['card'] {
   return card;
 }
 
-/* `#index` 里画着的是资料页。 */
+/* What is drawn inside `#index` is the profile page. */
 function entityShown(): boolean {
   const host = indexHost();
   const entry = host ? managedEntry(host) : null;
@@ -195,7 +202,7 @@ async function openEntity(
   const reserveFeed = !!host.querySelector('.feednew');
   frame.innerHTML = `<div data-entity-hero><div class="peach-react"></div></div>
     <div data-entity-filter><div class="peach-react"></div></div>
-    <section class="feednew" data-feed-new aria-label="未入库的新作" ${reserveFeed ? 'aria-busy="true"' : 'hidden'}></section>
+    <section class="feednew" data-feed-new aria-label="New releases not in library" ${reserveFeed ? 'aria-busy="true"' : 'hidden'}></section>
     <div data-entity-body><div class="peach-react"></div></div>`;
   const parts = [...frame.content.childNodes];
   const hero = frame.content.querySelector('[data-entity-hero]')!;
@@ -206,7 +213,7 @@ async function openEntity(
   };
   const open = { ...shell.props(kind, name, search), ...restoredPageState<Pick<EntityPageProps, 'seed' | 'revision' | 'jav'>>('entity') };
   rememberPageState('entity', { seed: open.seed, revision: open.revision, jav: open.jav });
-  /* 这一页是不是 JAV 语境由页面按第一页作品推出来，写回壳的状态：壳的排序项、侧栏取数与卡片版式都读它。 */
+  /* Whether this page is in JAV context is inferred by the page from the first page of videos and written back into the shell's state: the shell's sort options, the sidebar fetch, and the card layouts all read it. */
   const props: EntityPageProps = {
     ...open, hosts, card: entityCard(actions), resolvedEntity, restoreNavigation: restoringPage(),
     actions: { ...open.actions, javContext: (on) => { writeShell({ entityJavLayout: !!on }) } },
@@ -267,7 +274,7 @@ function EntityOpen({ target }: { target: { segment: string; kind: string; name:
   return null;
 }
 
-/** 资料页五个模式共用的元素：按种类与名字挂 key，同一位换筛选不重挂。 */
+/** Elements shared by the profile page's five modes: keyed by kind and name, so the same person does not remount when filters change. */
 export function EntityMatch() {
   const target = entityTarget(useLocation().pathname);
   return target ? <EntityOpen key={JSON.stringify([target.kind, target.name])} target={target} /> : null;

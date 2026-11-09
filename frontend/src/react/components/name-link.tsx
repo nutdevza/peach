@@ -1,5 +1,5 @@
-/* 列表里指向作品的文件名或标题：沿用所在文字的颜色，中等字重，悬停才出下划线。
- * 名称是内容而不是操作，所以不用蓝色的 LinkButton；数据管理的问题清单和任务卡共用这一种写法。 */
+/* A filename or title in a list that points to a work: inherits the color of the surrounding text, medium weight, underline only on hover.
+ * A name is content, not an action, so no blue LinkButton; the data-management issue list and the task card share this treatment. */
 import type { AnchorHTMLAttributes } from 'react';
 import { cx } from '@/utils/cx';
 

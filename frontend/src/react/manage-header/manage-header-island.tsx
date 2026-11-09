@@ -1,15 +1,17 @@
-/* 管理区页头（ADR-0031 第 11g 步）：管理条、面包屑、页面标题与回收站说明行。
+/* Management header (ADR-0031 step 11g): the manage bar, breadcrumbs, page title and the trash explainer row.
  *
- * 常驻组件 `manage-header`（`router/managed-routes.tsx` 的常驻表）：路由树把它画进壳常驻的
- * `[data-manage-header]`（`display: contents`，四块直接落在 `main` 的流里），宿主就是那个节点本身。壳启动时
- * 先同步在宿主里写一份同结构的骨架（`manageHeaderSkeletonHtml`）；打开这一面时 `place` 清掉骨架，路由树在
- * 同一个任务里画出首帧。首帧还没有 props，画成空，壳拿到句柄就把手上那份推进来。之后壳只经
- * `configureManageHeader` 给的句柄推 props：句柄写本模块的 store 再 `flushSync` 通知，返回时已经画好——壳紧接着
- * 就读 `[data-manage-title]` 做标题揭示。换页、换读数都落在同一个组件上，导航选中态随地址同步，
- * 回收站读数原地换字。
+ * Resident component `manage-header` (the resident table in `router/managed-routes.tsx`): the route tree renders it into the
+ * shell's resident `[data-manage-header]` (`display: contents`, the four pieces land directly in `main`'s flow), the host
+ * being that node itself. At shell startup it synchronously writes a same-structure skeleton into the host
+ * (`manageHeaderSkeletonHtml`); when this surface opens, `place` clears the skeleton and the route tree renders the first frame
+ * in the same task. The first frame has no props yet and renders empty; once the shell has the handle it pushes the props it
+ * holds. After that the shell only pushes props through the handle `configureManageHeader` provides: the handle writes this
+ * module's store and notifies via `flushSync`, so the render is done when it returns and the shell immediately reads
+ * `[data-manage-title]` for the title reveal. Page changes and readout changes land on the same component; the nav selection
+ * follows the address in sync, and the trash readout swaps its text in place.
  *
- * 宿主不包 `.peach-react`：这一块一直在 Preflight 之外，按钮与字号继承的是遗留层的全局规则，样式全在
- * `manage-header.css`，不用工具类。 */
+ * The host is not wrapped in `.peach-react`: this block has always been outside Preflight, buttons and font sizes inherit the
+ * legacy layer's global rules, all styles live in `manage-header.css`, no utility classes. */
 import { useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type MouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 
@@ -38,20 +40,20 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/* 这一面抛错、被错误边界卸掉之后没人订阅，推进来的只写进 store，不画、不抛。 */
+/* After this surface throws and is unmounted by the error boundary nobody subscribes: pushed updates only land in the store, unpainted and unthrown. */
 const api: ManageHeaderApi = {
   render(next) { props = next; flushSync(notify) },
 };
 
-/** 接上壳给的宿主，拿回页头的命令式入口。只调一次；壳的 `loadManageHeader` 接着在路由树里打开这一面，
- *  画上之后才交出句柄，壳随即把手上那份 props 推进来。 */
+/** Attach the host the shell provides and get back the manage header's imperative handle. Called once; the shell's `loadManageHeader` then opens this surface in the router tree,
+ *  hands over the handle once it is rendered, and the shell immediately pushes in the props it holds. */
 export function configureManageHeader(next: ManageHeaderHost): ManageHeaderApi {
   host = next;
   props = null;
   return api;
 }
 
-/** 常驻表里的那一面：读本模块的 store，宿主还没接上或壳还没推 props 时不画。 */
+/** The panel registered in the persistent table: it reads this module's store and paints nothing while the host is not yet wired up or the shell has not pushed props. */
 export function ManageHeaderSurface() {
   const current = useSyncExternalStore(subscribe, () => props);
   return host && current ? <ManageHeader host={host} props={current} /> : null;
@@ -70,7 +72,7 @@ function ManageHeader({ host: at, props: current }: { host: ManageHeaderHost; pr
   );
 }
 
-/** 管理导航使用中性填充选中态；切换后把当前项滚入可见区域。 */
+/** Admin navigation uses a neutral filled selected state; after switching, scroll the current item into view. */
 function ManageBar({ host: at, pressed: key, menu }: Pick<ManageHeaderProps, 'menu'> & { host: ManageHeaderHost; pressed: string }) {
   const row = useRef<HTMLDivElement>(null);
   useSyncExternalStore(at.store.subscribe, at.store.version);
@@ -89,7 +91,7 @@ function ManageBar({ host: at, pressed: key, menu }: Pick<ManageHeaderProps, 'me
   }, [key, menu, order.join(",")]);
 
   return (
-    <nav data-manage-bar="" aria-label="管理">
+    <nav data-manage-bar="" aria-label="Manage">
       <PillTabList ref={row} data-manage-menu="" data-pill-nav="" data-reordering={reorder.picked ? '' : undefined}
         onClickCapture={reorder.clickCapture}>
         {items.map(([entry, label, glyph]) => {
@@ -113,15 +115,15 @@ function ManageBar({ host: at, pressed: key, menu }: Pick<ManageHeaderProps, 'me
         {reorder.hint ? <span data-manage-drop-line="" aria-hidden="true"
           style={{ '--manage-line-left': `${reorder.linePosition}px` } as CSSProperties}><span /></span> : null}
       </PillTabList>
-      <NavigationOrderMenu order={{ label: '管理顶部菜单', keys: order, defaults: MANAGE_MENU_SECTIONS, commit }} />
+      <NavigationOrderMenu order={{ label: 'Manage menu', keys: order, defaults: MANAGE_MENU_SECTIONS, commit }} />
       <span data-manage-order-status="" role="status" aria-live="polite">{reorder.announcement}</span>
     </nav>
   );
 }
 
-/* ── 面包屑 ──
-   Geist Breadcrumbs：上一级是链接、当前页是纯文本并带 `aria-current="true"`。href 留给新标签页与右键
-   菜单；普通左键走路由，整页重载会丢掉返回表面与已读位置。 */
+/* -- Breadcrumbs --
+   Geist Breadcrumbs: the parent is a link and the current page is plain text with `aria-current="true"`. href stays for new tabs and the context
+   menu; a normal left click goes through the router, since a full reload would lose the return surface and read position. */
 function Crumb({ host: at, label, parent }: { host: ManageHeaderHost; label: string; parent: ManageHeaderView['parent'] }) {
   const follow = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button) return;
@@ -129,7 +131,7 @@ function Crumb({ host: at, label, parent }: { host: ManageHeaderHost; label: str
     at.openPath(parent.href);
   };
   return (
-    <nav data-manage-crumb="" aria-label="当前位置">
+    <nav data-manage-crumb="" aria-label="Current location">
       <ol>
         <li><a href={parent.href} onClick={follow}>{parent.label}</a><Icon name="chevron-right" /></li>
         <li aria-current="true"><span>{label}</span></li>
@@ -138,10 +140,10 @@ function Crumb({ host: at, label, parent }: { host: ManageHeaderHost; label: str
   );
 }
 
-/* ── 回收站说明行 ──
-   读数到之前铺同形占位（左边一格读数、右端一颗键的尺寸），说明行从进页起就占着自己的高度。读数那一格
-   一直是同一个节点：每次重画说的是同一件事的新读数，字由 `swapText` 原地换，有起点可走。
-   「清空回收站」只在回收站里有东西时出现。 */
+/* -- Trash explainer row --
+   Lay the same-shaped placeholder (a count cell on the left, a key-sized slot on the right) before readings arrive, so the row occupies its height from page entry. The count cell
+   is always the same node: each repaint says the same thing with a new reading, text swapped in place by `swapText`, giving it a starting point.
+   "Empty trash" only appears when the trash has contents. */
 type Lede = Exclude<ManageHeaderView['lede'], { kind: 'none' }>;
 
 function TrashLede({ host: at, lede }: { host: ManageHeaderHost; lede: Lede }) {
@@ -153,8 +155,8 @@ function TrashLede({ host: at, lede }: { host: ManageHeaderHost; lede: Lede }) {
           <>
             <LedeText text={lede.text} />
             {lede.total ? (
-              <button type="button" data-empty-trash="" data-danger="" title="永久删除回收站内容"
-                onClick={() => at.emptyTrash()}>清空回收站</button>
+              <button type="button" data-empty-trash="" data-danger="" title="Permanently delete trash contents"
+                onClick={() => at.emptyTrash()}>Empty trash</button>
             ) : null}
           </>
         )}

@@ -1,10 +1,12 @@
-/* 粘在顶栏下沿的那条玻璃操作条：一个小标题后面一排胶囊键，或者上下两排的筛选浮层。
+/* The glass action bar stuck under the top bar: a small heading followed by a row of capsule keys, or a two-row filter
+ * overlay.
  *
- * 料（漂移的两团、斜光、内嵌边与落影）由 `web/board.css` 的 `[data-glass-pane]` 一处给，
- * 几何、饱和度与文字色在 `../styles.css` 的 `[data-filter-glass]`，高对比与减少透明度的回退
- * 也在那一条上。吸到顶栏下沿那一刻由 `use-stuck.ts` 标 `data-stuck`，影换成抬起来那一档。
- * 胶囊键取紧凑档（32px）、透明底、一圈 `--glass-low`，
- * 悬停换成 `--glass-rim` 边加 `--glass-pick-fill` 底——玻璃上的键不是 BoardUI 那种实心按钮。 */
+ * The material (the two drift blobs, slanted light, inset edge and drop shadow) is provided in one place by
+ * `[data-glass-pane]` in `web/board.css`; geometry, saturation and text color in `../styles.css`'s `[data-filter-glass]`,
+ * with high-contrast and reduced-transparency fallbacks on that same rule. The moment it sticks under the top bar,
+ * `use-stuck.ts` marks `data-stuck` and the shadow switches to the raised tier. Capsule keys take the compact tier (32px),
+ * transparent base, one `--glass-low` ring, switching on hover to a `--glass-rim` border over a `--glass-pick-fill` fill;
+ * keys on glass are not BoardUI's solid buttons. */
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { cx } from '@/utils/cx';
 import { IconButton, type IconButtonProps } from '@/components/base/buttons/icon-button';
@@ -16,9 +18,9 @@ import { useHorizontalScroller } from './use-horizontal-scroller';
 import './filter-glass.css';
 
 const BusyIcon = ({ className }: { className?: string }) => <span aria-hidden className={className}
-  dangerouslySetInnerHTML={{ __html: spinnerHtml('正在处理') }} />;
+  dangerouslySetInnerHTML={{ __html: spinnerHtml('Processing') }} />;
 
-/** 筛选栏动作使用紧凑档（`size="small"`，32px）和蓝色动作表面。 */
+/** Filter bar actions use the compact tier (`size="small"`, 32px) and the blue action surface. */
 export function FilterIconButton({ label, icon, busy = false, busyStyle = 'spinner', onPress, ...props }:
   Omit<IconButtonProps, 'aria-label' | 'size' | 'onClick'> & { label: string; busy?: boolean; busyStyle?: 'spinner' | 'strand'; onPress(): void }) {
   return <IconButton {...props} data-filter-action="" size="small" icon={busy && busyStyle === 'spinner' ? BusyIcon : icon}
@@ -39,16 +41,18 @@ export function FilterGlass({ title, children }: { title: string; children: Reac
   );
 }
 
-/** 两排的那一副：首页、标签页与实体页的筛选浮层。上排是一行横滚的筛选药丸，下排是读数和
- *  这一屏的视图控件。几何同壳的 `.board-filter-frame`：上排 48px 高、8px／12px 内边距，下排最矮
- *  46px、格间 12px。整块吸在顶栏下沿，粘住时仍是同一块玻璃。
+/** The two-row pair: the filter overlays of the home, tags and entity pages. The top row is a horizontally scrolling line of
+ *  filter pills; the bottom row is readouts and this screen's view controls. Geometry matches the shell's
+ *  `.board-filter-frame`: top row 48px tall with 8px/12px padding, bottom row minimum 46px with 12px between cells. The whole
+ *  block sticks under the top bar and remains the same pane of glass while stuck.
  *
- *  实体页那一副的几何差一点（上排格间 6px、下排最矮 48px），上排也不是整排一起滚——左端的
- *  媒体键钉住，只有里面那一格滚。这些由调用方在 `className`／`topClassName`／`bottomClassName`
- *  里改写，`cx` 合并时后写的赢。`panes` 是直接挂在浮层根上的那几块滑动玻璃
- *  （`use-view-glide.ts`），`attrs` 给根补壳要认的标记（窄屏让位认 `data-filter-frame`）。
- *  `busy` 标在下排上：读数在等这一趟取数，下排里认它的动效（换批键描线）跟着走。上排没有可放的
- *  东西时 `top` 给 `null`，整行不出，玻璃只剩下排。 */
+ *  The entity page's pair differs slightly (top row 6px between cells, bottom row minimum 48px), and the top row does not
+ *  scroll as a whole: the media keys at the left end are pinned and only the cell inside scrolls. Callers override these via
+ *  `className`/`topClassName`/`bottomClassName`, with the later write winning through `cx`. `panes` are the sliding glass panes
+ *  hung directly on the overlay root (`use-view-glide.ts`); `attrs` adds to the root the markers the shell recognizes
+ *  (narrow-screen yielding looks for `data-filter-frame`). `busy` marks the bottom row: the readouts are waiting on this
+ *  fetch, and motion in the bottom row that honors it (the shuffle key's stroke draw) runs along. When the top row has nothing
+ *  to show, `top` is `null`, the whole row is not emitted, and the glass is bottom row only. */
 export function FilterGlassRows(
   { label, topLabel, top, bottom, className, topClassName, bottomClassName, panes, attrs, busy, bottomRef }: {
     label: string;
@@ -88,8 +92,8 @@ export function FilterGlassRows(
   );
 }
 
-/* 浮层上的筛选药丸：8px 圆角、13px 字，未选中是一圈虚线 `--glass-low`，悬停转实线；选中的
- * 线与填充归调用方（标签类型药丸取自己的类型色，见 `../styles.css` 的 `[data-tag-pill]`）。 */
+/* Filter pills on the overlay: 8px radius, 13px text; unselected is a dashed `--glass-low` ring turning solid on hover; the selected
+ * line and fill belong to the caller (tag-type pills take their own type color; see `../styles.css`'s `[data-tag-pill]`). */
 const FILTER_PILL = 'flex h-8 flex-none cursor-pointer items-center gap-1.75 rounded-lg border border-dashed'
   + ' border-(--glass-low) bg-transparent px-2.5 text-body-2-regular leading-5 whitespace-nowrap text-inherit'
   + ' outline-none hover:border-solid focus-visible:ring-2 focus-visible:ring-border-focus-ring';
@@ -106,8 +110,8 @@ export function FilterPill(
   );
 }
 
-/* 浮层上的动作键：平时一圈 `--glass-low` 细线，悬停浮起一块首页那种提亮的玻璃（料在 `../styles.css`
- * 的 `[data-glass-pill]`）。只换填充的话，浅色下那一档白压在同样发白的浮层上分不出来。 */
+/* Action keys on the overlay: normally a thin `--glass-low` ring, hovering lifts a brightened glass like the home page's (material in `../styles.css`
+ * `[data-glass-pill]`). Swapping only the fill would not read on light theme, where that white tier sits on an already whitish overlay. */
 const PILL = 'h-8 cursor-pointer rounded-full border border-(--glass-low) bg-transparent px-3'
   + ' text-body-2-regular leading-none whitespace-nowrap text-inherit outline-none'
   + ' focus-visible:ring-2 focus-visible:ring-border-focus-ring'

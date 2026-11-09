@@ -1,8 +1,10 @@
-/* 资料页在线视图的取数与筛选（ADR-0096）：状态、来源、标签、排序与视频／图片，判定同关注页那一页。
+/* The profile page's online view fetching and filtering (ADR-0096): status, sources, tags, sort and videos/images, with
+ * criteria matching the follows page.
  *
- * 筛选只活在这一页里、不进地址栏：地址上的 `media=online` 只说「在看在线」。取数在资料页这一层，
- * 浮层（读数、两排控件）与正文那一格读同一份。来源与标签取 `author_facets`：全库口径的 `facets`
- * 摆到一位创作者页上会混进别人的。 */
+ * Filters live only on this page and stay out of the address bar: the address's `media=online` only says "viewing online".
+ * Fetching happens at the profile page layer, with the overlay (readout, two rows of controls) and the body's cell reading
+ * the same copy. Sources and tags fetch `author_facets`: the library-wide `facets` placed on one creator's page would mix in
+ * other people's. */
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { tagLabel } from '@peach/legacy/tags';
@@ -23,9 +25,9 @@ export function useEntityOnline(author: string, active: boolean, wall: {
   photoLayout: string; photoLayouts: readonly SegmentOption[]; imagesOnly: boolean; setImagesOnly(on: boolean): void;
 }) {
   const [view, setView] = useState<FollowView>(() => entityFollowView(author));
-  /* 换了一位创作者（同一个页面实例换名字）时筛选从头来。 */
+  /* Switching creators (renaming within the same page instance) restarts the filters from scratch. */
   if (view.author !== author) setView(entityFollowView(author));
-  /* 视频还是图片：没点过时按第一屏哪一档的组多定下来（只有图片的创作者进来就是照片墙），定了不再随筛选跳。 */
+  /* Video or image: never clicked, it settles by whichever tier has more groups on the first screen (a creator with only images opens straight to the photo wall), and once settled it does not flip with filters. */
   const [selection, setSelection] = useState<{ author: string; media: FollowMedia | '' }>({ author, media: '' });
   if (selection.author !== author) setSelection({ author, media: '' });
   const picked = selection.author === author ? selection.media : '';
@@ -95,9 +97,9 @@ export function useEntityOnline(author: string, active: boolean, wall: {
       patch({ status: '', provider: '', tags: [], durMin: 0, durMax: 0, work: '' });
       setSelection({ author, media: '' });
     },
-    /** 读数：这一档状态下的条目数，同关注页的口径（`counts` 随来源、标签筛选变）。 */
+    /** Readouts: the entry count under this watch state, same accounting as the follows page (`counts` changes with source and tag filters). */
     total: data ? total : null,
-    /** 正文那一格的键：换筛选换一份骨架。媒体不进键，换视频／图片不重取。 */
+    /** The body cell's key: changing filters brings a new skeleton. Media stays out of the key, so switching video / image does not refetch. */
     key: query.queryKey.join('\u0000'),
   };
 }

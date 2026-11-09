@@ -1,44 +1,46 @@
-/* 读数卡：一枚图标配一个名字、一个大数、一条脚注。
+/* The readout card: one icon with a name, one big number, one footnote.
  *
- * 旧 `.metricstrip>button` 与 `.tastesummary` 是同一张卡，统计页让它兼做页签、口味页只读。
- * 三段各有各的内边距，脚注贴着卡底、比卡面暗一点点，所以卡片自己不留内边距，
- * 由三段分别排（`padding:16px 0 0`、`0 16px`、`12px 16px 16px`、`10px 16px`）。
+ * The legacy `.metricstrip>button` and `.tastesummary` are the same card; the stats page makes it double as a tab and the
+ * taste page uses it read-only. The three sections each carry their own padding, the footnote hugs the card bottom and is a
+ * touch darker than the face, so the card keeps no padding of its own and the three sections lay it out
+ * (`padding:16px 0 0`, `0 16px`, `12px 16px 16px`, `10px 16px`).
  *
- * 图标底色按卡片在一排里的位次换，四张卡四个颜色；旧值是四个字面色，这里取图表色 token
- * 里最接近的四档（蓝、紫、绿、黄），差异登记在 `../boardui/ORIGIN.md`。 */
+ * The icon's base color follows the card's position in its row, four cards four colors; the old values were four flat fills,
+ * and here the four closest chart-color tokens are taken (blue, purple, green, yellow), differences registered in
+ * `../boardui/ORIGIN.md`. */
 import type { ReactNode } from 'react';
 
 import { cardClass, type CardOptions } from './card';
 import type { Glyph } from './sprite-glyph';
 
-/* 图标那个小方块居中用 flex 不用 grid：`grid` 与旧样式表同名，按 `../styles.css` 顶上的
- * `@source not inline(...)` 不生成这个工具类。 */
+/* The icon's small square is centered with flex, not grid: `grid` collides with a class name in the legacy stylesheet, and per the
+ * `@source not inline(...)` rule at the top of `../styles.css` that utility is not generated. */
 
-/** 一排四张卡的图标色。第五张起循环，旧样式表也只定到第四张。 */
+/** Icon colors for a row of four cards. It cycles from the fifth on, and the old stylesheet also stops at the fourth. */
 const ACCENT = ['text-chart-6', 'text-chart-5', 'text-chart-7', 'text-chart-8'];
 const ACCENT_TINT = ['bg-chart-6/10', 'bg-chart-5/10', 'bg-chart-7/10', 'bg-chart-8/10'];
 
-/** 读数卡的卡面。宿主可能是 `<div>` 也可能是 React Aria 的 `Tab`，所以只给类名。 */
+/** The count card's face. The host may be a `<div>` or a React Aria `Tab`, so only class names are given. */
 export function statCardClass(options: CardOptions = {}) {
   return `${cardClass({ ...options, padding: 'none' })} flex flex-col overflow-hidden pt-4 text-left`;
 }
 
-/** 一排读数卡：四张一排，窄屏折成两张一排。宿主可能是 `TabList`，所以类名也单独给一份。 */
+/** A row of stat cards: four per row, wrapping to two per row on narrow screens. The host may be a `TabList`, so the class names are also provided separately. */
 export const STAT_STRIP = 'inline-grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4';
 
-/** 一排六张读数卡：宽屏一排，中等宽度三张一排，窄屏两张一排。关注管理顶上那一排是四张关注
- *  读数加两张 JAV 订阅读数；放进四列那一档会折成四加二，后两张孤零零挂在第二行。 */
+/** A row of six readout cards: one row on wide screens, three per row at medium widths, two per row on narrow screens. The follows-management top row is four follow
+ *  readouts plus two JAV subscription readouts; in the four-column tier they would break into four plus two, leaving the last two stranded on a second row. */
 export const STAT_STRIP_SIX = 'inline-grid w-full grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-6';
 
-/** 净面读数卡的卡面：数据管理顶上那一排入口与资源同步的结果。和上面那一档不是同一张卡——
- *  旧 `.board-plain-stat` 没有脚注带、没有阴影，内边距落在卡片自己身上（16px，三段之间
- *  8px），图标块是一格白底，读数下面那行脚注是三级灰小字。 */
+/* The plain metric card's face: the data management top row's entry points and resource sync's results. Not the same card as the tier above;
+ *  the old `.board-plain-stat` has no footnote strip and no shadow, padding lives on the card itself (16px, 8px between the three segments),
+ *  the icon block is a white-background cell, and the footnote line under the reading is third-level gray small text. */
 export function plainStatClass({ interactive = false }: { interactive?: boolean } = {}) {
   return cardClass({ padding: 'none', radius: 'plain', interactive,
     className: 'flex min-h-33 flex-col gap-2 p-4 text-left' });
 }
 
-/** 一排五张净面读数卡：窄一档两张一排，手机上一张一排；数据管理首屏骨架用的也是这一串。 */
+/** A row of five clean reading cards: one step narrower gives two per row, on phone one per row; the data management first-screen skeleton uses this same set. */
 export const PLAIN_STAT_STRIP = 'inline-grid w-full grid-cols-5 gap-4 max-plain-stat-pair:grid-cols-2'
   + ' max-plain-stat-single:grid-cols-1';
 
@@ -82,11 +84,11 @@ export function StatCard(
         ) : null}
         <span className="min-w-0 truncate">{label}</span>
       </span>
-      {/* 窄屏两张一排时卡只有一百四十来像素，读数降一档字号；九位数再放不下就折行，不截掉开头几位。 */}
+      {/* On narrow screens with two cards per row the card is only around 140px, so stats drop one font tier; when nine digits no longer fit, wrap instead of truncating the leading digits. */}
       <b className="px-4 pt-3 pb-4 text-title-1-medium tabular-nums text-text-primary wrap-anywhere max-sm:px-3 max-sm:pb-3 max-sm:text-title-3-medium">
         {figure}
       </b>
-      {/* 脚注压在卡底：卡片被邻居撑高时空出来的那块留给读数上方，脚注不跟着飘。 */}
+      {/* The footnote is pinned to the card bottom: when a neighbor stretches the card taller, the freed space goes above the readout and the footnote does not drift. */}
       <small className="mt-auto block min-h-9.5 bg-card-footer px-4 py-2.5 text-caption-1-regular text-text-secondary max-sm:px-3 max-sm:py-2">
         {footer}
       </small>

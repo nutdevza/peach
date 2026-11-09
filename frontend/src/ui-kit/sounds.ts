@@ -1,32 +1,31 @@
-/* 界面音效：按钮、开关、菜单、弹层和操作回执各配一声轻响。
-
-   声音全部由 Web Audio 当场合成，不带音频文件，也不多一个网络请求。配方取自
-   dannyjpwilliams/ui-sound-design-skill 的 `references/sound-recipes.md`（MIT）：
-   点击是带通滤过的噪声、开关是一段正弦扫频、成功是升一个大三度、出错是压暗的下行
-   锯齿波、警告是中频的两下短脉冲、菜单是滤波噪声扫过、弹层是一记音高骤降的正弦。
-   音量按这个库的口径调到
-   配方给的下限附近：它们一天里要响几百次，只能是陪衬。
-
-   全站只开一个 AudioContext，而且要等到第一声真要响时才建：浏览器在用户手势之前
-   不让出声，页面一进来就建会被挂起，还多占一路系统音频。开关状态由 Application 的
-   `appSettings.uiSounds` 决定，通过 `setUiSoundsEnabled` 灌进来；关着时这里连
-   AudioContext 都不碰。
-
-   随主包发出，由共享源码直接引用：开关状态只能有一份，设置面板打开的
-   和菜单开合时响的是同一个。 */
+/* UI sounds: a soft blip each for buttons, switches, menus, overlays and action receipts.
+ *
+ * All sounds are synthesized on the spot by Web Audio, no audio files and no extra network request. The recipes come from
+ * dannyjpwilliams/ui-sound-design-skill's `references/sound-recipes.md` (MIT): click is band-passed noise, switch a sine
+ * sweep, success an ascending major third, error a darkened descending sawtooth, warning two short mid-frequency pulses,
+ * menu filtered noise sweeping past, and overlay a sine with a sudden pitch drop. Volume is tuned to near the recipes'
+ * stated floor by this library's own yardstick: they fire hundreds of times a day and must stay in the background.
+ *
+ * One AudioContext site-wide, created only when the first sound actually needs to play: browsers refuse sound before a user
+ * gesture, creating it on page load gets it suspended and costs an extra system audio channel. The switch state is decided by
+ * Application's `appSettings.uiSounds`, fed in through `setUiSoundsEnabled`; when off, this module never touches the
+ * AudioContext at all.
+ *
+ * Ships with the main bundle and is imported from shared source: the switch state must have one copy, so the panel that opens
+ * and the menu that toggles sound the same. */
 
 type Recipe = (ctx: AudioContext, now: number) => void;
 
 let audioContext:AudioContext|null=null;
 let enabled=false;
 
-/* 单例：`exponentialRampToValueAtTime` 不能落到 0，收尾一律 0.001，听不见但合法。
-   每个配方开头读一次 `currentTime`，之后全从它推——中途再读，节点就排到了过去。 */
+/* Singleton: `exponentialRampToValueAtTime` cannot land on 0, so finishes always use 0.001, inaudible but legal.
+   Each recipe reads `currentTime` once at the start and derives everything from it; reading again mid-way schedules nodes into the past. */
 function context(){
   const Context=globalThis.AudioContext||(globalThis as typeof globalThis & {webkitAudioContext?: typeof AudioContext}).webkitAudioContext;
   if(!Context)return null;
   if(!audioContext)audioContext=new Context();
-  /* 没有用户手势时 resume 会被拒：那一声本来就不该响，吞掉即可，别在控制台留一条未处理的拒绝。 */
+  /* resume gets rejected without a user gesture: that sound was never supposed to play anyway, so swallow it instead of leaving an unhandled rejection in the console. */
   if(audioContext.state==='suspended')audioContext.resume()?.catch?.(()=>{});
   return audioContext;
 }
@@ -64,8 +63,8 @@ function tone(ctx:AudioContext,now:number,{type='sine',from,to=from,duration,vol
 interface NoiseOptions {
   duration: number; volume: number; filter: {frequency: number; Q: number}; sweepTo?: number | null; attack?: number;
 }
-/* 噪声源是一次性的：每响一声造一段新缓冲，放完把整条链拆掉。振荡器 stop 之后会
-   自己断开，BufferSource 不会，滤波器和增益节点就一直挂在图上。 */
+/* The noise source is single-use: each sound builds a fresh buffer, and the whole chain is torn down after playback. An oscillator disconnects
+   itself after stop; a BufferSource does not, so the filter and gain nodes would stay hanging on the graph. */
 function noise(ctx:AudioContext,now:number,{duration,volume,filter,sweepTo=null,attack=0}:NoiseOptions){
   const length=Math.max(1,Math.round(ctx.sampleRate*duration));
   const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
@@ -91,30 +90,30 @@ function noise(ctx:AudioContext,now:number,{duration,volume,filter,sweepTo=null,
   source.start(now);
 }
 
-/** 名字对应界面上的一类动作，不对应某个控件；同一类动作在哪一页都是同一声。 */
+/** The name maps to a class of action in the UI, not to a specific control; the same class of action announces the same way on every page. */
 const RECIPES:Record<string,Recipe>={
-  /* 软点击：配方的 Soft click 变体，再往低压一档音量。 */
+  /* Soft click: the recipe's Soft click variant, pressing the volume one tier lower again. */
   click:(ctx,now)=>noise(ctx,now,{duration:0.06,volume:0.12,filter:{frequency:1200,Q:1}}),
-  /* 开关：升是开、降是关，配方的 Minimal toggle 变体，两头音量一致。 */
+  /* The toggle: up is on, down is off, the recipe's Minimal toggle variant, with matching volume at both ends. */
   'toggle-on':(ctx,now)=>tone(ctx,now,{from:550,to:650,duration:0.08,volume:0.15}),
   'toggle-off':(ctx,now)=>tone(ctx,now,{from:650,to:550,duration:0.08,volume:0.15}),
-  /* 成功：C5 起升一个大三度，两个音之间留 80ms。 */
+  /* Success: start at C5 and rise a major third, with 80ms between the two notes. */
   success:(ctx,now)=>{
     tone(ctx,now,{from:523,duration:0.12,volume:0.18});
     tone(ctx,now,{from:523*1.25,duration:0.12,volume:0.18,start:0.2});
   },
-  /* 警告：中频三角波两下短脉冲，说的是「留意一下」，不带出错那种负面。 */
+  /* Warning: two short mid-frequency triangle-wave pulses; it means "pay attention", without the negativity of an error. */
   warning:(ctx,now)=>{
     tone(ctx,now,{type:'triangle',from:600,duration:0.08,volume:0.15});
     tone(ctx,now,{type:'triangle',from:600,duration:0.08,volume:0.15,start:0.16});
   },
-  /* 出错：锯齿波经低通压暗后下行，配方默认参数按音量下限取。 */
+  /* Error: a sawtooth darkened through a lowpass sweeps down, with the recipe's default parameters taken at the volume floor. */
   error:(ctx,now)=>tone(ctx,now,{type:'sawtooth',from:400,to:200,duration:0.25,volume:0.15,
     filter:{type:'lowpass',frequency:1500,Q:1}}),
-  /* 菜单与面板进场：配方的 Quick swipe 变体。 */
+  /* Menu and panel entrance: the recipe's Quick swipe variant. */
   whoosh:(ctx,now)=>noise(ctx,now,{duration:0.12,volume:0.08,attack:0.036,
     filter:{frequency:1000,Q:1},sweepTo:6000}),
-  /* 弹层进场：配方的 Light tap 变体。 */
+  /* Popover entrance: the recipe's Light tap variant. */
   pop:(ctx,now)=>tone(ctx,now,{from:1500,to:500,duration:0.04,volume:0.15}),
 };
 
@@ -123,10 +122,10 @@ export const UI_SOUNDS=Object.freeze(Object.keys(RECIPES));
 export function setUiSoundsEnabled(on:unknown):void{enabled=on===true}
 export function uiSoundsEnabled():boolean{return enabled}
 
-/** 响一声；关着、浏览器没有 Web Audio 时什么都不做并返回 false。没有这种音效就抛错。 */
+/** Play one sound; when muted or the browser has no Web Audio, do nothing and return false. Throws for an unknown sound. */
 export function playUiSound(name:string):boolean{
   const recipe=RECIPES[name];
-  if(!recipe)throw new Error(`没有「${name}」这种界面音效`);
+  if(!recipe)throw new Error(`There is no "${name}" interface sound`);
   if(!enabled)return false;
   const ctx=context();
   if(!ctx)return false;
@@ -134,9 +133,9 @@ export function playUiSound(name:string):boolean{
   return true;
 }
 
-/* 会响的控件按角色认，不按类名：React 子树的按钮和旧壳的按钮长得不一样，但都是
-   `button`。开关走 change 而不是 click：一次点击只该响一声，而且响的是开还是关要看
-   点完的状态。禁用中的（`disabled`、`aria-disabled`）不响——它没有发生任何事。 */
+/* Interactive controls are recognized by role, not class name: buttons in the React subtree and the old shell's buttons look different but are both
+   `button`. Switches go through change, not click: one click should fire once, and what fires depends on the post-click on/off state.
+   Disabled ones (`disabled`, `aria-disabled`) do not fire; nothing happened to them. */
 const CLICKABLE='button,[role="button"],[role="tab"],[role="menuitem"],[role="menuitemradio"],'
   +'[role="menuitemcheckbox"],[role="option"],summary,a[href]';
 const SWITCH='input[type="checkbox"][role="switch"]';
@@ -145,7 +144,7 @@ function inert(control:Element){
   return (control as HTMLButtonElement).disabled===true||control.getAttribute('aria-disabled')==='true';
 }
 
-/** 挂到 document 上：用捕获阶段，哪个页面在自己那层 stopPropagation 都拦不住这一声。 */
+/** Attached to document: it uses the capture phase, so no page's `stopPropagation` within its own layer can stop this event. */
 const soundRoots=new WeakSet<Document|Element>();
 export function wireUiSounds(root:Document|Element=document):void{
   if(soundRoots.has(root))return;

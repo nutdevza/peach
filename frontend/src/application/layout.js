@@ -1,4 +1,4 @@
-/* layout 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* layout domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { javCardPage } from '../jav-controls';
 import { DIRECT_MANAGE_NAV, MANAGE_MENU_SECTIONS, MANAGE_SECTIONS, NAV_CATALOG, OPTIONAL_SIDEBAR_ITEMS, SIDEBAR_ITEMS, getManageMenuSections } from './navigation-items';
 import { FOLLOW_INITIAL_RANGE_OPTIONS } from './initial-follow-ranges';
@@ -45,7 +45,7 @@ export function showManagementBody({manage=true,placeholder=''}={}){
   $('#count').textContent='';$('#loadSentinel').hidden=true;
   if(manage)buildManageBar();
   else{paintManageHeader('');syncNavigation()}
-  // 屏幕上已经是同一张骨架就不重画（`paintManagementPlaceholder`）。
+  // If the same skeleton is already on screen, do not repaint (`paintManagementPlaceholder`).
   if(placeholder)paintManagementPlaceholder($('#stats'),placeholder);
 }
 
@@ -58,17 +58,17 @@ export function enterManagementSurface(){
 
 export function showHomeSurfaces(){
   $('#javLibraryHeader').hidden=!isCatalogPath(location.pathname)||!javActive();
-  // 两个类都要清：只清 entity-open 会让从索引页回首页时顶栏一直空着，
-  // 而且下面那一行 style.display='' 恢复不了被 class 隐藏的元素。
+  // Both classes must be cleared: removing only entity-open leaves the top bar empty for good when going from the index page back home,
+  // Also, the style.display='' line below cannot restore elements hidden by a class.
   document.body.classList.remove('entity-open','index-open');
-  /* 索引页和资料页都由路由树画进 #index，两条路都先经过这里再铺骨架：直接盖掉的话，上一页的
-     React 子树就没人卸，留着一棵管着已经不在页面上的节点的根。这里只收 `#index` 那一页，管理区
-     `#stats` 那一页不动（资料页压在它上面时它藏着继续活）。 */
+  /* Both the index page and the profile page are rendered into #index by the route tree, and both paths pass through here before laying the skeleton: covering it outright would leave the previous page's
+     React subtree unmounted, keeping a root managing nodes no longer on the page. This only reclaims the `#index` page; the admin
+     `#stats` page is untouched (when the profile page covers it, it hides and stays alive). */
   releaseManagedRoute($('#index'));
   $('#stats').hidden=true;$('#index').hidden=true;
   if(!isFeedNewPath(location.pathname))$('#feedNew').hidden=true;
   $('#catalogFilter').style.display='';syncCatalogFilterScreen();
-  buildManageBar();paintListTitle();   // 放在最后：管理区要盖掉上面刚恢复的首页横条
+  buildManageBar();paintListTitle();   // Placed last: the admin area must cover the home banner restored just above
 }
 
 export function closeStats(){navigationState.route('/');showHomeSurfaces()}
@@ -92,7 +92,7 @@ export function openDrawer(v){const drawer=$('#drawer'),restore=!v&&drawer.conta
   drawer.inert=!v&&narrowShell();
   drawer.classList.toggle('open',v);$('#scrim').classList.toggle('on',v);
   document.body.classList.toggle('drawer-open',!!v);document.dispatchEvent(new Event('board:sidebar'));
-  $('#filterBtn').setAttribute('aria-expanded',String(!!v));$('#filterBtn').setAttribute('aria-controls','drawer');$('#filterBtn').setAttribute('aria-label',v?'收起侧栏':'展开侧栏');
+  $('#filterBtn').setAttribute('aria-expanded',String(!!v));$('#filterBtn').setAttribute('aria-controls','drawer');$('#filterBtn').setAttribute('aria-label',v?'Collapse the sidebar':'Expand the sidebar');
   if(restore)$('#filterBtn').focus();sessionStorage.setItem('board.sidebar',v?'open':'closed')}
 
 export function closeDrawerAfterNav(){if(narrowShell())openDrawer(false)}
@@ -173,14 +173,14 @@ export function manageSection(){
 export function buildManageBar(){
   const current=manageSection();
   probeConfigurable();
-  // 管理区是行政界面，不该顶着首页的人物/厂牌横条和标签筛选。
-  // 隐藏 tagbar 的同时同步 count 栏的吸顶偏移：它默认按「顶栏+筛选条」留位，
-  // 筛选条不在时那个偏移会留出一条 58px 的缝，滚动内容从缝里穿出来。
+  // Admin is an administrative surface and should not carry the home page's people/label strips or tag filters.
+  // While hiding the tagbar, sync the count bar's sticky offset: it reserves space for "top bar + filter bar" by default,
+  // Without the filter bar that offset leaves a 58px gap, and scrolling content shows through it.
   if(current)hideDiscoveryBars();
   $('#count').classList.toggle('no-tagbar',!!current);
-  syncNavigation();     // 顶层高亮跟随管理区；否则从首页进来时仍停在「首页」上
-  /* 回收站读数只在这一次进页里有效：离开回收站就忘掉，下次进来说明行先铺同形占位，
-     读数到了再落；同页重画（筛选、判完一批、翻页）沿用手上这份，不再铺占位。 */
+  syncNavigation();     // The top-level highlight follows the admin area; otherwise entering from the home page would leave it stuck on "Home"
+  /* The trash readout is valid only for this visit to the page: leaving trash forgets it, and on the next visit the explainer row lays the same-shaped placeholder first,
+     settling when the readout arrives; repaints within the same page (filters, finishing a batch, paging) keep the copy in hand and lay no placeholder. */
   if(current!=='trash')selectionState.trashCount=null;
   paintManageHeader(current);
 }
@@ -198,8 +198,8 @@ export function paintManageHeader(section=manageSection()){
     const html=manageHeaderSkeletonHtml(props);
     if(html!==layoutState.manageHeaderSkeleton){layoutState.manageHeaderSkeleton=html;layoutState.manageHeaderRoot().innerHTML=html}
   }
-  /* 换了页才揭示一遍。同一页里的每一次重画（筛选、判完一批、翻页）走的也是这里，
-     不比一下标题的话，页面标题会跟着每一次取数再飘一次。骨架阶段与路由树接手之后是同一处。 */
+  /* Reveal once per page change. Every repaint within the same page (filters, finishing a review batch, paging) also goes through here;
+     without comparing titles, the page title would wobble again on every fetch. The skeleton stage and after the router tree takes over share the same spot. */
   const label=manageHeaderView(props)?.title||'';
   if(label===layoutState.lastManagePageLabel)return;
   layoutState.lastManagePageLabel=label;
@@ -232,25 +232,25 @@ export function paintListTitle(){
   paintCatalogPageTitle(heading,state.q);
 }
 
-/* 首页标题跟着搜索词走：搜出来的这一屏是这个词的结果，不再是首页。清掉搜索词回到「首页」。 */
+/* The home page title follows the search term: this screen of search results is the term's results, no longer the home page. Clearing the search term returns to 'Home'. */
 export function paintCatalogPageTitle(heading,query){
   const title=heading?.querySelector('[data-page-title]');if(!title)return;
   const words=String(query||'').trim();
-  const next=words?`搜索结果：「${words}」`:'首页';
+  const next=words?`Search results: 「${words}」`:'Home';
   if(title.title===next||(!words&&title.textContent===next))return;
   if(!words){title.textContent=next;title.removeAttribute('title');return}
   const part=(text,full)=>{const span=document.createElement('span');span.textContent=text;if(full!==undefined)span.dataset.titleWords=full;return span};
-  title.replaceChildren(part('搜索结果：「'),part(words,words),part('」'));
+  title.replaceChildren(part('Search results: 「'),part(words,words),part('」'));
   title.title=next;
   fitTitleWords(title);
-  // 框宽变了由观察者重截；字体晚到时框不变、字变宽，等字体就绪再截一次。
+  // When the box width changes, the observer re-screenshots; if the font arrives late, the box doesn't change but the text widens, so wait for the font to be ready and screenshot again.
   titleWidth??=new ResizeObserver(entries=>entries.forEach(entry=>fitTitleWords(entry.target)));
   titleWidth.observe(title);
   void document.fonts?.ready.then(()=>fitTitleWords(title));
 }
 
-/* 长词只截搜索词那一段的末尾，省略号紧贴收尾的「」」。CSS 的末尾省略做不到：引号要在词外头，
-   词那一格截断后剩下的空白会留在省略号和引号之间。按标题此刻的宽度二分出放得下的最长前缀。 */
+/* A long word truncates only the tail of the search-term segment, with the ellipsis tight against the closing 「」」. CSS tail ellipsis cannot do this: the quote must sit outside the word,
+   and the leftover whitespace after the word cell is truncated lands between the ellipsis and the quote. Binary-search the longest prefix that fits within the title's current width. */
 let titleWidth=null;
 function fitTitleWords(title){
   const span=title.querySelector('[data-title-words]');if(!span||!title.clientWidth)return;
@@ -271,8 +271,8 @@ function fitTitleWords(title){
 export function openManage(section='stats'){
   const path=navigationState.routePathOf('section',section);
   if(path){navigationState.openRoutePath(path);return}
-  /* 认不出的 section 一律落到垃圾文件：统计页那颗「查看垃圾文件」传的就是 `ads`，
-     而垃圾文件是目录页的一个筛选态，没有自己的 section。 */
+  /* Unrecognized sections fall through to junk files: the statistics page's "View junk files" passes `ads`,
+     and junk files is a filter state of the catalog page, not a section of its own. */
   state.orient='';state.state='ads';notifyShell();navigationState.route(junkPath());
   showHomeSurfaces();syncNavigation();buildBars();
 }
@@ -305,7 +305,7 @@ export function setHomeLayout(value){
 export function setJavLayout(value){
   storeJavLayout(value);
   syncVideoLayoutSetting();
-  // 只重画卡片，不重新请求：版式是纯展示层的事。资料页保留已经载入的分页。
+  // Redraws the cards only, no new requests: layout is purely a presentation concern. The profile page keeps its loaded pages.
   repaintCatalogGrid();
 }
 
@@ -334,12 +334,12 @@ export async function reloadAfterWrite(){
 }
 
 export async function reloadCurrentSurface(){
-  // 资料页换一个代次，岛按地址上的筛选重取作品；照片与名册不受批量操作影响。
+  // The profile page advances an epoch and the island refetches videos by the address filters; photos and the roster are untouched by bulk operations.
   if(entityState.entityPageCurrent()&&!$('#index').hidden){pushEntityPage({revision:++entityState.entityPageRevision});return}
   const path=decodeURIComponent(location.pathname);
-  // 路由树按匹配打开的索引页与还没画上的资料页：要路由树按地址从头重开。
+  // The index page the route tree opened by match and the profile page it has not drawn yet: the route tree must reopen from the address from scratch.
   if(routeMetaOf(path)?.reload==='reopen'){writeShell({pageOpens:pageOpens+1});return}
-  // 关注页：路由树的关注元素推一个新代次，列表重取、不重挂。
+  // Follows page: the route tree's follows element pushes a new epoch, the list refetches and does not remount.
   if(path==='/follow'){writeShell({pageOpens:pageOpens+1});return}
   const hit=navigationState.routeMeta(path);
   if(hit?.route.reload){await hit.route.reload();return}
@@ -355,22 +355,22 @@ export function navOn(k){
     const current=manageSection();
     return !!current&&!preferencesState.appSettings.sidebarOrder.some(key=>layoutState.DIRECT_MANAGE_NAV[key]===current);
   }
-  // JAV 分区及馆藏 JAV 筛选共用导航状态；竖屏由内存里的筛选开关判定。
+  // The JAV section and the library's JAV filter share navigation state; portrait is decided by the in-memory filter toggle.
   if(k==='jav')return path==='/jav'||javActive();
-  if(k==='shorts')return state.orient==='竖屏';
-  // 首页只在真的停在首页列表上时亮：管理区、索引页、实体页都不算，
-  // 否则它会和当前所在的入口同时高亮。
-  if(k==='')return path==='/'&&!manageSection()&&!state.state&&!javActive()&&state.orient!=='竖屏';
-  // 目录页的四个筛选态共用一屏，竖屏是压在它们之上的另一层筛选。
-  if(STATE_ROUTES[k])return nav===k&&state.orient!=='竖屏';
+  if(k==='shorts')return state.orient==='Portrait';
+  // The home entry only lights up when actually sitting on the home list: admin, index pages and entity pages do not count,
+  // Otherwise it would highlight at the same time as the entry you are on.
+  if(k==='')return path==='/'&&!manageSection()&&!state.state&&!javActive()&&state.orient!=='Portrait';
+  // The catalog page's four filter states share one screen, and portrait is another filter layer stacked on top.
+  if(STATE_ROUTES[k])return nav===k&&state.orient!=='Portrait';
   if(nav)return nav===k;
-  return path==='/'&&state.state===k&&state.orient!=='竖屏';
+  return path==='/'&&state.state===k&&state.orient!=='Portrait';
 }
 
 export function navTo(k){
   const remembered=rememberedSidebarPath(k);
   if(remembered===location.pathname+location.search+location.hash)return;
-  // 当前项留在原位接收双击，换栏目才收起抽屉并短暂禁止悬停弹回。
+  // The current item stays in place to take a double-click; only switching sections collapses the drawer and briefly disables hover pop-back.
   closeDrawerAfterNav();
   if(remembered){
     navigationState.navigatePath(remembered);
@@ -380,10 +380,10 @@ export function navTo(k){
   if(k==='manage'){openManage();return}
   if(k==='jav'){navigationState.navigatePath('/jav');return}
   if(k===''){goHome();return}
-  // 有自己路径的入口（追更、播放列表、沉浸模式、索引页）按路由元数据的 `nav` 找路径进。
+  // Entries with their own addresses (update checking, playlist, immersive mode, index pages) find their path through the route metadata's `nav`.
   const path=STATE_ROUTES[k]?null:navigationState.routePathOf('nav',k);
   if(path){navigationState.openRoutePath(path);return}
-  if(k==='shorts'){state.orient='竖屏';state.state=''}else{state.orient='';state.state=k}
+  if(k==='shorts'){state.orient='Portrait';state.state=''}else{state.orient='';state.state=k}
   notifyShell();
   navigationState.route(homePath());
   syncNavigation();buildBars();
@@ -415,10 +415,10 @@ export function updateMobileFilterScroll(){
   for(const frame of frames){
     const free=frame===active&&layoutState.mobileFilterScroll.free;
     if(free)frame.style.setProperty('--filter-free-top',`${-frame.offsetHeight-12}px`);
-    /* 标记写成属性不写类：资料页那块浮层是 React 画的，className 归它管。 */
+    /* The flag is written as an attribute, not a class: the profile page's overlay is painted by React, which owns className. */
     if(free===frame.hasAttribute('data-filter-free'))continue;
-    /* `top` 一步到位，再用 translate 从量到的起点滑到落点：逐帧改 `top` 每一帧都要重排，滚动中主线程一忙
-       就一顿一顿，translate 走合成线程。起点量的是连着上一段滑动的实际位置，半路反向也接得上。 */
+    /* `top` lands in one step, then translate slides from the measured start to the landing: changing `top` per frame reflows every frame, and a busy main thread
+       during scrolling stutters, while translate runs on the compositor. The start measures the actual position continuing the previous slide, so a mid-way reversal still connects. */
     const from=frame.getBoundingClientRect().top;
     frame.getAnimations().forEach(a=>a.id==='filter-slide'&&a.cancel());
     frame.toggleAttribute('data-filter-free',free);
@@ -472,7 +472,7 @@ layoutState.settingsHost = ()=>({
   syncRemote:remote=>applySyncedSettings(remote,effect=>preferencesState.settingsEffects[effect]?.()),
   openConfiguration:()=>navigationState.navigatePath('/settings/library'),
   attached:()=>preferencesState.syncGlassOptics(),
-  /* 「这台电脑」那一格的判据：服务由托盘管、已完成配置、请求来自本机三条同时成立。 */
+  /* The criteria for the "this computer" cell: service managed by the tray, configuration completed, and the request coming from this machine, all three at once. */
   configurable:()=>api('/healthz')
     .then(runtime=>{writeShell({runtimeConfigurable:!!runtime.configurable});return runtimeConfigurable})
     .catch(()=>null),
@@ -493,8 +493,8 @@ applicationEffects.listen(window, 'scroll', ()=>{
   scheduleStickySurfaces();
   if(location.pathname==='/follow'&&followFeedLive())writeShell({followScrollY:scrollY});
   window.__scrolling=true;
-  // 滚动中挂起悬停预览：内容从鼠标下滑过会连续触发 mouseenter，
-  // 每次新建 video 并发 /stream，几十个并发直接把页面拖垮
+  // Hover previews are suspended while scrolling: content sliding under the mouse fires mouseenter continuously,
+  // Each playback creates a new video element and a /stream request; a few dozen concurrent ones bring the page down
   releaseHoverPreviews();
   clearTimeout(layoutState.scrollT); layoutState.scrollT=applicationEffects.delay(()=>{window.__scrolling=false},180);
 }, {passive:true});

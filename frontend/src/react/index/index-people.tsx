@@ -1,10 +1,11 @@
-/* 名册网格：艺人、创作者、厂牌、事务所、系列名册和在线来源创作者。
+/* The roster grid: performers, creators, labels, agencies, series rosters and online source creators.
  *
- * 一格人：圆框或竖幅头像、名字、一个读数。四种实体同一副版式、同一条取图链，区别只在
- * 格宽与读数口径。圆框里那段 HTML 由 `card-art` 的 `avatarInner` 拼（有图走图、没图退首字母、
- * 小图按原尺寸摆再糊一圈底），页面不重画一遍；原尺寸取图与补底规则在
- * `web/css/01-base.css` 的 `[data-person-ring]`，量图的是 `installCardArt` 挂在文档上的 `load` 监听。
- * 格底、头像框、首字与读数的配色在同目录的 `index-people.css`。 */
+ * One cell per person: a round frame or portrait avatar, a name, one readout. The four entity kinds share one layout and one
+ * image chain, differing only in cell width and readout basis. The round frame's HTML is assembled by `card-art`'s
+ * `avatarInner` (image when present, initial when not, small images placed at native size over a blurred underlay) and the
+ * page does not re-render it; native-size fetching and the underlay rule live in `web/css/01-base.css`'s `[data-person-ring]`,
+ * and measuring the image is the `load` listener `installCardArt` hangs on the document.
+ * Cell base, avatar frame, initial and readout colors live in the same directory's `index-people.css`. */
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Chip } from '@/components/base/badges/chip';
 import { entityDisplayName } from '../../core/entity-names';
@@ -15,10 +16,12 @@ import { spriteGlyph } from '../components/sprite-glyph';
 import type { OnlineAuthor } from '../follow/online-vocab';
 import { ENTITY_KINDS, isCompany, personReadout, type IndexKind, type IndexPerson, type IndexProps, type PeopleLayout } from './index-data';
 
-/* 平移挂在圆框上而不是 img 上：竖幅裁到 3:4 时几何居中会切掉脸，而 img 由遗留层拼，
-   只能从容器这一侧改。放大反过来只能挂在 img 上，所以脸框由 `avatarInner` 贴到 img 上。
-   放大是把 img 撑得比框还宽再负偏移，Preflight 给 img 的 `max-width:100%` 会把它压回框宽，
-   脸就被挤到一边，所以这里撤掉那一条；原尺寸摆的小图另由 `[data-native-small]` 收住。 */
+/* Panning hangs on the round frame, not the img: a portrait crop to 3:4 would cut the face if geometrically centered, and the
+   img is assembled by the legacy layer, so only the container side can change it. Zooming is the reverse and can only hang on
+   the img, so the face box is attached to the img by `avatarInner`.
+   Zooming stretches the img wider than the frame and offsets it negatively, and Preflight's `max-width:100%` on imgs would
+   clamp it back to frame width, pushing the face aside; so that rule is removed here. Small images placed at native size are
+   reined in separately by `[data-native-small]`. */
 function Ring({ html, face, company, big }: { html: string; face?: string; company: boolean; big: boolean }) {
   const ring = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
@@ -48,7 +51,7 @@ function Cell(
         className: `${CELL} ${big ? 'items-stretch text-left' : 'items-center text-center'}`,
       })}>
       {children}
-      {following ? <span data-index-feed="" role="img" aria-label="已订阅新作" className="index-feed-mark absolute top-4 right-4 z-2 inline-flex">
+      {following ? <span data-index-feed="" role="img" aria-label="Subscribed to new releases" className="index-feed-mark absolute top-4 right-4 z-2 inline-flex">
         <Chip variant="caption" color="soft"><Rss /></Chip>
       </span> : null}
       <span data-index-name="" className="text-body-medium wrap-anywhere text-text-primary">{name}</span>
@@ -57,7 +60,7 @@ function Cell(
   );
 }
 
-/** 本地名册。资料页的名册（事务所旗下艺人、片商旗下厂牌）摆的也是这一格，只借取图与去处两样。 */
+/** The local roster. The profile page's rosters (an agency's talents, a studio's labels) reuse this same cell, borrowing only the image fetching and the destinations. */
 export function PeopleGrid(
   { kind, items, layout, props }:
   {
@@ -85,9 +88,9 @@ export function PeopleGrid(
   );
 }
 
-/** 在线那一档：关注来源里的创作者。建过档的点开去他的创作者资料页；还没建档的名下那批东西
- *  全在关注页上，点开等于「关注 · 这个人」；数据库里有同名创作者、等用户认的，读数带「待确认」，
- *  点开去那位的资料页，认人的按钮在那里。`data-follow-author` 挂的是关注页那套创作者键。 */
+/** The online tier: creators from followed sources. Those with a profile open onto their creator profile page; those without have their whole batch
+ *  on the follows page, and opening equals "Follows · this person"; when the database has a same-named creator awaiting user confirmation, the count reads "pending",
+ *  and opening goes to that person's profile page, where the confirm button lives. `data-follow-author` carries the follows page's creator keys. */
 export function OnlineAuthors(
   { items, layout, props }: { items: OnlineAuthor[]; layout: PeopleLayout; props: IndexProps },
 ) {
@@ -97,7 +100,7 @@ export function OnlineAuthors(
     <div data-index-grid="" data-layout={layout} data-cells="people" className="index-grid-person gap-3">
       {items.map((author) => (
         <Cell key={author.key} data-follow-author={author.key} data-kind="performer" name={entityDisplayName('creator', author.k, author.entity_id)}
-          readout={`${author.n.toLocaleString()} 项更新${author.held_by ? ' · 待确认' : ''}`} big={big}
+          readout={`${author.n.toLocaleString()} updates${author.held_by ? ' · pending confirmation' : ''}`} big={big}
           onPress={() => {
             if (author.entity_id) props.openEntity('creator', author.k);
             else if (author.held_by) props.openEntity('creator', author.held_by);

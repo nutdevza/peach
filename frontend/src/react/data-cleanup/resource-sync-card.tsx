@@ -1,11 +1,13 @@
-/* 数据管理页上的「资源同步」：按馆藏记录逐条查找本地磁盘与网盘上的文件，列出文件已不在的
- * 记录、空文件夹和不再被引用的缓存，确认后一起清掉（ADR-0080）。失效记录分两档：带个人记录的
- * 标为已消失、记录留着（ADR-0087），其余永久删除、不进回收站，所以执行键是危险档，确认框写明
- * 哪一档不可撤销。
+/* "Resource sync" on the data management page: per library record, look up the file on local disks and cloud drives, list the
+ * records whose files are gone, empty folders and no-longer-referenced cache, and after confirmation clear them together
+ * (ADR-0080). Stale records come in two tiers: those with personal records are marked vanished and the record stays
+ * (ADR-0087), while the rest are permanently deleted and never enter trash, so the run key is the danger tier and the
+ * confirmation states which tier is irreversible.
  *
- * 扫描与清理是两趟后台任务，都走 `useBackgroundJob`。扫描的结论就是那趟任务的终态，所以
- * 结果区画的是当前快照：上一趟扫出来的东西还等着清。那一趟清过之后（`applied`）读数就不是
- * 现状了，结果区改画服务器留着的最近一次清理回执。 */
+ * Scan and cleanup are two background jobs, both through `useBackgroundJob`. The scan's conclusion is that job's terminal
+ * state, so the results area renders the current snapshot: what the last scan found is still waiting to be cleaned. Once
+ * that run has cleaned (`applied`), the readout is no longer the current state, and the results area switches to the most
+ * recent cleanup receipt the server kept. */
 import { confirmModal, MEDIA_SOURCE_ICONS } from '@peach/legacy/ui';
 import { fmtSize } from '@peach/legacy/core';
 
@@ -37,13 +39,13 @@ const AGAIN = spriteGlyph('rotate-cw');
 const DISCONNECTED = t('cleanup:shared.reconnecting');
 const APPLY_LABEL = t('cleanup:resourceSync.cleanUpDead');
 
-/* 结果读数两行各自按卡数等分：来源几个都不折出半行。窄了照顶上那排读数折两列、一列。 */
+/* The two result readout rows each split evenly by card count: no half-row wraps regardless of source count. When narrow they wrap like the top readout row, to two columns then one. */
 const RESULT_ROW = 'inline-grid w-full grid-flow-col auto-cols-fr gap-4 max-plain-stat-pair:grid-flow-row'
   + ' max-plain-stat-pair:grid-cols-2 max-plain-stat-single:grid-cols-1';
 
 const count = (value: number | undefined) => Number(value || 0).toLocaleString();
 
-/** 一趟扫描的结论：来源一行，每个来源一张读数卡；要清的三样一行。 */
+/** The result of one scan: a source row, one stat card per source, and one row for the three things to clean. */
 function ScanResult({ scan, partial = false }: { scan: ResourceScanState; partial?: boolean }) {
   const cache = scan.cache ?? { files: 0, bytes: 0 };
   return (
@@ -88,11 +90,11 @@ export function ResourceSyncCard(
     queryFn: ({ signal }) => fetchResourceApply(signal),
     start: startResourceApply,
     onFinish: (out) => {
-      /* 回收站里的失效记录也一并删了：顶上那张回收站读数跟着重取。检查那一份带上了 `applied`。 */
+      /* Stale records in the trash are deleted along with it: the trash stat card at the top refetches accordingly. The check request carries `applied`. */
       void queryClient.invalidateQueries({ queryKey: TRASH_KEY, exact: true });
       void queryClient.invalidateQueries({ queryKey: RESOURCE_SCAN_KEY, exact: true });
       if (out.status !== 'complete') return;
-      /* 没删的几样是这一轮留下的，能删的已经删了：报警告档、写完成与没处理的数目，不说失败。 */
+      /* What remains undeleted is what this round left behind; the deletable ones are gone: report the warning tier, write completion and the unprocessed count, and do not call it failure. */
       const { done, left } = applyLeftovers(out);
       if (left) toast(t('cleanup:resourceSync.applyLeftovers', { done: count(done), count: Number(left || 0) }), { warning: true });
       else toast(t('cleanup:resourceSync.cleaned'));
@@ -102,7 +104,7 @@ export function ResourceSyncCard(
     queryKey: RESOURCE_SCAN_KEY,
     queryFn: ({ signal }) => fetchResourceScan(signal),
     start: startResourceScan,
-    /* 又扫了一趟：上一趟清理的回执说的是旧清单。 */
+    /* Another scan ran: the previous cleanup's receipt describes the old list. */
     onStarted: () => apply.dismiss(),
   });
 
@@ -113,7 +115,7 @@ export function ResourceSyncCard(
   const scanned = state?.status === 'complete' || state?.status === 'failed';
   const label = scanning ? t('cleanup:resourceSync.scanning') : scanned ? t('cleanup:resourceSync.scanAgain') : t('cleanup:resourceSync.checkFiles');
 
-  /* 执行那一步只认这次检查的候选，逐条复核后再删；删了就没有撤销。 */
+  /* The execution step only accepts this check's candidates, each reviewed again before deleting; there is no undo after deletion. */
   const runApply = (payload: ResourceScanState) => void confirmModal({
     title: APPLY_LABEL,
     body: applyConfirmText(payload),

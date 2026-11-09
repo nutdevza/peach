@@ -1,12 +1,13 @@
-/* 裁剪封面：作品详情页标题旁那枚键点开的一屏。
+/* Crop cover: the screen opened by the key beside the video details page's title.
  *
- * 裁的是**取景框**，不是图片。横版封套里正封那一块本来就不是一张新图，而是一组
- * 写在 `<番号>.poster.json` 里的坐标（`src/peach/jav_poster_crop.py`），页面按它取景。
- * 所以这一屏确认之后封面原图一个字节都没动，「恢复默认」就是把那组坐标按折痕判据
- * 重算一遍——不是把图还原，图从来没变过。
+ * What is cropped is the **framing box**, not the image. In a landscape sleeve, the front-cover region is not a new image but
+ * a set of coordinates written in `<code>.poster.json` (`src/peach/jav_poster_crop.py`), which the page frames by. So after
+ * confirming on this screen, not one byte of the original cover changes, and "Restore default" recomputes that coordinate set
+ * by the fold criterion: not restoring the image, because the image never changed.
  *
- * 默认框满高贴右缘、按正封宽高比取宽：封套是「背面 | 书脊 | 正面」，人要改的多半
- * 只是折痕落在哪一列。比例可以解锁，因为版式不规整的封套确实存在。
+ * The default frame is full height pinned to the right edge, with width by the front cover's aspect ratio: a sleeve is
+ * "back | spine | front", and what people usually change is only which column the fold falls in. The ratio can be unlocked,
+ * because sleeves with irregular layouts do exist.
  */
 import { useState } from 'react';
 import { RiCloseLine } from '@remixicon/react';
@@ -30,8 +31,8 @@ import { CropFrame } from '../crop/crop-frame';
 import { busyProps } from '../settings/use-action';
 import { sendCoverCrop } from './cover-crop';
 
-/** 雪碧图里的 Lucide `crop`。这枚键和旧版工具条的定位、同步删除排在一行，那两枚是
- *  15px、线宽 2 的线条字形；Remix 那枚是填充轮廓，并排看笔画粗一圈。 */
+/** The Lucide `crop` in the sprite. This key sits in a row with the legacy toolbar's locate and sync-delete; those two are
+ *  15px stroke glyphs with 2px stroke width, while the Remix one is a filled outline and reads a stroke heavier side by side. */
 function CropIcon({ className }: { className: string }) {
   return (
     <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
@@ -46,13 +47,13 @@ export function CoverCrop({ code, coverUrl, box, onSaved }: CoverCropProps) {
   return (
     <>
       <button type="button" aria-haspopup="dialog" data-cover-crop
-        aria-label={`裁剪 ${code} 的封面`} title="裁剪封面：框出正封那一块"
+        aria-label={`Crop ${code}'s cover`} title="Crop cover: box the front cover area"
         onClick={() => setOpen(true)}
         className="flex size-7 cursor-pointer items-center justify-center rounded-lg text-foreground-icon-secondary outline-none transition-colors hover:bg-background-primary-hover hover:text-foreground-icon-primary focus-visible:ring-2 focus-visible:ring-border-focus-ring">
         <CropIcon className="size-3.75" />
       </button>
-      {/* 详情浮窗是顶层的原生 dialog，弹层由舞台统一挂进同一层（`stage.tsx`）。 */}
-      <ModalFrame isOpen={open} onOpenChange={setOpen} width="cover-crop" label="裁剪封面">
+      {/* The details overlay is a top-level native dialog, and popovers are mounted into that same layer by the stage (`stage.tsx`). */}
+      <ModalFrame isOpen={open} onOpenChange={setOpen} width="cover-crop" label="Crop the cover">
         <CropBody code={code} coverUrl={coverUrl} box={box} onSaved={onSaved}
           close={() => setOpen(false)} />
       </ModalFrame>
@@ -71,8 +72,8 @@ function CropBody({ code, coverUrl, box: saved, onSaved, close }: CoverCropProps
     onSuccess: (result) => { close(); onSaved(result.poster_box) },
   });
 
-  /* 进来时先摆在当前生效的那个框上：人要改的是「现在这样」，从头开始框等于先把
-     现状复原一遍。没有生效的框（这张封面判定为不该裁）才退回默认的满高贴右缘。 */
+  /* On entry it starts at the currently active box: what the person wants to change is "how it is now", and starting from scratch means first undoing the
+     current state. Only with no active box (this cover was judged not to need cropping) does it fall back to the default, full-height against the right edge. */
   function ready(next: CropSize) {
     setSize(next);
     const current = saved && saved.px?.[0] === next.width && saved.px?.[1] === next.height
@@ -87,17 +88,17 @@ function CropBody({ code, coverUrl, box: saved, onSaved, close }: CoverCropProps
       <div className="flex shrink-0 items-start gap-4 p-5">
         <ModalGlyph><CropIcon className="size-6" /></ModalGlyph>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <Heading slot="title" className="text-title-3-semibold text-text-primary">裁剪封面</Heading>
+          <Heading slot="title" className="text-title-3-semibold text-text-primary">Crop the cover</Heading>
           <p className="text-body-2-regular text-text-secondary">
-            {code}：框出正封那一块，封面原图不动。拖动方框移动，滚轮或角上那枚方块改大小。
+            {code}: Frames the actual cover block, the original cover image untouched. Drag the box to move it, use the wheel or the corner square to resize.
           </p>
           {submit.error ? <Note tone="error">{errorMessage(submit.error)}</Note> : null}
         </div>
-        <IconButton icon={RiCloseLine} size="small" aria-label="关闭" onClick={close} />
+        <IconButton icon={RiCloseLine} size="small" aria-label="Close" onClick={close} />
       </div>
       <div ref={frame} className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto border-t border-separator-border px-5 py-4">
         <CropFrame src={coverUrl} aspect={locked ? PANEL_ASPECT : null} box={box} size={size}
-          label={`${code} 的正封取景框`}
+          label={`${code}'s front-cover framing box`}
           onSize={(next) => { if (isUsableSize(next)) ready(next) }}
           onBox={setBox} />
       </div>
@@ -106,13 +107,13 @@ function CropBody({ code, coverUrl, box: saved, onSaved, close }: CoverCropProps
           setLocked(next);
           if (next && box && size) setBox(clampBox(box, size, PANEL_ASPECT));
         }}>
-          <span className="text-body-2-regular text-text-secondary">锁定正封比例</span>
+          <span className="text-body-2-regular text-text-secondary">Lock front-cover ratio</span>
         </Switch>
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
           <Button variant="secondary" {...busyProps(busy)}
-            onClick={() => { if (!busy) submit.mutate(null) }}>恢复默认</Button>
+            onClick={() => { if (!busy) submit.mutate(null) }}>Restore defaults</Button>
           <Button disabled={!box || !size} {...busyProps(busy)}
-            onClick={() => { if (box && !busy) submit.mutate(box) }}>用这一块</Button>
+            onClick={() => { if (box && !busy) submit.mutate(box) }}>Use this region</Button>
         </div>
       </div>
     </>

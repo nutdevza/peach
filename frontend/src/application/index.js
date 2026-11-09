@@ -1,7 +1,7 @@
 import { indexPath as pathForIndex, personAvatar as avatarForPerson, onlineAuthorRingHtml as avatarForOnline, createIndexController } from '../react/index/index-controller';
 import { followManageParams as manageParams, followManagePath as managePath, followManageEntry as manageEntry, FOLLOW_MANAGE_TABS } from '../react/follow-manage/manage-route';
 import { followView, adoptFollowView } from './follow.js';
-/* index 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* index domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { $, esc, leadingGraphemes } from '../core';
 import { faceBoxAttrs, facePos } from './../card-art/markup';
 import { followState } from './follow.js';
@@ -54,7 +54,7 @@ export function openFollowTagFromIndex(tag){indexState.controller.openFollowTag(
 export function installIndex16() {
 followState.FOLLOW_MANAGE_TABS = FOLLOW_MANAGE_TABS;
 applicationEffects.listen(document, 'click', event=>{
-  if(event.target.closest?.('[data-empty-settings]')){openConfigurationSection('媒体库与入库');return}
+  if(event.target.closest?.('[data-empty-settings]')){openConfigurationSection('Library and imports');return}
 });
 indexState.peopleIndexLayout = ()=>peopleLayoutOf(preferencesState.appSettings.peopleLayout);
 indexState.personAvatar = avatarForPerson;

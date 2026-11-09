@@ -1,9 +1,11 @@
-/* 实体资料页（路由树画进 `#index`，`managed-routes.tsx` 的 `ENTITY_ROUTES`）：资料卡、筛选浮层、新作那一行与正文，一棵根、四块宿主。
+/* The entity profile page (rendered by the route tree into `#index`, `ENTITY_ROUTES` in `managed-routes.tsx`): profile card,
+ * filter overlay, new-releases row and body, one root with four hosts.
  *
- * 资料卡画在壳交出的宿主里（`[data-entity-hero]` 那一格），浮层、新作与正文经 portal 画进壳排好的另外三块：浮层
- * 吸顶要它的父元素就是 `#index`，新作那一行是遗留层的卡片、不进 React 子树的样式范围，所以四块各
- * 守自己的宿主。页内状态都在这里：当前视图、名册还是作品、照片墙的种子与翻页；筛选与媒体视图读
- * 地址栏（壳推进来的 `filters`／`media`），改它们只调 `actions.route`。 */
+ * The profile card renders in the host the shell hands over (the `[data-entity-hero]` slot); the overlay, new releases and
+ * body portal into the other three the shell laid out: the overlay's stickiness needs its parent to be `#index` itself, and
+ * the new-releases row is a legacy-layer card outside the React subtree's style scope, so each of the four guards its own
+ * host. All in-page state lives here: current view, roster versus videos, the photo wall's seed and paging; filters and media
+ * view read the address bar (the shell's pushed `filters`/`media`), and changing them only calls `actions.route`. */
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,15 +43,15 @@ import { PENDING_REFETCH_MS } from '../components/pending-work';
 export function EntityPage(props: EntityPageProps) {
   const { kind, name } = props;
   const entity = useQuery(entityOptions(kind, name));
-  /* 名字对不上任何一位时 `/api/entity` 回 `{error}`：整块换成壳里那一屏空态，骨架不留着闪。空态是
-     遗留层的标记，不放进 React 子树的样式范围。 */
+  /* When the name matches no one, `/api/entity` returns `{error}`: swap the whole block for the shell's empty state instead of leaving a skeleton flickering. The empty state is
+     legacy-layer markup, kept outside the React subtree's style scope. */
   const missing = !!entity.data?.error;
   const canonical = entity.data?.canonical_name;
   const redirect = entity.data?.redirect ?? (canonical && canonical !== name ? { kind, name: canonical } : undefined);
   const { actions } = props;
   useLayoutEffect(() => { if (missing) actions.missing() }, [actions, missing]);
-  /* 换到规范资料页排到微任务里：壳换页会重排页头与选中态，那一路可能走到批量条的 `flushSync`，
-     提交阶段里它画不出来。这一代已卸下就不换。 */
+  /* Switching to the canonical profile page is queued in a microtask: the shell's page change relays out the page header and selection state, a path that may hit the bulk bar's `flushSync`,
+     which cannot render during the commit phase. If this generation has unmounted, skip the switch. */
   useLayoutEffect(() => {
     if (!redirect) return;
     let live = true;
@@ -61,7 +63,7 @@ export function EntityPage(props: EntityPageProps) {
   return <EntityLoaded {...props} entity={entity.data} />;
 }
 
-/** 键一变就加一的代次：作品网格与照片墙按它换键，骨架与续页都从头开始。 */
+/** An epoch that increments whenever the key changes: the video grid and the photo wall rekey by it, and skeleton and continuation pages both start over. */
 function useRevision(key: string): number {
   const [seen, setSeen] = useState({ key, n: 1 });
   if (seen.key === key) return seen.n;
@@ -72,37 +74,37 @@ function useRevision(key: string): number {
 
 const newSeed = () => String(((Date.now() ^ (Math.random() * 1e9 | 0)) >>> 0) % 99991);
 
-/** 照片一屏的读数：本地图片与样张各数各的；只有样张时不写「0 张」。 */
+/** The photo screen's readout: local images and samples counted separately; when only samples exist, no '0 images' is written. */
 function photoReadout(page: PhotoPage, codeSets: number) {
-  return `照片 · ${[
-    page.total || !codeSets ? `${(page.total || 0).toLocaleString()} 张` : '',
-    codeSets ? `样张 ${(page.sample_total || 0).toLocaleString()} 张 · ${codeSets.toLocaleString()} 部作品` : '',
+  return `Photos - ${[
+    page.total || !codeSets ? `${(page.total || 0).toLocaleString()} images` : '',
+    codeSets ? `stills ${(page.sample_total || 0).toLocaleString()} images · ${codeSets.toLocaleString()} videos` : '',
   ].filter(Boolean).join(' · ')}`;
 }
 
 function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
   const { kind, name, entity, filters, media, helpers, actions, hosts } = props;
   const company = kind === 'agency' || kind === 'studio';
-  /* 事务所名下的这批人不摆在资料卡底那排小圆头像里：那是「同台艺人」，一条附注；名册是这一页的
-     正文。片商页的名册是旗下 label，同台艺人那排照旧留在卡底。 */
+  /* The people under an agency do not go into the row of small round avatars at the bottom of the profile card: that row is "Co-performers", a side note; the roster is this page's
+     body. On a studio page the roster is the labels under it, and the co-performers row stays at the card bottom as usual. */
   const roster = kind === 'agency' ? (entity.related_performers || []) : kind === 'studio' ? (entity.labels || []) : [];
   const entityId = Number(entity.id) || 0;
 
-  /* ── 照片：整组那一份数出照片档有几张、出不出；墙读的是当前这一组（整组或一个图集）。 ── */
+  /* ── Photos: the whole-set copy counts how many photo files the set has and whether any render; the wall reads the current set (the whole set or one album). ── */
   const base = useInfiniteQuery(photosOptions(kind, name, 0, ''));
   const basePage = base.data?.pages[0];
   const basePhotos = basePage && !basePage.error ? basePage : null;
   const photoCount = basePhotos ? (basePhotos.total || 0) + (basePhotos.sample_total || 0) : 0;
   const photosAvailable = (basePhotos?.total || 0) > 0 || codeSetsOf(basePhotos).length > 0;
-  /* 关注里绑在这位名下的来源（ADR-0096）：有就多一个在线视图。本地一部视频都没有时作品视图是空的，
-     视频键不出，进页就落在在线。 */
+  /* Sources bound to this person in follows (ADR-0096): when present there is an extra online view. With no local videos at all, the video view is empty,
+     the video button does not appear, and the page lands on online. */
   const followKey = kind === 'creator' ? entity.follow?.key || '' : '';
   const onlineOnly = !!followKey && !entity.asset_count;
   const mediaNow = media.media === 'photos' && (base.isPending || base.isError || basePage?.error || photosAvailable) ? media
     : (media.media === 'online' || onlineOnly) && followKey ? { media: 'online' as const, set: 0 } : EMPTY_MEDIA;
 
-  /* 名册与媒体不共用地址栏：地址栏只认 `media`，名册是事务所页与片商页的默认视图，进页就在那里。
-     换了筛选就回到作品：标签是作品筛选，留在名册里既不生效，标签条也会自相矛盾。 */
+  /* The roster and media do not share the URL: the URL only knows `media`, the roster is the default view of agency and studio pages, and entering the page lands there.
+     A filter change returns to videos: tags are video filters, and staying in the roster would both ignore them and leave the tag bar contradicting itself. */
   const [rosterView, setRosterView] = useState<'people' | 'videos'>('people');
   const filterKey = new URLSearchParams(Object.entries(filters).filter(([, value]) => value)).toString();
   const [seenFilters, setSeenFilters] = useState(filterKey);
@@ -112,15 +114,15 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
   }
   const view: EntityView = company && rosterView === 'people' && roster.length ? 'people' : mediaNow.media;
 
-  /* ── 在线：筛选与取数同关注页，只按这位的作者键筛 ── */
+  /* -- Online: filters and fetching match the follows page, filtered only by this person's author key -- */
   const online = useEntityOnline(followKey, view === 'online', {
     photoLayout: props.photoLayout, photoLayouts: props.photoLayouts, imagesOnly: props.followImagesOnly,
     setImagesOnly: props.follow.actions.setImagesOnly,
   });
   const photoWall = view === 'photos' || (view === 'online' && online.media === 'images');
 
-  /* 换过几次头像。资料卡与作品网格都把图拼进了自己的状态（网格只在代次变时才按新的第一页
-     重建），重取到新数据还不够，得换键重建，新图地址里的版本才落得到页面上。 */
+  /* The avatar has changed a few times. Both the profile card and the video grid fold the image into their own state (the grid only rebuilds from a new first page when the generation
+     changes), so refetching new data is not enough; the key must change to force a rebuild before the version in the new image URL reaches the page. */
   const [avatarEpoch, setAvatarEpoch] = useState(0);
 
   /* 资料还在补全时资料卡每隔几秒重取一次（`entityOptions` 的 `refetchInterval`）。每补完一项，头像、
@@ -144,12 +146,12 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     return () => window.clearTimeout(settle);
   }, [actions, entityId, kind, name, pendingCount]);
 
-  /* ── 作品 ── */
+  /* ── Videos ── */
   const itemsQuery = itemsOptions(props);
   const items = useQuery(itemsQuery);
   const itemsRevision = useRevision(JSON.stringify([itemsQuery.queryKey, avatarEpoch]));
-  /* 直达或刷新资料页时 URL 没有 `jav=1`：以第一页作品的真实 `is_jav` 恢复女优／厂牌语境，版式开关
-     不是只在从 JAV 首页点进来时才偶然存在。只看进页那一份，页内换筛选不改语境。 */
+  /* Direct visits or refreshes to the profile page have no `jav=1` in the URL: restore the performer/studio context from the first page's real `is_jav`, so the layout switch
+     does not only coincidentally exist when entering from the JAV home. Only the entry copy counts; in-page filter changes do not alter the context. */
   const [initialJav, setInitialJav] = useState<boolean | null>(() => props.jav || props.layout.active ? true : null);
   if (initialJav === null && items.data) setInitialJav((items.data.items || []).some((item) => item.is_jav));
   const javPage = (kind === 'performer' || kind === 'studio') && !!(initialJav ?? props.jav);
@@ -160,10 +162,10 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
   const fetchPage = useCallback(
     (offset: number, signal: AbortSignal, options?: Parameters<typeof fetchItems>[6]) =>
       fetchItems(kind, name, filters, opts, offset, signal, options),
-    // 续页的口径就是第一页那一份：代次随键变，键里已经带着筛选、种子与 JAV 开关。
+    // Continuation pages use the same query as page one: the epoch follows the key, and the key already carries the filters, seed and JAV toggle.
     [itemsRevision]);
 
-  /* ── 照片墙 ── */
+  /* ── Photo wall ── */
   const [seeds, setSeeds] = useState<Record<number, string>>({});
   const wallSet = mediaNow.set;
   const wallSeed = seeds[wallSet] || '';
@@ -185,7 +187,7 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
   const wallRefetch = wall.refetch;
   const fetchNextPhotos = wall.fetchNextPage;
 
-  /* ── 新作 ── */
+  /* ── New releases ── */
   const feed = useQuery({ ...feedNewOptions(entityId, helpers.feedRowHtml), enabled: !!entityId });
   const feedRevision = useRef(props.feedRevision);
   useEffect(() => {
@@ -194,7 +196,7 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     void queryClient.invalidateQueries({ queryKey: feedNewKey(entityId) });
   }, [entityId, props.feedRevision]);
 
-  /* 换了视图、换了一批内容之后吸顶要重算一次。 */
+  /* After a view change or a content batch change, sticky positioning must be recomputed once. */
   const hasItems = !!items.data;
   useEffect(() => { actions.painted(view, photoWall) },
     [actions, view, photoWall, itemsRevision, photos?.revision, hasItems, online.key]);
@@ -206,7 +208,7 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     }
   }, [hosts, props.seed, props.revision, props.jav, items.isPending, wall.isPending, filterKey, view]);
 
-  /* ── 写操作 ── */
+  /* ── Write operations ── */
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false }, []);
   const refreshEntity = useCallback(async () => {
@@ -239,20 +241,20 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
 
   const heroActions = useMemo<EntityHeroActions>(() => ({
     openEntity: actions.openEntity,
-    /* 换统称要重写整条实体的扁平投影，先把代价说清再问。确认键、标题和成功回执共用「更改统称」这一个
-       动词；写入失败时弹层留在原地，原因写在正文下方等重试。地址换成新名字，由壳重进这一页。 */
+    /* Changing the common name rewrites the whole entity's flat projection, so the cost is stated before asking. Confirm button, title and success receipt share the single
+       verb "Change common name"; when the write fails the popover stays put with the reason under the body, waiting for a retry. The URL switches to the new name and the shell re-enters this page. */
     chooseName: (chosen) => {
       const current = entity.canonical_name;
       if (chosen === current) return;
       void confirmModal({
-        title: '更改统一名称',
-        body: `「${chosen}」将成为这份档案显示的名称，「${current}」留作别名。作品上的署名、搜索和标签都会跟着改写。`,
-        confirmLabel: '更改统一名称',
+        title: 'Change the canonical name',
+        body: `"${chosen}" becomes the display name for this profile and "${current}" stays as an alias. Bylines on videos, search, and tags will all be updated.`,
+        confirmLabel: 'Change the canonical name',
         onConfirm: () => rename.mutateAsync({ from: current, to: chosen }),
       }).then(({ confirmed, result }) => {
         const done = result as { changed?: boolean; canonical_name?: string; previous_name?: string } | undefined;
         if (!confirmed || !done?.changed) return;
-        helpers.receipt(`已把统一名称更改为 ${done.canonical_name}`, { undo: async () => {
+        helpers.receipt(`Changed the canonical name to ${done.canonical_name}`, { undo: async () => {
           await rename.mutateAsync({ from: done.canonical_name || '', to: done.previous_name || '' });
           actions.openEntity(kind, done.previous_name || '');
         } });
@@ -264,12 +266,12 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
       try {
         await follow.mutateAsync(on);
       } catch (error) {
-        helpers.failure(on ? '订阅新作' : '取消订阅新作', error);
+        helpers.failure(on ? 'Subscribe to new releases' : 'Unsubscribe from new releases', error);
         throw error;
       }
     },
-    /* 「订阅新作」打开时服务端当场在后台拉一轮：等那一轮跑完再把新作那一行重取一次。等的上限是
-       那一轮自己的时长量级，页面换走了就不再等。 */
+    /* When "Subscribe to new releases" turns on, the server immediately runs one fetch in the background: wait for that run to finish, then refetch the new releases row once. The wait is capped at
+       the order of that run's own duration, and stops once the page navigates away. */
     refreshFeedAfterCheck: () => {
       void (async () => {
         for (let tries = 0; tries < 40 && alive.current; tries += 1) {
@@ -281,8 +283,8 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
       })();
     },
     feedAction: postFeedAction,
-    /* 圆框角上那个加号：头像索引在服务端已经换过。资料与作品列表一起重取（作品卡署名里也是
-       这张脸），回来后资料卡与作品网格都按新数据重建；壳缓存着的顶部三条也一并作废。 */
+    /* The plus at the circle's corner: the avatar index has already been changed server-side. Profiles and the video list are refetched together (video card bylines show
+       the same face), the profile card and video grid rebuild on the new data, and the shell's cached top three are invalidated along with them. */
     avatarPicked: () => {
       actions.avatarChanged();
       void refreshEntity().then(() => {
@@ -290,20 +292,20 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
       });
       void queryClient.invalidateQueries({ queryKey: feedNewKey(entityId) });
     },
-    /* 资料卡那句「N 项更新」：这位名下的就在这一页的在线视图里，不离开；别的作者键才去关注页。 */
+    /* The profile card's "N updates" line: updates under this person stay in this page's online view without leaving; only other author keys go to the follow page. */
     openFollowAuthor: (key) => {
       if (key && key === followKey) actions.route(filters, { media: 'online', set: 0 });
       else actions.openFollowAuthor(key);
     },
-    /* 认过之后那组来源的更新都记到这位名下：资料重取，读数与提示跟着换。 */
+    /* After a claim, updates from that set of sources are recorded under this person: the profile refetches, and readings and hints change with it. */
     confirmFollowAuthor: async (key, author) => {
       try {
         await bindFollow.mutateAsync(key);
       } catch (error) {
-        helpers.failure('关联关注中的创作者', error);
+        helpers.failure('Creators in related follows', error);
         throw error;
       }
-      helpers.receipt(`已把关注里的 ${author} 记到 ${entity.canonical_name} 名下`);
+      helpers.receipt(`Credited the follow ${author} to ${entity.canonical_name}`);
       await refreshEntity();
     },
   }), [actions, alias, bindFollow, entity, entityId, filters, follow, followKey, helpers, kind, name, refreshEntity, rename]);
@@ -314,9 +316,9 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     receipt: helpers.receipt,
   }), [entity, helpers, kind]);
 
-  /* ── 浮层 ── */
+  /* ── Overlay ── */
   const filterActions = useMemo<EntityFilterActions>(() => ({
-    /* 按下去那一下视图键就换过去，玻璃跟着滑，不等换视图的活干完。 */
+    /* The view switches the moment the button is pressed, the glass slides along, and nothing waits for the view swap to finish. */
     setView: (next) => {
       if (next === view && !mediaNow.set) return;
       setRosterView(next === 'people' ? 'people' : 'videos');
@@ -327,8 +329,8 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     clearFilter: actions.clearFilter,
     clearAll: actions.clearAll,
     setSort: actions.setSort,
-    /* 换一批：照片换一粒种子把这一屏重排一遍，整组或单个图集都是，新墙取回来再换上，等的这一下
-       键上转圈；作品那一粒是全站的种子，交给壳。 */
+    /* Shuffle: photos reshuffle this screen with a new seed, whether the whole set or a single album, and swap in the new wall once fetched, with the wait
+       spinning on the key; videos use the site-wide seed, handed to the shell. */
     reshuffle: async () => {
       if (view !== 'photos') {
         const seed = actions.reshuffleVideos();
@@ -354,15 +356,15 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     wireSourceTools: (root) => helpers.wireSourceTools(root, () => { void wallRefetch() }),
   }), [helpers, wallRefetch]);
 
-  /* 标签按资料里的顺序摆，选中的不往前挪：刚点的那枚就在指针底下，这一下把它抽走反倒是替人决定
-     现在该看哪儿。数的是这个人／厂牌名下带这个标签的视频。 */
+  /* Tags sit in profile order and the selected one does not jump forward: the tag just clicked is under the pointer, and yanking it away decides for the person
+     where to look now. The count is videos under this person or label carrying that tag. */
   const tags: EntityFilterTag[] = (entity.tags || []).map((tag) => ({
     k: tag.k, label: tagLabel(tag.k), n: tag.n, selected: tagPressed(filters.tag, tag.k) }));
-  /* 艺人名册、视频、照片与在线是这一页的互斥视图，共用一组圆键；只有一类东西时不出这一组。 */
+  /* Performer roster, videos, photos and online are this page's mutually exclusive views sharing one set of round buttons; the set is omitted when only one kind exists. */
   const viewKinds = [roster.length, !onlineOnly, photoCount, followKey].filter(Boolean).length;
   const views: EntityViewKeys | null = viewKinds > 1 ? {
-    label: roster.length ? '页面视图' : '媒体类型',
-    people: roster.length ? { label: kind === 'studio' ? '厂牌' : '艺人', count: roster.length,
+    label: roster.length ? 'Page views' : 'Media kinds',
+    people: roster.length ? { label: kind === 'studio' ? 'Labels' : 'Artists', count: roster.length,
       icon: kind === 'studio' ? 'clapperboard' : 'user-round' } : null,
     videos: onlineOnly ? null : { count: entity.asset_count || 0 },
     photos: photoCount ? { count: photoCount } : null,
@@ -372,41 +374,41 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
     sorts: helpers.sortKeys(filters.sort || 'new', filters.dir || '', javPage),
     jav: javPage ? { layout: props.javLayout, options: props.javLayouts } : null,
   };
-  /* 照片这一排不给排序键：数据库里图片只有文件名、体积和来源三样。在一个图集里多两枚源文件键。 */
+  /* The photo row gets no sort keys: the database only has file name, size, and source for images. Inside one album, two extra source file keys appear. */
   const inSet = !!wallPage?.id && !wallPage.error;
   const photo: EntityPhotoHead | null = wallPage && !wallPage.error ? {
     back: inSet, shuffle: !!wallPage.total, layout: props.photoLayout, layouts: props.photoLayouts,
     setId: inSet ? Number(wallPage.id) : 0,
   } : null;
-  /* 名下一部作品都没有（或筛完一部不剩）时正文是空态，下排那排排序键与换一批没有东西可排，不出。 */
+  /* When a person has no videos under their name (or filtering leaves none), the body is an empty state and the sort key row and shuffle in the bottom row have nothing to arrange, so they do not render. */
   const combo = helpers.comboItems(filters);
   const filtered = combo.length > 0 || !!filters.state;
   const worksEmpty = view === 'videos' && !!items.data && !(items.data.items || []).length;
   const showAll = () => actions.route(
-    // 键名与壳的 `clearAll` 同一组，外加观看状态。
+    // Key names share the same group as the shell's `clearAll`, plus watch status.
     { ...filters, state: '', tag: '', creator: '', studio: '', owner: '' }, EMPTY_MEDIA);
   let readout = '';
   let busy = false;
-  if (view === 'people') readout = `${kind === 'studio' ? '厂牌' : '艺人'} · ${roster.length.toLocaleString()}`;
+  if (view === 'people') readout = `${kind === 'studio' ? 'Labels' : 'Performers'} · ${roster.length.toLocaleString()}`;
   else if (view === 'online') {
     busy = online.busy;
-    readout = `在线 · ${(online.total ?? entity.follow?.n ?? 0).toLocaleString()} 项更新`;
+    readout = `Online · ${(online.total ?? entity.follow?.n ?? 0).toLocaleString()} updates`;
   }
   else if (view === 'videos') {
     busy = items.isPending;
-    /* 选了哪几枚标签由上面那条交集条一枚一枚列着，读数只报个数：标签名再列一遍，几枚长标签
-       就能把这一行撑出页面。 */
+    /* Which tags are selected is listed chip by chip on the intersection bar above, so the count only reports a number: repeating the tag names here, a few long tags
+       would push this row off the page. */
     const picked = tagList(filters.tag).length;
-    readout = items.data ? `视频 · ${(items.data.work_total ?? items.data.total ?? 0).toLocaleString()}${picked ? ` · 已选 ${picked.toLocaleString()} 个标签` : ''}` : '';
+    readout = items.data ? `Videos · ${(items.data.work_total ?? items.data.total ?? 0).toLocaleString()}${picked ? ` · ${picked.toLocaleString()} tags selected` : ''}` : '';
   } else if (wallPage && !wallPage.error) {
-    readout = inSet ? `${wallPage.title} · ${(wallPage.total || 0).toLocaleString()} 张`
+    readout = inSet ? `${wallPage.title} · ${(wallPage.total || 0).toLocaleString()} images`
       : photoReadout(wallPage, codeSetsOf(wallPage).length);
   } else busy = wall.isPending;
 
-  /* ── 正文 ── */
+  /* ── Body ── */
   const bodyActions = useMemo<EntityBodyActions>(() => ({
     ...props.card.actions,
-    /* 本地图片的下一页；取不到就抛错，键下出重试。 */
+    /* The next page of local images; throws when the fetch fails, and a key press brings up a retry. */
     loadMorePhotos: async () => {
       const result = await fetchNextPhotos();
       if (result.isError) throw result.error;
@@ -438,7 +440,7 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
           : view === 'photos' && (wall.isError || wallPage?.error)
           ? <RetryNote message={wallPage?.error || errorMessage(wall.error)} onRetry={() => { void wall.refetch() }} />
           : view === 'photos' && !photos
-          ? <div data-photo-wall="" data-size={props.photoSize} data-layout={props.photoLayout} role="status" aria-busy="true" aria-label="正在读取照片">
+          ? <div data-photo-wall="" data-size={props.photoSize} data-layout={props.photoLayout} role="status" aria-busy="true" aria-label="Reading photos">
               {Array.from({ length: 8 }, (_, index) => <button key={index} data-photo-cell="" disabled aria-hidden className="skeleton-sheen" />)}
             </div>
           : worksEmpty ? <WorksEmpty filtered={filtered} onShowAll={showAll}
@@ -459,18 +461,18 @@ function EntityLoaded(props: EntityPageProps & { entity: EntityPageData }) {
   );
 }
 
-/** 作品区一部也没有。筛完一部不剩时给一条回到全部视频的路：观看状态与交集条上的筛选一起撤掉。 */
+/** The video section has not a single one. When filtering leaves nothing, offer a path back to all videos: the watch status and the filters on the intersection bar are cleared together. */
 function WorksEmpty({ filtered, onShowAll, onOnline }: { filtered: boolean; onShowAll(): void; onOnline?: () => void }) {
   return filtered ? (
-    <EmptyState icon={spriteGlyph('search')} title="没有符合条件的视频"
-      actions={<Button size="small" onClick={onShowAll}>清除筛选</Button>}>
-      清除筛选后查看名下全部视频。
+    <EmptyState icon={spriteGlyph('search')} title="No matching videos"
+      actions={<Button size="small" onClick={onShowAll}>Clear filters</Button>}>
+      Clear filters to see every video under this name.
     </EmptyState>
   ) : (
-    <EmptyState icon={spriteGlyph('film')} title="还没有视频"
-      actions={onOnline ? <Button size="small" onClick={onOnline}>查看在线作品</Button>
-        : <ButtonLink size="small" href="/">浏览馆藏</ButtonLink>}>
-      署上这个名字的视频入库后会显示在这里。
+    <EmptyState icon={spriteGlyph('film')} title="No videos yet"
+      actions={onOnline ? <Button size="small" onClick={onOnline}>View online videos</Button>
+        : <ButtonLink size="small" href="/">Browse library</ButtonLink>}>
+      Videos added to library under this name will appear here.
     </EmptyState>
   );
 }

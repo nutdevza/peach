@@ -1,26 +1,32 @@
-/* 侧栏（ADR-0031 第 11f 步）：左侧抽屉里滚动的那一层。
+/* Sidebar (ADR-0031 step 11f): the scrolling layer inside the left drawer.
  *
- * 常驻组件 `sidebar`（`router/managed-routes.tsx` 的常驻表）：路由树把它画进壳常驻的 `#drawerScroll`，宿主就是
- * 那个节点本身（覆盖式滚动条挂在它上面，轨道住在 `#drawer` 里）。壳启动时先同步在宿主里写一份同结构的导航
- * 骨架（`sidebarSkeletonHtml`）；打开这一面时 `place` 清掉骨架，路由树在同一个任务里画出首帧（只有导航），
- * 壳紧接着经 `attached` 把品牌与开合键挪进标题行，再拿到句柄、把手上那份 props 推进来。
+ * Resident component `sidebar` (the resident table in `router/managed-routes.tsx`): the route tree renders it into the shell's
+ * resident `#drawerScroll`, the host being that node itself (the overlay scrollbar hangs on it, the track lives in `#drawer`).
+ * At shell startup it synchronously writes a same-structure navigation skeleton into the host (`sidebarSkeletonHtml`); when
+ * this surface opens, `place` clears the skeleton and the route tree renders the first frame (navigation only) in the same
+ * task; the shell then moves the brand and the collapse button into the header row via `attached`, takes the handle, and pushes
+ * the props it holds in.
  *
- * 之后壳只经 `configureSidebar` 给的句柄说话：`render(props)` 与 `navChanged()` 写本模块的 store 再
- * `flushSync` 通知，返回时已经画好——`navChanged` 跑在壳 `route()` 的同步段里，玻璃拿到的是旧位置到新位置。
- * 换页、换筛选、换语境都落在同一个组件上，导航那一列和它上面的玻璃从头到尾是同一批节点——换了节点，
- * 玻璃的位移就从头起跑，看到的只是当前项换了个地方亮起来。
+ * After that the shell only speaks through the handle `configureSidebar` provides: `render(props)` and `navChanged()` write this
+ * module's store, notify via `flushSync`, and by the time they return the render is done. `navChanged` runs inside the
+ * synchronous part of the shell's `route()`, so the glass measures from the old position to the new one. Page changes, filter
+ * changes and context changes all land on the same component; the nav column and the glass on top of it are the same nodes
+ * throughout. Swap the nodes and the glass's translation would start over from scratch, and all you would see is the current
+ * item lighting up somewhere else.
  *
- * 玻璃画在 `#drawer` 上（portal），不在滚动层里：它要跟着那一列纵滚，又不能被滚动层切掉回弹的那一截。
- * 位移与抻长交给 `useViewGlide` 的纵轴版，同筛选条那几排是同一种动法。
+ * The glass renders on `#drawer` (a portal), not inside the scrolling layer: it must follow the column's vertical scroll yet not
+ * be clipped by the scrolling layer's overscroll bounce. Translation and stretching go to the vertical variant of
+ * `useViewGlide`, the same motion as the filter bar rows.
  *
- * 标题行 `[data-sidebar-head]` 画成一个没有子节点的空槽：品牌与开合键是壳的节点，由壳挪进来，组件不往这个
- * 槽里画任何东西，重画也就不碰它们。
+ * The header row `[data-sidebar-head]` renders as an empty slot with no children: the brand and collapse button are the shell's
+ * nodes, moved in by the shell. The component never renders into that slot, so re-renders leave them alone.
  *
- * 分组的开合走共用 Collapse 的 `setCollapseOpen`（同设置页的 `Disclosure`）：原生 `details` 给键盘与
- * 无障碍语义，`open` 不写成受控属性，收起的那段过渡里它才不会被重新画成展开。
+ * Group collapse goes through the shared Collapse's `setCollapseOpen` (same as the settings page's `Disclosure`): a native
+ * `details` gives keyboard and accessibility semantics, and `open` is not written as a controlled prop so the collapse
+ * transition cannot be re-rendered back into expanded state.
  *
- * 宿主不包 `.peach-react`：这一列一直在 Preflight 之外，按钮与字号继承的是遗留层的全局规则，样式全在
- * `sidebar.css`，不用工具类。 */
+ * The host is not wrapped in `.peach-react`: this column always sits outside Preflight, buttons and font sizes inherit the
+ * legacy layer's global rules, all styles live in `sidebar.css`, no utility classes. */
 import {
   createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore,
   type CSSProperties, type MouseEvent, type ReactNode,
@@ -39,16 +45,16 @@ import { useSidebarReorder } from './use-sidebar-reorder';
 import { resetSidebarOrder } from '../../sidebar';
 import { NavigationOrderMenu } from '../components/navigation-order';
 
-/* 首页那一项的键是空串；空串写进 dataTransfer 等于没写，给它一个占位。 */
+/* The home page item's key is an empty string; an empty string in dataTransfer counts as unwritten, so it gets a placeholder. */
 const HOME = '__home__';
-/* 「展开全部」之前每组先露多少条。 */
+/* How many entries each group shows before "Expand all". */
 const LIMITS = { creator: 26, tag: 30, tech: 16 } as const;
-/* 时长拉条的量程（分钟）：右端拉到头是「不限」。 */
+/* The duration slider's range (minutes): dragged all the way right it means "No limit". */
 const DURATION_MAX = 180;
 
 let host: SidebarHost | null = null;
-/* store 里的一份：壳推来的 props 与导航按下态的代次（壳说「重读一遍」时加一，玻璃按新的按下项落位）。
-   每次写入换一个新对象，订阅者按引用判断变没变。 */
+/* One slice of the store: the generation of the props the shell pushes and of the nav pressed state (incremented when the shell says "re-read", with the glass settling on the new pressed item).
+   Every write swaps in a new object, and subscribers compare by reference to detect change. */
 let shown: { props: SidebarProps; epoch: number } = { props: { content: null, filters: {}, latest: null }, epoch: 0 };
 const listeners = new Set<() => void>();
 
@@ -61,27 +67,27 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/* 这一面抛错、被错误边界卸掉之后没人订阅，推进来的只写进 store，不画、不抛。 */
+/* After this surface throws and is unmounted by the error boundary nobody subscribes: pushed updates only land in the store, unpainted and unthrown. */
 const api: SidebarApi = {
   render(next) { shown = { ...shown, props: next }; flushSync(notify) },
   navChanged() { shown = { ...shown, epoch: shown.epoch + 1 }; flushSync(notify) },
 };
 
-/** 接上壳给的宿主，拿回侧栏的命令式入口。只调一次；壳的 `loadSidebar` 接着在路由树里打开这一面，首帧只画
- *  导航，画上之后调 `attached`、交出句柄，壳随即把手上那份 props 推进来。 */
+/** Wire up the host the shell provides and take back the sidebar's imperative entry. Called once; the shell's `loadSidebar` then opens this surface in the route tree, painting only
+ *  navigation on the first frame, calling `attached` and handing over the handle once painted, and the shell immediately pushes in its props. */
 export function configureSidebar(next: SidebarHost): SidebarApi {
   host = next;
   shown = { ...shown, props: { content: null, filters: {}, latest: null } };
   return api;
 }
 
-/** 常驻表里的那一面：读本模块的 store，宿主还没接上时不画。 */
+/** The resident table's face: reads this module's store and renders nothing until the host is attached. */
 export function SidebarSurface() {
   const current = useSyncExternalStore(subscribe, () => shown);
   return host ? <Sidebar host={host} props={current.props} epoch={current.epoch} /> : null;
 }
 
-/* ── 整列 ── */
+/* ── Whole column ── */
 
 function Sidebar({ host: at, props: view, epoch }: { host: SidebarHost; props: SidebarProps; epoch: number }) {
   const version = useSyncExternalStore(at.store.subscribe, at.store.version);
@@ -94,7 +100,7 @@ function Sidebar({ host: at, props: view, epoch }: { host: SidebarHost; props: S
   );
 }
 
-/* ── 导航 ── */
+/* ── Navigation ── */
 
 function Navigation({ host: at, epoch, version }: { host: SidebarHost; epoch: number; version: number }) {
   const commit = useCommitNavigationOrder(at.store);
@@ -108,15 +114,15 @@ function Navigation({ host: at, epoch, version }: { host: SidebarHost; epoch: nu
   const glide = useViewGlide(pane, column, '[data-nav][aria-pressed="true"]', glideKey, { axis: 'y' });
   const { sync } = glide;
 
-  /* 抽屉开合（桌面上宽度在 60 与 260 之间过渡）、滚动层改尺寸、标题行里品牌挪进来，都只重量、
-     不动画；开合之后悬停的那一格不算数，回到当前项。 */
+  /* Drawer open/close (width transitioning between 60 and 260 on desktop), the scroll layer resizing, and the brand moving into the title row all remeasure without animating;
+     after open/close, a hovered cell does not count and the current item wins. */
   useEffect(() => {
     const scroll = at.scroll, drawer = scroll.parentElement;
     const head = scroll.querySelector<HTMLElement>(':scope > [data-sidebar-head]');
     const resize = new ResizeObserver(() => sync());
     [drawer, scroll, head].forEach((node) => { if (node) resize.observe(node) });
-    /* 开合事件在点击回调里同步发出，那一刻整页样式刚因开合类名变脏，当场量就是一次整树重算；
-       挪到下一帧和尺寸观察器一起量。 */
+    /* Open and close events fire synchronously in the click callback, at the moment the whole page's styles have just gone dirty from the open/close class; measuring on the spot forces a full-tree reflow;
+       move it to the next frame and measure together with the resize observer. */
     let frame = 0;
     const later = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; sync() }) };
     document.addEventListener('board:sidebar', later);
@@ -148,7 +154,7 @@ function Navigation({ host: at, epoch, version }: { host: SidebarHost; epoch: nu
         )})}
         {reorder.hint ? <span data-sidebar-drop-line="" aria-hidden="true"
           style={{ '--sidebar-line-top': `${reorder.linePosition}px` } as CSSProperties}><span /></span> : null}
-        <NavigationOrderMenu order={{ label: '左侧导航', keys: order, defaults: resetSidebarOrder(order), commit }} />
+        <NavigationOrderMenu order={{ label: 'Left navigation', keys: order, defaults: resetSidebarOrder(order), commit }} />
         <span role="status" aria-live="polite" data-sidebar-order-status="">{reorder.announcement}</span>
       </div>
       {drawer ? createPortal(<span data-sidebar-glide="" aria-hidden="true" ref={pane} />, drawer) : null}
@@ -156,7 +162,7 @@ function Navigation({ host: at, epoch, version }: { host: SidebarHost; epoch: nu
   );
 }
 
-/* ── 筛选分组 ── */
+/* ── Filter groups ── */
 
 interface GroupSpec {
   title: string;
@@ -184,8 +190,8 @@ function Groups({ host: at, content, filters, latest }: {
     : `follow:${content.selected.join(',')}:${content.tags.map((row) => row.value).join(',')}`
       + `:${(content.providers || []).map((row) => row.value).join(',')}:${filters.provider ?? ''}`
       + `:${content.duration ? 1 : 0}:${filters.dur_min ?? ''}:${filters.dur_max ?? ''}`;
-  /* 计数徽标弹不弹由 `popBadges` 按上一次见到的值判断，不按节点是不是新建的判断：每来一份新聚合
-     问一次，换一条筛选时整列计数才不会一起弹。 */
+  /* Whether count badges pop is decided by `popBadges` against the last seen values, not by whether nodes are newly created: asking once per new aggregation
+     keeps an entire column of counts from popping together on a filter change. */
   useLayoutEffect(() => { if (content.kind === 'catalog') popBadges(at.scroll, 'drawer') }, [at, key, content.kind]);
   const groups = content.kind === 'catalog'
     ? catalogGroups(at, content.facets, filters, latest, key)
@@ -220,26 +226,26 @@ function catalogGroups(
     };
   };
   return [
-    spec('来源', 'src', facets.locations, 'loc', true),
+    spec('Source', 'src', facets.locations, 'loc', true),
     facets.duration
-      ? { title: '时长', kind: 'meta', active: false, body: <Duration host={at} filters={filters} /> }
+      ? { title: 'Duration', kind: 'meta', active: false, body: <Duration host={at} filters={filters} /> }
       : null,
-    /* 产地紧挨着来源：两者回答的都是「这批片打哪来」，一个说存储，一个说发行体系。可多选。 */
-    spec('产地', 'general', facets.regions, 'region', true),
-    spec('发行年份', 'meta', facets.years || [], 'year', true),
-    spec('画幅', 'meta', facets.orientations, 'orient', false),
-    spec('创作者', 'artist', facets.creators, 'creator', false, 'creator'),
-    spec('内容标签', 'general', facets.tags, 'tag', false, 'tag'),
-    spec('影片属性', 'meta', facets.tech, 'tag', false, 'tech'),
+    /* Origin sits right next to source: both answer "where did these videos come from", one for storage, one for the distribution system. Multi-select allowed. */
+    spec('Origin', 'general', facets.regions, 'region', true),
+    spec('Release year', 'meta', facets.years || [], 'year', true),
+    spec('Aspect', 'meta', facets.orientations, 'orient', false),
+    spec('Creators', 'artist', facets.creators, 'creator', false, 'creator'),
+    spec('Content tags', 'general', facets.tags, 'tag', false, 'tag'),
+    spec('Video properties', 'meta', facets.tech, 'tag', false, 'tech'),
     facets.followTags.length ? {
-      title: '关注标签', kind: 'online', active: false,
+      title: 'Followed tags', kind: 'online', active: false,
       body: <FollowChips rows={facets.followTags} host={at} selected={null} badges />,
     } : null,
   ];
 }
 
-/* 关注页与关注详情：次序同目录那一列，来源、时长在前，内容标签在后。来源与时长回的是关注页的筛选，
-   不是目录的 `commitContextFilter`。 */
+/* Follows page and follow details: same order as the catalog's column, source and duration first, content tags after. Source and duration go back to the follows page's filters,
+   not the catalog's `commitContextFilter`. */
 function followGroups(
   at: SidebarHost, content: Extract<SidebarContent, { kind: 'follow' }>, filters: SidebarProps['filters'],
 ): (GroupSpec | null)[] {
@@ -248,25 +254,25 @@ function followGroups(
   const selected = new Set(content.selected);
   return [
     providers.length ? {
-      title: '来源', kind: 'src', active: providers.some((row) => provider.includes(row.value)),
+      title: 'Source', kind: 'src', active: providers.some((row) => provider.includes(row.value)),
       body: <ChipList rows={providers} filterKey="provider" multi={false} selected={provider} counts={null} host={at}
         onToggle={(_key, value) => at.selectFollowProvider(value)} />,
     } : null,
     content.duration
-      ? { title: '时长', kind: 'meta', active: false, body: <Duration host={at} filters={filters} commit={at.setFollowDuration} /> }
+      ? { title: 'Duration', kind: 'meta', active: false, body: <Duration host={at} filters={filters} commit={at.setFollowDuration} /> }
       : null,
     content.tags.length ? {
-      title: '内容标签', kind: 'online', active: content.tags.some((row) => selected.has(row.value)),
+      title: 'Content tags', kind: 'online', active: content.tags.some((row) => selected.has(row.value)),
       body: <FollowChips rows={content.tags} host={at} selected={selected} badges={false} />,
     } : null,
   ];
 }
 
-/* 一进来只有正在生效的那几组是展开的。挑两组常驻展开等于替人决定他这次要按哪个维度筛，而侧栏一屏
-   就那么长，展开的部分把别的组挤到看不见的地方去。人自己开合过的组按这一次会话记住。 */
+/* On entry only the groups currently in effect are expanded. Hardcoding two groups as always open decides for the user which dimension to filter by, and the sidebar is only
+   a screen tall; expanded sections push other groups out of view. Groups the user opened or collapsed themselves are remembered for this session. */
 function wantOpen(title: string, active: boolean): boolean {
   let saved: string | null = null;
-  try { saved = sessionStorage.getItem(`peach.sidebar.group.${title}`) } catch { /* 存储不可用就按按下态 */ }
+  try { saved = sessionStorage.getItem(`peach.sidebar.group.${title}`) } catch { /* With storage unavailable, use the pressed state */ }
   return saved !== null ? saved === 'open' : active;
 }
 
@@ -277,7 +283,7 @@ function Group({ title, kind, active, index, epoch, children }: {
   const body = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(() => wantOpen(title, active));
   const mounted = useRef(false);
-  /* 第一次挂上时把初始状态落到 DOM；往后每来一份新聚合，没被人开合过的组重新按按下态定。 */
+  /* On first mount, commit the initial state to the DOM; with each new aggregate after that, groups nobody has toggled are re-derived from the pressed state. */
   useLayoutEffect(() => {
     const node = details.current, collapse = body.current;
     if (!node || !collapse) return;
@@ -296,7 +302,7 @@ function Group({ title, kind, active, index, epoch, children }: {
     const next = !open;
     setCollapseOpen(details.current, body.current, next);
     setOpen(next);
-    try { sessionStorage.setItem(`peach.sidebar.group.${title}`, next ? 'open' : 'closed') } catch { /* 只是不记住 */ }
+    try { sessionStorage.setItem(`peach.sidebar.group.${title}`, next ? 'open' : 'closed') } catch { /* It just does not remember */ }
   };
   const collapseId = `sidebar-collapse-${index}`;
   return (
@@ -315,7 +321,7 @@ function Group({ title, kind, active, index, epoch, children }: {
   );
 }
 
-/* 名单末尾那枚「收起」收的是整组：组的开合在 `Group` 手里，经这一层递下去。 */
+/* The "collapse" chip at the list's end collapses the whole group: open/close belongs to `Group`, passed down through this layer. */
 const GroupToggle = createContext<() => void>(() => {});
 
 function Dot({ dot }: { dot?: SidebarDot }) {
@@ -328,7 +334,7 @@ function Dot({ dot }: { dot?: SidebarDot }) {
 function ChipList({ rows, filterKey, multi, selected, counts, host: at, onToggle = at.toggleChip }: {
   rows: SidebarChip[]; filterKey: string; multi: boolean; selected: string[];
   counts: Map<string, number> | null; host: SidebarHost;
-  /** 点下去回给谁：缺省是目录筛选，关注页换成它自己的。 */
+  /** Who receives the click: the catalog filter by default, swapped for the follows page's own. */
   onToggle?: SidebarHost['toggleChip'];
 }) {
   return (
@@ -350,15 +356,15 @@ function ChipList({ rows, filterKey, multi, selected, counts, host: at, onToggle
   );
 }
 
-/* 展开键接在名单末尾，它说的是「这张名单还没完」——那句话要跟名单断掉的地方在一起。身量取排名那枚
-   展开药丸：一个箭头就说得完的事不必再配一句字。摊开照最新那一份聚合重排整组。 */
+/* The expand key sits at the end of the roster; it says "this roster continues", and that message belongs where the roster breaks off. Size copies the ranking row's
+   expand pill: an arrow says it all, no caption needed. Expanding re-lays the whole group from the latest aggregation. */
 function MoreList({ epoch, title, rows, latest, limit, filterKey, selected, counts, host: at, expandable }: {
   epoch: string; title: string; rows: SidebarChip[]; latest: SidebarChip[] | null; limit: number; filterKey: string;
   selected: string[]; counts: Map<string, number> | null; host: SidebarHost; expandable: boolean;
 }) {
   const toggleGroup = useContext(GroupToggle);
   const [shown, setShown] = useState<{ rows: SidebarChip[]; all: boolean } | null>(null);
-  /* 新的一份聚合到来时名单从头摊：成员换回这一份的前几条，展开键回到「展开全部」。 */
+  /* When a fresh aggregation arrives the list lays out from the top: members reset to this copy's first entries and the expand key returns to "expand all". */
   const [seen, setSeen] = useState(epoch);
   if (seen !== epoch) { setSeen(epoch); setShown(null) }
   const grow = useRef<{ body: HTMLElement; before: number; scroller: HTMLElement; keep: number } | null>(null);
@@ -366,8 +372,8 @@ function MoreList({ epoch, title, rows, latest, limit, filterKey, selected, coun
   const expanded = !!shown?.all;
   const list = shown ? shown.rows : rows;
 
-  /* 这一列的位置归人自己管：摊开的内容全在按下的这个点以下，把他挪过去等于替他决定现在要看第几条。
-     名单一变长，浏览器会顺着焦点和锚定把这一列推走，所以记下再放回。 */
+  /* The column's position belongs to the person: everything that opens sits below the point they pressed, and moving them there decides for them which item they are looking at.
+     When the list grows, the browser pushes this column along through focus and anchoring, so it is remembered and put back. */
   useLayoutEffect(() => {
     const run = grow.current;
     if (!run) return;
@@ -390,8 +396,8 @@ function MoreList({ epoch, title, rows, latest, limit, filterKey, selected, coun
     grow.current = { body, before: body.getBoundingClientRect().height, scroller, keep: scroller.scrollTop };
     const source = latest ?? rows;
     setShown({ rows: source, all: !expanded });
-    /* 收起收的是整组。名单已经摊到最长，把它退回二十几条只是换一个断点，人还站在同一列读不完的东西
-       前面；他按这一下要的是把这一组放回去。 */
+    /* Collapse collapses the whole group. The list is already at its longest; shrinking it back to twenty-odd entries just moves the breakpoint, leaving the person in front of the same column of unreadable stuff;
+       what pressing this wants is to put the group away. */
     if (expanded) toggleGroup();
   };
   return (
@@ -400,7 +406,7 @@ function MoreList({ epoch, title, rows, latest, limit, filterKey, selected, coun
         counts={counts} host={at} />
       {expandable && rows.length > limit
         ? <button type="button" ref={button} data-sidebar-more={filterKey} aria-expanded={expanded}
-            aria-label={`${expanded ? '收起' : '展开全部'}${title}`} onClick={more}><Icon name="chevron-down" /></button>
+            aria-label={`${expanded ? 'Collapse ' : 'Expand all '}${title}`} onClick={more}><Icon name="chevron-down" /></button>
         : null}
     </>
   );
@@ -425,22 +431,22 @@ function FollowChips({ rows, host: at, selected, badges }: {
   );
 }
 
-/* ── 时长 ──
-   时长只有一处读数：手柄上方那枚气泡。另起一行写「不限 — 不限」是同一件事说第二遍，而且滑块不动时
-   它永远是那句话。两端都常显：这里是唯一报数的地方，藏起来的话不碰滑块就看不出当前筛的是哪一段。 */
+/* -- Duration --
+   Duration has one reading: the bubble above the handle. A second line writing "unlimited - unlimited" says the same thing twice and, with the sliders unmoved,
+   it always says that. Both ends always show: this is the only place reporting numbers, and hidden, the filtered range is invisible without touching the sliders. */
 
 const minutesOf = (seconds: unknown, fallback: number) =>
   seconds ? Math.min(DURATION_MAX, Number(seconds) / 60) : fallback;
 
 function Duration({ host: at, filters, commit: onCommit = at.setDuration }: {
   host: SidebarHost; filters: SidebarProps['filters'];
-  /** 松手时回给谁：缺省是目录筛选，关注页换成它自己的。 */
+  /** Who receives the release: the catalog filter by default, swapped for the follows page's own. */
   commit?: SidebarHost['setDuration'];
 }) {
   const source = `${filters.dur_min ?? ''}:${filters.dur_max ?? ''}`;
   const [seen, setSeen] = useState(source);
   const [range, setRange] = useState(() => [minutesOf(filters.dur_min, 0), minutesOf(filters.dur_max, DURATION_MAX)]);
-  /* 刚动过的那枚压在上面：两端拖到一起时它们会叠，底下那枚报的是自己停下的位置。 */
+  /* The handle moved last sits on top: when both ends are dragged together they overlap, and the one underneath reports its own resting position. */
   const [active, setActive] = useState<'min' | 'max'>('max');
   if (seen !== source) {
     setSeen(source);
@@ -461,7 +467,7 @@ function Duration({ host: at, filters, commit: onCommit = at.setDuration }: {
     return [nextLo, nextHi];
   };
 
-  /* 拖动只改读数，松手（`change`）才提交：React 的 onChange 接的是每一步 input。 */
+  /* Dragging only moves the readout; releasing (`change`) commits: React's onChange receives every input step. */
   useEffect(() => {
     const commit = () => onCommit(latest.current[0], latest.current[1]);
     const inputs = [minInput.current, maxInput.current];
@@ -469,9 +475,9 @@ function Duration({ host: at, filters, commit: onCommit = at.setDuration }: {
     return () => inputs.forEach((input) => input?.removeEventListener('change', commit));
   }, [onCommit]);
 
-  /* 已选那一截与两枚气泡的位置写在样式变量与 `left` 上。气泡对着手柄居中，伸出轨道的那一截按实测
-     溢出量收回来：侧栏只比轨道宽出一点点，越界的半截被侧栏裁掉，读数就只剩一半。量之前先把上一次的
-     位移清掉，否则量到的是已经收过一次的位置，越拖越偏。 */
+  /* The selected stretch and the two bubbles' positions are written to style variables and `left`. Bubbles center on the handle, and the overhang past the track is pulled back by
+     the measured overflow: the sidebar is only a little wider than the track, and the overflowing half would be clipped by it, leaving half a reading. Clear the previous
+     offset before measuring, otherwise what is measured is the already-once-pulled-back position, drifting further with every drag. */
   useLayoutEffect(() => {
     const node = group.current;
     if (!node) return;
@@ -490,7 +496,7 @@ function Duration({ host: at, filters, commit: onCommit = at.setDuration }: {
 
   const tip = (end: 'min' | 'max', value: number) => (
     <output data-sidebar-range-tip="" data-range-end={end} data-range-active={active === end ? '' : undefined} aria-hidden="true">
-      {end === 'max' && value >= DURATION_MAX ? '不限' : `${value} 分钟`}
+      {end === 'max' && value >= DURATION_MAX ? 'Any' : `${value} min`}
     </output>
   );
   return (
@@ -498,9 +504,9 @@ function Duration({ host: at, filters, commit: onCommit = at.setDuration }: {
       <div data-sidebar-range="" id="durationRange" ref={group}>
         <span data-sidebar-range-base="" />
         <span data-sidebar-range-fill="" />
-        <input id="durMin" type="range" min="0" max={DURATION_MAX} step="5" value={lo} aria-label="最短时长（分钟）"
+        <input id="durMin" type="range" min="0" max={DURATION_MAX} step="5" value={lo} aria-label="Min duration (minutes)"
           ref={minInput} onChange={(event) => move('min', Number(event.currentTarget.value))} />
-        <input id="durMax" type="range" min="0" max={DURATION_MAX} step="5" value={hi} aria-label="最长时长（分钟）"
+        <input id="durMax" type="range" min="0" max={DURATION_MAX} step="5" value={hi} aria-label="Max duration (minutes)"
           ref={maxInput} onChange={(event) => move('max', Number(event.currentTarget.value))} />
         {tip('min', lo)}
         {tip('max', hi)}

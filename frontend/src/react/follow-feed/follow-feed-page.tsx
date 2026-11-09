@@ -1,13 +1,15 @@
-/* 关注页 `/follow`：页头、创作者与题材两排、两排的筛选玻璃、交集条、卡片列表与底栏（ADR-0031 第 10g 步）。
+/* Follows page `/follow`: header, the creator and tag rows, the two rows' filter glass, intersection bar, card list and footer
+ * (ADR-0031 step 10g).
  *
- * 数据形状、取数键与这一页的判定在 `./follow-feed.ts`，卡片在 `./follow-card.tsx`。换筛选或排序时
- * 查询换键：列表区按新键重挂、铺一块列表骨架，页头、两排与玻璃照原样不动——它们此刻
- * 就能给出最终样子，整块铺骨架的代价是浮层连同上面两排一起先消失再出现，而真正在等的只有列表里
- * 摆哪些东西。
+ * Data shapes, query keys and this page's criteria live in `./follow-feed.ts`; cards in `./follow-card.tsx`. Changing filters
+ * or sort changes the query key: the list area remounts per the new key and lays a list skeleton, while the header, both rows
+ * and the glass stay exactly as they are: they can produce their final look right now, and skeletoning the whole block would
+ * make the overlay and both rows vanish and reappear, when only the list's contents are actually waited on.
  *
- * 地址栏归壳：点筛选、排序、换媒体都只调 `actions.route`，壳写好地址再把新的 `view` 推回来。
- * 这一页唯一联网的动作是「检查更新」与「抓更早的一页」，两者起的是同一趟后台任务，进度由
- * `helpers.jobProgress` 盯着，跑完失效这一页的查询重取。 */
+ * The address bar belongs to the shell: clicking filters, sorting or switching media only calls `actions.route`; the shell
+ * writes the address and pushes the new `view` back. The page's only networked actions are "Check updates" and "fetch an
+ * earlier page", both starting the same background job; `helpers.jobProgress` watches the progress, and when it finishes the
+ * page's queries are invalidated and refetched. */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, type InfiniteData } from '@tanstack/react-query';
 import { esc, icon, leadingGraphemes, requestErrorMessage } from '@peach/legacy/core';
@@ -53,19 +55,19 @@ const CHEVRON_DOWN = spriteGlyph('chevron-down');
 const HISTORY = spriteGlyph('history');
 const SortUpIcon = spriteGlyph('arrow-up'), SortDownIcon = spriteGlyph('arrow-down');
 
-/** 照片墙那一排的图片布局两档，同壳里 `PHOTO_LAYOUTS`。 */
+/** The two layout tiers for the photo wall's row, same as the shell's `PHOTO_LAYOUTS`. */
 export const FOLLOW_PHOTO_LAYOUTS: readonly SegmentOption[] = [
-  ['fixed', '固定比例', 'layout-grid'], ['masonry', '瀑布流', 'columns-2'],
+  ['fixed', 'Fixed ratio', 'layout-grid'], ['masonry', 'Masonry', 'columns-2'],
 ];
 
-/** 这一页从数据里推出来的那几样：两排的取样、筛选条的选项、可见的组。只随数据、视图与种子变。 */
+/** The things this page derives from the data: the two rows' sampling, the filter bar's options, and the visible groups. They change only with the data, the view, and the seed. */
 function useFacets(data: FollowPage | null, view: FollowView, seed: number) {
   return useMemo(() => {
     const groups = data?.groups || [];
     const counts = data?.counts || {};
     const sources = data?.sources || [];
-    /* 筛选条上能选什么来自服务端的全库口径 facets，不是这一页的 groups。按 groups 算的话，选中
-       一个创作者之后服务端只回他的条目，创作者栏就只剩他一个人，再也切不回去。 */
+    /* What the filter bar offers comes from the server's library-wide facets, not this page's groups. Computed from groups, selecting
+       one creator makes the server return only their entries, leaving a single name in the creator column with no way back. */
     const facets = data?.facets || {};
     const activeAuthors = new Set(facets.authors || []);
     const providerLabels = new Map(sources.map((source) => [source.provider, source.provider_label || source.provider]));
@@ -78,8 +80,8 @@ function useFacets(data: FollowPage | null, view: FollowView, seed: number) {
       authorSources.get(source.author_key)!.push(source);
     });
     const authorKeys = [...authorSources.keys()].filter((key) => activeAuthors.has(key));
-    /* 创作者行与题材行按本次进入的种子随机取样，进一次换一批：按条数取前几个的话，八十来个题材里
-       永远只露出同样那二十几个，这两排回答的是「接下来看什么」，不是「哪个最多」。 */
+    /* The creator and genre rows are sampled randomly by the seed of this visit, changing each time: taking the first few by count would always show the same
+       twenty-odd of eighty-odd genres. These two rows answer "what to watch next", not "which is the largest". */
     const authorOrder = randomOrder(authorKeys, (key) => key, seed);
     const workRows: FollowWorkRow[] = randomOrder(facets.works || [], (row) => row[0], seed).slice(0, FOLLOW_WORKS_FIRST);
     if (view.work && !workRows.some((row) => row[0] === view.work)) workRows.push([view.work, view.work, 0]);
@@ -94,8 +96,8 @@ function useFacets(data: FollowPage | null, view: FollowView, seed: number) {
     const visible = groups.filter((group) => groupMediaKinds(group).has(wanted));
     return {
       groups, counts, sources, providers, tagRows, authorSources, authorOrder, workRows, allCount, mediaCounts, visible,
-      /* 按下的创作者、来源不在这一版的选项里时（改了别名、来源撤了）当作没按：页面不能停在一个
-         看不见按下项的筛选里。标签与题材从别处点进来时可能不在 general facets 里，照样生效。 */
+      /* When the pressed creator or source is not among this version's options (alias changed, source withdrawn), treat as unpressed: the page cannot stay
+         in a filter whose pressed item is invisible. Tags and genres entered from elsewhere may be absent from general facets and still apply. */
       author: authorSources.has(view.author) && activeAuthors.has(view.author) ? view.author : '',
       provider: providers.has(view.provider) ? view.provider : '',
       workNames: new Map((facets.works || []).map((row) => [row[0], row[1]])),
@@ -124,10 +126,10 @@ export function FollowFeedPage(props: FollowFeedProps) {
   const facets = useFacets(data, view, seed);
   const listPending = result.isPending || result.isPlaceholderData;
 
-  /* 侧栏仍在壳里：每取到本键自己的数据就把可见条目的标签计数、全库口径的来源与时长有无交回去，
-     换键时暂借的占位数据不交。来源按全库列：选中一个之后别的还在，才切得回去。
-     交回排到微任务里：壳收到后画侧栏，侧栏的句柄内部 `flushSync`，在提交阶段里画不出来。
-     这一次的抽屉已被下一次取代或页面已卸下就不交。 */
+  /* The sidebar stays in the shell: each time this key's own data arrives, hand back the visible items' tag counts plus library-wide source and duration availability;
+     placeholder data borrowed during a key switch is not handed back. Sources are listed library-wide: after selecting one the others remain, so you can switch back.
+     Handing back is queued into a microtask: the shell paints the sidebar on receipt, and the sidebar's handle calls `flushSync` internally, unpaintable during the commit phase.
+     If this drawer has been superseded by the next one or the page has unmounted, nothing is handed back. */
   const settled = !listPending && !!data;
   useEffect(() => {
     void pageNavigationReady(() => location.pathname === '/follow',
@@ -148,7 +150,7 @@ export function FollowFeedPage(props: FollowFeedProps) {
   const job = useFollowJob(props, !!data);
 
   if (!data) {
-    /* 取不到列表时页头照画：这时候最用得上的就是去管理页看来源出了什么事。 */
+    /* The page header renders even when the list cannot load: at that moment the most useful thing is heading to the manage page to see what went wrong with the sources. */
     if (result.isError) {
       return (
         <div data-follow-feed="">
@@ -170,19 +172,19 @@ export function FollowFeedPage(props: FollowFeedProps) {
 
   return (
     <>
-      {/* 进度那一格归 `followJobProgress`：它自己往里插面板、自己开合，React 只给一个空节点。 */}
+      {/* The progress cell belongs to `followJobProgress`: it inserts its own panel and opens and closes it itself; React only supplies an empty node. */}
       <div key={job.generation} ref={job.host} data-follow-progress="" />
-      {credentialsResult.isError ? <RetryNote message="凭据状态未取得" onRetry={() => { void credentialsResult.refetch() }} /> : null}
-      {!job.busy && job.report ? <Note tone="neutral" title="检查结果">{job.report}</Note> : null}
+      {credentialsResult.isError ? <RetryNote message="Credential state not obtained" onRetry={() => { void credentialsResult.refetch() }} /> : null}
+      {!job.busy && job.report ? <Note tone="neutral" title="Check results">{job.report}</Note> : null}
       <div data-follow-feed="" data-select-mode={props.selectMode ? '' : undefined}>
         <Head>
           {facets.sources.length ? (
-            <Button variant="primary" data-follow-recheck="" aria-label="检查每个来源的更新"
+            <Button variant="primary" data-follow-recheck="" aria-label="Check updates for each source"
               aria-busy={job.busy || undefined}
               onClick={() => void job.start(false)}>
               {job.starting === 'check'
-                ? <span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('检查中') }} />
-                : '检查更新'}
+                ? <span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('Checking') }} />
+                : 'Check for updates'}
             </Button>
           ) : null}
         </Head>
@@ -195,8 +197,8 @@ export function FollowFeedPage(props: FollowFeedProps) {
           onClear={() => route({ author: '', provider: '', work: '', tags: [], durMin: 0, durMax: 0 })} />
         {facets.broken.length ? <BrokenNote count={facets.broken.length} /> : null}
         <List retryKey={result.dataUpdatedAt} pending={listPending} facets={facets} data={data} context={context}
-          props={props} checkAction={<Button size="small" variant="secondary" aria-label="检查每个来源的更新" aria-busy={job.busy || undefined}
-            aria-disabled={job.busy || undefined} onClick={() => { if (!job.busy) void job.start(false) }}>检查更新</Button>} />
+          props={props} checkAction={<Button size="small" variant="secondary" aria-label="Check updates for each source" aria-busy={job.busy || undefined}
+            aria-disabled={job.busy || undefined} onClick={() => { if (!job.busy) void job.start(false) }}>Check updates</Button>} />
         {data.has_more || canBackfill ? (
           <div data-follow-pagination="">
             {data.has_more ? (
@@ -204,7 +206,7 @@ export function FollowFeedPage(props: FollowFeedProps) {
                 {data.groups.length < FOLLOW_AUTO_LOAD_LIMIT ? (
                   <LoadMore key={result.data?.pages.length} entity enabled={() => !job.busyRef.current}
                     load={async () => { await result.fetchNextPage({ throwOnError: true }) }}>
-                    <CHEVRON_DOWN className="size-(--icon-inline)" />加载更多
+                    <CHEVRON_DOWN className="size-(--icon-inline)" />Load more
                   </LoadMore>
                 ) : (
                   <ManualMore busy={result.isFetchingNextPage}
@@ -219,8 +221,8 @@ export function FollowFeedPage(props: FollowFeedProps) {
                   aria-busy={job.busy || undefined}
                   onClick={() => void job.start(true)}>
                   {job.olderBusy
-                    ? <><span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('抓取中') }} /><span>抓取中</span></>
-                    : '抓更早的一页'}
+                    ? <><span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('Fetching') }} /><span>Scraping</span></>
+                    : 'Fetch an earlier page'}
                 </Button>
                 <span data-follow-backfill="">{backfillState(facets.sources)}</span>
               </span>
@@ -232,14 +234,14 @@ export function FollowFeedPage(props: FollowFeedProps) {
   );
 }
 
-/** 页头：标题与「管理关注」恒在，检查更新那枚键要等来源读到才摆（`children`）。 */
+/** Page header: the title and "manage follows" are always present; the check-updates key waits until sources are read (`children`). */
 function Head({ children }: { children?: ReactNode }) {
   return (
     <div data-follow-head="">
-      <h2 data-follow-title="">关注</h2>
+      <h2 data-follow-title="">Follows</h2>
       <span data-follow-head-actions="">
         <ButtonLink variant="secondary" leadingIcon={SETTINGS} data-follow-manage="" href={manageHref()}>
-          管理关注
+          Manage follows
         </ButtonLink>
         {children}
       </span>
@@ -247,29 +249,29 @@ function Head({ children }: { children?: ReactNode }) {
   );
 }
 
-/** 摆满 `FOLLOW_AUTO_LOAD_LIMIT` 组以后的「加载更多」：外观同 `LoadMore` 那枚，只是滚到它不会自己接，
- *  要点一下。失败时原位留原因与重试。 */
+/** The "Load more" shown after `FOLLOW_AUTO_LOAD_LIMIT` groups: same look as the `LoadMore` one, except scrolling to it does not load by itself;
+ *  it needs a click. On failure the reason and a retry stay in place. */
 function ManualMore({ busy, error, load }: { busy: boolean; error: string; load(): void }) {
   return (
     <>
       <button type="button" data-entity-more="" aria-busy={busy || undefined} aria-disabled={busy || undefined} onClick={load}>
-        <CHEVRON_DOWN className="size-(--icon-inline)" />加载更多
+        <CHEVRON_DOWN className="size-(--icon-inline)" />Load more
       </button>
       {error ? <RetryNote message={error} onRetry={load} /> : null}
     </>
   );
 }
 
-/* ── 检查更新与往回抓 ──
- * 一次只往回一页：追更的常规检查永远只看第一页，往回抓是一个独立的、显式的动作，点一次走一页，
- * 不自动、不连翻。两枚键起的是同一趟任务，任务在跑时两枚一起忙，续页也停下。 */
+/* -- Check updates and back-crawl --
+ * Only one page back at a time: the routine update check only ever reads the first page, and back-crawling is a separate, explicit action, one click one page,
+ * never automatic, never consecutive. Both keys start the same run; while it runs both are busy, and continuation pages stop too. */
 function useFollowJob(props: FollowFeedProps, ready: boolean) {
   const { helpers, actions } = props;
   const [generation, setGeneration] = useState(0);
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState<'' | 'check' | 'older'>('');
   const [report, setReport] = useState('');
-  /* 往回抓那枚键在它起的那一趟跑完之前一直写「抓取中」，同遗留层：检查更新那一趟只让它忙、不换字。 */
+  /* The fetch-back key keeps reading "fetching" until the run it started finishes, same as the legacy layer: the check-for-updates run only keeps it busy without swapping the text. */
   const [olderRun, setOlderRun] = useState(false);
   const busyRef = useRef(false);
   const node = useRef<HTMLDivElement | null>(null);
@@ -298,12 +300,12 @@ function useFollowJob(props: FollowFeedProps, ready: boolean) {
         setRunning(false);
         setOlderRun(false);
         void queryClient.invalidateQueries({ queryKey: ['follow-feed'] });
-        /* 跟完的那一路不再盯：重新挂一路，别处再起的下一趟也接得上。 */
+        /* The finished path stops being watched: mount a new one so the next run started elsewhere can still be caught. */
         setGeneration((value) => value + 1);
       },
     });
     return () => { alive = false };
-    /* 首屏取数失败时进度那一格还没画出来，重试成功后 `ready` 翻过来再接上。 */
+    /* When the first-screen fetch fails the progress cell has not painted yet; after a successful retry `ready` flips and it connects. */
   }, [generation, ready]);
 
   const start = useCallback(async (older: boolean) => {
@@ -335,7 +337,7 @@ function useFollowJob(props: FollowFeedProps, ready: boolean) {
   };
 }
 
-/* ── 两排 ── */
+/* ── Two rows ── */
 
 function Authors({ facets, pressed, context, props, onPick }: {
   facets: Facets; pressed: string; context: FollowContext; props: FollowFeedProps; onPick(key: string): void;
@@ -346,7 +348,7 @@ function Authors({ facets, pressed, context, props, onPick }: {
   if (!facets.authorOrder.length) return null;
   return (
     <div data-follow-authors-bar="">
-      <div ref={row} data-follow-authors="" aria-label="创作者">
+      <div ref={row} data-follow-authors="" aria-label="Creators">
         {facets.authorOrder.map((key) => {
           const list = facets.authorSources.get(key) || [];
           const entity = followAuthorEntity(list);
@@ -356,7 +358,7 @@ function Authors({ facets, pressed, context, props, onPick }: {
           </>;
           return entity ? (
             <FollowAuthorLink key={key} name={entity} actions={props.actions} data-follow-author={key}
-              aria-label={`查看 ${nameOf(key)} 的作者页`}>{content}</FollowAuthorLink>
+              aria-label={`View the author page for ${nameOf(key)}`}>{content}</FollowAuthorLink>
           ) : (
             <button key={key} type="button" data-follow-author={key} aria-pressed={pressed === key} onClick={() => onPick(key)}>
               {content}
@@ -368,8 +370,8 @@ function Authors({ facets, pressed, context, props, onPick }: {
   );
 }
 
-/* 创作者行下面这一排是题材，位置和形状对着首页那排厂牌：只收来源自己记成 copyright 与 character 的
-   标签，词形猜不得。圆标里是服务端按这个题材挑好的代表图，挑不出就写两个字母。 */
+/* The row under the creator row is genres, matching the position and shape of the label row on the home page: it only accepts tags that sources themselves record as copyright and character;
+   the word form cannot be guessed. The round badge holds a representative image the server picked for that genre, or two letters when none can be picked. */
 function Works({ rows, pressed, props, onPick }: {
   rows: readonly FollowWorkRow[]; pressed: string; props: FollowFeedProps; onPick(key: string): void;
 }) {
@@ -377,7 +379,7 @@ function Works({ rows, pressed, props, onPick }: {
   useEffect(() => { props.helpers.wireDrag(row.current) }, [props.helpers]);
   if (!rows.length) return null;
   return (
-    <div ref={row} data-follow-works="" aria-label="按题材筛选">
+    <div ref={row} data-follow-works="" aria-label="Filter by genre">
       {rows.map((work) => (
         <button key={work[0]} type="button" data-follow-work={work[0]} aria-pressed={pressed === work[0]}
           onClick={() => onPick(work[0])}>
@@ -390,11 +392,12 @@ function Works({ rows, pressed, props, onPick }: {
   );
 }
 
-/* ── 筛选玻璃 ──
- * 上排由粗到细，和资料页那条同一个次序：最左端是视频／图片——这一页现在摆的是哪一类东西；隔一道
- * 竖线是四枚状态，恒有一枚生效，滑动的那块玻璃跟着它走；再隔一道才是来源和标签这些可加可不加的
- * 筛选。媒体那一档另有一块圆玻璃：它和状态问的不是同一件事，共用一块的话，点一下图片，玻璃会从
- * 「未看」那儿飞过来。下排左端读数，右端换一批、图片墙上的布局与「仅显示图片」，然后是排序键。 */
+/* Filter glass.
+ * The top row runs coarse to fine, the same order as the profile page's bar: the far left is videos/photos, which kind of
+ * things this page currently shows; past one divider are the four statuses, always exactly one active, with the sliding glass
+ * following it; past another divider come the optional filters: sources and tags. The media tier has its own round glass: it
+ * asks a different question than status, and sharing one glass would fly the pane over from "Unwatched" on a photo click.
+ * The bottom row holds the readout on the left, then Shuffle, the photo wall's layout and "images only", then the sort keys. */
 function Glass({ facets, view, total, busy, props, route }: {
   facets: Facets; view: FollowView; total: number; busy: boolean; props: FollowFeedProps;
   route(patch: Partial<FollowView>): void;
@@ -418,7 +421,7 @@ function Glass({ facets, view, total, busy, props, route }: {
   const extras = providers.length + facets.tagRows.length > 0;
   const images = view.media === 'images';
   return (
-    <FilterGlassRows label="筛选与排序" topLabel={showMedia ? '媒体与关注筛选' : '关注筛选'}
+    <FilterGlassRows label="Filter and sort" topLabel={showMedia ? 'Media and follow filters' : 'Follow filters'}
       attrs={{ 'data-filter-frame': '', 'data-follow-filter-glass': '' }}
       topClassName="gap-1.5 overflow-visible" busy={busy}
       panes={<>
@@ -428,9 +431,9 @@ function Glass({ facets, view, total, busy, props, route }: {
       top={<>
         {showMedia ? (
           <>
-            <div ref={mediaRow} role="group" aria-label="媒体类型" data-entity-media="" onPointerLeave={mediaGlide.leave}>
-              {([['videos', '视频', facets.mediaCounts.videos, 'play', 'video'],
-                ['images', '图片', facets.mediaCounts.images, 'pics', 'image']] as const).map(([value, text, count, symbol, kind]) => {
+            <div ref={mediaRow} role="group" aria-label="Media kinds" data-entity-media="" onPointerLeave={mediaGlide.leave}>
+              {([['videos', 'Videos', facets.mediaCounts.videos, 'play', 'video'],
+                ['images', 'Images', facets.mediaCounts.images, 'pics', 'image']] as const).map(([value, text, count, symbol, kind]) => {
                 const title = `${text} ${Math.max(0, count || 0).toLocaleString()}`;
                 return (
                   <button key={value} type="button" data-media-view={value} data-media-icon={kind}
@@ -444,7 +447,7 @@ function Glass({ facets, view, total, busy, props, route }: {
           </>
         ) : null}
         <div ref={scroll} data-entity-scroll="">
-          <div ref={stateRow} role="group" aria-label="状态" data-entity-states="" onPointerLeave={stateGlide.leave}>
+          <div ref={stateRow} role="group" aria-label="State" data-entity-states="" onPointerLeave={stateGlide.leave}>
             {FOLLOW_FILTERS.map(([key, label]) => (
               <button key={key} type="button" data-entity-state={key} data-follow-filter={key} data-entity-press=""
                 aria-pressed={view.status === key} onPointerEnter={stateGlide.hover}
@@ -457,7 +460,7 @@ function Glass({ facets, view, total, busy, props, route }: {
           <div ref={tagRow} data-entity-tags="">
             {providers.map(([key, label]) => (
               <button key={key} type="button" data-follow-provider={key} data-entity-press=""
-                aria-pressed={facets.provider === key} title={label} aria-label={`来源：${label}`}
+                aria-pressed={facets.provider === key} title={label} aria-label={`Source: ${label}`}
                 onClick={() => route({ provider: facets.provider === key ? '' : key })}
                 dangerouslySetInnerHTML={{ __html: sourceMark(key, label) }} />
             ))}
@@ -475,17 +478,17 @@ function Glass({ facets, view, total, busy, props, route }: {
       </>}
       bottom={<>
         <h3 data-entity-readout="" data-follow-readout="">
-          <AsyncText text={`${total.toLocaleString()} 项更新 · 显示 ${facets.visible.length.toLocaleString()}`} busy={busy} />
+          <AsyncText text={`${total.toLocaleString()} updates · showing ${facets.visible.length.toLocaleString()}`} busy={busy} />
         </h3>
         <LibraryShortcuts currentHref={() => location.pathname + location.search} kind="creator" />
         <span data-entity-sorts="">
           <Shuffle onPress={actions.shuffle} />
           {images ? (
             <>
-              <Segments label="图片布局" value={props.photoLayout} options={FOLLOW_PHOTO_LAYOUTS}
+              <Segments label="Image layout" value={props.photoLayout} options={FOLLOW_PHOTO_LAYOUTS}
                 onChange={(value) => actions.setPhotoLayout(value === 'fixed' ? 'fixed' : 'masonry')} />
-              <button type="button" data-follow-images-only="" aria-pressed={props.imagesOnly} title="仅显示图片"
-                aria-label="仅显示图片" onClick={() => actions.setImagesOnly(!props.imagesOnly)}>
+              <button type="button" data-follow-images-only="" aria-pressed={props.imagesOnly} title="Images only"
+                aria-label="Images only" onClick={() => actions.setImagesOnly(!props.imagesOnly)}>
                 {props.imagesOnly ? <span data-view-glide="" aria-hidden="true" /> : null}
                 <span className="contents" dangerouslySetInnerHTML={{ __html: icon('captions-off') }} />
               </button>
@@ -510,9 +513,9 @@ function Glass({ facets, view, total, busy, props, route }: {
   );
 }
 
-/* 生效的筛选摊在浮层正下方，跟首页和资料页同一条交集筛选条。放在浮层下面：这一条从无到有会把它
-   下面的东西整块推下四十像素，放在上面的话被推的是那块吸顶的玻璃和它上面的两排头像。标签那一档
-   不写前缀，标签名自己就说明了它是什么。 */
+/* Active filters lay right below the overlay, on the same intersection filter bar as home and the profile page. Placed below: this bar appearing from nothing pushes
+   everything under it down forty pixels as a block, and placed above, what gets pushed is the stuck glass and the two avatar rows on it. The tag tier
+   writes no prefix; the tag name itself says what it is. */
 function Combo({ conditions, onDrop, onClear }: {
   conditions: FollowCondition[]; onDrop(row: FollowCondition): void; onClear(): void;
 }) {
@@ -521,35 +524,35 @@ function Combo({ conditions, onDrop, onClear }: {
       {conditions.length ? (
         <>
           {conditions.map((row) => {
-            const text = `${row.kind === '标签' ? '' : `${row.kind} `}${row.label}`;
+            const text = `${row.kind === 'Tags' ? '' : `${row.kind} `}${row.label}`;
             return (
               <span key={`${row.kind}:${row.key}`} data-combo-chip="">
                 {text}
-                <button type="button" aria-label={`撤掉 ${text}`} data-follow-drop={row.key} data-follow-drop-kind={row.kind}
+                <button type="button" aria-label={`Remove ${text}`} data-follow-drop={row.key} data-follow-drop-kind={row.kind}
                   onClick={() => onDrop(row)}>✕</button>
               </span>
             );
           })}
-          <button type="button" data-combo-clear="" onClick={onClear}>全部清除</button>
+          <button type="button" data-combo-clear="" onClick={onClear}>Clear all</button>
         </>
       ) : null}
     </div>
   );
 }
 
-/** 有来源上次检查失败：这一页不摊原因，指到管理页去看。Note 的边界与图标取全站那一份。 */
+/** A source failed its last check: this page does not spread out the reasons and points to the manage page instead. The Note's border and icon use the site-wide copy. */
 function BrokenNote({ count }: { count: number }) {
   return (
     <div data-follow-broken="" dangerouslySetInnerHTML={{
-      __html: `<div class="geist-note geist-note-error fwarn" role="alert">${icon('alert')}<span>${count} 个来源上次检查失败，去<a class="flink" href="${esc(manageHref())}" data-follow-manage>管理关注</a>看原因。</span></div>`,
+      __html: `<div class="geist-note geist-note-error fwarn" role="alert">${icon('alert')}<span>${count} sources failed their last check. Open <a class="flink" href="${esc(manageHref())}" data-follow-manage>Manage follows</a> to see why.</span></div>`,
     }} />
   );
 }
 
-/** 管理页入口随当前地址算：旧地址上的 `tab` 仍按 `followManageEntry` 的约定改道。 */
+/** The manage page entry is computed from the current URL: `tab` on legacy URLs still reroutes by the `followManageEntry` convention. */
 const manageHref = () => followManageEntry(window.location.search);
 
-/* ── 列表 ── */
+/* ── List ── */
 
 function List({ pending, facets, data, context, props, retryKey, checkAction }: {
   pending: boolean; facets: Facets; data: FollowPage; context: FollowContext; props: FollowFeedProps;
@@ -602,33 +605,34 @@ function Cards({ facets, data, context, props, images, retryKey, checkAction }: 
   );
 }
 
-/** 卡上那一条的 id：卡面换成了组里含当前媒体的那条时，选择与写操作认的是它。 */
+/** The id of the item on the card: when the card face switched to the group entry containing the current media, selection and writes target it. */
 function cardId(group: FollowGroup, view: FollowView): number {
   return itemForMedia(group, view.media).id;
 }
 
-/** 空列表分四种：这一页有组只是媒体类型没对上；设了筛选没筛出东西；有来源但一条都还没抓到；
- *  一个来源都没有。没设筛选时不叫人去改筛选。 */
+/** Four kinds of empty list: this page has entries but the media type does not match; a filter is set but matched nothing; there are sources but nothing fetched yet;
+ *  no sources at all. When no filter is set, do not tell people to change filters. */
 function Empty({ data, filtered, clear, checkAction }: {
   data: FollowPage; filtered: boolean; clear(): void; checkAction: ReactNode;
 }) {
   const noMatch = !!data.groups.length || filtered;
   const hasSources = !!data.sources.length;
   return <div data-follow-empty="" className="contents"><EmptyState icon={spriteGlyph(noMatch ? 'search-x' : 'rss')}
-    title={noMatch ? '当前筛选下没有更新' : hasSources ? '还没有更新' : '还没有关注任何来源'}
-    actions={noMatch ? <Button size="small" onClick={clear}>清除筛选</Button>
-      : hasSources ? checkAction : <ButtonLink size="small" href="/subscriptions?tab=add">添加关注</ButtonLink>}>
-    {noMatch ? '切换媒体类型、创作者、来源、时长或标签后再试。'
-      : hasSources ? '检查来源更新后，新内容会集中显示在这里。' : '添加创作者或订阅来源后，更新会集中显示在这里。'}
+    title={noMatch ? 'No updates under the current filter' : hasSources ? 'No updates yet' : 'Not following any sources yet'}
+    actions={noMatch ? <Button size="small" onClick={clear}>Clear filters</Button>
+      : hasSources ? checkAction : <ButtonLink size="small" href="/subscriptions?tab=add">Add follows</ButtonLink>}>
+    {noMatch ? 'Try again after switching media type, creator, source, duration, or tags.'
+      : hasSources ? 'After checking source updates, new content is collected here.' : 'After adding creators or subscribing to sources, their updates gather here.'}
   </EmptyState></div>;
 }
 
-/* ── 写操作 ──
- * 状态与稍后看（保存到数据库）都在岛里发。成功后在缓存里换局部：条目状态、状态计数，筛着某一档
- * 而新状态不在这一档时整组移出；再在后台重读一遍，拿服务端的口径校正。回执带一颗撤销键，保存
- * 进数据库的不给撤销——那是另一件事。只读端写入必然 409，那是正常状态，照实写在卡上。资料页的在线
- * 视图用的是同一个钩子，`view` 是它那一份只按创作者筛的视图。 */
-const STATUS_RECEIPTS: Record<string, string> = { new: '已恢复未看', seen: '已标记已看', ignored: '已忽略' };
+/* Write operations.
+ * Status and Watch later (saving to the database) are sent from the island. On success, cache is updated locally: entry
+ * status, status counts, and when filtering by a tier the new status is not in, the whole group moves out; then a background
+ * reread corrects against the server's basis. The receipt carries an undo key, and entries saved into the database get none,
+ * since that is another matter. Read-only clients always answer 409 on write, which is normal and stated as-is on the card.
+ * The profile page's online view uses the same hook, its `view` being its own copy filtered by creator only. */
+const STATUS_RECEIPTS: Record<string, string> = { new: 'Reset to unwatched', seen: 'Marked as watched', ignored: 'Ignored' };
 
 export function useFollowWrite(props: Pick<FollowFeedProps, 'view' | 'revision' | 'actions'>) {
   const { view, revision, actions } = props;
@@ -643,7 +647,7 @@ export function useFollowWrite(props: Pick<FollowFeedProps, 'view' | 'revision' 
   const apply = (id: number, to: string) => {
     queryClient.setQueryData<InfiniteData<FollowPage>>(key, (current) => (current ? withStatus(current, view, id, to) : current));
   };
-  /* 只重读这一版列表：凭据那一份和别的筛选下缓存的列表都不因为一次标记而变。 */
+  /* Refetch only this version of the list: the credentials one and the lists cached under other filters do not change because of a single flag. */
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key, exact: true });
   const before = (id: number) => {
     const page = mergedPage(queryClient.getQueryData<InfiniteData<FollowPage>>(key));
@@ -652,13 +656,13 @@ export function useFollowWrite(props: Pick<FollowFeedProps, 'view' | 'revision' 
     }
     return 'new';
   };
-  /* 回调写在钩子上而不是每次 `mutate` 上：连点两张卡时，`mutate` 上的回调只有最后那一次会跑。 */
+  /* The callback is written on the hook, not on each `mutate`: when two cards are clicked in a row, only the last callback on `mutate` would run. */
   const statusMutation = useMutation({
     mutationFn: ({ id, to }: { id: number; to: string; was: string }) => apiSend(FOLLOW_STATUS_URL, { item: id, to }),
     onSuccess: (_result, { id, to, was }) => {
       apply(id, to);
       refresh();
-      actions.toast(STATUS_RECEIPTS[to] || '已更新关注状态', {
+      actions.toast(STATUS_RECEIPTS[to] || 'Follow state updated', {
         undo: was !== 'saved' ? async () => {
           await apiSend(FOLLOW_STATUS_URL, { item: id, to: was });
           apply(id, was);
@@ -668,7 +672,7 @@ export function useFollowWrite(props: Pick<FollowFeedProps, 'view' | 'revision' 
     },
     onError: (error, { id }) => {
       mark(id, requestErrorMessage(error), setFailures);
-      actions.failure('更新关注状态', error);
+      actions.failure('Follow state updated', error);
     },
     onSettled: (_result, _error, { id }) => mark(id, '', setBusy),
   });
@@ -677,17 +681,17 @@ export function useFollowWrite(props: Pick<FollowFeedProps, 'view' | 'revision' 
     onSuccess: (_result, id) => {
       apply(id, 'saved');
       refresh();
-      actions.toast('已保存到数据库');
+      actions.toast('Saved to the database');
     },
     onError: (error, id) => {
       mark(id, requestErrorMessage(error), setFailures);
-      actions.failure('保存到数据库', error);
+      actions.failure('Save to the database', error);
     },
     onSettled: (_result, _error, id) => mark(id, '', setBusy),
   });
   const latest = useRef({ statusMutation, saveMutation, before });
   latest.current = { statusMutation, saveMutation, before };
-  /* 两个处理器身份不变：卡片按引用比较，每次重画都换新函数的话一屏几百张卡跟着重画。 */
+  /* The two handlers keep a stable identity: cards compare by reference, and swapping in a new function on every repaint would redraw hundreds of cards on screen. */
   const status = useCallback((id: number, to: string) => {
     mark(id, to, setBusy);
     mark(id, '', setFailures);

@@ -2,26 +2,27 @@ import { esc, icon } from '../core';
 
 import { wireAnchoredMenu } from './anchored-menu';
 
-/** 一项：值、显示文字，可选的站标（雪碧图字形名或内嵌 PNG 的 data URL）。 */
+/** One item: value, display text, and an optional site icon (a sprite glyph name or a data URL with an embedded PNG). */
 export type SelectOption = readonly [value: string, text: string, mark?: string | undefined];
-/** `wireSelectField` 接好的根元素：`value`、`disabled` 按原生 select 的写法读写。 */
+/** The root element wired by `wireSelectField`: `value` and `disabled` read and write like a native select. */
 export type SelectField = HTMLElement & { value: string; disabled: boolean };
 
-/* Geist Select：站内每一个下拉都是它，没有一个走浏览器自带的 select 控件。
-
-   原生下拉的弹出层由操作系统画，不认站内色板：浅色主题下它要么跟着系统换成另一套灰白，
-   要么只能用 `color-scheme` 整个按回深色——设置面板里那七个此前就是被按成深色的，
-   白底页面上七块黑。2026-09-04 实测 vercel.com 后台：整站没有一个原生下拉，触发器是
-   button，面板是自绘 listbox，面板底色就是页面底色（浅色下纯白 --ds-background-100），
-   行高 36px、圆角 6px、行内边距 0 8px，悬停与选中都是 5% 中性填充，选中项没有勾。Peach
-   的行高走站内已有的 --control-h（36px），面板与定位复用 .popmenu 和 wireAnchoredMenu。
-
-   选中态只有填充，行内也就没有一枚勾要占位：行首腾出来的那一格正好让每一项的站标和
-   触发器里那一枚落在同一列上。面板的左内边距（.popmenu 的 6px 加行的 6px）按触发器的
-   12px 凑，两处图标于是对齐到一像素。
-
-   `value`、`disabled` 和 `change` 三样按原生 select 的写法留在根元素上：调用方读写它跟
-   读写原生下拉一样，换掉的只是画法。 */
+/* Geist Select: every dropdown on the site is this one; none uses the browser's native select control.
+ *
+ * A native dropdown's popup is drawn by the operating system and ignores the site palette: in the light theme it either
+ * follows the system into a different gray-white, or can only be forced back to dark wholesale with `color-scheme`. The seven
+ * in the settings panel were exactly that, seven black blocks on white pages. Measured on vercel.com on 2026-09-04: the site
+ * has no native dropdowns anywhere; triggers are buttons, panels are self-drawn listboxes, the panel background is the page
+ * background (pure white --ds-background-100 in light mode), row height 36px, radius 6px, row padding 0 8px, hover and
+ * selected are both 5% neutral fills, and the selected item has no check. Peach's rows use the site's existing --control-h
+ * (36px), and the panel and positioning reuse .popmenu and wireAnchoredMenu.
+ *
+ * The selected state is fill only, so no check needs a slot in the row: the freed leading cell lets each item's site icon line
+ * up in the same column as the one in the trigger. The panel's left padding (.popmenu's 6px plus the row's 6px) is sized to
+ * the trigger's 12px, so the two icons align to the pixel.
+ *
+ * `value`, `disabled` and `change` stay on the root element, written like a native select: callers read and write it as they
+ * would a native dropdown; only the drawing changes. */
 export function selectOptionIconHtml(mark?: string): string {
   return !mark?'':mark.startsWith('data:image/png;base64,')
     ?`<img class="gselectmark" src="${esc(mark)}" alt="" width="16" height="16">`:icon(mark,'gselectmark');
@@ -41,14 +42,14 @@ export function selectFieldHtml(
     <div class="popmenu gselectmenu" role="listbox" aria-label="${esc(label)}" popover="manual" data-select-menu hidden>${rows}</div></div>`;
 }
 
-/** 接上 selectFieldHtml 画出来的一个下拉；返回的就是根元素，带 value / disabled。 */
+/** Wires up a dropdown painted by selectFieldHtml; returns the root element itself, with value / disabled. */
 export function wireSelectField(root: HTMLElement): SelectField {
   const trigger=root.querySelector<HTMLButtonElement>('[data-select-trigger]')!;
   const menu=root.querySelector<HTMLElement>('[data-select-menu]')!,label=root.querySelector('[data-select-label]')!;
   const options=()=>[...menu.querySelectorAll<HTMLElement>('[data-select-option]')];
   const current=()=>menu.querySelector<HTMLElement>('[aria-selected="true"]');
-  /* 面板至少和触发器一样宽。菜单是 fixed 的，宽度不会自己跟着触发器走，而一个比触发器
-     还窄的面板看着不像同一个控件。这条要接在 wireAnchoredMenu 之前：它按当前宽度定位。 */
+  /* The panel is at least as wide as the trigger. The menu is fixed, so its width does not follow the trigger on its own, and a panel narrower than the trigger
+     does not read as the same control. This must run before wireAnchoredMenu: it positions by the current width. */
   trigger.addEventListener('click',()=>{
     const width=`${trigger.getBoundingClientRect().width}px`;
     menu.style.minWidth=width;

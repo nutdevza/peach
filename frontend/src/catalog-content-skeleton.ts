@@ -4,22 +4,22 @@ import { catalogTableSnapshot, type TableSnapshot } from './react/catalog-grid/c
 import { esc } from './core';
 import { COMPLETION_ROW_SKELETON_HTML, completionRowRemembered } from './react/library-processing/completion-row';
 
-/** 列表骨架一格的内容，壳与列表岛共用：名称格是缩略图和两行标题，艺人格是圆头像加一条，媒体库、厂牌格是
- *  小标识加一条，其余列一条短条。 */
+/** The content of one cell in the list skeleton, shared by the shell and the list island: the name cell is a thumbnail plus a two-line title, the artist cell a round avatar plus a bar, the media library and label cells a
+ * small badge plus a bar, and every other column a short bar. */
 export function catalogListSkeletonCellHtml(column: string): string {
   if (column === 'name') return '<span data-list-skeleton-name><i class="skeleton-sheen"></i><span><i class="skeleton-sheen"></i><i class="skeleton-sheen"></i></span></span>';
   if (column === 'people' || column === 'library' || column === 'studio') return `<span data-list-skeleton-mark="${column}"><b class="skeleton-sheen"></b><i class="skeleton-sheen"></i></span>`;
   return '<i data-list-skeleton-bar class="skeleton-sheen"></i>';
 }
 
-/* 壳的列表骨架直接套真实表格的外框与 `bui-table` 类：工具栏一行、表头写真实列名、列宽按本机列偏好，
- * 列表岛接管后在真实表格里画同样的骨架行，数据到之前不换结构。 */
+/* The shell's list skeleton reuses the real table's outer frame and `bui-table` class: one toolbar row, real column names in the header, column widths from local column preferences;
+ *  after the list island takes over, the same skeleton rows are drawn inside the real table and the structure does not change before data arrives. */
 function catalogListSkeletonHtml(label: string): string {
   return `<div class="peach-react catalog-skeleton" data-skeleton="catalog/list" role="status" aria-busy="true" aria-label="${esc(label)}">`
     + listTableSkeletonHtml(catalogTableSnapshot(), completionRowRemembered() ? COMPLETION_ROW_SKELETON_HTML : '') + '</div>';
 }
 
-/** 工具栏一行加按列偏好排好的表格骨架；馆藏列表与 JAV 新作列表共用，`between` 插在工具栏与表格之间。 */
+/** A toolbar row plus a table skeleton sorted by column preference; shared by the library list and the JAV new-releases list, with between inserted between the toolbar and the table. */
 export function listTableSkeletonHtml(columns: TableSnapshot, between = ''): string {
   const flexible = columns.some(column => column.width === null);
   const minimum = columns.reduce((sum, column) => sum + (column.width ?? column.min), 0);
@@ -32,7 +32,7 @@ export function listTableSkeletonHtml(columns: TableSnapshot, between = ''): str
     + `<colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${row.repeat(6)}</tbody></table></div></div></div>`;
 }
 
-/** 馆藏与资料页按当前列表偏好使用同一份作品等待态。 */
+/** Library and profile pages share one video waiting state according to the current list preference. */
 export function catalogContentSkeletonHtml(label: string, cardRatio: number): string {
   if (catalogView() === 'list') return catalogListSkeletonHtml(label);
   return skeletonHtml(label, { variant: 'cards', className: 'catalog-skeleton postercard-skeleton', cardRatio });

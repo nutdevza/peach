@@ -1,4 +1,4 @@
-/* lifecycle 域控制器：本域状态与动作，启动由 Application 的生命周期统一安装。 */
+/* lifecycle domain controller: this domain's state and actions; startup installs them together through Application's lifecycle. */
 import { initBoardControls } from './../board-controls';
 import { attachOverlayScrollbar, observeScrollRegions, wireBusyActions } from '../ui-kit';
 import { $ } from '../core';
@@ -33,7 +33,7 @@ followState.followProviders = new Set();
 followState.followTags = new Set();
 followState.followWorks = new Set();
 followState.followMediaView = 'videos';
-followState.FOLLOW_FEED_SORTS = [['new','更新时间'],['hot','热度'],['dur','时长']];
+followState.FOLLOW_FEED_SORTS = [['new','Updated'],['hot','Popularity'],['dur','Duration']];
 followState.FOLLOW_RANDOM_SORT = 'rand';
 followState.followSort = 'new';
 followState.followDir = 'desc';

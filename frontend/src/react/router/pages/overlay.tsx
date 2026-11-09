@@ -1,20 +1,28 @@
-/* 覆盖组的元素（ADR-0031「详情条目记下压在哪一页上」）：作品详情、四种队列与关注详情各一条路径
- * （`OVERLAY_PATHS`），覆盖组按真实地址匹配，挂上就把那一条送进舞台，卸下去处不是覆盖地址就收起舞台。
+/* The overlay group's elements (ADR-0031, "detail entries record which page they stack on"): video details, the four queues and
+ * follow details each get one path (`OVERLAY_PATHS`); the overlay group matches on the real address, and on mount sends that
+ * entry to the stage, tearing the stage down on unmount when the destination is not an overlay address.
  *
- * 什么时候打开：
- * - 启动（刷新、新标签页、深链）：壳开始路由（`@peach/shell` 的 `pageOpens` 从 0 变成 1）那一刻打开；路由根晚于
- *   壳开始路由才装上、地址还停在启动那一条上时，挂上就打开。启动那一条不读背景，关掉回各自的缺省来处。
- * - 没人认领的历史变化（后退前进、React 子树与壳经 `peachHistory` 直接写的地址）：接上条目记的背景
- *   （`adoptOverlayState`），再打开。元素按导航序号挂 key，地址没变的后退（同一条目重放、`history.state` 为空）
- *   也领一个新代次，重挂、再开一次。
- * - 壳认领写的地址：点卡片把一次性打开请求交给覆盖元素，挂上后取走；队列取齐后写地址与转换详情种类只改条目。
- * 打开与收起都交壳（`ShellActions.openOverlay`、`closeStage`）：取数、来处与舞台句柄都还在壳里。
+ * When they open:
+ * - Startup (refresh, new tab, deep link): open at the moment the shell starts routing (`pageOpens` in `@peach/shell` goes
+ *   from 0 to 1); if the router root installed after the shell started routing and the address still sits on the startup
+ *   entry, open on mount. The startup entry reads no background; closing returns to each one's default origin.
+ * - Unclaimed history changes (back/forward, addresses written directly by the React subtree or the shell via
+ *   `peachHistory`): adopt the background the entry recorded (`adoptOverlayState`), then open. Elements key by navigation
+ *   index; a back/forward that does not change the address (same entry replayed, empty `history.state`) still takes a new
+ *   generation, remounts and opens again.
+ * - Addresses the shell claimed writing: clicking a card hands the one-shot open request to the overlay element, which picks
+ *   it up after mounting; after a queue finishes fetching, writing the address and switching the detail kind only change the
+ *   entry. Opening and closing are handed to the shell (`ShellActions.openOverlay`, `closeStage`): fetching, origins and the
+ *   stage handle all live in the shell.
  *
- * 页面组那一侧（`router.tsx`）：有背景时按背景匹配，背景页不重挂；没有背景的覆盖地址也挂一格，作品与队列补画
- * 目录网格（目录元素），关注详情只让出 `#stats`（`FollowDetailGround`），不画列表。
+ * The page group side (`router.tsx`): with a background it matches on background and the background page is not remounted;
+ * overlay addresses without a background also get a slot, where videos and queues backfill the catalog grid (the catalog
+ * element) and follow details only yield `#stats` (`FollowDetailGround`) without rendering the list.
  *
- * 打开、收起与让位都排进微任务：路由根在历史变化的同一次调用里同步提交，壳打开舞台要同步画，在提交阶段里画会
- * 出 flushSync 告警。历史通知同步更新壳的标题与侧栏，页面取数随后领取当前代次。 */
+ * Open, close and yield all queue into microtasks: the router root commits synchronously in the same call as the history
+ * change, and the shell's stage open must render synchronously; rendering in the commit phase triggers flushSync warnings.
+ * History notifications update the shell's title and sidebar synchronously; page fetching claims the current generation
+ * afterwards. */
 import { useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 
 import {
@@ -28,7 +36,7 @@ import { ShellActionsContext, useOpenEpoch } from '../router';
 const readOpens = () => pageOpens;
 const readQueueOpens = () => queueOpens;
 
-/** 队列尚未定下条目时的打开意图：路由树接手，等待首屏确定实际地址；不在历史里放临时条目。 */
+/** The open intent from before the queue settles on an item: the route tree takes over and waits for the first screen to fix the real address; no temporary entries go into history. */
 export function QueueRequests(): ReactNode {
   const actions = useContext(ShellActionsContext);
   const requests = useSyncExternalStore(subscribeShell, readQueueOpens);
@@ -42,9 +50,9 @@ export function QueueRequests(): ReactNode {
   return null;
 }
 
-/** 挂上的这一格要不要按地址打开、什么时候打开。`run(boot)` 只跑一次：`boot` 为真是启动那一次（壳开始路由时，
- *  或路由根晚装上时地址还是启动那一条），为假是一次历史变化。`claimedOpens` 允许认领写地址的打开请求。
- *  覆盖元素按导航序号挂 key；沉浸元素按页面打开序号挂 key。 */
+/** Whether and when a mounted cell should open by address. `run(boot)` runs once: `boot` true is the startup pass (when the shell starts routing,
+ *  or when the route root mounts late and the address is still the startup one), false is a history change. `claimedOpens` allows claiming open requests that write the address.
+ *  Overlay elements key by navigation sequence number; immersive elements key by page-open sequence number. */
 export function useRouteOpen(run: (boot: boolean) => void, claimedOpens = false): void {
   const opens = useSyncExternalStore(subscribeShell, readOpens);
   const pending = useRef<'boot' | 'history' | null | undefined>(undefined);
@@ -67,7 +75,7 @@ export function useRouteOpen(run: (boot: boolean) => void, claimedOpens = false)
   }, [opens]);
 }
 
-/* 一条覆盖地址的元素：挂上按地址打开那一条，卸下去处不再是覆盖地址就收起舞台（正在放的视频照旧进小窗）。 */
+/* The element for an overlay URL: on mount it opens that target, and on unmount, when the destination is no longer an overlay URL, it collapses the stage (a video that is playing goes on into the mini player). */
 function OverlayOpen() {
   const actions = useContext(ShellActionsContext);
   const latestActions = useRef(actions);
@@ -89,7 +97,7 @@ function OverlayOpen() {
   return null;
 }
 
-/** 覆盖组一条路径的元素：每次导航各挂一次，同一条目重放也能再打开。 */
+/** The overlay group's per-path element: mounted once per navigation, so replaying the same entry can open it again. */
 export function OverlayMatch({ path }: { path: OverlayPath }): ReactNode {
   useOpenEpoch();
   const { location, seq, action } = peachHistory.navigation;
@@ -103,14 +111,14 @@ export function OverlayMatch({ path }: { path: OverlayPath }): ReactNode {
   return <OverlayOpen key={`${path} ${held.current.seq}`} />;
 }
 
-/* 页面组里没有背景的关注详情（深链、刷新与没记背景的条目）：不画列表，只让出 `#stats`；列表等关掉详情才打开。 */
+/* Follow detail without a background in the page group (deep links, refreshes, entries with no recorded background): draw no list and yield only to `#stats`; the list opens once the detail closes. */
 function FollowGroundOpen() {
   const actions = useContext(ShellActionsContext);
   useRouteOpen(() => { actions?.follow?.ground() });
   return null;
 }
 
-/** 页面组 `/posts/:id` 的元素，按页面打开序号挂 key。 */
+/** Elements of the page group `/posts/:id`, keyed by page-open order. */
 export function FollowDetailGround(): ReactNode {
   return <FollowGroundOpen key={useOpenEpoch()} />;
 }

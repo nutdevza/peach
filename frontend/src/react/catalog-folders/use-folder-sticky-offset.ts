@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react';
 
-/** 目录栏的吸顶边界跟随首页筛选浮层的实际高度。 */
+/** The catalog bar's sticky boundary follows the actual height of the home page's filter overlay. */
 export function useFolderStickyOffset(active: boolean, target?: HTMLElement) {
   useLayoutEffect(() => {
     if (!active) return;

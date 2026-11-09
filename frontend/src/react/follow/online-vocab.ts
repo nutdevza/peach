@@ -1,29 +1,30 @@
-/* 关注来源上的两份词表：来源里出现过的创作者，与上游 booru 给条目打的标签。
+/* The two vocabularies on follow sources: the creators that appeared in the sources, and the tags upstream booru gave the
+ * entries.
  *
- * 两份都归关注那一侧：它们数的是还没入库的在线更新，点开去的也是关注页。艺人与标签两张
- * 索引页只是把它们摆成名册和字母表，所以键建在这里，不建在索引模块里：哪天关注页也要摆
- * 同一份词表，读的就是同一个 `queryKey`。
+ * Both belong to the follows side: they count online updates not yet added to the library, and clicking through goes to the
+ * follows page. The performer and tag index pages merely lay them out as a roster and an alphabet, so the keys are built here
+ * rather than in the index module: the day the follows page also lays out the same vocabulary, it reads the same `queryKey`.
  *
- * 分页照 `/api/index` 的形状：`limit`／`offset` 翻页，响应带 `has_more`。 */
+ * Pagination follows `/api/index`'s shape: `limit`/`offset` paging with `has_more` in the response. */
 import { apiGet } from '../../api';
 
 export const FOLLOW_AUTHORS_URL = '/api/follow/authors';
 export const FOLLOW_TAGS_URL = '/api/follow/tags';
 
-/** 来源上的一位创作者。`key` 是关注页筛选用的那套创作者键：建过档的是 `entity:<id>`，
- *  还没建档的按名字归组。`held_by` 是数据库里同名的那位创作者，等用户在那一页认过才绑定。 */
+/** One creator on a source. `key` is the follows page filter's creator keys: profiled ones are `entity:<id>`,
+ *  unprofiled ones group by name. `held_by` is the same-named creator in the database, bound once the user confirms on that page. */
 export interface OnlineAuthor {
   k: string;
   key: string;
   n: number;
   entity_id: number | null;
   held_by: string;
-  /** 官方主页上的头像；取不到时是空串。 */
+  /** The avatar on the official profile page; an empty string when unavailable. */
   avatar: string;
-  /** 归档站的头像，主页那张失败时换它。 */
+  /** The archive site's avatar, used when the profile page one fails. */
   avatar_fallback: string;
   providers: string[];
-  /** 最近一条的发布时间，来源没给就是入库时间。 */
+  /** The latest item's publish time; if the source gives none, use the indexing time. */
   latest?: string;
 }
 
@@ -33,7 +34,7 @@ export interface OnlineAuthorsPage {
   total?: number;
 }
 
-/** 上游 booru 的一枚标签。`cat` 是上游的 tag_type（general／artist／character／copyright／metadata）。 */
+/** A tag from the upstream booru. `cat` is the upstream tag_type (general/artist/character/copyright/metadata). */
 export interface OnlineTag {
   favorite?: boolean;
   id?: string;
@@ -60,7 +61,7 @@ export function onlineAuthorsUrl(q: string, limit: number, offset: number): stri
   return `${FOLLOW_AUTHORS_URL}?${params}`;
 }
 
-/** `type` 为 `all` 时不带这一项：服务端缺省就是全部类型。 */
+/** Omitted when `type` is `all`: the server's default already means every type. */
 export function onlineTagsUrl(q: string, type: string, limit: number, offset: number): string {
   const params = new URLSearchParams({ types: 'all', limit: String(limit), offset: String(offset) });
   if (type && type !== 'all') params.set('type', type);

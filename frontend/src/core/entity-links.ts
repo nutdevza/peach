@@ -31,7 +31,7 @@ function registerAlias(kind: string, name: string, id: unknown): void {
   aliases.set(key, matches);
 }
 
-/** 已取得的实体身份用于生成地址；没有身份的来源字串不制造 ID。 */
+/** Obtained entity identities are used to build addresses; a source string with no identity never mints an ID. */
 export function registerResponseEntities(path: string, payload: unknown): void {
   if (!payload || typeof payload !== 'object') return;
   const data = payload as Record<string, any>;

@@ -1,9 +1,11 @@
-/* 馆藏文本的语言标记：片名、简介、别名来自日文站或英文站，页面是 `lang="zh-CN"`。
- * 标上 `lang` 之后浏览器按语言挑字体与字形（`:lang(ja)` 的字体栈见 `react/base.css` 与
- * `web/css/01-base.css`），长文段落也按语言决定对齐方式。
+/* Language marks for library text: titles, synopses and aliases come from Japanese or English sites while the page is
+ * `lang="zh-CN"`.
+ * With `lang` marked, the browser picks fonts and glyphs by language (the `:lang(ja)` font stack in `react/base.css` and
+ * `web/css/01-base.css`), and long paragraphs also align by language.
  *
- * 判据只认得出的两种：含假名是日文；一个汉字都没有、只有拉丁字母是英文。纯汉字分不出中日
- * （女优规范名本就是简体中文），沿用页面的语言，不猜。 */
+ * Only two cases are recognizable: kana present means Japanese; no kanji at all, only Latin letters, means English. Pure
+ * kanji cannot be told apart between Chinese and Japanese (performer canonical names are already Simplified Chinese), so it
+ * keeps the page's language rather than guessing. */
 
 const KANA = /[぀-ヿㇰ-ㇿｦ-ﾟ]/;
 const HAN = /[㐀-鿿豈-﫿]/;
@@ -16,7 +18,7 @@ export function textLang(value: unknown): 'ja' | 'en' | undefined {
   return undefined;
 }
 
-/** 拼 HTML 用：认得出语言时给出 ` lang="…"`，否则空串。 */
+/** For assembling HTML: emit ` lang="…"` when the language is recognized, otherwise an empty string. */
 export const langAttr = (value: unknown): string => {
   const lang = textLang(value);
   return lang ? ` lang="${lang}"` : '';

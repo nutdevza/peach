@@ -1,10 +1,10 @@
-/* 框选那一块在源图里的坐标。纯算术，不碰 DOM，也不认识 React。
+/* The crop box's coordinates in the source image. Pure arithmetic, touches no DOM, knows no React.
  *
- * 一切都用**源图像素**表示，右下开区间——落盘的框、发给后端的框、`poster_box`
- * 那个字段都是这一套（`src/peach/jav_poster_crop.py` 的 `projection` 文档串）。
- * 屏幕上量到的是显示像素，换算只在进出这一层时各做一次：两边各按各的坐标算下去，
- * 框会在缩放比不是整数时差出一两个像素，而那一两个像素在屏幕上看不出来，只在
- * 事后对不上账。
+ * Everything is in **source-image pixels** with a bottom-right-open interval: the box written to disk, the box sent to the
+ * backend, and the `poster_box` field all use this set (the `projection` docstring in `src/peach/jav_poster_crop.py`).
+ * What is measured on screen is display pixels, converted once on entering and once on leaving this layer: with both sides
+ * computing in their own coordinates, a non-integer scale would put the box off by a pixel or two, invisible on screen and
+ * only surfacing later when the numbers fail to reconcile.
  */
 
 export interface CropSize {
@@ -19,7 +19,7 @@ export interface CropBox {
   y1: number;
 }
 
-/** 框的最小边长，源图像素。再小就不是在框一块内容，而是在框噪点。 */
+/** The box's minimum side length, in source pixels. Anything smaller boxes noise, not content. */
 export const MIN_CROP_EDGE = 16;
 
 function whole(size: CropSize): CropBox {
@@ -38,9 +38,9 @@ export function isUsableSize(size: CropSize | null | undefined): size is CropSiz
     && size!.width > 0 && size!.height > 0;
 }
 
-/** 装得下的最大的那个框，按 `aspect`（宽/高）居中；`aspect` 为 null 时就是整张图。
+/** The largest box that fits, centered by `aspect` (width/height); when `aspect` is null it is the whole image.
  *
- *  正封那一路的默认框另有讲究，见 `defaultPanelBox`。 */
+ *  The front-cover path's default box has its own rules; see `defaultPanelBox`. */
 export function centeredBox(size: CropSize, aspect: number | null): CropBox {
   if (!isUsableSize(size)) return { x0: 0, y0: 0, x1: 0, y1: 0 };
   if (aspect == null || !(aspect > 0)) return whole(size);
@@ -55,22 +55,23 @@ export function centeredBox(size: CropSize, aspect: number | null): CropBox {
   return round({ x0: left, y0: top, x1: left + width, y1: top + height });
 }
 
-/** 正封的默认框：满高、按比例取宽、贴右缘。
+/** The front cover's default frame: full height, width by ratio, hugging the right edge.
  *
- *  横版封套是「背面 | 书脊 | 正面」，正面在右侧，所以默认框就是「从右缘量回去
- *  一个正封那么宽」。人要改的多半只是折痕落在哪一列，默认框先把另外三条边摆对，
- *  少三次拖拽。装不下就退成整张图。 */
+ *  A landscape cover is "back | spine | front", front on the right, so the default frame is "measuring back from the right edge one front cover's width".
+ *  What people usually change is just which column the fold falls on; the default frame gets the other three edges right first,
+ *  saving three drags. If it does not fit, fall back to the whole image. */
 export function defaultPanelBox(size: CropSize, aspect: number): CropBox {
   if (!isUsableSize(size) || !(aspect > 0)) return whole(size);
   const width = Math.min(size.width, size.height * aspect);
   return round({ x0: size.width - width, y0: 0, x1: size.width, y1: size.height });
 }
 
-/** `focus` 里按 `aspect` 装得下的最大的框，中心对齐 `focus` 的中心。
+/** The largest frame that fits inside `focus` by `aspect`, centered on `focus`'s center.
  *
- *  `focus` 是后端给的「该取景的那一块」（脸周围的方图或正封），形状不一定是
- *  `aspect`。取装得下的而不是围得住的：围住竖长的正封要带进书脊，围住脸那块方图
- *  的 3:4 格子会带进一截胸口，而这一块本来就是按「装进头像刚好」量出来的。 */
+ *  `focus` is the region the backend says should be framed (a square around the face or the front cover), and its shape need
+ *  not match `aspect`. Take what fits, not what encloses: enclosing the tall front cover would bring in the spine, and a 3:4
+ *  frame enclosing the face's square would bring in a stretch of chest, while this region was measured precisely to fill an
+ *  avatar exactly. */
 export function frameWithin(focus: CropBox, size: CropSize, aspect: number): CropBox {
   if (!isUsableSize(size) || !(aspect > 0)) return whole(size);
   const inside = clampBox(focus, size);
@@ -81,10 +82,10 @@ export function frameWithin(focus: CropBox, size: CropSize, aspect: number): Cro
   };
 }
 
-/** 把框收进源图里，并保证它还算一个框。
+/** Pull the frame back inside the source image while keeping it a valid frame.
  *
- *  `aspect` 给了就锁比例：先按 `anchor` 那一边定尺寸，装不下再换另一边定，仍然
- *  装不下就贴着图的边缘缩。四个角都夹过之后，宽高都至少 `MIN_CROP_EDGE`。 */
+ *  With `aspect` given, lock the ratio: size along the `anchor` side first, switch to the other side when it does not fit, and
+ *  if it still does not fit, shrink against the image's edge. After all four corners are clamped, width and height are both at least `MIN_CROP_EDGE`. */
 export function clampBox(box: CropBox, size: CropSize, aspect: number | null = null,
                          anchor: 'width' | 'height' = 'width'): CropBox {
   if (!isUsableSize(size)) return { x0: 0, y0: 0, x1: 0, y1: 0 };
@@ -106,7 +107,7 @@ export function clampBox(box: CropBox, size: CropSize, aspect: number | null = n
   return round({ x0: left, y0: top, x1: left + width, y1: top + height });
 }
 
-/** 整个框平移 `(dx, dy)` 源图像素，尺寸不变，碰到边就停。 */
+/** Translates the whole frame by `(dx, dy)` source-image pixels, size unchanged, stopping at the edges. */
 export function moveBox(box: CropBox, dx: number, dy: number, size: CropSize): CropBox {
   const width = box.x1 - box.x0;
   const height = box.y1 - box.y0;
@@ -115,7 +116,7 @@ export function moveBox(box: CropBox, dx: number, dy: number, size: CropSize): C
   return round({ x0: left, y0: top, x1: left + width, y1: top + height });
 }
 
-/** 以框心为中心缩放。`factor` 大于 1 是放大框（看到的内容更多）。 */
+/** Scales around the frame's center. `factor` above 1 widens the frame (more content visible). */
 export function scaleBox(box: CropBox, factor: number, size: CropSize,
                          aspect: number | null = null): CropBox {
   if (!isUsableSize(size) || !(factor > 0)) return box;
@@ -129,7 +130,7 @@ export function scaleBox(box: CropBox, factor: number, size: CropSize,
   }, size, aspect);
 }
 
-/** 拖右下角：左上角钉住不动，右下角跟着指针走。 */
+/** Dragging the bottom-right corner: the top-left corner stays pinned, the bottom-right follows the pointer. */
 export function resizeFromCorner(box: CropBox, x: number, y: number, size: CropSize,
                                  aspect: number | null = null): CropBox {
   const next = { x0: box.x0, y0: box.y0, x1: Math.max(box.x0 + 1, x), y1: Math.max(box.y0 + 1, y) };
@@ -138,7 +139,7 @@ export function resizeFromCorner(box: CropBox, x: number, y: number, size: CropS
   return clampBox(next, size, aspect, anchor);
 }
 
-/** 源图像素框 → 覆盖层的百分比位置。显示尺寸不参与：百分比是相对图片本身的。 */
+/** Source image pixel box to overlay percentage position. Display size plays no part: percentages are relative to the image itself. */
 export function boxPercent(box: CropBox, size: CropSize): {
   left: number; top: number; width: number; height: number;
 } {
@@ -151,11 +152,12 @@ export function boxPercent(box: CropBox, size: CropSize): {
   };
 }
 
-/** 框里那一块单独摆满一个容器时的 `background-size` / `background-position`。
+/** The `background-size` / `background-position` for that region filling a container on its own.
  *
- *  预览不重新取一次图：同一个地址换成背景图，浏览器用的是同一份缓存字节。
- *  `background-position` 的百分比量的是「图比容器多出来的那部分」，所以框正好等于
- *  整张图时分母是 0，那时位置取 0 —— 图和容器一样大，摆哪里都一样。 */
+ *  The preview does not fetch the image again: the same address as a background image uses the same cached bytes.
+ *  `background-position`'s percentage measures "the part the image exceeds the container by", so when the region exactly
+ *  equals the whole image the denominator is 0 and the position is 0: image and container the same size, placement makes no
+ *  difference. */
 export function previewStyle(box: CropBox, size: CropSize): {
   size: string; position: string;
 } {
@@ -170,11 +172,12 @@ export function previewStyle(box: CropBox, size: CropSize): {
   };
 }
 
-/** 框里那一块摆满一个同比例容器时，整张 `<img>` 按绝对定位该放在哪、放多大。
+/** Where to place and how large to draw the whole `<img>` when that region fills a same-ratio container, as absolute
+ *  positioning.
  *
- *  和 `previewStyle` 是同一件事，给的是图片元素而不是背景：图片元素才有 `load`
- *  事件可接，淡入要等它。`left`／`width` 的百分比量的是容器宽，`top`／`height`
- *  量的是容器高，容器与框同比例，所以两个轴各按各的边长换算。 */
+ *  The same math as `previewStyle`, given as an image element rather than a background: only an image element has a `load`
+ *  event to attach, and the fade-in waits for it. `left`/`width` percentages measure container width and `top`/`height`
+ *  measure container height; container and region share a ratio, so each axis converts by its own edge. */
 export function windowStyle(box: CropBox, size: CropSize): {
   left: string; top: string; width: string; height: string;
 } {
@@ -188,18 +191,18 @@ export function windowStyle(box: CropBox, size: CropSize): {
   };
 }
 
-/** 显示像素 → 源图像素。`rendered` 是 `<img>` 当前占的 CSS 像素尺寸。 */
+/** Display pixels to source image pixels. `rendered` is the CSS pixel size the `<img>` currently occupies. */
 export function toNatural(value: number, rendered: number, natural: number): number {
   if (!(rendered > 0)) return 0;
   return (value * natural) / rendered;
 }
 
-/** 框在屏幕上的短边小于这么多 CSS 像素时，改大小那枚角柄挪到框外。角柄 12px，框只比它
- *  大一点时整块都被角柄盖住，按下去只能改大小、拖不动框。 */
+/** When the box's short side on screen is smaller than this many CSS pixels, the resize handle moves outside the box. The handle is 12px; with the box only a little
+ *  bigger, the handle covers the whole thing, so pressing resizes but cannot drag. */
 export const HANDLE_ROOM = 36;
 
-/** 角柄该不该放到框外：`rect` 是 `boxPercent` 的百分比，`shown` 是图当前的显示尺寸。
- *  显示尺寸还没量到时不挪。 */
+/** Whether the corner handle may sit outside the box: `rect` is the percentage of `boxPercent`, and `shown` is the image's current display size.
+ *  Do not move while the display size has not been measured yet. */
 export function handleOutside(
   rect: { width: number; height: number }, shown: CropSize | null,
 ): boolean {

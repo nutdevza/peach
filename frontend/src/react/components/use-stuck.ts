@@ -1,8 +1,9 @@
-/* 吸顶的那块玻璃是不是已经贴到了顶栏下沿。贴住了就在元素上标 `data-stuck`，样式表按它换成
- * 抬起来那一档影（`../styles.css` 的 `[data-filter-glass][data-stuck]`）。
+/* Whether the stuck glass pane has reached the top bar's bottom edge. When it has, the element is marked `data-stuck`, and
+ * the stylesheet swaps to the raised shadow tier by it (`[data-filter-glass][data-stuck]` in `../styles.css`).
  *
- * 判据照壳的 `updateStickySurfaces`：页面滚过了、元素上沿到了它自己 `top` 那条线。滚动与改
- * 尺寸各合成一帧再量；属性直接写在元素上，不走 React 状态——每一帧滚动都重画整条浮层没有意义。 */
+ * The criteria follow the shell's `updateStickySurfaces`: the page has scrolled and the element's top edge reached its own
+ * `top` line. Scroll and resize each compose one frame before measuring; the attribute is written directly on the element,
+ * not through React state: re-rendering the whole overlay every frame of scrolling is meaningless. */
 import { useEffect, type RefObject } from 'react';
 
 export function useStuck(ref: RefObject<HTMLElement | null>): void {

@@ -1,16 +1,20 @@
-/* 垃圾文件队列（`/junk-files`，由路由树画进 `#grid`）：计数行加一屏逐项处置的卡片。
+/* Junk files queue (`/junk-files`, rendered by the route tree into `#grid`): a count row plus a screen of one-item-at-a-time
+ * disposition cards.
  *
- * 页面画在壳的 `#grid` 里，计数行经 portal 画进 `#count` 里自己建的一个 `.peach-react` 容器：
- * 那一行本身归壳（目录页也用它，换页时由壳清空），里面的摘要与分类条归这里。
+ * The page renders in the shell's `#grid`, and the count row portals into a `.peach-react` container it builds inside
+ * `#count`: the row itself belongs to the shell (the catalog page uses it too and the shell clears it on page change), while
+ * the summary and category bar inside belong here.
  *
- * 首屏不在 `prefetch` 里等。分类条由地址决定、此刻就画得出最终样子，等的只有读数，所以一打开
- * 就画：计数行是等待态（`#count[aria-busy]`、摘要里一条占位），网格是壳那份骨架，数据到了
- * 骨架淡出、卡片从模糊里清晰起来（同目录网格）。在 `prefetch` 里等的话，请求挂着的这段时间
- * 屏上只有壳的静态骨架，分类点不动。
+ * The first screen does not wait inside `prefetch`. The category bar is decided by the address and its final look is drawable
+ * right now; only the readouts wait, so it renders on open: the count row is in wait state (`#count[aria-busy]`, one
+ * placeholder in the summary) and the grid is the shell's skeleton; when data arrives the skeleton fades and cards sharpen
+ * out of blur (same as the catalog grid). Waiting inside `prefetch` would leave only the shell's static skeleton on screen
+ * while the request hangs, with categories unclickable.
  *
- * 换分类、换视图是换查询键，网格按新键重挂、重铺骨架。壳处置完推进 `revision` 时查询也换键，
- * 但旧的一份留在屏上直到新的一份到货（`placeholderData`），被处置的那张卡原地消失，
- * 已经往下露出来的那几段也不收回去。 */
+ * Changing category or view changes the query key; the grid remounts per the new key and relays its skeleton. When the shell
+ * advances `revision` after a disposition, the query also changes keys, but the old copy stays on screen until the new one
+ * arrives (`placeholderData`); the disposed card vanishes in place and the sections already scrolled into view are not pulled
+ * back. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -39,7 +43,7 @@ export function JunkQueuePage(props: JunkQueueProps) {
       (previousQuery && sameRoute(previousQuery.queryKey, route) ? previous : undefined),
   });
 
-  /* 一次取数落定就告诉壳一次，成功、为空、失败都算：壳里 `await` 这次重读的调用方据此放行。 */
+  /* Tell the shell once per settled fetch, success, empty, and failure alike: callers in the shell awaiting this re-read are released on it. */
   useEffect(() => {
     if (!query.isFetching) props.settled?.(props.revision);
   }, [query.isFetching, props.revision]);
@@ -52,7 +56,7 @@ export function JunkQueuePage(props: JunkQueueProps) {
     if (waiting) row.setAttribute('aria-busy', 'true');
     else row.removeAttribute('aria-busy');
   }, [props.countRow, waiting]);
-  /* 判过一批之后各类的计数变了，弹的是变了的那几枚，没动的原地不动（遗留层 `popBadges`）。 */
+  /* After a batch is judged the per-category counts change; only the changed ones pop and the untouched stay put (legacy layer `popBadges`). */
   useLayoutEffect(() => {
     if (host && query.data) popBadges(host, 'junk');
   }, [host, query.data]);
@@ -71,7 +75,7 @@ export function JunkQueuePage(props: JunkQueueProps) {
   );
 }
 
-/** 计数行里归这一页的那一格。挂上时换掉壳铺的骨架，卸载时撤掉，行本身还给壳。 */
+/** The cell in the count row that belongs to this page. On mount it replaces the shell's skeleton, on unmount it is removed, and the row itself goes back to the shell. */
 function useCountHost(row: HTMLElement | null): HTMLElement | null {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -85,7 +89,7 @@ function useCountHost(row: HTMLElement | null): HTMLElement | null {
   return host;
 }
 
-/** 一个分类、一个视图的网格：骨架、卡片、往下露的下一段与空态。 */
+/** One category, one view's grid: skeleton, cards, the next segment peeking in below, and the empty state. */
 function JunkBody({ props, data, pending, error, retry }: {
   props: JunkQueueProps; data: JunkPage | undefined; pending: boolean; error: Error | null; retry(): void;
 }) {
@@ -121,7 +125,7 @@ function JunkBody({ props, data, pending, error, retry }: {
           ))}
         </div>
         {shown.length < items.length ? <RevealMore key={segments} onMore={more} /> : null}
-        {/* 队列一次只取前 200 条：露到底了还有没取的，说清楚是截断而不是全部。 */}
+        {/* The queue fetches only the first 200 at a time: when the bottom is reached and more remain, make clear it is truncated, not complete. */}
         {shown.length >= items.length && Number(data.total || 0) > items.length
           ? <p data-junk-truncated="" className="py-6 text-center text-caption-1-regular text-text-secondary">
               {t('cleanup:junk.truncated', { shown: items.length.toLocaleString(), count: Number(data.total) })}
@@ -138,8 +142,8 @@ function JunkBody({ props, data, pending, error, retry }: {
   );
 }
 
-/** 往下露下一段。数据已经整批在手上，不发请求：哨兵进入视口下方一屏内就露，点它也露，
- *  判据同目录网格的续页。每露一段按新键重挂，还在视口里就接着露。 */
+/** Reveal the next section below. The data is already in hand in batches, no requests: reveal when the sentinel enters within one screen below the viewport, or when clicked,
+ *  same criteria as the catalog grid's next page. Each revealed section remounts under a new key, and keeps revealing while still in the viewport. */
 function RevealMore({ onMore }: { onMore(): void }) {
   const node = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

@@ -1,11 +1,12 @@
-/* 「外部入口」：人物资料页上通向 みんなのAV、JavDB 与 MISSAV 的那几枚直达入口。
+/* "External entries": the direct-entry buttons on the person profile page leading to Minna no AV, JavDB and MISSAV.
  *
- * 这里只有 JavDB 与 MISSAV 两个地址框，这两站主域名连不上时在这里换成能打开的镜像；
- * みんなのAV 只此一家，没有可换的东西，它不出现在这一页上。框默认是空的，占位符写着
- * 当前在用的那个域名——默认值不需要使用者先抄一遍，清空就回到它。
+ * Only JavDB and MISSAV have address boxes here: when either site's main domain is unreachable, a working mirror is entered
+ * here; Minna no AV has only the one site with nothing to swap, so it does not appear on this page. The boxes default empty,
+ * with the placeholder showing the domain currently in use, so the default needs no copying first and clearing returns to it.
  *
- * 入口出不出现不由这里决定：地址由服务端拼（`peach.entry_links`），站点 id 缺席那一枚
- * 就不在资料页上，所以这里没有开关。校验也只在服务端，前端复制一份判定只会漂。 */
+ * Whether an entry appears is not decided here: the address is assembled by the server (`peach.entry_links`), and a missing
+ * site id means that button is simply not on the profile page, so there are no switches here. Validation is server-side too;
+ * a duplicated judgment in the frontend would only drift. */
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/base/buttons/button';
@@ -35,16 +36,16 @@ export function EntryLinksForm({ initial, receipt }: {
       apiSend<EntryLinksState>('/api/configuration/entry-links', body, 'POST', signal),
       (next) => {
         setSites(next.sites);
-        receipt('已保存配置');
+        receipt('Configuration saved');
       });
   };
 
   return (
-    <Section guide="entry-links" title="作品资料站点" onSubmit={submit}>
+    <Section guide="entry-links" title="Video detail sites" onSubmit={submit}>
       <Stack>
         <Help>{ENTRY_LINKS_HELP}</Help>
         {sites.map((site) => (
-          <Input key={site.key} id={`entry-link-${site.key}`} label={<SiteLabel site={site.key} label={`${site.label} 地址`} />}
+          <Input key={site.key} id={`entry-link-${site.key}`} label={<SiteLabel site={site.key} label={`${site.label} address`} />}
             autoComplete="off" maxLength={100} value={site.host}
             placeholder={site.default_host}
             onChange={(host) => change(site.key, host)}
@@ -53,7 +54,7 @@ export function EntryLinksForm({ initial, receipt }: {
         {action.error ? <ErrorText>{action.error}</ErrorText> : null}
       </Stack>
       <Footer>
-        <Button type="submit" {...busyProps(action.busy === 'save')}>保存配置</Button>
+        <Button type="submit" {...busyProps(action.busy === 'save')}>Save configuration</Button>
       </Footer>
     </Section>
   );

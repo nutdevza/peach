@@ -1,12 +1,13 @@
-/* 「存储空间」：数据目录在哪、所在磁盘还剩多少、各类数据各占多少，清理可重建的几类，
- * 或把整个数据目录迁到别的磁盘。
+/* "Storage": where the data directory is, how much its disk has left, how much each data category takes, cleaning the
+ * rebuildable categories, or moving the whole data directory to another disk.
  *
- * 统计结果单独圈在一块面里：上面两张图（各类占比、磁盘占用），下面逐类一行。能清理的那几类
- * 行首有勾选框，勾几类一起清，或者「全部清理」；不能清理的勾选框禁用，行里写明为什么。
+ * The stats result is ringed into one panel: the two charts above (per-category shares, disk usage), one row per category
+ * below. Cleanable categories carry checkboxes at the row start; check several to clean together, or "Clean all"; uncleanable
+ * ones have disabled checkboxes and the row says why.
  *
- * 统计与清理在服务端后台线程里跑，进行中每 1.5 秒问一次状态。统计时按上次的文件数估进度，
- * 没统计过就只报走过多少文件。迁移请求被接受后服务会退出，
- * 页面只留一句回执：托盘完成迁移后会自己重新打开 Peach。 */
+ * Stats and cleanup run on server background threads, polled every 1.5 seconds while running. Stats estimates progress from
+ * the last file count, or only reports files walked if never measured before. Once a migration request is accepted the
+ * service exits, leaving the page one line of receipt: the tray reopens Peach itself after the migration completes. */
 import { useEffect, useRef, useState } from 'react';
 import { confirmModal } from '@peach/legacy/ui';
 import { fmtSize } from '@peach/legacy/core';
@@ -29,7 +30,7 @@ import { StorageBudgetSettings } from './storage-budget-settings';
 
 const STORAGE_URL = '/api/configuration/storage';
 const POLL_MS = 1500;
-/** 迁移完成的回执留一天；之后只在还有要处理的事（备注）时显示。 */
+/** The migration-complete receipt lasts a day; after that it shows only while work remains (notes). */
 const RESULT_MS = 24 * 3600 * 1000;
 
 const targetReason = (cause: unknown) =>
@@ -37,45 +38,45 @@ const targetReason = (cause: unknown) =>
   || errorMessage(cause);
 
 function diskLine(storage: StorageState) {
-  if (storage.free_bytes === null || storage.total_bytes === null) return '未取得';
-  const line = `${fmtSize(storage.free_bytes)} 可用，共 ${fmtSize(storage.total_bytes)}`;
-  return storage.system_drive ? `${line}（系统盘）` : line;
+  if (storage.free_bytes === null || storage.total_bytes === null) return 'Not fetched';
+  const line = `${fmtSize(storage.free_bytes)} free of ${fmtSize(storage.total_bytes)}`;
+  return storage.system_drive ? `${line} (system disk)` : line;
 }
 
 const cleanable = (category: StorageCategory) => category.cleanable && category.reclaimable > 0;
 
-/** 统计进行中：知道上次有多少文件就画进度条，不知道就只说走过多少。 */
+/** Counting in progress: with last run's file count, draw a progress bar; without it, only say how many have been walked. */
 function Measuring({ job }: { job: StorageState['job'] }) {
   const files = job.files || 0;
   const expected = job.expected_files || 0;
-  const reading = <>已统计 <AnimatedNumber value={files} /> 个文件 · <AnimatedNumber value={job.bytes || 0} format={fmtSize} /></>;
+  const reading = <>Measured <AnimatedNumber value={files} /> files · <AnimatedNumber value={job.bytes || 0} format={fmtSize} /></>;
   return (
     <div aria-live="polite" className="flex flex-col gap-2">
       {expected
         ? <>
-            {/* 文件比上次多时进度条停在 99%，等结果出来。 */}
-            <Progress label="统计进度" value={Math.min(files, expected * 0.99)} max={expected} />
-            <Help>{reading}，上次共 {expected.toLocaleString()} 个</Help>
+            {/* When there are more files than last time, the progress bar holds at 99% until the result lands. */}
+            <Progress label="Usage progress" value={Math.min(files, expected * 0.99)} max={expected} />
+            <Help>{reading}, last time {expected.toLocaleString()} items</Help>
           </>
-        : <LoadingDots label="正在统计占用空间" />}
+        : <LoadingDots label="'Measuring disk usage" />}
       {!expected ? <Help>{reading}</Help> : null}
     </div>
   );
 }
 
-/** 一类数据一行：勾选框、色块、名字与说明、大小。不能清理的勾选框禁用，说明里写原因。 */
+/** One row per data category: checkbox, color chip, name and description, size. Uncleanable rows get a disabled checkbox with the reason in the description. */
 function CategoryRow(
   { category, selected, disabled, onToggle }:
   { category: StorageCategory; selected: boolean; disabled: boolean; onToggle(next: boolean): void },
 ) {
   const able = cleanable(category);
   const reason = category.cleanable
-    ? category.reclaimable > 0 ? `清理后${category.note}` : '没有可以清理的文件'
-    : `不能清理：${category.note}`;
+    ? category.reclaimable > 0 ? `After cleanup, ${category.note}` : 'No files to clean up'
+    : `Cannot clean: ${category.note}`;
   return (
     <div data-category={category.key}
       className="flex min-h-13 w-full items-start gap-3 border-b border-separator-border py-2.5 pr-3 last:border-b-0">
-      <Checkbox aria-label={`清理${category.label}`} isSelected={selected} isDisabled={!able || disabled}
+      <Checkbox aria-label={`Clean ${category.label}`} isSelected={selected} isDisabled={!able || disabled}
         onChange={onToggle} className="mt-0.5" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="flex items-center gap-2 text-body-regular text-text-primary">
@@ -87,7 +88,7 @@ function CategoryRow(
       </div>
       <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
         <AnimatedNumber value={category.bytes} format={fmtSize} className="text-body-regular text-text-primary" />
-        {able ? <span className="text-caption-1-regular text-text-secondary">可释放 {fmtSize(category.reclaimable)}</span> : null}
+        {able ? <span className="text-caption-1-regular text-text-secondary">Releasable {fmtSize(category.reclaimable)}</span> : null}
       </div>
     </div>
   );
@@ -117,13 +118,13 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
     return () => { controller.abort(); clearTimeout(timer); };
   }, [storage]);
 
-  // 一轮统计或清理结束：成功的回执走 Toast，失败的原因留在分区里；清掉的类别不再勾着。
+  // A stats or cleanup round has ended: success goes out as a Toast receipt, failure reasons stay in the section, and cleaned categories are no longer checked.
   useEffect(() => {
     if (running) { reported.current = true; return; }
     if (!reported.current) return;
     reported.current = false;
     setPicked(new Set());
-    if (!storage.job.error) receipt(storage.job.message || '已统计占用空间');
+    if (!storage.job.error) receipt(storage.job.message || 'Disk usage calculated');
   }, [running]);
 
   const measure = () => void action.run('measure', (signal) =>
@@ -138,9 +139,9 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
     const total = targets.reduce((sum, category) => sum + category.reclaimable, 0);
     void confirmModal({
       title,
-      body: `将删除 ${fmtSize(total)}：${targets.map((category) =>
-        `${category.label} ${fmtSize(category.reclaimable)}（清理后${category.note}）`).join('；')}。`,
-      confirmLabel: `清理 ${fmtSize(total)}`,
+      body: `Will delete ${fmtSize(total)}: ${targets.map((category) =>
+        `${category.label} ${fmtSize(category.reclaimable)} (${category.note} after cleanup)`).join('; ')}.`,
+      confirmLabel: `Clean ${fmtSize(total)}`,
       danger: targets.some((category) => category.key === 'backups'),
       onConfirm: async () => setStorage(await apiSend<StorageState>(`${STORAGE_URL}/clean`,
         { categories: targets.map((category) => category.key) })),
@@ -152,9 +153,9 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
     if (!target) return;
     const size = storage.usage ? fmtSize(storage.usage.total_bytes) : '';
     await confirmModal({
-      title: '迁移数据目录',
-      body: `将 ${size} 数据从 ${storage.data_root} 移到 ${target}。迁移期间 Peach 会退出，完成后自动重新打开；原位置的数据在新位置核对无误后删除。`,
-      confirmLabel: '迁移数据目录',
+      title: 'Migrate the data directory',
+      body: `Move ${size} of data from ${storage.data_root} to ${target}. Peach exits during the migration and reopens automatically when it is done; data at the old location is deleted after it has been verified at the new one.`,
+      confirmLabel: 'Migrate the data directory',
       onConfirm: async () => {
         try {
           setAccepted((await apiSend<{ message: string }>(`${STORAGE_URL}/relocate`, { target })).message);
@@ -170,10 +171,10 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
     || Date.now() - last.finished_at * 1000 < RESULT_MS);
   const cleaningLabel = usage?.categories.find((category) => category.key === storage.job.category)?.label;
   const status = accepted
-    || (storage.job.state === 'cleaning' ? `正在清理${cleaningLabel || ''}…`
-      : storage.job.state === 'measuring' ? '正在统计占用空间…'
-        : chosen.length ? `已选 ${chosen.length} 类，可释放 ${fmtSize(chosen.reduce((sum, item) => sum + item.reclaimable, 0))}`
-          : usage ? `统计于 ${new Date(usage.measured_at * 1000).toLocaleString()}` : '');
+    || (storage.job.state === 'cleaning' ? `Cleaning${cleaningLabel || ''}…`
+      : storage.job.state === 'measuring' ? 'Calculating disk usage…'
+        : chosen.length ? `${chosen.length} categories selected, ${fmtSize(chosen.reduce((sum, item) => sum + item.reclaimable, 0))} reclaimable`
+          : usage ? `Measured at ${new Date(usage.measured_at * 1000).toLocaleString()}` : '');
   const locked = running || Boolean(accepted);
   const toggle = (key: string) => (next: boolean) => setPicked((current) => {
     const copy = new Set(current);
@@ -181,17 +182,17 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
     return copy;
   });
   return (<>
-    <Section id="storageSettings" guide="storage" title="存储空间">
+    <Section id="storageSettings" guide="storage" title="Storage">
       <FactList>
-        <Fact term="数据目录">
+        <Fact term="Data directory">
           <PathLine path={storage.data_root} className="text-body-regular text-text-primary" onRevealed={receipt} />
         </Fact>
-        <Fact term="所在磁盘">{diskLine(storage)}</Fact>
+        <Fact term="'Hosting disk'">{diskLine(storage)}</Fact>
       </FactList>
       <Stack divided>
         {storage.job.state === 'measuring' ? <Measuring job={storage.job} /> : null}
-        {usage?.capacity_error ? <ErrorText>容量统计不完整：{usage.capacity_error}</ErrorText> : null}
-        {usage?.allocated_bytes != null ? <Help>Peach 数据实际占盘 {fmtSize(usage.allocated_bytes)}</Help> : null}
+        {usage?.capacity_error ? <ErrorText>Capacity statistics incomplete:{usage.capacity_error}</ErrorText> : null}
+        {usage?.allocated_bytes != null ? <Help>Peach data actually on disk {fmtSize(usage.allocated_bytes)}</Help> : null}
         {usage
           ? <div data-storage-result="" className={cardClass({ variant: 'outlined', padding: 'none', className: 'flex flex-col' })}>
               <div className="border-b border-separator-border p-4"><StorageOverview storage={storage} /></div>
@@ -203,31 +204,31 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
               </div>
             </div>
           : storage.job.state === 'measuring' ? null
-            : <Help>统计后显示各类数据的占用，并可清理缓存与旧备份。</Help>}
+            : <Help>After analysis, shows usage per data type and lets you clear the cache and old backups.</Help>}
         {!storage.relocation.available ? <Help>{storage.relocation.message}</Help> : null}
-        {/* 设置页迁移不了的部署（容器）：宿主机上该做的几步，每步一句说明加一条可照抄的命令。 */}
+        {/* Deployments the settings page cannot migrate (containers): the steps to run on the host, each with one line of explanation and a copy-paste command. */}
         {!storage.relocation.available && storage.relocation.steps?.length
-          ? <CommandSteps label="在宿主机上迁移" steps={storage.relocation.steps} />
+          ? <CommandSteps label="Migrate on the host machine" steps={storage.relocation.steps} />
           : null}
         {storage.job.error ? <ErrorText>{storage.job.message}</ErrorText> : null}
         {action.error ? <ErrorText>{action.error}</ErrorText> : null}
         {recent && last ? (last.state === 'error'
           ? <ErrorText>{last.message}</ErrorText>
-          : <Help>{[last.message, ...(last.notes ?? [])].join('；')}</Help>) : null}
+          : <Help>{[last.message, ...(last.notes ?? [])].join('; ')}</Help>) : null}
       </Stack>
       <Footer status={status ? <p role={accepted ? 'status' : undefined}>{status}</p> : null}>
         {usage ? <>
           <Button variant="secondary" disabled={locked || !chosen.length}
             {...busyProps(storage.job.state === 'cleaning' && chosen.length > 0)}
-            onClick={() => clean(chosen, '清理所选数据')}>清理所选</Button>
+            onClick={() => clean(chosen, 'Clean the selected data')}>Clean selected</Button>
           <Button variant="secondary" disabled={locked || !available.length}
-            onClick={() => clean(available, '清理全部可清理的数据')}>全部清理</Button>
+            onClick={() => clean(available, 'Clean every cleanable piece of data')}>Clean all</Button>
         </> : null}
         <Button variant="secondary" disabled={locked || !storage.relocation.available || !usage}
-          onClick={relocate} {...busyProps(action.busy === 'relocate')}>更改位置</Button>
+          onClick={relocate} {...busyProps(action.busy === 'relocate')}>Change location</Button>
         <Button disabled={Boolean(accepted) || storage.job.state === 'cleaning'} onClick={measure}
           {...busyProps(action.busy === 'measure' || storage.job.state === 'measuring')}>
-          {usage ? '重新统计' : '统计占用'}
+          {usage ? 'Re-measure' : 'Measure usage'}
         </Button>
       </Footer>
     </Section>

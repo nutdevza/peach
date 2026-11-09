@@ -5,7 +5,7 @@ import { cx } from '@/utils/cx';
 import { cardClass } from './card';
 import { useOverlayScrollbar } from './overlay-scrollbar';
 
-/** JSON 与配置文本共用的只读代码块，复制始终使用完整原文。 */
+/** The read-only code block shared by JSON and config text; copying always uses the full original. */
 export function CodeBlock({ code, language, label, maxCharacters, bounded = true, copyLabel, onCopy }: {
   code: string; language: 'json' | 'toml'; label: string; maxCharacters?: number;
   bounded?: boolean; copyLabel?: string; onCopy?(): void;
@@ -18,16 +18,16 @@ export function CodeBlock({ code, language, label, maxCharacters, bounded = true
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
-      setFailed(false); setStatus('已复制'); onCopy?.();
-      showToast('code-copy', { html: '已复制', alert: false, timeout: 4000, action: null });
+      setFailed(false); setStatus('Copied'); onCopy?.();
+      showToast('code-copy', { html: 'Copied', alert: false, timeout: 4000, action: null });
     } catch {
-      setFailed(true); setStatus('复制失败，请选中文本复制。');
+      setFailed(true); setStatus('Copy failed. Select the text and copy it.');
     }
   };
   return <div className={cx(cardClass({ bordered: 'soft', radius: 'plain', padding: 'none' }), 'overflow-hidden bg-background-tertiary-default')} data-code-block>
     <div className="flex min-w-0 items-center justify-between gap-3 border-b border-separator-border px-3 py-2">
       <span className="text-caption-1-medium text-text-secondary">{language.toUpperCase()}</span>
-      <Button variant="secondary" size="small" onClick={() => void copy()}>{copyLabel || (truncated ? '复制完整内容' : '复制代码')}</Button>
+      <Button variant="secondary" size="small" onClick={() => void copy()}>{copyLabel || (truncated ? 'Copy full text' : 'Copy code')}</Button>
     </div>
     <div className="relative min-w-0">
       <pre ref={scroll} tabIndex={0} aria-label={label}

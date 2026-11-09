@@ -51,38 +51,38 @@ export function AccessSetup({ data, navigate = go }: { data: PageData; navigate?
         return;
       }
       if (answer?.errors && Object.keys(answer.errors).length) setErrors(answer.errors);
-      else setFailure(answer?.error || '没能保存访问设置，请重试');
+      else setFailure(answer?.error || 'Could not save the access settings; please retry');
     } catch {
-      setFailure('连接不到 Peach，请确认它仍在运行后重试');
+      setFailure('Cannot reach Peach; confirm it is still running, then retry');
     }
     setBusy(false);
   };
 
   return (
-    <AuthCard title="访问设置" lede="这台 Peach 还没有访问设置，先决定打开时要不要登录。">
+    <AuthCard title="Access settings" lede="This Peach has no access settings yet; first decide whether opening it requires sign-in.">
       <form aria-labelledby="auth-card-title" className="flex flex-col gap-6" onSubmit={onSubmit} noValidate>
         <CardGroup first>
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <Label id="access-setup-title" elementType="span">访问密码</Label>
-              <p id="access-setup-description" className="text-body-2-regular text-text-secondary">开启后，访问 Peach 需要先登录。</p>
+              <Label id="access-setup-title" elementType="span">Access password</Label>
+              <p id="access-setup-description" className="text-body-2-regular text-text-secondary">When on, accessing Peach requires signing in first.</p>
             </div>
             <Switch aria-labelledby="access-setup-title" aria-describedby="access-setup-description"
               isSelected={passwordOn} onChange={(on) => { setPasswordOn(on); setErrors({}); }} />
           </div>
-          <Help>局域网访问推荐设置密码。未设置时，同一网络中能连接 Peach 的设备可直接进入。</Help>
+          <Help>A password is recommended for LAN access. Without one, devices on the same network that can reach Peach enter directly.</Help>
           {passwordOn
-            ? <PasswordPair label="访问密码" password={password} confirmation={confirmation}
+            ? <PasswordPair label="Access password" password={password} confirmation={confirmation}
                 onPassword={(value) => { setPassword(value); setErrors({}); }}
                 onConfirmation={(value) => { setConfirmation(value); setErrors({}); }}
                 passwordError={errors.password ? <span role="alert">{errors.password}</span> : undefined}
-                passwordHint="请输入 8–256 个字符。"
+                passwordHint="Enter 8-256 characters."
                 confirmationError={errors.confirmation ? <span role="alert">{errors.confirmation}</span> : undefined} />
             : null}
         </CardGroup>
         {failure ? <Note tone="error">{failure}</Note> : null}
         <Button type="submit" className="w-full" {...busyProps(busy)}>
-          {passwordOn ? '设置密码并进入' : '免登录进入'}
+          {passwordOn ? 'Set a password and enter' : 'Enter without sign-in'}
         </Button>
       </form>
     </AuthCard>

@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "43acac22-76f1-4059-8437-3b3169b4d657", e._sentryDebugIdIdentifier = "sentry-dbid-43acac22-76f1-4059-8437-3b3169b4d657");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "356ede3f-17ff-4df3-8cad-6ff3b8866472", e._sentryDebugIdIdentifier = "sentry-dbid-356ede3f-17ff-4df3-8cad-6ff3b8866472");
 	} catch {}
 })();
 import { CHART_CARD as e, CategoryTick as t, ChartEmpty as n, ChartHead as r, ChartTip as i, Dot as a, EvilBarChart as o, Layer as s, TIP_SURFACE as c, TIP_SWATCH as l, Text as u, TipRow as d, ZIndexLayer as f, adaptEventsOfChild as p, addAngleAxis as m, categoryAxisWidth as h, combineAxisTicks as g, combineCategoricalDomain as _, combineConfiguredScale as v, combineGraphicalItemTicks as y, createSelector as b, defaultPolarAngleAxisProps as x, degreeToRadian as S, getAxisTypeBasedOnLayout as C, getClassNameFromUnknown as w, noop as T, pickAxisType as E, polarToCartesian as D, rechartsScaleFactory as ee, removeAngleAxis as te, resolveDefaultProps as ne, roundTemplateLiteral as re, selectAngleAxis as O, selectAngleAxisRangeWithReversed as ie, selectChartLayout as k, selectDuplicateDomain as A, selectPolarAppliedValues as ae, selectPolarAxisCheckedDomain as oe, selectPolarNiceTicks as se, selectPolarViewBox as ce, selectRadiusAxis as le, selectRadiusAxisRangeWithReversed as ue, selectRealScaleType as de, selectRenderableAxisSettings as fe, svgPropertiesAndEvents as j, svgPropertiesNoEvents as M, svgPropertiesNoEventsFromUnknown as pe, tone as me, useAppDispatch as he, useAppSelector as N, useIsPanorama as ge, usePolarChartLayout as _e } from "./peach-app.chart-tip-CRxYp6KT.js";
@@ -312,7 +312,7 @@ function Ze(e) {
 		let r = e / t;
 		return `${r.toLocaleString(void 0, { maximumFractionDigits: +(Math.abs(r) < 100) })}${n}`;
 	};
-	return t >= 1e8 ? n(1e8, "亿") : t >= 1e5 ? n(1e4, "万") : e.toLocaleString();
+	return t >= 1e8 ? n(1e8, "B") : t >= 1e5 ? n(1e4, "K") : e.toLocaleString();
 }
 var X = (e) => ({
 	position: e,
@@ -385,13 +385,13 @@ function Qe({ title: a, unit: s, series: c, rows: l, color: u, empty: d, layout:
 }
 // src/react/charts/heat.ts
 var $e = [
-	"周一",
-	"周二",
-	"周三",
-	"周四",
-	"周五",
-	"周六",
-	"周日"
+	"Mon",
+	"Tue",
+	"Wed",
+	"Thu",
+	"Fri",
+	"Sat",
+	"Sun"
 ], et = (e, t) => e ? Math.max(.12, e / t) : 0;
 function tt(e) {
 	let t = Array.from({ length: 7 }, () => Array(24).fill(0));
@@ -515,7 +515,7 @@ function $({ title: t, words: n, cells: i, total: a, columns: o, rows: s, axis: 
 								"data-cell": t,
 								tabIndex: t === g ? 0 : -1,
 								role: "img",
-								"aria-label": `${e.label}，${e.count} ${n.cellUnit}`,
+								"aria-label": `${e.label}, ${e.count} ${n.cellUnit}`,
 								x: r,
 								y: i,
 								width: Z,
@@ -575,7 +575,7 @@ function st({ activity: e, title: t, dailyTitle: r, words: i, tone: a, empty: o 
 			columns: 24,
 			rows: 7,
 			axis: ot,
-			footer: /* @__PURE__ */ (0, J.jsxs)(J.Fragment, { children: [/* @__PURE__ */ (0, J.jsx)("span", { children: "星期 × 小时" }), /* @__PURE__ */ (0, J.jsx)("span", { children: e?.timezone || "UTC+08:00" })] })
+			footer: /* @__PURE__ */ (0, J.jsxs)(J.Fragment, { children: [/* @__PURE__ */ (0, J.jsx)("span", { children: "Weekday × hour" }), /* @__PURE__ */ (0, J.jsx)("span", { children: e?.timezone || "UTC+08:00" })] })
 		}), /* @__PURE__ */ (0, J.jsx)($, {
 			title: r,
 			words: i,
@@ -629,7 +629,7 @@ function ct({ children: e, className: t = "", previewCount: n = 10 }) {
 			"data-ranking-toggle": !0,
 			"aria-controls": r,
 			"aria-expanded": a,
-			"aria-label": a ? "收起排名" : "展开更多排名",
+			"aria-label": a ? "Collapse ranking" : "Show more ranking",
 			onClick: () => {
 				c(!0), o((e) => !e);
 			},
@@ -639,4 +639,4 @@ function ct({ children: e, className: t = "", previewCount: n = 10 }) {
 }
 export { st as ActivityHeat, Y as BAR_DOMAIN, Qe as BarCard, ct as ExpandableRanking, Xe as PolarAngleAxis, z as Polygon, X as barLabel, H as selectPolarAxisScale, W as selectPolarAxisTicks, je as selectPolarGraphicalItemAxisTicks };
 
-//# debugId=43acac22-76f1-4059-8437-3b3169b4d657
+//# debugId=356ede3f-17ff-4df3-8cad-6ff3b8866472

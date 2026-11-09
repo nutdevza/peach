@@ -1,11 +1,12 @@
-/* 索引页：艺人、创作者、厂牌、事务所、系列名册和标签词表。
+/* Index page: performers, creators, labels, agencies, series rosters and the tag vocabulary.
  *
- * 地址栏是唯一真相。壳从地址读出 kind／q／scope／view／category 作初值挂上来，页面换档
- * （厂牌↔事务所、本地↔在线、类型、视图、过滤词）只改自己的状态并经 `route` 写回地址，
- * 不重挂：重挂会让页头连同过滤框里正在打的字一起被换掉，Tabs 那条蓝线从头起跑。
+ * The address bar is the only truth. The shell reads kind/q/scope/view/category from the address as initial values on mount,
+ * and page-level switches (label versus agency, local versus online, type, view, filter word) only change local state and
+ * write back to the address via `route`, without remounting: a remount would swap the header along with whatever is half-typed
+ * in the filter box, and the Tabs' blue line would start over.
  *
- * 页头只有标题、读数、版式切换和过滤框；页面级的切换（厂牌／事务所、本地／在线）是页头
- * 下面那排 Tabs。标签页的读数住在浮层下排，页头不再重复一遍。 */
+ * The header holds only title, readout, layout switch and filter box; page-level switches (label/agency, local/online) are
+ * the Tabs row below it. The tags page's readout lives in the overlay's bottom row and is not repeated in the header. */
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Radio } from 'react-aria-components';
@@ -41,37 +42,37 @@ import { OnlineAuthors, PeopleGrid } from './index-people';
 import { TagAlphabet, TagCloud, TagDock, TagFilters, type TagEntry } from './index-tags';
 import { TagManager } from './tag-manager';
 
-/* 厂牌与事务所是两种实体，不是同一份数据的两种筛选：厂牌出片，事务所出人。所以这个开关切的
-   是地址。场记板归厂牌，公文包归事务所，字形各说各的那一件事。 */
+/* Labels and agencies are two kinds of entities, not two filters over the same data: labels release videos, agencies supply people. So this toggle switches
+   the address. The clapperboard stands for labels, the briefcase for agencies; each glyph speaks for its own thing. */
 const MAKER_TABS: BoardTab<'studios' | 'agencies' | 'series'>[] = [
-  { value: 'studios', label: '厂牌', symbol: 'clapperboard' },
-  { value: 'series', label: '系列', symbol: 'list' },
-  { value: 'agencies', label: '事务所', symbol: 'briefcase' },
+  { value: 'studios', label: 'Labels', symbol: 'clapperboard' },
+  { value: 'series', label: 'Series', symbol: 'list' },
+  { value: 'agencies', label: 'Agency', symbol: 'briefcase' },
 ];
-/* 本地与在线是两套词表：计数口径、类别划分和点开去哪儿都不同，所以也是页面级的 Tabs。 */
+/* Local and online are two vocabularies: counting scope, category split, and click destinations all differ, so these are page-level Tabs too. */
 const SCOPE_TABS: BoardTab<IndexScope>[] = [
-  { value: 'local', label: '本地', symbol: 'hard-drive' },
-  { value: 'online', label: '在线', symbol: 'rss' },
+  { value: 'local', label: 'Local', symbol: 'hard-drive' },
+  { value: 'online', label: 'Online', symbol: 'rss' },
 ];
 const PEOPLE_TABS: BoardTab<'performers' | 'creators' | 'online'>[] = [
-  { value: 'performers', label: '艺人', symbol: 'user-round' },
-  { value: 'creators', label: '卖家', symbol: 'user-round' },
-  { value: 'online', label: '在线', symbol: 'rss' },
+  { value: 'performers', label: 'Artists', symbol: 'user-round' },
+  { value: 'creators', label: 'Sellers', symbol: 'user-round' },
+  { value: 'online', label: 'Online', symbol: 'rss' },
 ];
 
-/* 公司那一格摆的是标识而不是脸，沿用艺人那套词就是提示说着「竖幅头像」、屏幕上摆着方标识。
-   档位仍是同一个设置值，分开的只有说法。 */
+/* The company cell shows a logo, not a face; reusing the performer wording would promise "portrait avatar" while the screen shows a square logo.
+   The tier is still the same setting value; only the wording differs. */
 const LAYOUTS: Record<'people' | 'company' | 'series', readonly (readonly [PeopleLayout, string, string])[]> = {
-  people: [['big', '大图 · 竖幅头像', 'maximize'], ['compact', '紧凑 · 圆形头像', 'layout-grid']],
-  company: [['big', '大图 · 完整标识', 'maximize'], ['compact', '紧凑 · 圆形标识', 'layout-grid']],
-  series: [['big', '大图 · 系列图片', 'maximize'], ['compact', '紧凑 · 系列图片', 'layout-grid']],
+  people: [['big', 'Large · Portrait avatar', 'maximize'], ['compact', 'Compact · Round avatar', 'layout-grid']],
+  company: [['big', 'Large · Full logo', 'maximize'], ['compact', 'Compact · Round logo', 'layout-grid']],
+  series: [['big', 'Large · Series images', 'maximize'], ['compact', 'Compact · Series images', 'layout-grid']],
 };
 
 function LayoutSwitch(
   { kind, layout, onChange }: { kind: IndexKind; layout: PeopleLayout; onChange(layout: PeopleLayout): void },
 ) {
   return (
-    <RadioGroup aria-label={`${INDEX_TITLES[kind]}索引版式`} orientation="horizontal" value={layout}
+    <RadioGroup aria-label={`${INDEX_TITLES[kind]} index layout`} orientation="horizontal" value={layout}
       onChange={(next) => onChange(next as PeopleLayout)} data-index-layout=""
       className={`flex-none ${SEGMENTED_TRACK}`}>
       {LAYOUTS[kind === 'series' ? 'series' : isCompany(kind) ? 'company' : 'people'].map(([value, label, symbol]) => {
@@ -108,10 +109,10 @@ export function IndexPage(props: IndexProps) {
   const onlineTags = kind === 'tags' && scope === 'online';
   const onlineAuthors = kind === 'performers' && scope === 'online';
 
-  /* 地址给的那一份被规范过（旧链接换了名册、认不出的分类回到全部）：用 replace 改写地址，
-     标题、侧栏和历史记录都跟页面上真正显示的那一份走，后退也不会再落回旧地址。
-     写地址排到微任务里：壳写地址会同步画侧栏、路由根也同步提交，两处都用 `flushSync`，在提交阶段里画不出来。
-     这一页已卸下就不写。 */
+  /* The address's copy has been normalized (old links got renamed, unrecognized categories fall back to all): rewrite the address with replace;
+     title, sidebar, and history all follow what is actually displayed on the page, and going back no longer lands on the old address.
+     Writing the address is queued into a microtask: the shell's address write synchronously paints the sidebar and the route root also commits synchronously, both with `flushSync`, unpaintable during the commit phase.
+     If this page has unmounted, nothing is written. */
   useEffect(() => {
     if (route.kind === props.kind && route.scope === props.scope && route.category === props.category) return;
     let live = true;
@@ -119,10 +120,10 @@ export function IndexPage(props: IndexProps) {
     return () => { live = false };
   }, []);
 
-  /* 选择键归壳：关掉时所选跟着清空，下次打开从零开始，同目录页的多选。 */
+  /* Selection belongs to the shell: closing clears the selection and the next open starts from zero, like the catalog page's multi-select. */
   useEffect(() => { if (!props.selectMode) setPicked(new Set()) }, [props.selectMode]);
 
-  /* 换筛选、词表或类型时保留控件，只在结果区显示等待态。 */
+  /* When changing filter, term list, or type, keep the controls and only show a waiting state in the results area. */
   const go = (patch: Partial<IndexRoute>, replace = false) => {
     if (patch.scope !== undefined) setManaging(false);
     const next = { ...route, ...patch };
@@ -152,11 +153,11 @@ export function IndexPage(props: IndexProps) {
   }, [result.data, result.isPending, result.isPlaceholderData, route]);
   useTagPageBounds(kind === 'tags' && !result.isPlaceholderData ? total : undefined, pagination, changePage);
   const readout = kind === 'tags'
-    ? (result.isPending || result.isError ? '' : `${(total ?? items.length).toLocaleString()} 个标签`)
+    ? (result.isPending || result.isError ? '' : `${(total ?? items.length).toLocaleString()} tags`)
     : countText(items.length, !!result.hasNextPage);
-  /* 分类计数只随名册、词表和过滤词变，与选中哪一类无关。换分类时新一页还没到，沿用同一份
-     名册上一次拿到的计数：分类按钮行不先塌成「全部」加当前项、等数据回来再弹开。头一回
-     还没有计数时整排都摆出来，同壳铺的骨架那一排，计数到了再收掉空的那几类。 */
+  /* Category counts change only with the roster, vocabulary, and filter words, never with the selected category. When switching categories before the new page arrives, reuse the counts the roster got last time:
+     the category button row does not first collapse to "All" plus the current item and pop back open when data lands. The first time, with no counts yet, the whole row lays out,
+     matching the shell's skeleton row, and empty categories collapse once counts arrive. */
   const countsKey = `${kind}:${scope}:${q}`;
   const lastCounts = useRef<{ key: string; counts: Record<string, number> } | null>(null);
   const pageCounts = result.data?.pages[0]?.categories;
@@ -165,8 +166,8 @@ export function IndexPage(props: IndexProps) {
   const waiting = result.isPending && !categoryCounts;
   const hasEntries = ([key]: readonly [string, string]) => key === 'all' || waiting || Number(categoryCounts?.[key] || 0) > 0;
 
-  /* 框换了大小，「这张图要不要补底」和人脸放大都得重算：图早加载完了，不会再自己发一次 load。
-     赶在绘制之前，否则换版式那一帧是按旧框算的几何。 */
+  /* The box changed size, so both "does this image need a backing fill" and face zoom must be recomputed: the image finished loading long ago and will not fire another load.
+     Do it before painting, otherwise the layout-switch frame uses geometry computed from the old box. */
   useLayoutEffect(() => { if (root.current) refitNativeImages(root.current) }, [layout]);
 
   const tags = useMemo<TagEntry[]>(() => kind === 'tags'
@@ -177,13 +178,13 @@ export function IndexPage(props: IndexProps) {
   const changeLayout = (next: PeopleLayout) => { setLayout(next); props.savePreference({ layout: next }) };
 
   const tabs = kind === 'tags'
-    ? <SortableBoardTabs group="tags" tabs={SCOPE_TABS} value={scope} label="词表" onChange={(next) => {
+    ? <SortableBoardTabs group="tags" tabs={SCOPE_TABS} value={scope} label="Vocabulary" onChange={(next) => {
       setPicked(new Set());
-      // 在线标签全是英文，字母表才是它的形态；切过去时顺手换上，不必再点一次。
+      // Online tags are all English, so the alphabet is their natural shape; swap it in when switching over, no second press needed.
       go({ scope: next, category: 'all', view: next === 'online' ? 'alphabet' : view });
     }} />
     : isCompany(kind) || kind === 'series'
-        ? <BoardTabs tabs={MAKER_TABS} value={kind as 'studios' | 'agencies' | 'series'} label="资料类型"
+        ? <BoardTabs tabs={MAKER_TABS} value={kind as 'studios' | 'agencies' | 'series'} label="Detail kinds"
           onChange={(next) => go({ kind: next })} />
         : null;
 
@@ -210,8 +211,8 @@ export function IndexPage(props: IndexProps) {
     }
     if (result.isError) {
       return (
-        <EmptyState icon={spriteGlyph('alert')} title={`没能读取${title}`}
-          actions={<Button variant="secondary" onClick={() => void result.refetch()}>立即重试</Button>}>
+        <EmptyState icon={spriteGlyph('alert')} title={`Could not read ${title}`}
+          actions={<Button variant="secondary" onClick={() => void result.refetch()}>Retry now</Button>}>
           {requestErrorMessage(result.error)}
         </EmptyState>
       );
@@ -232,7 +233,7 @@ export function IndexPage(props: IndexProps) {
         </h2>
         {isPeople(kind) ? (
           <span data-index-count="" className="text-caption-1-regular leading-5 whitespace-nowrap text-text-secondary tabular-nums max-board-narrow:order-1 max-board-narrow:basis-full">
-            {/* 没取到就没有读数：「0 项」读起来是「名册是空的」，和报错说的是两件事。 */}
+            {/* No fetch, no readout: '0 items' reads as 'the roster is empty', which says something different from an error. */}
             <AsyncText text={pending ? undefined : result.isError ? '' : readout} busy={pending}
               placeholder={<span aria-hidden className="skeleton-sheen inline-block h-3.5 w-24 rounded-md" />} />
           </span>
@@ -240,12 +241,12 @@ export function IndexPage(props: IndexProps) {
         {isPeople(kind) ? <LayoutSwitch kind={kind} layout={layout} onChange={changeLayout} /> : null}
         <LibraryShortcuts kind={kind === 'tags' ? 'tag' : kind === 'series' ? 'series' : kind === 'studios' ? 'studio' : kind === 'agencies' ? 'agency' : kind === 'creators' ? 'creator' : 'performer'} />
         {kind === 'tags' ? <Button variant={managing ? 'primary' : 'ghost'} iconOnly className="flex-none" data-tag-mode=""
-          leadingIcon={spriteGlyph('pencil')} aria-label={managing ? '返回标签浏览' : '管理标签'} title={managing ? '返回标签浏览' : '管理标签'} aria-pressed={managing}
+          leadingIcon={spriteGlyph('pencil')} aria-label={managing ? 'Back to tag browsing' : 'Manage tags'} title={managing ? 'Back to tag browsing' : 'Manage tags'} aria-pressed={managing}
           onClick={() => { props.exitSelectMode(); setPicked(new Set()); setManaging(!managing) }} /> : null}
-        <IndexSearch label={`过滤${title}`} value={q} onQuery={(next) => { if (next !== q) go({ q: next }, !!next) }} />
+        <IndexSearch label={`Filter ${title}`} value={q} onQuery={(next) => { if (next !== q) go({ q: next }, !!next) }} />
       </div>
       {kind === 'performers' || kind === 'creators' ? (
-        <BoardTabs tabs={PEOPLE_TABS} value={onlineAuthors ? 'online' : kind} label="人物名册"
+        <BoardTabs tabs={PEOPLE_TABS} value={onlineAuthors ? 'online' : kind} label="People roster"
           onChange={(next) => {
             if (next === 'online') props.exitSelectMode();
             go({ kind: next === 'online' ? 'performers' : next,
@@ -257,7 +258,7 @@ export function IndexPage(props: IndexProps) {
         onCategory={next => go({ category: next })} onView={next => go({ view: next })}
         onJump={at => root.current?.querySelector(`[data-alpha-group="${at}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })} /> : <>
       {kind === 'performers' && scope === 'local' ? (
-        <div aria-label="身份分类" className={IDENTITY_ROW_CLASS}>
+        <div aria-label="Identity groups" className={IDENTITY_ROW_CLASS}>
           {IDENTITY_CATEGORIES.filter((entry) => entry[0] === category || hasEntries(entry)).map(([key, label]) => (
             <Button key={key} variant={category === key ? 'primary' : 'secondary'} size="small"
               aria-pressed={category === key} onClick={() => go({ category: key })}>{label}</Button>
@@ -277,18 +278,18 @@ export function IndexPage(props: IndexProps) {
         {body()}
       </SkeletonContent></div>
       {kind === 'tags' && !pending && !result.isError ? <div className="mt-5">
-        <DataTableFooter label="标签" total={total ?? items.length} pagination={pagination} onChange={changePage} unit="个标签" pageUnit="个" pageSizes={TAG_PAGE_SIZES} />
+        <DataTableFooter label="Tags" total={total ?? items.length} pagination={pagination} onChange={changePage} unit="tags" pageUnit="items" pageSizes={TAG_PAGE_SIZES} />
       </div> : null}
       {more ? (
         <div className="mt-5 flex justify-center">
-          {/* 按下去到下一批画出来之间要有东西在动：这一段是一次网络往返加一屏头像，光把键按灰了
-              说不出「还在走」和「点了没反应」的区别。用户按下的键走 Spinner（同播放墙的「载入更多」），
-              键上的字不变，键宽留够放下转圈，下面的内容不跟着跳。 */}
+          {/* Something must move between the press and the next batch painting: this stretch is one network round trip plus a screen of avatars, and only graying the key
+              cannot say "still working" apart from "clicked, nothing happened". The pressed key gets a Spinner (same as the playback wall's "Load more"),
+              the label stays unchanged, the key is wide enough for the spinner, and the content below does not jump. */}
           <Button variant="secondary" data-index-more="" className="min-w-31"
             disabled={result.isFetchingNextPage} aria-busy={result.isFetchingNextPage || undefined}
             onClick={() => void result.fetchNextPage()}>
-            {result.isFetchingNextPage ? <span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('正在载入下一批') }} /> : null}
-            载入更多
+            {result.isFetchingNextPage ? <span className="contents" dangerouslySetInnerHTML={{ __html: spinnerHtml('Loading the next batch') }} /> : null}
+            Load more
           </Button>
         </div>
       ) : null}
@@ -303,34 +304,34 @@ export function IndexPage(props: IndexProps) {
 }
 
 const LABELS: Record<IndexKind, string> = {
-  tags: '标签', performers: '艺人', creators: '卖家', studios: '厂牌', agencies: '事务所', series: '系列',
+  tags: 'Tags', performers: 'Artists', creators: 'Sellers', studios: 'Labels', agencies: 'Agency', series: 'Series',
 };
 
-/** 空馆藏、筛选无结果与在线来源还没有内容分别给出可执行的去处。文案同目录页的空态
- *  （`frontend/src/catalog-onboarding.ts` 的 `catalogEmptyHtml`）。 */
+/** Empty library, no filter results, and online sources without content yet each get an actionable destination. Copy matches the catalog page's empty states
+ *  (`frontend/src/catalog-onboarding.ts`'s `catalogEmptyHtml`). */
 function IndexEmpty(
   { kind, filtered, online, onClear }: { kind: IndexKind; filtered: boolean; online: boolean; onClear(): void },
 ) {
   if (filtered) {
     return (
-      <EmptyState icon={spriteGlyph('search')} title="没有符合条件的内容"
-        actions={<Button size="small" onClick={onClear}>清除筛选</Button>}>
-        清除筛选或搜索条件后查看全部内容。
+      <EmptyState icon={spriteGlyph('search')} title="No matching content"
+        actions={<Button size="small" onClick={onClear}>Clear filters</Button>}>
+        Clear the filter or search to see all content.
       </EmptyState>
     );
   }
-  // 在线那一档数的是来源上的东西，名字也跟着来源的说法：艺人页在线摆的是关注来源里的创作者。
-  const label = online && kind === 'performers' ? '创作者' : LABELS[kind];
+  // The online bucket counts what lives on the sources, and naming follows the sources' own usage: a performer page's online tab shows creators from followed sources.
+  const label = online && kind === 'performers' ? 'Creators' : LABELS[kind];
   const follow = (
-    <ButtonLink size="small" variant={online ? 'primary' : 'secondary'} href="/subscriptions?tab=add">添加关注</ButtonLink>
+    <ButtonLink size="small" variant={online ? 'primary' : 'secondary'} href="/subscriptions?tab=add">Add follows</ButtonLink>
   );
   return (
-    <EmptyState icon={spriteGlyph(kind === 'tags' ? 'tags' : 'user-round')} title={`还没有${label}`}
+    <EmptyState icon={spriteGlyph(kind === 'tags' ? 'tags' : 'user-round')} title={`No ${label} yet`}
       actions={online ? follow : <>
-        <ButtonLink size="small" href="/settings/library">添加媒体</ButtonLink>
+        <ButtonLink size="small" href="/settings/library">Add media</ButtonLink>
         {follow}
       </>}>
-      {online ? `添加关注来源并获取内容后，这里会显示来源上的${label}。` : '添加内容并补充资料后，这里会显示对应信息。'}
+      {online ? `After you add a follows source and fetch content, ${label} from the source will show up here.` : 'After adding content and completing profiles, the corresponding information appears here.'}
     </EmptyState>
   );
 }

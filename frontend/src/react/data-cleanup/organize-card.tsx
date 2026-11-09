@@ -1,8 +1,9 @@
-/* 数据管理页上的「整理」（ADR-0039）：选来源、填两份模板、预览、执行，外加整批回滚。
+/* "Organize" on the data management page (ADR-0039): pick a source, fill two templates, preview, run, plus batch rollback.
  *
- * 预览是一次同步请求，结果只活在这张卡上；执行与回滚是同一趟后台任务，快照摊在
- * `/api/organize` 的顶层，所以 `useBackgroundJob` 用 `withJob` 只换任务那几格，来源、模板
- * 与上一批原样留着。执行与回滚动的是真实文件名与数据库路径，都要先过确认弹层。 */
+ * The preview is one synchronous request whose result lives only on this card; run and rollback are one background job with
+ * the snapshot spread over `/api/organize`'s top level, so `useBackgroundJob` uses `withJob` to swap only the job cells,
+ * leaving sources, templates and the last batch untouched. Run and rollback touch real file names and database paths, and
+ * both pass a confirmation dialog first. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { confirmModal, MEDIA_SOURCE_ICONS } from '@peach/legacy/ui';
@@ -34,7 +35,7 @@ const APPLY_BODY = (name: string, path: string) => (path
   ? t('cleanup:organize.applyBodyPath', { name, path })
   : t('cleanup:organize.applyBodyAll', { name }));
 const ROLLBACK_BODY = t('cleanup:organize.rollbackBody');
-/** 预览只列前 8 行：这里是给人扫一眼方向对不对，完整计划在 CSV 里。 */
+/** The preview lists only the first 8 rows: this is for a quick glance at whether the direction is right; the full plan is in the CSV. */
 const PLAN_ROWS = 8;
 
 function PlanRows({ plan }: { plan: OrganizePlan }) {
@@ -66,7 +67,7 @@ export function OrganizeCard(
   const [chosen, setChosen] = useState('');
   const location = locations.some((row) => row.location === chosen) ? chosen : locations[0]?.location ?? '';
   const stored = data?.templates?.[location];
-  /* 两个框在人动过之前跟着存下的模板走：换来源就换成那个来源上次用的那两行。 */
+  /* Before the user touches them, the two boxes follow the stored template: switching sources swaps in the two lines that source used last time. */
   const [draft, setDraft] = useState<{ location: string; file: string; dir: string } | null>(null);
   const fields = draft?.location === location ? draft : { location, file: stored?.file ?? '', dir: stored?.dir ?? '' };
   const edit = (patch: Partial<{ file: string; dir: string }>) => { setDraft({ ...fields, ...patch }); preview.reset() };
@@ -98,7 +99,7 @@ export function OrganizeCard(
   const request = () => ({ location, path: path.trim(), file_template: fields.file.trim(), dir_template: fields.dir.trim() });
   const preview = useMutation({
     mutationFn: previewOrganize,
-    /* 模板不合法时错误就出在两个框里的一个，所以除了说原因还要指出是哪一格。 */
+    /* When a template is invalid the error lives in one of the two boxes, so besides the reason, name which one. */
     onError: (cause) => {
       const target = /整理路径/.test(errorMessage(cause)) ? 'path'
         : DIRECTORY_TEMPLATE_ERROR.test(errorMessage(cause)) ? 'dir' : 'file';
@@ -123,7 +124,7 @@ export function OrganizeCard(
     withJob: withOrganizeJob,
     onStarted: () => preview.reset(),
     onFinish: (finished) => {
-      /* 上一批跟着这一趟变了：执行多出一批，回滚退掉一批。重读一次拿到新的 `last_batch`。 */
+      /* The previous batch changed with this run: execute adds a batch, rollback removes one. Re-read once to pick up the new `last_batch`. */
       void queryClient.invalidateQueries({ queryKey: ORGANIZE_KEY, exact: true });
       if (finished.status !== 'complete') return;
       const { text, failed } = organizeOutcome(finished);
@@ -161,7 +162,7 @@ export function OrganizeCard(
     if (!sent || !plan || !changes) return;
     void confirmModal({
       title: t('cleanup:tools.organize'), body: APPLY_BODY(name, sent.path), confirmLabel: t('cleanup:tools.organize'),
-      /* 确认执行时保存该来源的模板。 */
+      /* Save the template for that source when confirming the run. */
       onConfirm: async () => {
         await job.start.mutateAsync({ kind: 'apply', request: sent });
         void rememberTemplates({
@@ -175,7 +176,7 @@ export function OrganizeCard(
     onConfirm: () => job.start.mutateAsync({ kind: 'rollback' }),
   });
 
-  /* 这张卡上的结论只有一句：跑着的那一趟、这次跟完的那一趟、刚出的预览，按新旧取最新。 */
+  /* This card carries exactly one conclusion: the running pass, the pass just followed to completion, and the fresh preview, newest wins. */
   let state = null;
   const applicable = !!changes && !running && !job.outcome;
   const current = job.job;

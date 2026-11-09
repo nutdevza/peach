@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { fitSkeleton } from '@peach/legacy/ui';
 
-/** 内容和骨架在同一格交叉淡化，变化区域之外的控件不参与过渡。 */
+/** Content and skeleton cross-fade within the same cell; controls outside the change region don't take part in the transition. */
 export function SkeletonContent({ pending, skeletonHtml, children }: {
   pending: boolean; skeletonHtml(): string; children: ReactNode;
 }) {

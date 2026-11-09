@@ -1,4 +1,4 @@
-/** 数据管理的维护工具；首页入口、二级页和面包屑共用名称与地址。 */
+/** The maintenance tools under Data Management; the home-page entry, sub-page, and breadcrumb share the name and address. */
 import { CLEANUP_TOOL_PATHS } from './cleanup-routes';
 import { t } from './i18n';
 

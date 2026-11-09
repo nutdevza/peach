@@ -1,4 +1,4 @@
-/* 数据管理首页保留日常入库、待处理摘要与维护入口，具体表单和清单在二级页展开。 */
+/* The Data Management home page keeps daily ingestion, the pending summary, and the maintenance entry; the specific forms and lists expand on the sub-page. */
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fmtSize } from '@peach/legacy/core';

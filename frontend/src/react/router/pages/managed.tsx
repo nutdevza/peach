@@ -1,16 +1,21 @@
-/* 管理区十一页与 `/resource-sync` 的页面元素：页面组按匹配挂上它们，挂上就打开那一页（ADR-0031「管理区页面由
- * 路由树按匹配打开」）。
+/* The page elements of the eleven management pages and `/resource-sync`: the page group mounts them on match, and mounting
+ * opens that page (ADR-0031, "management pages open by route tree match").
  *
- * 一次打开：等壳开始路由（`@peach/shell` 的 `pageOpens` 大于 0），经 `surfaceChanged` 让壳收起别的面、铺开管理区，铺这一页的
- * 骨架（与壳冷启动铺的是同一张，键相同就不重画），按需问一次 `/healthz`，再走 `openManagedRoute` 取齐首屏、
- * 在同一个任务里换成整页。首帧 props 由元素自己从地址、偏好与壳的状态算。
+ * One open: wait for the shell to start routing (`pageOpens` in `@peach/shell` greater than 0), report `surfaceChanged` so the
+ * shell tears down other surfaces and spreads management open, lay this page's skeleton (the same one the shell lays on cold
+ * start; same key means no double render), ask `/healthz` once if needed, then go through `openManagedRoute` to fetch the
+ * first screen and swap to the full page in the same task. First-frame props are computed by the element itself from the
+ * address, preferences and shell state.
  *
- * 按页面打开序号挂 key：没人认领的历史变化一次就是打开一次，同一路径再打开就重挂重取；认领的写地址（复核页换分类、
- * 关注管理换页签）代次不变，不重开。详情压在上面时页面组还匹配这一页：key 停在压上来之前那一次，页面不拆；经背景
- * 匹配挂上的（后退落到压在这一页上的详情）先不打开，详情撤下时按那一刻的代次挂 key 打开。
+ * Keyed by page-open epoch: each unclaimed history change is one open, so reopening the same path remounts and refetches;
+ * claimed address writes (review page category change, follow management tab change) keep the generation and do not reopen.
+ * With details stacked on top, the page group still matches this page: the key stays at the one from before the stack and the
+ * page is not dismantled; elements mounted via background match (back/forward landing on details stacked over this page) do
+ * not open right away, and open with the key of that generation's mount when details come down.
  *
- * 卸载时这一页还画在 `#stats` 里、壳也没藏起它，才收起；资料页、首页压过来时壳只藏起 `#stats`，页面照旧活着，
- * 等下一次认领表面才收。收起排进微任务：卸载发生在路由根同步提交的那一次里。 */
+ * On unmount, teardown happens only if this page is still rendered in `#stats` and the shell has not hidden it: when the
+ * profile page or home stacks over, the shell only hides `#stats` and the page stays alive until the next surface claim.
+ * Teardown queues into a microtask: unmount happens inside the router root's synchronous commit. */
 import { useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router';
 
@@ -32,16 +37,16 @@ import { javLibraryPath, javTab } from '../../jav/jav';
 import { ShellActionsContext, useOpenEpoch } from '../router';
 import type { ManagedOpenProps, ManagedPath, ShellActions } from '../shell-actions';
 
-/** 一次打开的存活状态：元素卸掉就不再画、不再滚动、不再写地址。 */
+/** One open session's liveness: once the element unmounts it stops rendering, scrolling, and writing the address. */
 interface Run {
   live: boolean;
-  /** 画上之后那一页的代次；还在取首屏时是 0。 */
+  /** The epoch of the page once painted; 0 while the first screen is still being fetched. */
   revision: number;
-  /** 这一次的读请求（`/healthz`），卸掉时中止。 */
+  /** This round's read request (`/healthz`), aborted on unmount. */
   controller: AbortController;
 }
 
-/** 本机的写入状态（`/healthz`）。 */
+/** This machine's write status (`/healthz`). */
 interface Runtime {
   ledger_read_only?: boolean;
   ledger_read_only_message?: string;
@@ -49,13 +54,13 @@ interface Runtime {
 }
 
 const readStarted = () => pageOpens > 0;
-/** 壳开始路由没有（`pageOpens` 大于 0）。 */
+/** Whether the shell has started routing (`pageOpens` greater than 0). */
 const useRoutingStarted = (): boolean => useSyncExternalStore(subscribeShell, readStarted);
 
 const followLayout = (): string => (appSettingsStore().value.followLayout === 'table' ? 'table' : 'default');
 const search = (): URLSearchParams => new URLSearchParams(window.location.search);
 
-/** 只读态：中止了回 null，照只能浏览以外的缺省处理。 */
+/** Read-only mode: an abort returns null, handled like defaults other than browse-only. */
 function readRuntime(run: Run): Promise<Runtime | null> {
   return (api('/healthz', { signal: run.controller.signal }) as Promise<Runtime>)
     .catch((error: unknown) => { if (isAbort(error)) return null; throw error });
@@ -64,12 +69,12 @@ function readRuntime(run: Run): Promise<Runtime | null> {
 function writerProps(runtime: Runtime | null, path: string) {
   return {
     readOnly: !!runtime?.ledger_read_only,
-    readOnlyMessage: runtime?.ledger_read_only_message || '本机当前只能浏览',
+    readOnlyMessage: runtime?.ledger_read_only_message || 'This device is browse-only',
     writerUrl: runtime?.ledger_writer_origin ? new URL(path, runtime.ledger_writer_origin).href : '',
   };
 }
 
-/** 这一次打开交给页面的值，从地址、偏好与壳的状态算。等 `/healthz` 期间走开了回 null。 */
+/** The values handed to the page for this open, computed from the URL, the preferences, and the shell's state. Returns null if the user leaves while `/healthz` is pending. */
 async function openProps(path: ManagedPath, run: Run): Promise<object | null> {
   if (path === '/jav') {
     const runtime = await readRuntime(run);
@@ -83,7 +88,7 @@ async function openProps(path: ManagedPath, run: Run): Promise<object | null> {
     return { onboarding } satisfies ManagedOpenProps['/taste'];
   }
   if (isSettingsSectionPath(path)) {
-    if (window.location.hash === '#peachProxy') writeShell({ configurationRequestedSection: '网络与访问' });
+    if (window.location.hash === '#peachProxy') writeShell({ configurationRequestedSection: 'Network & access' });
     const section = search().get('section') || configurationRequestedSection || configurationSection(path);
     return (section ? { section } : {}) satisfies ManagedOpenProps['/settings/library'];
   }
@@ -138,7 +143,7 @@ async function openPage(path: ManagedPath, actions: ShellActions, run: Run): Pro
   if (!props) return;
   const opened = await openManagedRoute(path, props, { container: stats, isCurrent });
   if (opened) run.revision = managedEntry(stats)?.revision ?? 0;
-  /* 配置页选中的页签只交给画上的那一次：没画上（取数途中走开了）就留给下一次打开。 */
+  /* The settings page's selected tab is handed only to the painted instance: if it never painted (navigated away mid-fetch) it is saved for the next open. */
   if (isSettingsSectionPath(path) && opened) writeShell({ configurationRequestedSection: '' });
   if (opened && isCurrent()) {
     const { hash } = window.location;
@@ -150,18 +155,18 @@ async function openPage(path: ManagedPath, actions: ShellActions, run: Run): Pro
   }
 }
 
-/** 管理区一页的元素。 */
+/** Elements of a page in the management area. */
 export function ManagedMatch({ path }: { path: ManagedPath }) {
   const epoch = useOpenEpoch();
-  // 每次导航都重渲染一次：详情撤下的那一次认领写地址不领代次，也要看得见。
+  // Every navigation rerenders once: the claim and address write made when a detail is torn down take no epoch, yet must still be visible.
   useLocation();
   const covered = isOverlayPath(peachHistory.navigation.location.pathname);
   const opening = useRef<number | null>(covered ? null : epoch);
   const wasCovered = useRef(covered);
-  // 已打开的背景页在详情撤下时保留代次；深链下的背景等待首次打开。
+  // An already-open background page keeps its epoch when details close; a background opened from a deep link waits for its first open.
   if (!covered && (!wasCovered.current || opening.current === null)) opening.current = epoch;
   wasCovered.current = covered;
-  // 路径也进 key：认领的写地址从一页换到另一页（配置页改写到数据管理页）时代次不变，页面组在同一个位置换了路由。
+  // The path is part of the key too: when a claimed address write moves from one page to another (settings rewriting to data management), the epoch stays and the page group swaps routes in the same place.
   const group = isSettingsSectionPath(path) ? '/settings/configuration' : path;
   return <ManagedPage key={`${group} ${opening.current ?? 'covered'}`} path={path} covered={opening.current === null} />;
 }
@@ -180,7 +185,7 @@ function ManagedPage({ path, covered }: { path: ManagedPath; covered: boolean })
     const current: Run = { live: true, revision: 0, controller: new AbortController() };
     run.current = current;
     queueMicrotask(() => { if (current.live) void openPage(path, actions, current) });
-    // 每次挂上只打开一次：壳开始路由那一刻，或挂上时已经开始了。
+    // Opens only once per mount: at the moment the shell starts routing, or it already started by mount time.
   }, [started]);
   useEffect(() => () => {
     const current = run.current;

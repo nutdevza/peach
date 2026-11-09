@@ -34,7 +34,7 @@ import { usePageOpen } from './index-entity';
 const statsHost = () => document.getElementById('stats');
 const readPlaylistsRevision = () => playlistsRevision;
 
-/* ── 关注 ── */
+/* ── Follows ── */
 
 async function openFollow(actions: ShellActions, live: () => boolean) {
   const stats = statsHost();
@@ -56,14 +56,14 @@ async function openFollow(actions: ShellActions, live: () => boolean) {
   if (live()) void pageNavigationReady(live, stats.querySelector('[data-filter-frame]'));
 }
 
-/* `#stats` 里画着、露着的是关注页。 */
+/* What is drawn and shown inside `#stats` is the follows page. */
 function followShown(): boolean {
   const stats = statsHost();
   const entry = stats ? managedEntry(stats) : null;
   return !!stats && !stats.hidden && !!entry && entry.path === '/follow' && entry.host.isConnected;
 }
 
-/** 关注页的元素。 */
+/** The follows page elements. */
 export function FollowMatch() {
   const actions = useContext(ShellActionsContext);
   usePageOpen(useOpenEpoch(), (_fresh, live) => {
@@ -77,9 +77,9 @@ export function FollowMatch() {
   return null;
 }
 
-/* ── 播放列表 ── */
+/* ── Playlist ── */
 
-/* `#stats` 里画着的是播放列表页。 */
+/* What is drawn inside `#stats` is the playlist page. */
 function playlistsShown(stats: HTMLElement | null): stats is HTMLElement {
   const entry = stats ? managedEntry(stats) : null;
   return !!entry && entry.path === '/playlists' && entry.host.isConnected;
@@ -95,7 +95,7 @@ async function openPlaylists(actions: ShellActions, live: () => boolean) {
   if (live()) void pageNavigationReady(live);
 }
 
-/** 播放列表页的元素。 */
+/** The playlist page elements. */
 export function PlaylistsMatch() {
   const actions = useContext(ShellActionsContext);
   const revision = useSyncExternalStore(subscribeShell, readPlaylistsRevision);

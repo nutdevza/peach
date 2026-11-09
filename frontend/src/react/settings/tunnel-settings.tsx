@@ -1,8 +1,10 @@
-/* Cloudflare Tunnel：临时链接显示服务实际返回的随机入口，命名隧道显示配置好的公开主机名。
+/* Cloudflare Tunnel: temporary links show the random entry the service actually returned, and named tunnels show the
+ * configured public hostname.
  *
- * 临时链接没有稳定域名和独立身份层，服务端会在 `open` 模式下拒绝启动。命名隧道多一份
- * 隧道令牌：它只往服务端去，回来的只有「存过没有」，这里任何时候都不显示令牌本身。
- * 模式选择只在源码开发环境出现，独立包收到的 `named_available` 是 false。 */
+ * Temporary links have no stable domain or identity layer of their own, and the server refuses to start in `open` mode.
+ * Named tunnels carry one more tunnel token: it only travels to the server, the answer back is only "saved or not", and the
+ * token itself is never displayed here. The mode choice only appears in the source dev environment; the standalone bundle
+ * receives `named_available` as false. */
 import { useEffect, useState, type FormEvent } from 'react';
 import { Radio } from 'react-aria-components';
 
@@ -19,14 +21,14 @@ import { CONFIGURATION_KEY, fetchConfiguration } from './configuration';
 import { ExternalLink, ErrorText, Footer, Help, Section, Stack } from './section';
 import { busyProps, useAction } from './use-action';
 
-/** 连接握手在服务端进行，页面按固定间隔重问，直到拿到入口或失败原因。 */
+/** The connection handshake runs server-side; the page re-asks at a fixed interval until it gets an entry point or a failure reason. */
 const POLL_INTERVAL = 2000;
 
-const MODES: [TunnelState['mode'], string][] = [['quick', '临时链接'], ['named', '命名隧道']];
+const MODES: [TunnelState['mode'], string][] = [['quick', 'Temporary link'], ['named', 'Named tunnel']];
 
 const HELP: Record<TunnelState['mode'], string> = {
-  quick: '临时预览用，地址随机，重启后会变。启动前要先设置访问密码。',
-  named: '使用你在 Cloudflare 绑定的固定域名。启动前要先设置访问密码。',
+  quick: 'For temporary preview only; the address is random and changes after restart. Set an access password before starting.',
+  named: 'Uses the fixed domain you bound on Cloudflare. Set an access password before starting.',
 };
 
 type FieldErrors = Partial<Record<'hostname' | 'mode', string>>;
@@ -53,7 +55,7 @@ export function TunnelSettings({ revision: initialRevision, initial, receipt }: 
       void fetchConfiguration(controller.signal)
         .then((next: ConfigurationData) => {
           if (controller.signal.aborted || !next.tunnel) return;
-          // 取回来的是整份配置，换进整页那一个键：屏幕上只有一份真相。
+          // What comes back is the whole config, swapped into the page's single key: one source of truth on screen.
           queryClient.setQueryData(CONFIGURATION_KEY, next);
           setState(next.tunnel);
           setRevision(next.revision);
@@ -66,7 +68,7 @@ export function TunnelSettings({ revision: initialRevision, initial, receipt }: 
     };
   }, [state.state]);
 
-  /** 开关和保存走同一个端点：形态与开关状态一次提交，服务端据此构造启动计划。 */
+  /** The toggle and save hit the same endpoint: shape and toggle state are submitted together, and the server builds the startup plan from them. */
   const send = (key: 'save' | 'toggle', enabled: boolean, done: (next: TunnelState) => void) => {
     setFields({});
     void action.run(key, (signal) => apiSend<TunnelState & { revision: string }>(
@@ -77,7 +79,7 @@ export function TunnelSettings({ revision: initialRevision, initial, receipt }: 
       setRevision(next.revision);
       setMode(next.mode);
       setHostname(next.hostname);
-      // 令牌交上去之后草稿就清掉：页面上不留一份明文，回来的也只有「存过没有」。
+      // The draft is cleared once the token is submitted: no plaintext stays on the page, and what comes back is only whether it saved.
       setToken('');
       done(next);
     }, (cause) => {
@@ -90,19 +92,19 @@ export function TunnelSettings({ revision: initialRevision, initial, receipt }: 
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    send('save', active, () => receipt('已保存配置'));
+    send('save', active, () => receipt('Configuration saved'));
   };
 
   const toggle = () => send('toggle', !active, (next) => receipt(
-    next.enabled ? '公网入口已启动' : '公网入口已停止',
+    next.enabled ? 'Public entry point started' : 'Public entry point stopped',
   ));
 
   return (
-    <Section id="tunnel" guide="tunnel" title="Cloudflare 公网入口" onSubmit={submit} aside={<StatusLabel tone={state.error ? 'error' : active ? 'progress' : 'neutral'}>
-      {state.error ? '连接失败' : state.state === 'running' ? '运行中' : state.state === 'starting' ? '连接中' : '已停止'}</StatusLabel>}>
+    <Section id="tunnel" guide="tunnel" title="Cloudflare public entry" onSubmit={submit} aside={<StatusLabel tone={state.error ? 'error' : active ? 'progress' : 'neutral'}>
+      {state.error ? 'Connection failed' : state.state === 'running' ? 'Running' : state.state === 'starting' ? 'Connecting' : 'Stopped'}</StatusLabel>}>
       <Stack>
         {state.named_available
-          ? <RadioGroup aria-label="公网入口的形态（二选一）" value={mode} isDisabled={active}
+          ? <RadioGroup aria-label="Public entry form (pick one of two)" value={mode} isDisabled={active}
               onChange={(next) => setMode(next as TunnelState['mode'])} className={SEGMENTED_TRACK}>
               {MODES.map(([value, label]) => (
                 <Radio key={value} value={value} className={SEGMENT}>{label}</Radio>
@@ -111,32 +113,32 @@ export function TunnelSettings({ revision: initialRevision, initial, receipt }: 
           : null}
         <Help>{HELP[named ? 'named' : 'quick']}</Help>
         {named ? <>
-          <Input id="tunnel-hostname" label="公开主机名" autoComplete="off" maxLength={253}
+          <Input id="tunnel-hostname" label="Public hostname" autoComplete="off" maxLength={253}
             value={hostname} onChange={setHostname} isDisabled={active} validationBehavior="aria"
             isInvalid={Boolean(fields.hostname)}
-            hint={fields.hostname || 'Cloudflare Zero Trust 里指向这台电脑的主机名。'} />
-          <Input id="tunnel-token" type="password" label="隧道令牌" autoComplete="off" maxLength={2048}
+            hint={fields.hostname || 'The hostname in Cloudflare Zero Trust that points at this computer.'} />
+          <Input id="tunnel-token" type="password" label="Tunnel token" autoComplete="off" maxLength={2048}
             value={token} onChange={setToken} isDisabled={active} validationBehavior="aria"
             hint={state.token_set
-              ? '已保存，留空不改。'
-              : '在 Cloudflare Zero Trust 的隧道详情页复制。'} />
+              ? 'Saved. Leave blank to keep unchanged.'
+              : 'Copy it from the tunnel details page in Cloudflare Zero Trust.'} />
         </> : null}
         {!state.available
-          ? <Note tone="warning" title="找不到 cloudflared">安装官方 cloudflared，或用设置文件的 tunnel.binary 与 PEACH_CLOUDFLARED 指定路径。</Note>
+          ? <Note tone="warning" title="Could not find cloudflared">Install the official cloudflared, or specify a path via tunnel.binary in the settings file and PEACH_CLOUDFLARED.</Note>
           : null}
         {state.state === 'running' && state.url
-          ? <Note tone="info" title="公网地址"><ExternalLink href={state.url}>{state.url}</ExternalLink></Note>
+          ? <Note tone="info" title="Public address"><ExternalLink href={state.url}>{state.url}</ExternalLink></Note>
           : null}
-        {state.state === 'starting' ? <Note tone="info" title="正在连接">正在等待 cloudflared 连上 Cloudflare 边缘。</Note> : null}
+        {state.state === 'starting' ? <Note tone="info" title="Connecting">Waiting for cloudflared to connect to the Cloudflare edge.</Note> : null}
         {state.error ? <ErrorText>{state.error}</ErrorText> : null}
         {action.error ? <ErrorText>{action.error}</ErrorText> : null}
       </Stack>
       <Footer>
         <Button variant={state.named_available ? 'secondary' : 'primary'} onClick={toggle} {...busyProps(action.busy === 'toggle')}>
-          {active ? '停止公网入口' : '启动公网入口'}
+          {active ? 'Stop the public entry' : 'Start the public entry point'}
         </Button>
         {state.named_available
-          ? <Button type="submit" {...busyProps(action.busy === 'save')}>保存配置</Button>
+          ? <Button type="submit" {...busyProps(action.busy === 'save')}>Save configuration</Button>
           : null}
       </Footer>
     </Section>

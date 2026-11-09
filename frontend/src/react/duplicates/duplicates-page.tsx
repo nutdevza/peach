@@ -41,7 +41,7 @@ const MARK = 'rounded-sm px-1.5 py-px text-caption-1-regular leading-5';
 const FLAG = 'rounded-sm px-2 py-0.5 text-caption-1-regular leading-5';
 const MONO = 'font-mono text-caption-1-regular leading-5 text-text-secondary';
 
-/** 改完之后要重读的两份：这一页本身，和数据管理页那张回收站读数。 */
+/** The two reads to refresh after a change: this page itself, and the trash stat on the data management page. */
 const refresh = () => {
   void queryClient.invalidateQueries({ queryKey: DUPLICATES_KEY, exact: true });
   void queryClient.invalidateQueries({ queryKey: TRASH_KEY, exact: true });
@@ -56,13 +56,13 @@ function evidenceFlag(group: DuplicateGroup) {
   </span>;
 }
 
-/** 一份副本。`prefix` 是组内共有的名字开头，显示时用「…」顶替，整名在 title 里。 */
+/** One copy. `prefix` is the name beginning shared across the group, shown replaced by "...", with the full name in the title. */
 function FileRow({ file, prefix, openItem }: { file: DuplicateFile; prefix: string; openItem(id: number): void }) {
   const open = () => openItem(file.id);
   const location = LOC[file.location] || file.location || file.drive;
   return (
     <div className="duplicate-row items-center gap-3 border-t border-separator-border px-5 py-4 max-compact:p-4">
-      {/* 封面格居中用 `inline-grid`：`grid` 与旧样式表同名，不生成这个工具类。 */}
+      {/* The cover cell centers with `inline-grid`: `grid` clashes with the old stylesheet's name, so that utility class is not generated. */}
       <button type="button" onClick={open} aria-label={t('cleanup:duplicates.previewFile', { name: file.name })}
         className="relative row-span-2 inline-grid aspect-16/10 w-full cursor-pointer place-items-center overflow-hidden rounded-2lg bg-background-tertiary-default text-text-secondary">
         <PLAY aria-hidden className="size-6" />
@@ -88,7 +88,7 @@ function FileRow({ file, prefix, openItem }: { file: DuplicateFile; prefix: stri
       </span>
       <span className={MONO}>{fmtSize(file.size || 0)}</span>
       <span className={MONO}>{fmtDur(file.duration)}</span>
-      {/* 路径整条折行显示：同一组的几份常只在中段不同，截断会让它们看起来一模一样。 */}
+      {/* Paths wrap in full: several files in one group usually differ only in the middle, and truncation would make them look identical. */}
       <span className={`${MONO} col-start-2 -col-end-1 min-w-0 pt-0.5 wrap-anywhere max-duplicate-narrow:col-span-full`}>
         {file.path ?? ''}
       </span>

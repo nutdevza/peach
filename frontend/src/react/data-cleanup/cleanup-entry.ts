@@ -1,6 +1,6 @@
 import { cardClass } from '../components/card';
 
-/** 数据管理中可跳转入口的共同样式，也供首屏加载态复用。 */
+/** Shared style for the navigable entries in data management; also reused by the first-screen loading state. */
 export const CLEANUP_ENTRY_GRID = 'inline-grid w-full grid-cols-2 gap-3 max-cleanup-tight:grid-cols-1';
 export const CLEANUP_ENTRY = {
   face: cardClass({ padding: 'none', radius: 'plain', interactive: true,

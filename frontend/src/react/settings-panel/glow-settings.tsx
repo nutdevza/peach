@@ -1,13 +1,16 @@
-/* 侧栏光晕的详细设置，照 feralui.dev/gradients 的工作台面板来：参数行是「84px 标签 + 自绘拉条 +
- * 右侧等宽读数」，颜色行点开在自己下方弹一张色板。
- * 取证见 docs/reference-snapshots/feralui-studio-boardui-accent-measured.md。
+/* Detailed settings for the sidebar glow, following feralui.dev/gradients' workbench panel: parameter rows are "84px label +
+ * self-drawn slider + monospace readout at right", and color rows open a palette below themselves.
+ * Measurements in docs/reference-snapshots/feralui-studio-boardui-accent-measured.md.
  *
- * 预设色块在这一屏和侧栏底部那张配色卡上是同一组色块、同一份写入（`GlowPresetGrid`），两处读的都是
- * 壳那一份 store，点哪一边另一边当场对齐。当前档名、预设色块和五条参数同属「配色」这一组。
+ * The preset swatches are the same group with the same write path as the color card at the bottom of the sidebar
+ * (`GlowPresetGrid`); both read the shell's store, so picking on either side aligns the other on the spot. The current scheme
+ * name, preset swatches and the five parameters belong to the "Color scheme" group.
  *
- * 「玻璃原色」那一档没有三枚光晕：那一层整个算作 0，面上漂的是每块玻璃自带的两团反光。强度、
- * 颗粒、柔化、大小和三枚颜色于是全都管不着任何东西，这一档把它们收起来，换一句说明颜色由明暗
- * 主题给。漂移速度不收——自带那两团也在漂。「恢复默认」同样不收，任何一档下都要能一步回到出厂那一套。 */
+ * The "Glass original color" scheme has no three glows: that layer counts as 0 wholesale, and what drifts on the surfaces are
+ * each pane's own two reflections. Intensity, grain, blur, size and the three colors then control nothing, so this scheme
+ * collapses them and swaps in a line explaining that color comes from the light/dark theme. Drift speed is not collapsed,
+ * since the built-in blobs drift too. "Restore defaults" is likewise not collapsed: any scheme must be able to return to the
+ * factory set in one step. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { closeAnchoredMenu, wireAnchoredMenu } from '@peach/legacy/ui';
@@ -26,7 +29,7 @@ type Field = 'strength' | 'noise' | 'speed' | 'soften' | 'size';
 type Spot = 'spot1' | 'spot2' | 'spot3';
 
 const FIELDS: readonly [Field, string, number][] = [
-  ['strength', '强度', 100], ['noise', '颗粒', 60], ['speed', '漂移速度', 300], ['soften', '柔化', 100], ['size', '大小', 100],
+  ['strength', 'Intensity', 100], ['noise', 'Grain', 60], ['speed', 'Drift speed', 300], ['soften', 'Softness', 100], ['size', 'Size', 100],
 ];
 
 
@@ -37,8 +40,8 @@ function StopRow({ host, spot, index, glow }: { host: SettingsPanelHost; spot: S
   const pop = useRef<HTMLDivElement | null>(null);
   const palette = useOverlayScrollbar<HTMLDivElement>();
   const [family, setFamily] = useState('all');
-  /* 弹层左右贴齐这一行：宽度不跟着行走的话，一张比行窄的色板看不出是从哪一行开出来的。
-     这条要排在 wireAnchoredMenu 之前，它按当前宽度算左缘。 */
+  /* The popover's left and right edges align with this row: if its width does not follow the row, a swatch narrower than the row gives no clue which row it came from.
+     This must run before wireAnchoredMenu, which computes the left edge from the current width. */
   useLayoutEffect(() => {
     const [mount, button, menu] = [row.current, toggle.current, pop.current];
     if (!mount || !button || !menu) return;
@@ -63,14 +66,14 @@ function StopRow({ host, spot, index, glow }: { host: SettingsPanelHost; spot: S
         <Icon name="chevron-down" />
       </button>
       <div className="popmenu" data-glow-stop-pop="" popover="manual" hidden ref={pop}>
-        <div data-glow-pills="" role="group" aria-label="色系">
+        <div data-glow-pills="" role="group" aria-label="Colors">
           {GLOW_SWATCH_FAMILIES.map(([key, name]) => (
             <button type="button" key={key} data-glow-pill={key} aria-pressed={key === family}
               onClick={() => setFamily(key)}>{name}</button>
           ))}
         </div>
         <div data-glow-palette-frame="">
-        <div ref={palette} data-glow-palette="" role="radiogroup" aria-label={`${label}颜色`}>
+        <div ref={palette} data-glow-palette="" role="radiogroup" aria-label={`${label} color`}>
           {GLOW_SWATCHES.map(([swatchFamily, name, hex]) => (
             <button type="button" key={hex} role="radio" aria-checked={hex === color} data-glow-swatch={hex}
               data-glow-family={swatchFamily} style={{ '--glow-swatch': hex } as CSSProperties}
@@ -88,15 +91,15 @@ export function GlowSettings({ host }: { host: SettingsPanelHost }) {
   const glow = host.store.value.homeGlow;
   const native = isNativeGlass(glow.preset);
   return (
-    <section data-glow-setting="" id="homeGlowControls" aria-label="侧栏光晕参数" hidden={!glow.on}>
-      <section data-glow-group=""><h4 data-settings-subheading="">光晕配色</h4>
+    <section data-glow-setting="" id="homeGlowControls" aria-label="Sidebar glow parameters" hidden={!glow.on}>
+      <section data-glow-group=""><h4 data-settings-subheading="">Glow palette</h4>
         <div data-setting-card="" data-glow-card="">
-        <p data-glow-current="">当前配色<b data-glow-preset-name="">{glowPresetName(glow.preset)}</b></p>
-        <GlowPresetGrid store={host.store} label="光晕配色" />
-        <p data-glow-native-note="" hidden={!native}>这一档用每块玻璃自带的反光，颜色跟着明暗主题走。</p>
+        <p data-glow-current="">Current palette<b data-glow-preset-name="">{glowPresetName(glow.preset)}</b></p>
+        <GlowPresetGrid store={host.store} label="Glow palette" />
+        <p data-glow-native-note="" hidden={!native}>This tier uses each pane's own reflections, and colors follow the light or dark theme.</p>
         <div data-glow-fields="">
-          {/* 拖动中只改参数、只排一帧重画；落盘留给松手那一下。其余玻璃面跟着走的只有速度，
-              而它那两枚变量只能写在根上，所以拖动期间只有侧栏那一层在变，松手才铺到整页。 */}
+          {/* While dragging, only parameters change and a single repaint is scheduled; persisting waits for release. The other glass surfaces follow only the velocity,
+              and its two variables can only be written on the root, so during the drag only the sidebar layer changes and the full page follows on release. */}
           {FIELDS.map(([field, label, max]) => (
             <DialRow key={field} field={field} label={label} max={max} value={glow[field]} hidden={native && field !== 'speed'}
               onStep={(value) => { host.store.value.homeGlow[field] = value; host.changed('glowFrame') }}
@@ -105,11 +108,11 @@ export function GlowSettings({ host }: { host: SettingsPanelHost }) {
         </div>
         <div data-glow-actions="">
           <button type="button" className="geist-button" data-glow-reset=""
-            onClick={() => { host.store.value.homeGlow = normalizeHomeGlow(null); host.store.save(); host.changed('glow') }}>恢复默认</button>
+            onClick={() => { host.store.value.homeGlow = normalizeHomeGlow(null); host.store.save(); host.changed('glow') }}>Restore defaults</button>
         </div>
         </div>
       </section>
-      <section data-glow-group="" data-glow-colours="" hidden={native}><h4 data-settings-subheading="">自定义颜色</h4>
+      <section data-glow-group="" data-glow-colours="" hidden={native}><h4 data-settings-subheading="">Custom color</h4>
         <div data-setting-card="" data-glow-colour-card=""><div data-glow-stops="">
           {HOME_GLOW_SPOTS.map((spot, index) => <StopRow key={spot} host={host} spot={spot as Spot} index={index} glow={glow} />)}
         </div></div>

@@ -21,7 +21,7 @@ import { settingsBackgroundOf, isPreferencePath } from './settings-route';
 export * from './settings-route';
 export { canonicalPath } from './canonical-path';
 
-/** 一次历史变化：动作、变化之后的地址、它领到的序号、到这一次为止的页面打开序号，和这一次是不是壳认领写的。 */
+/** One history change: the action, the URL after the change, the counter it drew, the page open counter as of this change, and whether this one was a shell-claimed write. */
 export interface Navigation {
   action: NavigationType;
   location: Location;
@@ -32,7 +32,7 @@ export interface Navigation {
 
 export type NavigationListener = (navigation: Navigation) => void;
 
-/** 给 `<Router navigator>` 用的那一份，外加当前这一次变化与订阅。 */
+/** The copy handed to `<Router navigator>`, plus the current change and its subscription. */
 export interface PeachHistory extends Navigator {
   readonly navigation: Navigation;
   listen(listener: NavigationListener): () => void;
@@ -43,9 +43,9 @@ let seq = 0;
 let openEpoch = 0;
 let current: Navigation = { action: browser.action, location: browser.location, seq, openEpoch, claimed: true };
 const listeners = new Set<NavigationListener>();
-/* `claiming` 只在 `shellNavigate` 写地址那一下为真。 */
+/* `claiming` is true only during the moment `shellNavigate` writes the address. */
 let claiming = false;
-/* 还停在页面加载时的那一条上：之后只经 replace 改写过（清理启动地址、页内写参数），没 push、没后退前进。 */
+/* Still on the entry from page load: since then only rewritten via replace (cleaning the startup address, in-page parameter writes), no push and no back/forward. */
 let onBootEntry = true;
 
 browser.listen(({ action, location }) => {
@@ -87,7 +87,7 @@ export const peachHistory: PeachHistory = {
 
 export interface ShellNavigateOptions {
   replace?: boolean;
-  /** 新条目的 `usr` 状态。清理地址时传 `peachHistory.navigation.location.state`，原样保住当前那一份。 */
+  /** The `usr` state of the new entry. When cleaning the address, pass `peachHistory.navigation.location.state` to preserve the current one intact. */
   state?: unknown;
 }
 
@@ -108,11 +108,11 @@ export function shellNavigate(path: string | URL, { replace = false, state }: Sh
   }
 }
 
-/** 当前条目是不是页面加载时的那一条（刷新、新标签页、深链）。 */
+/** Whether the current entry is the one from page load (refresh, new tab, deep link). */
 export const bootEntry = (): boolean => onBootEntry;
 
-/** 页面组按它匹配的背景：当前条目在 `usr` 里记的那一页。启动那一条不读（ADR-0031「详情条目记下压在哪一页
- *  上」）：`usr` 跨刷新仍在，下面那一页却从没画过，刷新、新标签页与深链落在详情上一律当作没有背景。 */
+/** The page group matches its background: the page the current entry recorded in `usr`. The startup entry is not read (ADR-0031 "details entries record the page pressed beneath"):
+ *  `usr` survives refresh, but the page beneath was never painted, so refresh, new tabs, and deep links landing on details count as having no background. */
 export function navigationBackground(): BackgroundLocation | null {
   if (isPreferencePath(current.location.pathname)) {
     const settings = onBootEntry ? null : settingsBackgroundOf(current.location.state);

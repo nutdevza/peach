@@ -1,7 +1,7 @@
-/* 左侧导航的顺序：直接拖动排序，逐行上移、下移、隐藏，再从下面那张页面清单里加回来。
+/* Left navigation order: drag to reorder directly, per-row move up/down and hide, then add back from the page list below.
  *
- * 写入与侧栏那一列的拖动共用 `sidebar/sidebar-order.ts`：先落本地那份（侧栏按 store 的通知当场
- * 重排），再写 `/api/settings`。 */
+ * Writing shares `sidebar/sidebar-order.ts` with the sidebar column's dragging: first land the local copy (the sidebar reorders on the spot on the store's notice),
+ * then write `/api/settings`. */
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { VisuallyHidden } from 'react-aria-components';
 
@@ -15,7 +15,7 @@ import { Button } from '@/components/base/buttons/button';
 import { resetSidebarOrder } from '../../sidebar';
 import { NavigationDropLine, restoreNavigationOrder } from '../components/navigation-order';
 
-/* 首页那一项的键是空串；空串写进属性和 dataTransfer 都等于没写，给它一个占位。 */
+/* The home item's key is an empty string; an empty string written to attributes and dataTransfer is the same as not writing, so it gets a placeholder. */
 const HOME = '__home__';
 const optionKey = (key: string) => key === '' ? HOME : key;
 
@@ -41,7 +41,7 @@ export function SidebarOrder({ host }: { host: SettingsPanelHost }) {
     commit(next);
   };
 
-  /* 清单里当前挑中的那一项；挑中的那一项被加进侧栏之后退回清单第一项。 */
+  /* The manifest's currently picked item; once the picked item is added to the sidebar, selection falls back to the manifest's first item. */
   const chosen = available.find(([key]) => optionKey(key) === picked) ?? available[0];
   const closeMenu = () => {
     if (menu.current) dismissMenu(menu.current);
@@ -80,11 +80,11 @@ export function SidebarOrder({ host }: { host: SettingsPanelHost }) {
           <span data-sidebar-label=""><i data-sidebar-grip="" aria-hidden="true"><Icon name="grip-vertical" /></i>
             <Icon name={glyph ?? ''} /><b>{label}</b></span>
           <span data-sidebar-actions="">
-            <button type="button" data-sidebar-key={key} data-sidebar-move="-1" aria-label={`上移 ${label}`} title="上移"
+            <button type="button" data-sidebar-key={key} data-sidebar-move="-1" aria-label={`Move ${label} up`} title="Move up"
               disabled={index === 0} onClick={() => step(key, -1)}><Icon name="chevron-up" /></button>
-            <button type="button" data-sidebar-key={key} data-sidebar-move="1" aria-label={`下移 ${label}`} title="下移"
+            <button type="button" data-sidebar-key={key} data-sidebar-move="1" aria-label={`Move ${label} down`} title="Move down"
               disabled={index === visible.length - 1} onClick={() => step(key, 1)}><Icon name="chevron-down" /></button>
-            <button type="button" data-sidebar-key={key} data-sidebar-hide="" aria-label={`隐藏 ${label}`} title="隐藏"
+            <button type="button" data-sidebar-key={key} data-sidebar-hide="" aria-label={`Hide ${label}`} title="Hide"
               disabled={visible.length === 1}
               onClick={() => { if (order.length > 1) commit(order.filter((item) => item !== key)) }}><Icon name="eye-off" /></button>
           </span>
@@ -100,10 +100,10 @@ export function SidebarOrder({ host }: { host: SettingsPanelHost }) {
             disabled={!chosen} ref={trigger} onClick={toggleMenu}>
             {chosen
               ? <><Icon name={chosen[2] ?? ''} /><span data-sidebar-add-label="">{chosen[1]}</span><Icon name="chevron-down" /></>
-              : <><Icon name="check" /><span>全部页面都已显示</span></>}
+              : <><Icon name="check" /><span>All pages are shown</span></>}
           </button>
           {available.length
-            ? <div className="popmenu" data-sidebar-add-menu="" role="listbox" aria-label="选择要添加的页面" hidden ref={menu}>
+            ? <div className="popmenu" data-sidebar-add-menu="" role="listbox" aria-label="Choose pages to add" hidden ref={menu}>
                 {available.map(([key, label, glyph]) => (
                   <button type="button" role="option" key={optionKey(key)} data-sidebar-add-option={optionKey(key)}
                     aria-selected={chosen?.[0] === key} tabIndex={chosen?.[0] === key ? 0 : -1} onKeyDown={optionKeys}
@@ -115,10 +115,10 @@ export function SidebarOrder({ host }: { host: SettingsPanelHost }) {
             : null}
         </div>
         <button type="button" className="geist-button primary" data-sidebar-add="" disabled={!chosen}
-          onClick={() => { if (chosen && !order.includes(chosen[0])) commit([...order, chosen[0]]) }}>添加</button>
+          onClick={() => { if (chosen && !order.includes(chosen[0])) commit([...order, chosen[0]]) }}>Add</button>
       </div>
       {order.join(',') !== defaults.join(',') ? <div className="peach-react"><Button variant="secondary" size="small"
-        onClick={() => restoreNavigationOrder({ label: '左侧导航', keys: order, defaults, commit })}>恢复侧栏默认顺序</Button></div> : null}
+        onClick={() => restoreNavigationOrder({ label: 'Left navigation', keys: order, defaults, commit })}>Restore the sidebar default order</Button></div> : null}
     </div>
   );
 }

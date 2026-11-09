@@ -1,43 +1,44 @@
-/* 分布柱状图：一类一根柱子，画的是 EvilCharts 的 `EvilBarChart`。
+/* Distribution bar chart: one bar per category, drawn as EvilCharts' `EvilBarChart`.
  *
- * 页头的大数是各类合计。每根柱子的数标在柱端，数值轴不画：几类之间差一两个数量级时，
- * 短柱子从刻度上读不出数。柱子由 Motion 逐根长出来，系统开了减弱动态效果时直接画终态
- * （`../entry.tsx` 的 `MotionConfig`）；悬停浮层是 `./chart-tip.tsx`。 */
+ * The header's big number is the categories' sum. Each bar's value is labeled at the bar's end and the value axis is not
+ * drawn: when categories differ by one or two orders of magnitude, short bars cannot be read off a scale. Bars grow one by
+ * one via Motion, drawing the final state directly when the system has reduce motion on (`MotionConfig` in `../entry.tsx`);
+ * the hover overlay is `./chart-tip.tsx`. */
 import { EvilBarChart } from '@/registry/charts/recharts-bar-chart';
 
 import { CategoryTick, categoryAxisWidth, CHART_CARD, ChartEmpty, ChartHead, tone } from './chart-card';
 import { ChartTip } from './chart-tip';
 
-/** 一根柱子：显示的名字和它的数。写成类型别名，EvilCharts 的 `data` 要能当 `Record` 收。 */
+/** One bar: the display name and its count. Written as a type alias so EvilCharts' `data` can accept it as a `Record`. */
 export type BarRow = { name: string; value: number };
 
-/** 数值轴留两成余量，最长那根柱子端上的数不被图框切掉。 */
+/** The value axis keeps 20% headroom so the number at the end of the longest bar is not clipped by the chart frame. */
 export const BAR_DOMAIN: [number, (max: number) => number] = [0, (max) => max * 1.2];
 
-/** 横条右侧给柱端那个数留的位置（像素）：最长那一条的数落在这一截里，不被图框切掉。 */
+/** Space reserved to the right of horizontal bars for the bar-end number, in pixels: the longest bar's number lands inside this strip, not clipped by the chart frame. */
 export const BAR_LABEL_ROOM = 56;
 
-/** 柱端的数：十万以上读成「万」「亿」，柱端那一小截放得下；全数在悬停浮层里。 */
+/** The bar-end number: values past 100k read in ten-thousand and hundred-million units so the strip at the bar end fits; the exact figure is in the hover popover. */
 export function shortCount(value: number): string {
   const abs = Math.abs(value);
   const scaled = (unit: number, name: string) => {
     const figure = value / unit;
     return `${figure.toLocaleString(undefined, { maximumFractionDigits: Math.abs(figure) < 100 ? 1 : 0 })}${name}`;
   };
-  if (abs >= 1e8) return scaled(1e8, '亿');
-  if (abs >= 1e5) return scaled(1e4, '万');
+  if (abs >= 1e8) return scaled(1e8, 'B');
+  if (abs >= 1e5) return scaled(1e4, 'K');
   return value.toLocaleString();
 }
 
-/** 柱端的数。`position` 跟着柱子的走向：竖柱标在顶上，横条标在右端。 */
+/** The bar-end number. `position` follows the bar's orientation: vertical bars label the top, horizontal bars the right end. */
 export const barLabel = (position: 'top' | 'right') => ({
   position,
   className: 'fill-text-secondary',
   formatter: (value: unknown) => shortCount(Number(value)),
 });
 
-/** 浮层那一行的名字：`series` 是这一组数的叫法（「视频」「作品」），不是单位。
- *  一根柱子都没有数时，卡片照留，图的位置换成 `empty` 那句话。 */
+/** The overlay row's name: `series` is what this set of numbers is called ("videos", "titles"), not a unit.
+ *  When not a single bar has a count, the card stays and the chart's place takes the `empty` sentence. */
 export function BarCard(
   { title, unit, series, rows, color, empty, layout = 'vertical' }:
   {
@@ -51,9 +52,9 @@ export function BarCard(
   const total = data.reduce((sum, row) => sum + row.value, 0);
   if (!total) return <ChartEmpty title={title}>{empty}</ChartEmpty>;
   const horizontal = layout === 'horizontal';
-  /* 图的容器自带 `flex-1`，放进卡片这一列 flex 里会按 0 起算、把 `h-*` 压成 0 高，换成 `flex-none`。
-     类别轴 `interval={0}`：每根柱子都要有名字，Recharts 默认会把挤在一起的名字隔一个藏掉；
-     名字放不下就由 `CategoryTick` 截断。 */
+  /* The chart container has `flex-1` built in; inside a card's flex column it would size from 0 and crush `h-*` to zero height, so switch to `flex-none`.
+     The category axis uses `interval={0}`: every bar must have a name, and Recharts by default hides every other crowded name;
+     names that do not fit are truncated by `CategoryTick`. */
   return (
     <section className={CHART_CARD} aria-label={title}>
       <ChartHead title={title} figure={total.toLocaleString()} note={unit} />

@@ -1,4 +1,4 @@
-/** 语言写法只用于标签。查询、路由和写入始终使用调用方持有的原始名称与 ID。 */
+/** The display wording is for labels only. Queries, routing and writes always use the raw names and IDs the caller holds. */
 export type NameLanguage = 'zh-CN' | 'ja';
 export interface NameWriting {
   id: number; kind: string; canonical_name: string; zh_cn: string | null; ja: string | null;

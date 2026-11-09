@@ -1,10 +1,11 @@
-/* 骨架微光只在看得见的时候扫。
+/* Skeleton shimmer sweeps only while visible.
  *
- * 微光是 `::after` 上一条 `transform` 动画（`web/css/09-skeleton.css` 的 `skeleton-sweep`）。
- * 懒加载的图在屏幕外一直不来，框上的微光就一直扫：首页横条、人物索引、关注页一屏外的
- * 几十格，每帧都有一次动画样式失效。这里用一个共用的交叉观察器把框标成 `data-sweep`：
- * 不在视口里是 `idle`（样式表暂停动画），露面后在视口里等满 `SWEEP_STALL_MS` 图还没到就是
- * `stalled`（样式表撤掉动画、只铺静止的占位面）。图到手或取不到时调用方 `releaseSweep`。 */
+ * The shimmer is a `transform` animation on a `::after` (`skeleton-sweep` in `web/css/09-skeleton.css`). Lazy images that
+ * never arrive offscreen keep the frame's shimmer sweeping: the home strip, people index, the dozens of offscreen cells on
+ * the follows page, one animation style invalidation per frame each. A shared intersection observer marks frames
+ * `data-sweep`: outside the viewport is `idle` (the stylesheet pauses the animation); after appearing, waiting a full
+ * `SWEEP_STALL_MS` in the viewport with the image still missing is `stalled` (the stylesheet removes the animation and lays
+ * only the static placeholder face). Callers call `releaseSweep` when the image arrives or fails. */
 
 export const SWEEP_STALL_MS = 10_000;
 
@@ -24,7 +25,7 @@ function observer(): IntersectionObserver | null {
         continue;
       }
       delete box.dataset.sweep;
-      // 露面才开始计时：屏幕外排队的懒加载图还没开始下载，不能算它超时。
+      // The clock starts only once it is visible: lazy images queued off screen have not started downloading, so they cannot count as timed out.
       if (!stallTimers.has(box)) stallTimers.set(box, setTimeout(() => {
         stallTimers.delete(box);
         if (box.isConnected) box.dataset.sweep = 'stalled';
@@ -34,12 +35,12 @@ function observer(): IntersectionObserver | null {
   return sight;
 }
 
-/** 开始照看一个带微光的框：屏幕外暂停，露面后等太久换成静止占位。 */
+/** Start tending one shimmering box: paused while off screen, and after waiting too long once visible it becomes a static placeholder. */
 export function gateSweep(box: Element): void {
   observer()?.observe(box);
 }
 
-/** 框里的内容到了或确定取不到：停止照看并撤掉标记。 */
+/** The framed content arrived or is confirmed unreachable: stop watching and clear the marker. */
 export function releaseSweep(box: Element): void {
   sight?.unobserve(box);
   clearTimeout(stallTimers.get(box));

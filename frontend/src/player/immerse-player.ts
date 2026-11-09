@@ -1,9 +1,10 @@
-/* 沉浸模式每一格的播放器：只留媒体本身。进度条、加载提示与动作键都由沉浸岛自己画，所以 Video.js
- * 挂成裸的一层，没有控件条、海报、转圈与错误层。
+/* Each immersive slide's player: only the media itself stays. The progress bar, loading hint and action keys are drawn by the
+ * immersive island itself, so Video.js mounts bare, with no control bar, poster, spinner or error layer.
  *
- * 片源与详情同一个判据（`playableStreamSource`），要转码分片的片子只有 Video.js 播得了；分片出错
- * 退回直读，和详情播放器同一个兜底。每格一个流会话，由调用方建好传进来：拆这一格时按会话取消，
- * 离开页面时调用方也按它取消。 */
+ * The stream source shares the details' criterion (`playableStreamSource`); only Video.js can play videos needing transcode
+ * segments, and segment errors fall back to direct read, the same fallback as the details player. Each slide gets one stream
+ * session built by the caller and passed in: tearing the slide down cancels by session, and the caller also cancels by it on
+ * page leave. */
 import { disposePlayer } from './dispose';
 import { cancelStreamSession, directStreamSource, playableStreamSource } from './stream';
 import { stopTelemetry, wireTelemetry } from './telemetry';
@@ -19,11 +20,11 @@ import { mountPlayerRotation } from './rotation';
 export interface ImmersePlayerOptions {
   kind: 'immerse';
   item: PlayerItem;
-  /** 这一格的流会话（`newStreamSession()`）。 */
+  /** This cell's stream session (`newStreamSession()`). */
   session: string;
-  /** 放完之后（沉浸模式接着放下一条）。 */
+  /** After playback ends (immersive mode goes on to the next one). */
   onEnded?: () => void;
-  /** 片源已经交给 video：调用方从这一刻起等它可以出画。拆得比片源解析快时不回调。 */
+  /** The stream has been handed to the video element: from this moment the caller can wait for picture. Not called when teardown beats stream resolution. */
   onLoaded?: () => void;
 }
 
@@ -39,7 +40,7 @@ export function mountImmersePlayer(video: HTMLVideoElement, options: ImmersePlay
     if (released) return;
     const direct = directStreamSource(item, session);
     const segmented = String(source.type || '').includes('mpegurl');
-    // 播放器脚本拉不到时退回原生 video；原生元素播不了分片，只能直读。
+    // When the player script cannot load, fall back to the native video element; it cannot play segmented streams, only direct reads.
     if (!vjs) video.src = (segmented ? direct : source).src;
     else {
       const mounted = vjs(video, BARE);

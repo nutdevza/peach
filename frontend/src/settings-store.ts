@@ -1,21 +1,24 @@
-/* 界面偏好在这台浏览器上的那一份真相（`peach.settings.v1`）。
+/* UI preferences' source of truth on this browser (`peach.settings.v1`).
  *
- * 值是壳在启动时归一化好的那个对象本身（`application/preferences.js` 的 `appSettings`）：壳里六十来处读写都
- * 直接改它的字段，改完调 `save()` 落盘。落盘同时换一个版本号、通知订阅者——设置面板
- * （`react/settings-panel/`）用 `useSyncExternalStore` 读版本号，壳在哪里改了一项，开着的面板当场跟上，
- * 两边读的是同一个对象，不各存一份。
+ * The value is the object itself, normalized by the shell at startup (`appSettings` in `application/preferences.js`): some
+ * sixty read/write sites in the shell mutate its fields directly and call `save()` to persist. Persisting also bumps a
+ * version number and notifies subscribers: the settings panel (`react/settings-panel/`) reads the version via
+ * `useSyncExternalStore`, so wherever the shell changes an item, the open panel follows on the spot. Both sides read the same
+ * object; neither keeps its own copy.
  *
- * 快照是版本号而不是对象：壳的写法是原地改字段，对象引用从头到尾不变，拿它当快照 React 永远
- * 以为没变。本模块由 Application 与 React 页面直接引用，启动时同步可用；面板只拿壳递过去的实例，自己不建第二个。 */
+ * The snapshot is the version number, not the object: the shell's writes mutate fields in place and the object reference
+ * never changes, so using it as the snapshot would make React think nothing ever changed. Application and the React pages
+ * import this module directly, and it is synchronously available at startup; the panel only takes the instance the shell
+ * passes in and never builds a second one. */
 export interface SettingsStore<T extends object> {
-  /** 活的设置对象，读到的就是此刻的值。 */
+  /** The live settings object; what you read is the current value. */
   readonly value: T;
-  /** 每次 `save()` 或 `notify()` 加一。 */
+  /** Incremented on every `save()` or `notify()`. */
   version(): number;
   subscribe(listener: () => void): () => void;
-  /** 写进 localStorage，再通知订阅者。 */
+  /** Writes to localStorage, then notifies subscribers. */
   save(): void;
-  /** 值不在这份对象里、但面板要跟着重画时（高对比度、SFW 这两样各有自己的键）只通知不落盘。 */
+  /** For values outside this object that still require the panel to re-render (high contrast and SFW each have their own key), notify only without persisting. */
   notify(): void;
 }
 

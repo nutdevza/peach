@@ -1,12 +1,13 @@
-/* 数据管理页上的「链接管理」。
+/* "Link management" on the data management page.
  *
- * 三份真相三个键（见 `links.ts`）：库里链接的现状、那趟联网检查、那趟删除。检查与删除
- * 各是一趟后台任务，都走 `useBackgroundJob`。检查的结论是页面进来就要看的东西（上一趟判出
- * 的失效链接还等着删），所以画的是当前快照；删除只报本次跟完的那一趟。
+ * Three truths, three keys (see `links.ts`): the current state of links in the library, that networked check run, and that
+ * deletion run. Check and deletion are each a background job, both through `useBackgroundJob`. The check's conclusion is what
+ * the page comes in to see (the dead links found last run are still waiting to be deleted), so it renders the current
+ * snapshot; deletion reports only the run it just followed.
  *
- * 结果分两张表不是为了好看：`linktr.ee` 回 403 是挡爬虫、`x.com` 回 500 是临时错误，
- * 链接本身好好的。混成一张会让人顺手把好链接一起删掉，所以「地址已失效」和「本次未
- * 访问成功」各占一张，只有前一张接得上删除。 */
+ * The results are two tables for a reason: `linktr.ee` returning 403 is bot-blocking and `x.com` returning 500 is a temporary
+ * error, while the link itself is fine. Merging the tables would let someone delete good links along with the bad, so
+ * "address is dead" and "not reached this time" each take a table, and only the former connects to deletion. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { RiExternalLinkLine } from '@remixicon/react';
 import { useQuery } from '@tanstack/react-query';
@@ -43,15 +44,15 @@ import { t } from '../../i18n';
 const RETRY = spriteGlyph('rotate-cw');
 
 const GONE_HINT = t('cleanup:links.goneHint');
-/* 这一组大多是站点拒绝程序访问或一次抖动，换个时间再问一次就通了。 */
+/* Most of this group is the site refusing programmatic access or a one-off blip; asking again later succeeds. */
 const UNCLEAR_HINT = t('cleanup:links.unclearHint');
 const PRUNE_HINT = t('cleanup:links.pruneHint');
 const DISCONNECTED = t('cleanup:shared.reconnecting');
 
 const count = (value: number | undefined) => Number(value || 0).toLocaleString();
 
-/** 一格读数：名目、数字、可选的一句注。每一类各占一格：挤成一行时标签和数字之间只剩
- *  间隔点，数字归谁全靠猜。 */
+/** One stat cell: label, number, and an optional note. Each category gets its own cell: crammed into one line, only a separator dot remains between label and number,
+ *  and whose number it is becomes a guess. */
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
@@ -121,7 +122,7 @@ export function LinkManager() {
     queryKey: LINK_PRUNE_KEY,
     queryFn: ({ signal }) => fetchLinkPrune(signal),
     start: startLinkPrune,
-    /* 删完之后库里的链接少了，那两块读数跟着重取。 */
+    /* After deletion the library has fewer links, and those two counts refetch along with it. */
     onFinish: () => {
       void queryClient.invalidateQueries({ queryKey: LINKS_KEY, exact: true });
       void queryClient.invalidateQueries({ queryKey: LINK_CHECK_KEY, exact: true });
@@ -131,7 +132,7 @@ export function LinkManager() {
     queryKey: LINK_CHECK_KEY,
     queryFn: ({ signal }) => fetchLinkCheck(signal),
     start: startLinkCheck,
-    /* 又起了一趟检查：上一趟删除的回执说的是旧清单，勾选的行号也不再指向任何东西。 */
+    /* Another check pass kicks off: the previous pass's deletion receipt refers to the old list, and the checked row numbers no longer point at anything. */
     onStarted: () => { prune.dismiss(); setPicked([]); setGonePicked([]) },
   });
 
@@ -166,7 +167,7 @@ export function LinkManager() {
     });
   };
 
-  /* 删除那一趟跑完，结论就是那一句回执：旧清单里的行已经删掉或者确认保留了。 */
+  /* When the deletion run finishes, the receipt sentence is the verdict: rows from the old list are either deleted or confirmed kept. */
   const pruned = prune.outcome;
   const startError = check.start.error ?? prune.start.error;
   let progress: ReactNode = null;

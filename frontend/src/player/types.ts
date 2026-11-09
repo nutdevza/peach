@@ -1,8 +1,8 @@
-/* Peach 播放会话接口与条目形状；Video.js 10 通过本地 ESM 模块提供媒体与控件。 */
+/* Peach playback session interface and item shape; Video.js 10 provides media and controls through local ESM modules. */
 
 export type PlayerEvents = string | string[];
 
-/** Video.js 的质量轨道表（HLS/DASH 的自适应档）。 */
+/** Video.js's quality track list (the adaptive tiers of HLS/DASH). */
 export interface QualityLevel { width?: number; height?: number; id?: string; enabled: boolean }
 export interface QualityLevelList {
   length: number;
@@ -14,7 +14,7 @@ export interface QualityLevelList {
 export interface PlayerSource { src: string; type: string }
 
 export interface VjsPlayer {
-  /** 挂载时记下的条目：右键菜单复制网址按它取 id。 */
+  /** The entry recorded at mount: the context menu's copy URL takes its id from it. */
   peachItem?: PlayerItem;
   peachPlaybackKey?: string;
   on(events: PlayerEvents, handler: (...args: unknown[]) => void): void;
@@ -53,7 +53,7 @@ export interface VjsPlayer {
 
 export type VideojsFactory = (video: HTMLVideoElement, options: Record<string, unknown>) => VjsPlayer;
 
-/** 作品与关注条目共有的那几样。作品来自 `/api/item`，关注来自 `/api/follow/item`。 */
+/** The few things videos and follow entries share. Videos come from `/api/item`, follows from `/api/follow/item`. */
 export interface PlayerItem {
   id: number;
   root_id?: string;
@@ -72,6 +72,6 @@ export interface PlayerItem {
   [field: string]: unknown;
 }
 
-/** 来源自己给的一档清晰度（从高到低）。 */
+/** A quality tier the source reports itself (high to low). */
 export interface SourceQuality { height: number; label?: string }
 export interface MediaFacts { qualities?: SourceQuality[] | null; size?: number | null }

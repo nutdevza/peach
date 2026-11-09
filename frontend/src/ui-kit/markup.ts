@@ -1,23 +1,23 @@
-/* 只出 HTML 字符串的那几样 Geist 控件：集合页头、Note、项目横幅、Gauge、Progress、Spinner、
- * Search Input、Loading Dots、Board Tabs、Empty State、徽标与勾选框。
+/* The Geist controls that emit only HTML strings: collection page header, Note, project banner, Gauge, Progress, Spinner,
+ * Search Input, Loading Dots, Board Tabs, Empty State, badges and checkboxes.
  *
- * 由共享源码直接引用，随 `peach-app.js` 发出；island 里用 `dangerouslySetInnerHTML` 插入。
- * 它们内部已经对文本做转义，且是 Peach 唯一那份 Geist 控件实现——在 island 里另画一遍空态或 Note
- * 就是同一语义的第二份实现，`peach-web-ui` 的门槛不允许。 */
+ * Imported from shared source and shipped with `peach-app.js`; islands insert them with `dangerouslySetInnerHTML`.
+ * They escape text internally and are Peach's only Geist control implementation; rendering an empty state or Note again
+ * inside an island would be a second implementation of the same semantics, which the `peach-web-ui` gate does not allow. */
 import { esc, icon, requestErrorMessage } from '../core';
 import { islandShortcutsEntry } from '../island-skeleton';
 
 const NOTE_VARIANTS=new Set(['secondary','warning','error','success']);
 
-/* `filterRow` 给骨架里那块两排浮层用：槽位标记跟着 HTML 一起生成，否则这一条会自己画成
-   第二块浮层。 */
+/* `filterRow` serves the two-row overlay block in the skeleton: the slot marker is generated along with the HTML, otherwise this one would render itself as
+   a second overlay block. */
 export function collectionHeaderHtml({readout='',controls='',before='',className='',loading=false,filterRow=''}={}){
   return `<div class="entitycollectionhead${className?' '+esc(className):''}"${filterRow?` data-filter-row="${esc(filterRow)}"`:''}>${before}<h3${loading?' class="skeleton"':''}>${readout}</h3>${loading && filterRow === 'bottom' ? islandShortcutsEntry() : ''}${controls}</div>`;
 }
 
-/* 逐条明细收在 Note 自己的 <details> 里，默认折叠：一句话的结论后面跟着上千行清单时，
-   下面的内容全被推走，而那句结论本身才是要先读到的东西。每条给标题、说明和路径三段：
-   只给一个「查看视频」链接的话，是哪个文件得逐个点开才知道。 */
+/* Per-item details live in Note's own <details>, collapsed by default: a one-sentence conclusion followed by thousands of list lines
+   pushes everything below away, and that conclusion is what should be read first. Each item gets three segments: title, description, and path;
+   with only a "View video" link, finding which file means opening each one. */
 interface NoteDetailItem { label?: string; href?: string; note?: string; hint?: string }
 interface NoteDetails { label?: string; items?: NoteDetailItem[]; footnote?: string }
 function noteDetailsHtml({label='',items=[],footnote=''}:NoteDetails={}){
@@ -29,19 +29,19 @@ function noteDetailsHtml({label='',items=[],footnote=''}:NoteDetails={}){
 }
 
 /* Inline, persistent context beside the field/card/section it describes.
-   恢复动作有两种形态：留在本页执行的走按钮，要离开本页才做得成的走链接。
-   两者占同一个格子、同一枚 `data-note-action`，Note 的版式不因为它是 <a> 改变；
-   都是次要样式，与 React `Note` 的 `action` 一致，主动作留给 Note 所在区域自己的那一枚。 */
-/** Geist Note：字段、卡片、分区旁的持久反馈。 */
+   Recovery actions come in two forms: ones that run on this page are buttons, ones that require leaving this page are links.
+   Both share the same cell and the same `data-note-action`, and the Note's layout does not change for being an <a>;
+   both are secondary styles, matching React `Note`'s `action`, leaving the primary action to the region the Note sits in. */
+/** Geist Note: persistent feedback next to fields, cards and sections. */
 export function noteHtml(message:any,{variant='secondary',label='',className='',size='medium',filled=false,actionLabel='',actionHref='',details=null}:{
   variant?: 'secondary' | 'warning' | 'error' | 'success' | (string & {});
   label?: string;
   className?: string;
   size?: 'small' | 'medium' | (string & {});
   actionLabel?: string; filled?: boolean;
-  /** 恢复动作要离开本页才做得成时给出目标地址，动作由按钮换成同格子的链接。 */
+  /** When a recovery action only works off this page, give the target address and swap the button for a link in the same cell. */
   actionHref?: string;
-  /** 逐条明细，收在 Note 里默认折叠的 details；`hint` 放路径这类次要标注。 */
+  /** Itemized details, a details element inside a Note and collapsed by default; `hint` holds secondary annotations such as paths. */
   details?: NoteDetails | null;
 }={}):string{
   const kind=NOTE_VARIANTS.has(variant)?variant:'secondary';
@@ -59,7 +59,7 @@ export function projectBannerHtml(message:unknown,{variant='gray',href,label,val
   variant?: string; href?: string; label?: string; value?: unknown; max?: unknown;
 }={}):string{
   const kind=['gray','success','warning','error'].includes(variant)?variant:'gray';
-  return `<aside class="ui-project-banner ${PROJECT_BANNER_CLASSES[kind]}" role="${kind==='error'?'alert':'status'}"><div>${Number(max)>0?gaugeHtml('任务完成率',value,max):icon(kind==='error'||kind==='warning'?'alert':'info')}<p>${esc(message)}</p></div><a href="${esc(href)}">${esc(label)}</a></aside>`;
+  return `<aside class="ui-project-banner ${PROJECT_BANNER_CLASSES[kind]}" role="${kind==='error'?'alert':'status'}"><div>${Number(max)>0?gaugeHtml('Task completion',value,max):icon(kind==='error'||kind==='warning'?'alert':'info')}<p>${esc(message)}</p></div><a href="${esc(href)}">${esc(label)}</a></aside>`;
 }
 
 /** Geist Gauge。`indeterminate` 是 Geist 的不定档：一次请求这种说不出完成了几成的等待，画一段转动的弧，
@@ -67,11 +67,11 @@ export function projectBannerHtml(message:unknown,{variant='gray',href,label,val
 export function gaugeHtml(label:string,value:unknown,max:unknown=100,{usage=false,compact=false,indeterminate=false}={}):string{
   if(indeterminate)return `<span class="ui-geist-gauge" data-indeterminate role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13"/><circle cx="16" cy="16" r="13" pathLength="100" stroke-dasharray="25 100"/></svg></span>`;
   const ceiling=Number(max), current=Number(value);
-  if(!Number.isFinite(ceiling)||ceiling<=0||!Number.isFinite(current))return `<span>${esc(label)}：未取得</span>`;
+  if(!Number.isFinite(ceiling)||ceiling<=0||!Number.isFinite(current))return `<span>${esc(label)}: not obtained</span>`;
   const percent=Math.max(0,Math.min(100,current/ceiling*100));
   const level=usage?(percent>=95?'error':percent>=80?'warning':'normal'):'normal';
-  const status=usage?(level==='error'?'空间即将用满':level==='warning'?'空间使用偏高':'空间充足'):'';
-  return `<span class="ui-geist-gauge" data-level="${level}" role="progressbar" aria-label="${esc(label+(status?'：'+status:''))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13"/><circle cx="16" cy="16" r="13" pathLength="100" stroke-dasharray="${percent} 100"/></svg></span>${status&&!compact?`<span class="ui-gauge-status">${status}</span>`:''}`;
+  const status=usage?(level==='error'?'Space is almost full':level==='warning'?'Space usage is high':'Plenty of space'):'';
+  return `<span class="ui-geist-gauge" data-level="${level}" role="progressbar" aria-label="${esc(label+(status?': '+status:''))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13"/><circle cx="16" cy="16" r="13" pathLength="100" stroke-dasharray="${percent} 100"/></svg></span>${status&&!compact?`<span class="ui-gauge-status">${status}</span>`:''}`;
 }
 
 /** Determinate progress only. Callers supply real units instead of a decorative width. */
@@ -91,12 +91,12 @@ export function progressHtml(label:string,value:unknown,max:unknown=100,{variant
  * "inline icon refresh" as one of its three cases, so an icon-only key that
  * swaps its glyph for these ten bars is the prescribed shape, not a fallback.
  *
- * `label` names the work in flight (`正在换一批`), never the action the button
- * already carries. This span is a `role=status` region sitting inside a button
- * that has its own accessible name: repeating that name announces the same
- * words twice and tells the reader nothing changed.
+ * `label` names the work in flight ("shuffling a new batch"), never the action
+ * the button already carries. This span is a `role=status` region sitting inside
+ * a button that has its own accessible name: repeating that name announces the
+ * same words twice and tells the reader nothing changed.
  */
-export function spinnerHtml(label='加载中'):string{
+export function spinnerHtml(label='Loading'):string{
   const bars=Array.from({length:10},(_,index)=>
     `<i aria-hidden="true" style="--spinner-angle:${index*36}deg;--spinner-delay:${index*100-900}ms"></i>`).join('');
   return `<span class="ui-geist-spinner" role="status" aria-label="${esc(label)}">${bars}</span>`;
@@ -127,31 +127,32 @@ export function searchInputHtml({label,id='',name='',value='',placeholder='',att
 }
 
 /**
- * 列表续页时 Loading Dots 旁那一句：目录哨兵、垃圾文件队列等无限滚动列表共用。三颗点已经在动，
- * 字不带省略号。
+ * The line next to Loading Dots while a list pages in: shared by the catalog sentinel, the junk files queue, and other infinite-scroll lists. The three dots are already animating,
+ * so the text carries no ellipsis.
  */
-export const LOAD_MORE_STATUS = '载入中';
+export const LOAD_MORE_STATUS = 'Loading';
 
 /** Geist Loading Dots: indeterminate work continuing in the background. The dots already say
  *  "still going", so the label never ends in an ellipsis. */
-export function loadingDotsHtml(label='正在处理', {className=''}={}):string{
+export function loadingDotsHtml(label='Processing', {className=''}={}):string{
   return `<span class="ui-geist-loading${className?` ${esc(className)}`:''}" role="status">
     <span class="ui-geist-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
     <span>${esc(label)}</span></span>`;
 }
 
 /**
- * 页面分区 Tabs：一排互斥的「这一页现在摆的是哪一组东西」。
+ * Page section Tabs: one mutually exclusive row of "which group of things this page currently shows".
  *
- * 索引页用它切厂牌／事务所与本地／在线两套词表：两档各是一条地址。它回答的是页面层级的
- * 「在哪一页」，不是给当前这批加一条筛选——筛选归玻璃条上的药丸。
- * 每一枚都是 `role=tab`，当前项写 `aria-selected`；选中态由 `ui-board-local-nav`
- * 的中性填充样式提供，这里只出 DOM。计数是可选的尾随徽标，口径由调用方
- * 给：Tabs 自己不算数。前置字形也是可选的，只在它指向对象（厂牌、事务所、本地、订阅源）
- * 时出现。
+ * The index page uses it to switch label/agency and local/online, two vocabularies where each tier is an address. It answers
+ * the page-level "which page am I on", not adding a filter to the current batch; filtering belongs to the pills on the glass
+ * bar.
+ * Each one is `role=tab` with `aria-selected` on the current one; the selected look is provided by `ui-board-local-nav`'s
+ * neutral fill styles, and this only emits DOM. The count is an optional trailing badge whose basis the caller provides:
+ * Tabs does no counting itself. A leading glyph is also optional, appearing only when it points at an object (labels,
+ * agencies, local, feeds).
  */
 export function boardTabsHtml(items:{value:unknown;label:unknown;count?:unknown;symbol?:string}[],
-  {active='',attr='data-tab',label='页面视图',className='',panel=''}:{
+  {active='',attr='data-tab',label='Page views',className='',panel=''}:{
     active?: unknown; attr?: string; label?: string; className?: string; panel?: string;
   }={}):string{
   const tabs=items.map(({value,label:text,count,symbol})=>{
@@ -164,7 +165,7 @@ export function boardTabsHtml(items:{value:unknown;label:unknown;count?:unknown;
 }
 
 /** Geist Empty State: icon tile, title and explanatory copy stay one semantic unit. */
-/** Geist Empty State：图标、标题与说明同处一个组件内。 */
+/** Geist Empty State: icon, title and description live in one component. */
 export function emptyStateHtml(iconName:string,title:unknown,description:unknown,{className='',actions=''}={}):string{
   return `<div class="ui-emptystate${className?` ${esc(className)}`:''}" data-geist-empty-state role="status">
     <div class="ui-es-icon" aria-hidden="true">${icon(iconName)}</div>
@@ -174,9 +175,9 @@ export function emptyStateHtml(iconName:string,title:unknown,description:unknown
 }
 
 /**
- * 共用勾选框。原生 checkbox 在暗色下由浏览器自绘，跟站内别的控件不是同一套语言；
- * `accent-color` 也只能改选中色，未选中态连悬停反馈都给不了。所以自绘一份，关注
- * 列表、来源筛选、候选清单、标签匹配和设置项共用它。
+ * Shared checkbox. Native checkboxes in dark mode are browser-drawn, speaking a different language from the site's other controls;
+ * `accent-color` can only change the checked color, and the unchecked state gets no hover feedback at all. So one is drawn by hand, shared by the
+ * follows list, source filters, candidate lists, tag matching, and settings rows.
  */
 export function badgeHtml(text:unknown):string{return `<span class="ui-geist-badge">${esc(text)}</span>`}
 

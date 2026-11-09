@@ -1,9 +1,10 @@
-/* 访问密码与确认两框：配置页「访问密码」与首启页共用。
+/* Access password and confirm, the two boxes: shared by the configuration page's "Access password" and the first-run page.
  *
- * 两框都是 BoardUI `Input`，`id` 固定为 `access-password`、`access-confirm`，浏览器的密码管理器按
- * `new-password` 认它们。关掉时两框置灰、不必填也不标错；错误写在各自框下，`confirmationInvalid`
- * 让只有一句错误的调用方（首启页的 `access_password`）把确认框一起标红。错误原样放进框下的提示，
- * 调用方可以传一段带 `role="alert"` 的节点让读屏播报。 */
+ * Both are BoardUI `Input`s with `id` fixed to `access-password` and `access-confirm`, recognized by browser password
+ * managers via `new-password`. When off, both gray out, become optional and stop showing errors; errors are written under
+ * each box, and `confirmationInvalid` lets a caller with only one error message (the first-run page's `access_password`)
+ * mark the confirm box red as well. Errors go verbatim into the hint under the box, and the caller may pass a node with
+ * `role="alert"` for screen readers to announce. */
 import type { ReactNode } from 'react';
 
 import { Input } from '@/components/base/input/input';
@@ -30,7 +31,7 @@ export function PasswordPair({
         isDisabled={disabled} isRequired={!disabled} validationBehavior="aria"
         isInvalid={!disabled && Boolean(passwordError)}
         hint={disabled ? passwordHint : passwordError || passwordHint} />
-      <Input id="access-confirm" type="password" label="确认访问密码" autoComplete="new-password" maxLength={256}
+      <Input id="access-confirm" type="password" label="Confirm the access password" autoComplete="new-password" maxLength={256}
         value={confirmation} onChange={onConfirmation} isDisabled={disabled} isRequired={!disabled} validationBehavior="aria"
         isInvalid={!disabled && (Boolean(confirmationError) || confirmationInvalid)}
         hint={disabled ? undefined : confirmationError} />

@@ -13,13 +13,13 @@ const segments = (label: string, value: string, options: readonly SegmentOption[
   `<span data-entity-layout="" class="${SEGMENTED_GLASS_TRACK}" role="radiogroup" aria-label="${esc(label)}">${options.map(([key, text, glyph]) =>
     `<span class="${SEGMENT_GLASS}" role="radio" aria-label="${esc(text)}" aria-checked="${key === value}" data-glass-segment=""${key === value ? ' data-selected=""' : ''} ${FILTER_WAITING}>${icon(glyph)}</span>`).join('')}</span>`;
 
-/** 已知的控件保留文字、字形与按下态；等待接线时不能执行动作。`folders` 为假时不画文件夹开关
- *  （JAV 新作分区没有文件夹浏览，其余换一批、卡片版式、卡片／列表与排序键照画）。 */
+/** Known controls keep their text, glyphs, and pressed state; while waiting to wire up, they cannot perform actions. When `folders` is false, do not draw the folder toggle
+ *  (the JAV new-releases section has no folder browsing; the rest — refresh, card layout, card/list, and sort key — are drawn as usual). */
 export function filterControlsSkeletonHtml(sorts: readonly EntitySortKey[], layout: Layout | null, { folders = true } = {}): string {
   const view = catalogView();
   const params = new URLSearchParams(location.search);
   const sizes = layout && view === 'cards' ? segments(layout.label, layout.value, layout.options) : '';
-  const folder = folders ? `<button type="button" data-folder-mode-toggle="" aria-label="文件夹模式" aria-pressed="${params.get('browse') === 'folders' || !!params.get('folder')}" ${FILTER_WAITING}>${icon('ri-folder-3-line')}</button>` : '';
-  return `<span data-entity-sorts=""><button type="button" data-entity-batch="" data-filter-action="" aria-label="换一批" ${FILTER_WAITING}>${icon('shuffle')}</button>${sizes}${segments('馆藏显示方式', view, [['cards','卡片','ri-layout-grid-line'],['list','列表','ri-list-unordered']])}${folder}${sorts.map(sort =>
+  const folder = folders ? `<button type="button" data-folder-mode-toggle="" aria-label="Folder mode" aria-pressed="${params.get('browse') === 'folders' || !!params.get('folder')}" ${FILTER_WAITING}>${icon('ri-folder-3-line')}</button>` : '';
+  return `<span data-entity-sorts=""><button type="button" data-entity-batch="" data-filter-action="" aria-label="Shuffle" ${FILTER_WAITING}>${icon('shuffle')}</button>${sizes}${segments('Library display', view, [['cards','Cards','ri-layout-grid-line'],['list','List','ri-list-unordered']])}${folder}${sorts.map(sort =>
     `<button type="button" data-entity-sort="${esc(sort.key)}" aria-pressed="${sort.pressed}" ${FILTER_WAITING}>${esc(sort.label)}${sort.dir ? icon(sort.dir === 'asc' ? 'arrow-up' : 'arrow-down') : ''}</button>`).join('')}</span>`;
 }

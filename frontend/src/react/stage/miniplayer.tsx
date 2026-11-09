@@ -1,7 +1,8 @@
-/* 小窗：舞台这一面里、`<dialog>` 之外的那块浮层。播放器实例由 `stage-player.ts` 搬进搬出，
- * 播放态、时间与比例也由它随播放器事件直接写在节点上；这里只画一次骨架结构、接按键与拖动。
- * 组件不随舞台重画（`memo` 且没有 props）：`hidden`、`data-corner` 与 `transform` 都是命令式改的，
- * 重画会把它们按初值写回去。 */
+/* Mini player: the floating block inside the stage surface, outside the `<dialog>`. The player instance is moved in and out
+ * by `stage-player.ts`, which also writes play state, time and ratio onto the node directly from player events; this module
+ * only renders the skeleton structure once and wires the keys and dragging.
+ * The component does not re-render with the stage (`memo` with no props): `hidden`, `data-corner` and `transform` are all
+ * changed imperatively, and a re-render would write them back to their initial values. */
 import { memo, useEffect, useLayoutEffect, useRef, type MouseEvent } from 'react';
 
 import {
@@ -12,7 +13,7 @@ const Glyph = ({ name }: { name: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><use href={`#i-${name}`} /></svg>
 );
 
-/* 播放键里那一枚由 `stage-player.ts` 换成两枚叠放的字形，所以这一格的子节点不归 React。 */
+/* One icon inside the play key is swapped for two stacked glyphs by `stage-player.ts`, so this cell's children do not belong to React. */
 const PLAY_GLYPH = { __html: '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-player-pause"/></svg>' };
 
 const pressed = (run: () => void) => (event: MouseEvent) => { event.stopPropagation(); run() };
@@ -41,24 +42,24 @@ export const Miniplayer = memo(function Miniplayer() {
   useEffect(() => publishBottomSpace(root.current!), []);
 
   return (
-    <aside ref={root} data-miniplayer="" id="miniplayer" data-corner="br" aria-label="小窗播放" hidden>
+    <aside ref={root} data-miniplayer="" id="miniplayer" data-corner="br" aria-label="Mini player" hidden>
       <div ref={card} data-miniplayer-card="" id="miniplayerCard">
         <div ref={frame} data-miniplayer-frame="" id="miniplayerFrame">
           <div data-miniplayer-scrim="">
-            <button type="button" data-miniplayer-button="expand" id="miniplayerExpand" aria-label="展开到详情"
+            <button type="button" data-miniplayer-button="expand" id="miniplayerExpand" aria-label="Expand to details"
               aria-keyshortcuts="i" onClick={pressed(expandMiniplayer)}><Glyph name="maximize-2" /></button>
-            <button type="button" data-miniplayer-button="close" id="miniplayerClose" aria-label="关闭小窗"
+            <button type="button" data-miniplayer-button="close" id="miniplayerClose" aria-label="Close the mini window"
               onClick={pressed(closeMiniplayer)}><Glyph name="x" /></button>
             <button ref={back} type="button" data-miniplayer-seek="" id="miniplayerBack"
               onClick={pressed(() => seekMiniplayer(-1))}><Glyph name="rotate-ccw" /></button>
-            <button ref={play} type="button" data-miniplayer-play="" id="miniplayerPlay" aria-label="暂停" aria-keyshortcuts="k"
+            <button ref={play} type="button" data-miniplayer-play="" id="miniplayerPlay" aria-label="Paused" aria-keyshortcuts="k"
               onClick={pressed(playMiniplayer)} dangerouslySetInnerHTML={PLAY_GLYPH} />
             <button ref={ahead} type="button" data-miniplayer-seek="" id="miniplayerAhead"
               onClick={pressed(() => seekMiniplayer(1))}><Glyph name="rotate-cw" /></button>
             <span ref={time} className="mono" data-miniplayer-time="" id="miniplayerTime">0:00 / 0:00</span>
           </div>
         </div>
-        <button ref={info} type="button" data-miniplayer-info="" id="miniplayerInfo" aria-label="展开到详情"
+        <button ref={info} type="button" data-miniplayer-info="" id="miniplayerInfo" aria-label="Expand to details"
           onClick={() => expandMiniplayer()}>
           <span ref={title} data-miniplayer-title="" id="miniplayerTitle" />
           <span ref={sub} data-miniplayer-sub="" id="miniplayerSub" />
@@ -68,9 +69,9 @@ export const Miniplayer = memo(function Miniplayer() {
   );
 });
 
-/* 小窗停在下面两角、又和右下角的通知栈同在一侧时，把自己占的高度写成 `--miniplayer-space`，
-   通知栈（`../toaster.tsx`）落在它上沿之上，不盖住画面。手机上通知栈占满整行，下面两角都算。
-   `hidden` 与 `data-corner` 是命令式改的，所以盯属性变化，不靠重画。 */
+/* When the mini player sits in one of the bottom corners and is on the same side as the bottom-right notification stack, it writes its occupied height into `--miniplayer-space`,
+   so the notification stack (`../toaster.tsx`) lands above its top edge, not covering the picture. On phones the notification stack fills the whole row, so both bottom corners count.
+   `hidden` and `data-corner` are changed imperatively, so watch the attribute changes rather than relying on repaints. */
 function publishBottomSpace(root: HTMLElement): () => void {
   const measure = () => {
     const corner = root.dataset.corner || '';
@@ -91,8 +92,8 @@ function publishBottomSpace(root: HTMLElement): () => void {
   };
 }
 
-/* 拖动只改 transform，松手按小窗中心落在哪个象限选角，再用 .5s 的 transform 过渡吸过去，过渡完把
-   data-corner 换成新角、清掉 transform——上游 AnimatingSnap 就是这么落回锚点的。 */
+/* Dragging only changes transform; on release, pick the corner by which quadrant the mini player's center landed in, then snap over with a .5s transform transition, and after the transition
+   swap data-corner to the new corner and clear the transform; upstream AnimatingSnap settles back to its anchor the same way. */
 function snap(root: HTMLElement, dx: number, dy: number): void {
   const rect = root.getBoundingClientRect();
   const corner = (rect.top + rect.height / 2 < innerHeight / 2 ? 't' : 'b') + (rect.left + rect.width / 2 < innerWidth / 2 ? 'l' : 'r');
@@ -122,7 +123,7 @@ function wireDrag(root: HTMLElement, card: HTMLElement): () => void {
   const down = (event: PointerEvent) => {
     if (event.button !== 0 || (event.target as Element).closest('[data-miniplayer-button],[data-miniplayer-play],[data-miniplayer-seek],.vjs-control-bar')) return;
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, dy: 0, moved: false };
-    try { card.setPointerCapture(event.pointerId) } catch { /* 指针已经没了 */ }
+    try { card.setPointerCapture(event.pointerId) } catch { /* The pointer is already gone */ }
   };
   const move = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.id) return;
@@ -134,15 +135,15 @@ function wireDrag(root: HTMLElement, card: HTMLElement): () => void {
   const release = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.id) return;
     const done = drag; drag = null;
-    try { card.releasePointerCapture(event.pointerId) } catch { /* 指针已经没了 */ }
+    try { card.releasePointerCapture(event.pointerId) } catch { /* The pointer is already gone */ }
     if (!done.moved) return;
-    // 拖完松手会紧跟一个 click，落在信息栏上就是「展开」；这一下不算点。
+    // Release after a drag is followed by a click that would land on the info bar as "expand"; this one does not count.
     root.dataset.dragged = '1'; setTimeout(() => { delete root.dataset.dragged }, 0);
     snap(root, done.dx, done.dy);
   };
   const click = (event: Event) => { if (root.dataset.dragged) { event.stopPropagation(); event.preventDefault() } };
-  /* 起手那一下的 mousedown 不走浏览器默认：否则拖到第二帧，Chrome 会从小窗底下那张卡的封面图起一次
-     原生拖放，接着发 pointercancel，小窗停在原处。 */
+  /* The initial mousedown does not take the browser default: otherwise by the second frame Chrome starts a native drag from the cover image of the card under the mini player,
+     then fires pointercancel and the mini player stays where it was. */
   const hold = (event: Event) => { if (drag) event.preventDefault() };
   card.addEventListener('pointerdown', down);
   card.addEventListener('mousedown', hold);

@@ -10,34 +10,34 @@ import type { Recommendations, SuggestCard, SuggestGroup, SuggestItem } from './
 type Request = (url: string) => Promise<any>;
 type Latest = { id: number; code: string; release_date: string };
 
-/** 推荐栏的分组与次序固定：还没取到的那组照样占着位置（`pending`），取到一组填一组，栏不改版式。
- *  `size` 是一页摆几条：人三行、作品一排五格。 */
+/** The recommendation bar's groups and order are fixed: a group not yet fetched still holds its slot (`pending`); each fetched group fills in as it arrives, and the bar's layout does not change.
+ *  `size` is how many to show per page: three rows of people, five cells per row of works. */
 const GROUPS = [
-  { kind: 'performer', label: '艺人与新作', href: '/subscriptions?tab=add', action: '订阅新作', size: 3 },
-  { kind: 'author', label: '关注作者', href: '/subscriptions?tab=add', action: '添加关注', size: 3 },
-  { kind: 'asset', label: '作品推荐', href: '/', action: '全部作品', size: 5 },
-  { kind: 'jav', label: 'JAV 推荐', href: '/jav?tab=discover', action: '发现 JAV', size: 5 },
-  { kind: 'post', label: '关注作品', href: '/follow', action: '全部关注作品', size: 5 },
-  { kind: 'photo', label: '关注图片', href: '/follow?media=images', action: '全部关注图片', size: 5 },
-  { kind: 'release', label: '订阅新作', href: '/subscriptions', action: '管理订阅', size: 5 },
+  { kind: 'performer', label: 'Performers and new releases', href: '/subscriptions?tab=add', action: 'Subscribe to new releases', size: 3 },
+  { kind: 'author', label: 'Follow the author', href: '/subscriptions?tab=add', action: 'Add follow', size: 3 },
+  { kind: 'asset', label: 'Video recommendations', href: '/', action: 'All videos', size: 5 },
+  { kind: 'jav', label: 'JAV recommendations', href: '/jav?tab=discover', action: 'Discover JAV', size: 5 },
+  { kind: 'post', label: 'Followed videos', href: '/follow', action: 'All followed videos', size: 5 },
+  { kind: 'photo', label: 'Followed images', href: '/follow?media=images', action: 'All followed images', size: 5 },
+  { kind: 'release', label: 'Subscribe to new releases', href: '/subscriptions', action: 'Manage subscriptions', size: 5 },
 ] as const;
 
-/* 每组一次取一池（池的大小由 `/api/search/recommendations` 定），「换一批」在池里翻页，不再发请求。
-   JAV 推荐按口味分排、订阅新作按发行日排，同一个请求每次回同样的几部：只取一页的话这两组换不出东西。 */
+/* Each group fetches one pool at a time (pool size set by `/api/search/recommendations`); "refresh" pages through the pool without another request.
+   JAV recommendations rank by taste, followed new releases by release date, and the same request returns the same few works each time: fetching only one page would leave these two groups with nothing to swap in. */
 
-/** 一组都还没取到时的推荐栏：版式与取齐之后相同。 */
+/** The recommended bar before any group loads: the layout matches the loaded state. */
 export function pendingRecommendations(): SuggestGroup[] {
   return GROUPS.map(group => ({ ...group, items: [], pending: true }));
 }
 
-/** 今年的日期去掉年份，往年的留着，同关注卡片列表里的写法。 */
+/** This year's dates drop the year; earlier years keep it, matching the format used in the follow card list. */
 const day = (date: string) => date.startsWith(String(new Date().getFullYear())) ? date.slice(5, 10) : date.slice(0, 10);
 
-/** 署名只写第一位，共演再给总人数，同作品卡。 */
-const byline = (names: string[], total = names.length) => total > 1 ? `${names[0]} 等 ${total} 人` : names[0] || '';
+/** Credit only the first person; for co-starring, also show the total count, as on the work card. */
+const byline = (names: string[], total = names.length) => total > 1 ? `${names[0]} and ${total} others` : names[0] || '';
 
-/** 空搜索那一栏：一个请求取齐（`/api/search/recommendations`），在这里照各组的口径拼。某一份服务端
- *  没取到就是 null，只缺那一组。 */
+/** The empty-search row: one request fetches everything (`/api/search/recommendations`), assembled here per each group's scope. When the server
+ *  cannot fetch one, it is null, and only that group is missing. */
 export async function searchRecommendations(request: Request): Promise<Recommendations> {
   const bundle = await request('/api/search/recommendations') as {
     items?: { items?: SuggestCard[] } | null; jav?: { items?: Discovery[] } | null; follow?: FollowPage | null;
@@ -45,7 +45,7 @@ export async function searchRecommendations(request: Request): Promise<Recommend
     latest?: Record<string, Latest>; words?: string[];
   };
   const work = (card: SuggestCard, href: string | undefined, who: string, whoAvatarHtml = ''): SuggestItem => ({
-    value: String(card.code || card.display_title || card.title || card.name || '未命名作品'),
+    value: String(card.code || card.display_title || card.title || card.name || 'Untitled video'),
     id: card.id, code: card.code, title: String(card.display_title || card.title || ''),
     who, whoAvatarHtml, card, href,
   });
@@ -77,7 +77,7 @@ export async function searchRecommendations(request: Request): Promise<Recommend
         href: `/performers/${ref.id}`,
         image_version: ref.image_version, avatar_focus: ref.avatar_focus, rep: ref.has_avatar ? ref.rep : null,
         works: [card as unknown as SuggestCard],
-        subtitle: found ? `最新作 ${found.code || '无番号'} · ${day(found.release_date)}` : '最新作未取得',
+        subtitle: found ? `Latest release ${found.code || 'No code'} · ${day(found.release_date)}` : 'Latest work unavailable',
       });
     }
   }
@@ -108,11 +108,11 @@ export async function searchRecommendations(request: Request): Promise<Recommend
   }
   pools.release = bundle.feeds ? (bundle.feeds.items || []).filter(card => card.code)
     .map(card => discovered({ ...card, sourceWork: true } as Discovery, `/works/${encodeURIComponent(card.code)}`)) : null;
-  // 头像与更新时间都用名册那一行自己的：头像官方优先、归档兜底，同艺人页「在线」那一档。
+  // The avatar and update time both use that row's own from the roster: the avatar prefers the official, with the archive as fallback, same “online” tier as the artist page.
   pools.author = bundle.authors ? (bundle.authors.items || []).map(row => ({
     value: row.k, href: row.entity_id ? `/creators/${row.entity_id}` : `/follow?author=${encodeURIComponent(row.key)}`,
     avatarHtml: onlineAuthorRingHtml(row),
-    subtitle: row.latest ? `最新更新于 ${followCompactWhen({ published_at: row.latest } as FollowItem)}` : '更新时间未取得',
+    subtitle: row.latest ? `Latest updated at ${followCompactWhen({ published_at: row.latest } as FollowItem)}` : 'Updated at unavailable',
   })) : null;
 
   const groups = GROUPS.map(group => {

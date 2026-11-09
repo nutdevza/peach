@@ -1,12 +1,15 @@
-/* 列表页顶上那块汇总（旧 `.collection-summary`）：左边一个名目配一个大数，右边一句分项。
+/* The summary block at the top of list pages (legacy `.collection-summary`): a name with one big number on the left, a
+ * breakdown sentence on the right.
  *
- * 浅色是页面底上的一块填充面，深色反过来比页面亮一档（旧 `html:not(.dark)` 那条），14px 圆角、
- * 不压阴影。600px 以下改成上下两行。
+ * Light mode is a filled panel on the page background; dark mode is one tier brighter than the page instead (the legacy
+ * `html:not(.dark)` rule), 14px radius, no shadow. Below 600px it becomes two stacked rows.
  *
- * 数字回来之前，大数那一格是一条 96×32 的微光占位（旧 `.collection-summary strong .countskeleton`），
- * 行高照旧，数字到货时整块不改高度。`flush` 去掉块下方的间距：落在一行自己排间距的容器里时
- * （垃圾文件的计数行、`Page` 自己排间距的高清版），间距归那一层。壳铺的首屏骨架
- * （`src/island-skeleton.ts` 的 `islandSummary`）抄的是这里等待态的类名，改这里要一起改那边。 */
+ * Before the number arrives, the big-number cell is a 96×32 shimmer placeholder (legacy
+ * `.collection-summary strong .countskeleton`) at the same line height, so the block never changes height on arrival.
+ * `flush` removes the gap below the block: when it lands in a container that spaces itself (the junk files count row, the
+ * quality page where `Page` spaces itself), spacing belongs to that layer. The shell's first-screen skeleton
+ * (`islandSummary` in `src/island-skeleton.ts`) copies this module's wait-state class names; changing here means changing
+ * there too. */
 export function CollectionSummary({ label, figure, detail = '', pending = false, flush = false }: {
   label: string; figure: string; detail?: string; pending?: boolean; flush?: boolean;
 }) {

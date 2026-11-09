@@ -1,13 +1,13 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "cae53a6a-7f63-4dbe-8104-5dc94f0fb524", e._sentryDebugIdIdentifier = "sentry-dbid-cae53a6a-7f63-4dbe-8104-5dc94f0fb524");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "ffe16128-a24c-4aca-9d7c-daf3963a6fa9", e._sentryDebugIdIdentifier = "sentry-dbid-ffe16128-a24c-4aca-9d7c-daf3963a6fa9");
 	} catch {}
 })();
 import { $b4f18e3395fe64d7$export$3d96ec278d3efce4 as e, $b4f18e3395fe64d7$export$3e41faf802a29e71 as t, $b4f18e3395fe64d7$export$b2539bed5023c21c as n, $b4f18e3395fe64d7$export$e51a686c67fdaa2d as r, ButtonLink as i, EmptyState as a, LOC as o, MEDIA_SOURCE_ICONS as s, NR as c, Note as l, Progress as u, SEGMENT as d, SEGMENTED_TRACK as f, STATS_KEY as p, STAT_STRIP as m, SegmentedTabList as h, SourceMark as g, StatCard as _, StatusLabel as v, Xc as y, Xt as b, _8 as x, __toESM as S, bandRows as C, cardClass as w, clsx as T, errorMessage as E, fetchStats as ee, fmtCount as D, fmtSize as O, known as k, lengthRows as te, mM as A, mediumRows as ne, percentText as j, playedFor as re, playedItemUrl as ie, radialArc as ae, radialBarSize as oe, radialCeiling as se, radialSlices as ce, reachedShare as le, replayRows as ue, require_jsx_runtime as de, require_react as fe, settingsPath as pe, statCardClass as me, uo as he, useQuery as ge, watchNote as _e, watchedShare as ve } from "./peach-app.js";
-import { ActivityHeat as ye, BarCard as M, ExpandableRanking as be, PolarAngleAxis as xe, selectPolarAxisScale as Se, selectPolarAxisTicks as Ce, selectPolarGraphicalItemAxisTicks as we } from "./peach-app.expandable-ranking-BvMp3uyZ.js";
+import { ActivityHeat as ye, BarCard as M, ExpandableRanking as be, PolarAngleAxis as xe, selectPolarAxisScale as Se, selectPolarAxisTicks as Ce, selectPolarGraphicalItemAxisTicks as we } from "./peach-app.expandable-ranking-CjXvQmDM.js";
 import { AnimatedItems as Te, CHART_CARD as Ee, CHART_COLORS as De, Cell as Oe, ChartBackground as ke, ChartContainer as Ae, ChartEmpty as je, ChartLegend as Me, ChartLegendContent as Ne, ChartTip as Pe, ChartTooltip as Fe, ChartTooltipContent as Ie, DefaultZIndexes as Le, LabelListFromLabelProp as Re, Layer as N, LoadingIndicator as ze, PolarChart as Be, PolarLabelListContextProvider as Ve, RegisterGraphicalItemId as He, Sector as P, SetPolarGraphicalItem as Ue, SetPolarLegendPayload as We, SetTooltipEntrySettings as Ge, Shape as Ke, ZIndexLayer as qe, adaptEventsOfChild as Je, arrayTooltipSearcher as Ye, combineAllBarPositions as Xe, combineBarPosition as Ze, combineBarSizeList as Qe, combineDisplayedStackedData as $e, combineStackGroups as et, combineStackedData as tt, createSelector as F, defaultPolarChartProps as nt, findAllByType as rt, getBandSizeOfAxis as I, getBaseValueOfBar as it, getCateCoordinateOfBar as at, getColorsCount as ot, getNormalizedStackId as st, getTooltipNameProp as ct, getValueByDataKey as lt, getZIndexFromUnknown as ut, interpolate as dt, isCategoricalAxis as ft, isNullish as pt, isStacked as mt, matchAppend as ht, mathSign as gt, noop as _t, resolveDefaultProps as vt, selectActiveTooltipIndex as yt, selectAngleAxis as bt, selectBarCategoryGap as xt, selectBarGap as St, selectChartDataAndAlwaysIgnoreIndexes as Ct, selectChartDataWithIndexes as wt, selectChartLayout as L, selectPolarItemsSettings as Tt, selectPolarViewBox as Et, selectRadiusAxis as Dt, selectReverseStackOrder as Ot, selectRootBarSize as kt, selectRootMaxBarSize as At, selectStackOffsetType as jt, selectTooltipAxis as Mt, selectUnfilteredPolarItems as Nt, sliceConfig as Pt, sliceKey as Ft, svgPropertiesNoEvents as It, svgPropertiesNoEventsFromUnknown as Lt, truncateByDomain as Rt, useAnimationCallbacks as zt, useAppSelector as R, useMouseClickItemDispatch as Bt, useMouseEnterItemDispatch as Vt, useMouseLeaveItemDispatch as Ht, usePolarChartLayout as Ut } from "./peach-app.chart-tip-CRxYp6KT.js";
-import { ConnectionStatus as Wt } from "./peach-app.connection-status-DI6kgn3i.js";
+import { ConnectionStatus as Wt } from "./peach-app.connection-status-B0tSnjj0.js";
 import { Page as Gt } from "./peach-app.page-QAncjzM1.js";
 // node_modules/recharts/es6/util/RadialBarUtils.js
 var z = /* @__PURE__ */ S(fe()), Kt = ["option"];
@@ -795,7 +795,7 @@ var fr = [
 	"aria-pressed:bg-chart-5/10 aria-pressed:ring-chart-5",
 	"aria-pressed:bg-chart-6/10 aria-pressed:ring-chart-6"
 ];
-function mr({ title: e, rows: t, empty: n, unit: r = "个视频" }) {
+function mr({ title: e, rows: t, empty: n, unit: r = "videos" }) {
 	let [i, a] = (0, z.useState)(-1), [o, s] = (0, z.useState)(-1), c = ce(t);
 	if (!c.length) return /* @__PURE__ */ (0, Y.jsx)(je, {
 		title: e,
@@ -892,7 +892,7 @@ function mr({ title: e, rows: t, empty: n, unit: r = "个视频" }) {
 	});
 }
 // src/react/stats/stats-page.tsx
-var hr = pe("媒体库与入库"), gr = 10, _r = De[5], vr = De[4], yr = `${w()} flex flex-col gap-4`, br = "添加媒体目录或关注来源后，这里会显示馆藏统计。", xr = "补全资料或添加标签后，这里会显示馆藏中的内容标签。", Sr = "开始播放后，这里会显示最近的真实观看证据。", Cr = "补充作品资料或手动添加标签后，这里会显示各个标签来源对应的视频数量。", wr = "添加媒体目录后，这里会显示存储空间。", Tr = "把媒体目录归进媒体库后，这里会按库显示视频数。", Er = "探测时长后，这里会显示时长分布。", Dr = "探测画质后，这里会显示画质分布。", Or = "开始播放后，这里会显示播放落在一周的哪些时段。", kr = "开始播放后，这里会显示每个作品播了几次。", Ar = (e, t) => Math.min(Math.max(e, 0), t);
+var hr = pe("Library and imports"), gr = 10, _r = De[5], vr = De[4], yr = `${w()} flex flex-col gap-4`, br = "After adding media folders or follow sources, library stats show here.", xr = "After completing details or adding tags, the library's content tags show here.", Sr = "After playback starts, the latest real viewing evidence appears here.", Cr = "After video details are filled in or tags are added by hand, this shows the video count for each tag source.", wr = "After adding media folders, storage shows here.", Tr = "Once media folders join libraries, this shows video counts per library.", Er = "After durations are probed, the duration distribution shows here.", Dr = "After quality is probed, the quality distribution shows here.", Or = "Once playback starts, this shows which weekday hours your plays land in.", kr = "Once playback starts, this shows how many times each video played.", Ar = (e, t) => Math.min(Math.max(e, 0), t);
 function Z({ term: e, value: t }) {
 	return /* @__PURE__ */ (0, Y.jsxs)("div", {
 		className: "flex min-h-16 min-w-0 flex-col gap-1.5 rounded-2lg bg-background-primary-default p-3",
@@ -920,7 +920,7 @@ function Q({ term: e, value: t, total: n }) {
 			})]
 		}), /* @__PURE__ */ (0, Y.jsx)(u, {
 			meter: !0,
-			label: `${e}：${D(t)} / ${n.toLocaleString()}`,
+			label: `${e}: ${D(t)} / ${n.toLocaleString()}`,
 			value: k(t) ? Ar(t, r) : 0,
 			max: r
 		})]
@@ -960,7 +960,7 @@ function Nr({ data: e }) {
 		children: [/* @__PURE__ */ (0, Y.jsxs)("div", {
 			className: "inline-grid w-full gap-5 md:grid-cols-2",
 			children: [/* @__PURE__ */ (0, Y.jsx)(mr, {
-				title: "网盘与本地",
+				title: "Cloud drive and local",
 				empty: br,
 				rows: e.by_loc.map((e) => ({
 					name: o[e.k] ?? e.k,
@@ -969,7 +969,7 @@ function Nr({ data: e }) {
 					mark: s[e.k] || "database"
 				}))
 			}), /* @__PURE__ */ (0, Y.jsx)(mr, {
-				title: "媒体库",
+				title: "Media library",
 				empty: Tr,
 				rows: e.by_library.map((e) => ({
 					name: e.name,
@@ -982,25 +982,25 @@ function Nr({ data: e }) {
 			className: "inline-grid w-full gap-5 md:grid-cols-2 xl:grid-cols-3",
 			children: [
 				/* @__PURE__ */ (0, Y.jsx)(M, {
-					title: "时长",
-					unit: "个视频",
-					series: "视频",
+					title: "Duration",
+					unit: "videos",
+					series: "Videos",
 					color: _r,
 					rows: te(e.by_length),
 					empty: Er
 				}),
 				/* @__PURE__ */ (0, Y.jsx)(M, {
-					title: "画质",
-					unit: "个视频",
-					series: "视频",
+					title: "Quality",
+					unit: "videos",
+					series: "Videos",
 					color: _r,
 					rows: C(e.by_quality),
 					empty: Dr
 				}),
 				/* @__PURE__ */ (0, Y.jsx)(M, {
-					title: "文件类型",
-					unit: "个条目",
-					series: "条目",
+					title: "File types",
+					unit: "items",
+					series: "Entries",
 					color: _r,
 					layout: "horizontal",
 					rows: ne(e.by_medium),
@@ -1010,17 +1010,17 @@ function Nr({ data: e }) {
 		})]
 	}) : /* @__PURE__ */ (0, Y.jsx)(a, {
 		icon: c,
-		title: "还没有视频",
+		title: "No videos yet",
 		actions: /* @__PURE__ */ (0, Y.jsxs)(Y.Fragment, { children: [/* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "secondary",
 			href: "/subscriptions?tab=add",
 			size: "small",
-			children: "添加关注"
+			children: "Add follows"
 		}), /* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "primary",
 			href: hr,
 			size: "small",
-			children: "添加媒体"
+			children: "Add media"
 		})] }),
 		children: br
 	});
@@ -1028,19 +1028,19 @@ function Nr({ data: e }) {
 function Pr({ data: e }) {
 	return /* @__PURE__ */ (0, Y.jsxs)(Y.Fragment, { children: [/* @__PURE__ */ (0, Y.jsx)(ye, {
 		activity: e.play_activity,
-		title: "播放时间",
-		dailyTitle: "每日播放",
+		title: "Play time",
+		dailyTitle: "'Daily plays'",
 		words: {
-			unit: "个作品",
-			series: "作品",
-			cellUnit: "个作品"
+			unit: "videos",
+			series: "Videos",
+			cellUnit: "videos"
 		},
 		tone: 5,
 		empty: Or
 	}), /* @__PURE__ */ (0, Y.jsx)(M, {
-		title: "播放次数",
-		unit: "个作品",
-		series: "作品",
+		title: "Play counts",
+		unit: "videos",
+		series: "Videos",
 		color: vr,
 		rows: ue(e.replays),
 		empty: kr
@@ -1052,27 +1052,27 @@ function Fr({ attribution: e }) {
 		className: "flex flex-col",
 		children: [
 			/* @__PURE__ */ (0, Y.jsx)(Q, {
-				term: "有创作者",
+				term: "With creators",
 				value: e.creator,
 				total: t
 			}),
 			/* @__PURE__ */ (0, Y.jsx)(Q, {
-				term: "有番号",
+				term: "Has code",
 				value: e.code,
 				total: t
 			}),
 			/* @__PURE__ */ (0, Y.jsx)(Q, {
-				term: "有厂牌",
+				term: "Has label",
 				value: e.studio,
 				total: t
 			}),
 			/* @__PURE__ */ (0, Y.jsx)(Q, {
-				term: "已抽帧",
+				term: "Frames extracted",
 				value: e.thumb,
 				total: t
 			}),
 			/* @__PURE__ */ (0, Y.jsx)(Q, {
-				term: "已探测时长",
+				term: "Duration probed",
 				value: e.duration,
 				total: t
 			})
@@ -1089,7 +1089,7 @@ function Ir({ volume: e }) {
 				children: [/* @__PURE__ */ (0, Y.jsx)("h3", {
 					className: "min-w-0 break-words",
 					children: e.label
-				}), t == null ? e.online ? /* @__PURE__ */ (0, Y.jsx)(v, { children: "容量未取得" }) : /* @__PURE__ */ (0, Y.jsx)(Wt, { online: !1 }) : /* @__PURE__ */ (0, Y.jsxs)("b", {
+				}), t == null ? e.online ? /* @__PURE__ */ (0, Y.jsx)(v, { children: "Capacity not fetched" }) : /* @__PURE__ */ (0, Y.jsx)(Wt, { online: !1 }) : /* @__PURE__ */ (0, Y.jsxs)("b", {
 					className: "whitespace-nowrap tabular-nums",
 					children: [O(n), /* @__PURE__ */ (0, Y.jsx)("span", {
 						className: "ml-1.5 text-caption-1-regular text-text-secondary",
@@ -1099,7 +1099,7 @@ function Ir({ volume: e }) {
 			}),
 			t == null ? null : /* @__PURE__ */ (0, Y.jsx)(u, {
 				meter: !0,
-				label: `${e.label}空间使用率`,
+				label: `${e.label} space usage`,
 				value: Ar(n, Math.max(t, 1)),
 				max: Math.max(t, 1)
 			}),
@@ -1107,10 +1107,10 @@ function Ir({ volume: e }) {
 				className: "flex justify-between gap-3 text-caption-1-regular text-text-secondary",
 				children: [/* @__PURE__ */ (0, Y.jsx)("span", {
 					className: "min-w-0 break-words",
-					children: e.root ?? "未映射"
+					children: e.root ?? "Unmapped"
 				}), t == null ? null : /* @__PURE__ */ (0, Y.jsx)("span", {
 					className: "whitespace-nowrap tabular-nums",
-					children: `可用 ${O(e.free ?? 0)} · 共 ${O(t)}`
+					children: `${O(e.free ?? 0)} free · ${O(t)} total`
 				})]
 			})
 		]
@@ -1122,12 +1122,12 @@ function Lr({ volumes: e }) {
 		children: e.map((e) => /* @__PURE__ */ (0, Y.jsx)(Ir, { volume: e }, `${e.kind}:${e.label}`))
 	}) : /* @__PURE__ */ (0, Y.jsx)(a, {
 		icon: y,
-		title: "还没有存储来源",
+		title: "No storage sources yet",
 		actions: /* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "primary",
 			href: hr,
 			size: "small",
-			children: "添加媒体"
+			children: "Add media"
 		}),
 		children: wr
 	});
@@ -1160,12 +1160,12 @@ function Rr({ tags: e, tagLabel: t, onTag: n, hasMedia: r }) {
 		}, `${e.k}:${r}`))
 	}) : /* @__PURE__ */ (0, Y.jsx)(a, {
 		icon: A,
-		title: "还没有内容标签",
+		title: "No content tags yet",
 		actions: /* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "secondary",
 			href: r ? "/data-cleanup" : "/settings/library",
 			size: "small",
-			children: r ? "补全资料" : "添加媒体"
+			children: r ? "Complete details" : "Add media"
 		}),
 		children: xr
 	});
@@ -1198,23 +1198,23 @@ function zr({ rows: e, hasMedia: t }) {
 					className: "min-w-0 basis-40",
 					children: [/* @__PURE__ */ (0, Y.jsx)(u, {
 						meter: !0,
-						label: `真实观看 ${t.toFixed(0)}%`,
+						label: `Actually watched ${t.toFixed(0)}%`,
 						value: t
 					}), /* @__PURE__ */ (0, Y.jsx)("small", {
 						className: "mt-1.5 block text-caption-1-regular text-text-secondary",
-						children: `真实 ${t.toFixed(0)}% · 到达 ${le(e).toFixed(0)}%`
+						children: `Actual ${t.toFixed(0)}% · reached ${le(e).toFixed(0)}%`
 					})]
 				})]
 			}, `${e.kind}:${e.id}`);
 		})
 	}) : /* @__PURE__ */ (0, Y.jsx)(a, {
 		icon: he,
-		title: "还没有观看记录",
+		title: "No watch history yet",
 		actions: /* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "secondary",
 			href: t ? "/" : "/settings/library",
 			size: "small",
-			children: t ? "浏览馆藏" : "添加媒体"
+			children: t ? "Browse library" : "Add media"
 		}),
 		children: Sr
 	});
@@ -1234,30 +1234,30 @@ function Br({ sources: e, videos: t }) {
 						className: "text-body-2-medium whitespace-nowrap text-text-primary",
 						children: [e.assets.toLocaleString(), /* @__PURE__ */ (0, Y.jsx)("small", {
 							className: "ml-1 text-caption-1-regular font-normal text-text-secondary",
-							children: "个视频"
+							children: "videos"
 						})]
 					})]
 				}),
 				/* @__PURE__ */ (0, Y.jsx)(u, {
 					meter: !0,
-					label: `${e.k} 覆盖视频`,
+					label: `${e.k} covers videos`,
 					value: Ar(e.assets, Math.max(t, 1)),
 					max: Math.max(t, 1)
 				}),
 				/* @__PURE__ */ (0, Y.jsxs)("small", {
 					className: "text-caption-1-regular text-text-secondary",
-					children: [e.n.toLocaleString(), " 条标签"]
+					children: [e.n.toLocaleString(), " tags"]
 				})
 			]
 		}, e.k))
 	}) : /* @__PURE__ */ (0, Y.jsx)(a, {
 		icon: A,
-		title: "还没有标签来源",
+		title: "No tag sources yet",
 		actions: /* @__PURE__ */ (0, Y.jsx)(i, {
 			variant: "secondary",
 			href: t ? "/data-cleanup" : "/settings/library",
 			size: "small",
-			children: t ? "补全资料" : "添加媒体"
+			children: t ? "Complete details" : "Add media"
 		}),
 		children: Cr
 	});
@@ -1285,21 +1285,21 @@ function Vr(i) {
 	}), o = a.data;
 	if (!o) return /* @__PURE__ */ (0, Y.jsx)(Gt, { children: /* @__PURE__ */ (0, Y.jsx)(l, {
 		tone: "error",
-		title: "馆藏统计读取失败",
-		children: a.error ? E(a.error) : "未取得统计数据，请刷新页面重试。"
+		title: "Reading library stats failed",
+		children: a.error ? E(a.error) : "Stats could not be fetched; refresh the page and retry."
 	}) });
-	let s = o.consumption, c = o.storage_summary, u = o.by_loc.reduce((e, t) => e + t.videos, 0), g = o.by_loc.reduce((e, t) => e + t.bytes, 0), _ = k(o.tag_cov) ? j(o.tag_cov, o.attribution.videos) : "未取得", v = `${D(o.tag_cov)} / ${o.attribution.videos.toLocaleString()}`;
+	let s = o.consumption, c = o.storage_summary, u = o.by_loc.reduce((e, t) => e + t.videos, 0), g = o.by_loc.reduce((e, t) => e + t.bytes, 0), _ = k(o.tag_cov) ? j(o.tag_cov, o.attribution.videos) : "Not fetched", v = `${D(o.tag_cov)} / ${o.attribution.videos.toLocaleString()}`;
 	return /* @__PURE__ */ (0, Y.jsxs)(Gt, { children: [/* @__PURE__ */ (0, Y.jsxs)(n, {
 		defaultSelectedKey: "inventory",
 		className: "flex flex-col gap-4",
 		children: [
 			/* @__PURE__ */ (0, Y.jsxs)(r, {
-				"aria-label": "统计视图",
+				"aria-label": "Stats view",
 				className: m,
 				children: [
 					/* @__PURE__ */ (0, Y.jsx)($, {
 						id: "inventory",
-						label: "馆藏视频",
+						label: "Library videos",
 						icon: x,
 						accent: 0,
 						figure: u.toLocaleString(),
@@ -1307,7 +1307,7 @@ function Vr(i) {
 					}),
 					/* @__PURE__ */ (0, Y.jsx)($, {
 						id: "viewing",
-						label: "看过",
+						label: "Watched",
 						icon: b,
 						accent: 1,
 						figure: D(s.played),
@@ -1315,7 +1315,7 @@ function Vr(i) {
 					}),
 					/* @__PURE__ */ (0, Y.jsx)($, {
 						id: "coverage",
-						label: "内容标签",
+						label: "Content tags",
 						icon: A,
 						accent: 2,
 						figure: _,
@@ -1323,11 +1323,11 @@ function Vr(i) {
 					}),
 					/* @__PURE__ */ (0, Y.jsx)($, {
 						id: "storage",
-						label: "使用空间",
+						label: "Space usage",
 						icon: y,
 						accent: 3,
-						figure: `${c.online.toLocaleString()} 个卷`,
-						detail: c.measured ? `已用 ${O(c.used)}` : "容量未取得"
+						figure: `${c.online.toLocaleString()} volumes`,
+						detail: c.measured ? `${O(c.used)} used` : "Capacity not fetched"
 					})
 				]
 			}),
@@ -1343,43 +1343,43 @@ function Vr(i) {
 				className: "flex flex-col gap-5",
 				children: [/* @__PURE__ */ (0, Y.jsx)(Mr, {
 					headline: /* @__PURE__ */ (0, Y.jsx)(jr, {
-						term: "观看",
+						term: "Plays",
 						figure: D(s.played),
-						unit: "个作品有播放记录"
+						unit: "videos have play records"
 					}),
 					children: /* @__PURE__ */ (0, Y.jsxs)("div", {
 						className: "inline-grid w-full gap-3 sm:grid-cols-2",
 						children: [
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "馆藏观看",
+								term: "Library watches",
 								value: s.library_played
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "在线直接观看",
+								term: "'Watch online directly'",
 								value: s.online_played
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "高潮计数",
+								term: "Climax counts",
 								value: s.o_total
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "快进扫过",
+								term: "Seek-skipped",
 								value: s.skimmed
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "喜欢",
+								term: "Favorites",
 								value: s.liked
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "明确不喜欢",
+								term: "Explicit dislikes",
 								value: s.dislike
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "看过了",
+								term: "Watched",
 								value: s.seen
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "回收站",
+								term: "Trash",
 								value: s.trash
 							})
 						]
@@ -1390,7 +1390,7 @@ function Vr(i) {
 				id: "coverage",
 				children: /* @__PURE__ */ (0, Y.jsx)(Mr, {
 					headline: /* @__PURE__ */ (0, Y.jsx)(jr, {
-						term: "内容标签覆盖",
+						term: "'Content tag coverage'",
 						figure: _,
 						unit: v
 					}),
@@ -1401,9 +1401,9 @@ function Vr(i) {
 				id: "storage",
 				children: /* @__PURE__ */ (0, Y.jsx)(Mr, {
 					headline: /* @__PURE__ */ (0, Y.jsx)(jr, {
-						term: "使用空间",
+						term: "Space usage",
 						figure: c.measured.toLocaleString(),
-						unit: "个卷已取得容量"
+						unit: " volumes have capacity fetched"
 					}),
 					children: /* @__PURE__ */ (0, Y.jsx)(Lr, {
 						volumes: o.storage_volumes,
@@ -1419,23 +1419,23 @@ function Vr(i) {
 			/* @__PURE__ */ (0, Y.jsx)("div", {
 				className: "px-4 pt-3",
 				children: /* @__PURE__ */ (0, Y.jsxs)(h, {
-					"aria-label": "统计维度",
+					"aria-label": "Stats dimensions",
 					className: f,
 					children: [
 						/* @__PURE__ */ (0, Y.jsx)(t, {
 							id: "tags",
 							className: d,
-							children: "内容标签"
+							children: "Content tags"
 						}),
 						/* @__PURE__ */ (0, Y.jsx)(t, {
 							id: "recent",
 							className: d,
-							children: "最近看过"
+							children: "Recently watched"
 						}),
 						/* @__PURE__ */ (0, Y.jsx)(t, {
 							id: "sources",
 							className: d,
-							children: "标签来源"
+							children: "Tag sources"
 						})
 					]
 				})
@@ -1470,4 +1470,4 @@ function Vr(i) {
 }
 export { Vr as StatsPage };
 
-//# debugId=cae53a6a-7f63-4dbe-8104-5dc94f0fb524
+//# debugId=ffe16128-a24c-4aca-9d7c-daf3963a6fa9

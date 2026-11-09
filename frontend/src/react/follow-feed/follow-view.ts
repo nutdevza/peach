@@ -1,6 +1,6 @@
 import { FOLLOW_FEED_SORTS, FOLLOW_FILTERS, FOLLOW_RANDOM_SORT, type FollowView } from './follow-feed';
 
-/** 关注页 URL 是筛选的真相源；种子由地址、当前会话、掷种子依次提供。 */
+/** The follows page URL is the source of truth for filters; the seed comes from the address, then the current session, then a fresh roll. */
 export function readFollowView(search: string, previousSeed: number, rollSeed: () => number): FollowView {
   const params = new URLSearchParams(search);
   const csv = (key: string) => [...new Set((params.get(key) || '').split(',').filter(Boolean))];
@@ -34,12 +34,12 @@ export function followViewPath(view: FollowView): string {
   return '/follow' + (params.size ? `?${params}` : '');
 }
 
-/** 索引跳转问的是这一位的全部更新；排序与取样仍属于当前关注会话。 */
+/** An index jump asks for all updates for this person; sorting and sampling still belong to the current follows session. */
 export function followAuthorView(view: FollowView, author: string): FollowView {
   return { ...view, author, provider: '', work: '', tags: [], durMin: 0, durMax: 0, media: 'videos', status: '' };
 }
 
-/** 在线标签跳转保持当前题材，与关注页的来源筛选采用各自的地址语义。 */
+/** Online tag jumps keep the current genre; the follows page's source filter uses its own address semantics. */
 export function followTagView(view: FollowView, tag: string): FollowView {
   return { ...view, author: '', provider: '', tags: [tag], durMin: 0, durMax: 0, media: 'videos', status: '' };
 }

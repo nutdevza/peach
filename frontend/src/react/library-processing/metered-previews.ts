@@ -7,12 +7,12 @@ import { apiSend } from '../../api';
 import { LIBRARY_PROCESSING_URL, type LibraryProcessingData } from './library-processing';
 
 export async function confirmMeteredPreviews(count: number): Promise<boolean> {
-  const which = count > 1 ? `这 ${count.toLocaleString()} 部影片` : '这部影片';
-  const each = count > 1 ? '每部影片' : '这部影片';
+  const which = count > 1 ? `These ${count.toLocaleString()} videos` : 'this video';
+  const each = count > 1 ? 'each video' : 'this video';
   const { confirmed } = await confirmModal({
-    title: '读取开了流量保护的目录',
-    body: `${which}所在的目录开了流量保护，同步时不会读它。补全预览会按九个时间点跳读${each}，消耗这个来源的流量。`,
-    confirmLabel: '继续补全',
+    title: 'Reading a traffic-protected folder',
+    body: `The folder holding ${which} has traffic protection on, so syncing does not read it. Completing previews samples nine points for ${each}, using the traffic of this source.`,
+    confirmLabel: 'Continue completing',
   });
   return confirmed;
 }

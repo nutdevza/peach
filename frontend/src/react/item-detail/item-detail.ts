@@ -1,11 +1,13 @@
-/* 作品详情 `/assets/:id` 与四种队列（Mix、分卷、版本、播放列表）的数据与判定（ADR-0031）。
+/* Data and criteria for video details `/assets/:id` and the four queues (Mix, volumes, editions, playlists) (ADR-0031).
  *
- * 这一块是舞台岛（`../stage/`）树里的子组件，舞台本身、进出场、小窗与 Video.js 归舞台岛，
- * 关注详情也在用同一套。条目归这里：`/api/items` 的卡片没有 `entity_refs`、标签也只是
- * 字符串，拿来当详情只会让身份区与标签区先画一版再跳，所以一律单条取 `GET /api/item?id=`。
+ * This block is a child of the stage island's (`../stage/`) tree; the stage itself, enter/exit, mini player and Video.js
+ * belong to the stage island, and follow details use the same set. Entries belong here: cards from `/api/items` lack
+ * `entity_refs` and their tags are just strings, so using one as details would render the identity and tag areas once and
+ * then jump; everything is fetched singly with `GET /api/item?id=`.
  *
- * 队列也归岛，按 `{kind, seedId|playlistId}` 取、键里带上它们：同一个队列里换一条走缓存，
- * 从外面重新进来（`fresh`）才重取——壳只记着此刻开的是哪一个队列，用来判这一下。 */
+ * Queues also belong to the island, fetched by `{kind, seedId|playlistId}` with both in the key: switching entries inside the
+ * same queue hits cache, and only re-entering from outside (`fresh`) refetches. The shell only remembers which queue is open
+ * right now, used to judge exactly this. */
 import type { QueryKey } from '@tanstack/react-query';
 import { esc, foldName } from '@peach/legacy/core';
 import { mixLabel, type FaceRef } from '@peach/card-art';
@@ -15,27 +17,27 @@ import type { MediaCardActions, MediaCardHelpers, MediaCardLayout, MediaItem } f
 import { queryClient } from '../query';
 import type { PendingWorkItem } from '../components/pending-work';
 
-/* ── 接口形状（`src/peach/web_catalog.py` 的 `q_item`） ── */
+/* ── API shape (`q_item` in `src/peach/web_catalog.py`) ── */
 
-/** 详情里一枚标签：`cat` 是分类，`official` 是来源站点给的。 */
+/** A tag in the details: `cat` is the category, `official` means it came from the source site. */
 export interface DetailTag { k: string; cat?: string; official?: boolean }
 
-/** 身份区里的一个实体。扁平字段兜底来的那一格没有 `id`，只画、不能点。 */
+/** An entity in the identity block. The cell that came from flat-field fallback has no `id`; it renders but is not clickable. */
 export interface DetailEntityRef extends FaceRef {
   id: number | null;
   name: string;
   has_logo?: boolean;
-  /** 标识文件的内容版本，拼进 `/logo` 地址的 `&v=`。 */
+  /** The logo file's content version, spliced into the `/logo` URL's `&v=`. */
   logo_version?: string;
-  /** 厂牌是某家片商旗下的 label 时（ADR-0049），从近到远的上级片商链。 */
+  /** When the label belongs to a studio (ADR-0049), the chain of parent studios from nearest to farthest. */
   makers?: DetailEntityRef[];
 }
 
-/** 卡片条目里声明过的那些字段。`MediaItem` 带着 `[field: string]: unknown`，直接 `Omit` 会把
- *  声明过的键一起抹掉（`keyof` 成了 `string`），先摘掉索引签名再挑。 */
+/** The fields declared on card entries. `MediaItem` carries `[field: string]: unknown`, and a direct `Omit` would wipe the declared keys too
+ *  (`keyof` becoming `string`), so strip the index signature first, then pick. */
 type CardFields = { [K in keyof MediaItem as string extends K ? never : K]: MediaItem[K] };
 
-/** `/api/item` 的一条。只列详情读到的字段，其余原样带着，壳的缓存要的是整条。 */
+/** One `/api/item` entry. Only the fields the details read are listed; the rest come through as-is, since the shell's cache needs the whole entry. */
 export interface DetailItem extends Omit<CardFields, 'tags'> {
   [field: string]: unknown;
   error?: string;
@@ -63,13 +65,13 @@ export interface DetailItem extends Omit<CardFields, 'tags'> {
   sample_images?: { n: number }[];
 }
 
-/** 队列里的一条：卡片那一份，外加版次与卷标。 */
+/** One entry in the queue: the card's copy plus edition and volume labels. */
 export interface QueueItem extends MediaItem { edition_label?: string; part_label?: string; version_id?: number }
 
 export type QueueKind = 'mix' | 'parts' | 'editions' | 'playlist';
 
-/** 壳递进来的队列引用。`fresh` 为真表示这一下是从外面进这个队列，要重取；同一个队列里
- *  换一条时为假，读缓存。播放列表每次都重取：它的顺序和内容别处也在改。 */
+/** The queue reference the shell passes in. `fresh` true means this arrival comes from outside the queue and refetches; switching entries
+ *  within the same queue is false and reads the cache. Playlists refetch every time: their order and contents change elsewhere too. */
 export interface QueueRef { kind: QueueKind; seedId?: number; playlistId?: number; fresh?: boolean; autoplay?: boolean }
 
 export interface DetailQueue {
@@ -78,12 +80,12 @@ export interface DetailQueue {
   playlistId?: number;
   title: string;
   items: QueueItem[];
-  /** 播放列表记下的续播位置。 */
+  /** The resume position recorded by the playlist. */
   currentAssetId?: number | null;
   versionCount?: number;
 }
 
-/** `/api/playlist` 的写操作都回整份列表（`web_playlists.w_playlist`）。 */
+/** Write operations on `/api/playlist` all return the whole list (`web_playlists.w_playlist`). */
 export interface PlaylistPayload {
   id: number;
   name: string;
@@ -91,7 +93,7 @@ export interface PlaylistPayload {
   current_asset_id: number | null;
 }
 
-/* ── 取数 ── */
+/* ── Fetching ── */
 
 export const itemKey = (id: number): QueryKey => ['item', id];
 export const queueKey = (ref: QueueRef): QueryKey => ['item-queue', ref.kind, ref.kind === 'playlist' ? ref.playlistId : ref.seedId];
@@ -106,7 +108,7 @@ export const WATCH_LATER_URL = '/api/watch-later';
 export const QUALITY_GOAL_URL = '/api/quality-goal';
 export const PREFERENCE_URL = '/api/preference';
 
-/** 条目已不在数据库里：服务端回 `{error}`，不是一次失败的请求。 */
+/** The entry is no longer in the database: the server returns `{error}`, not a failed request. */
 export class ItemGone extends Error {}
 
 export async function fetchItem(id: number, signal?: AbortSignal): Promise<DetailItem> {
@@ -117,8 +119,8 @@ export async function fetchItem(id: number, signal?: AbortSignal): Promise<Detai
 
 interface GroupPayload { error?: string; title?: string; items?: QueueItem[]; count?: number }
 
-/** 一个队列的全部条目。Mix 是种子加上它的相关作品（相关那一份每个种子只取一次，和目录里
- *  Mix 卡的悬停翻页共用）；分卷与版本是同一个番号下的几个可播条目；播放列表按它自己的顺序。 */
+/** All entries of one queue. Mix is the seed plus its related videos (the related set is fetched once per seed, shared with the Mix card's hover paging in the catalog);
+ *  volumes and editions are the playable entries under one code; playlists follow their own order. */
 export async function fetchQueue(ref: QueueRef, helpers: Pick<ItemDetailHelpers, 'mixRelated' | 'tagLabel'>, signal?: AbortSignal): Promise<DetailQueue> {
   if (ref.kind === 'mix') {
     const seedId = ref.seedId!;
@@ -134,9 +136,9 @@ export async function fetchQueue(ref: QueueRef, helpers: Pick<ItemDetailHelpers,
     return playlistQueue(playlist);
   }
   const group = await apiGet<GroupPayload>(`/api/${ref.kind}?id=${ref.seedId}`, signal);
-  if (group.error || !group.items?.length) throw new Error(group.error || '这一组已不存在');
+  if (group.error || !group.items?.length) throw new Error(group.error || 'This group no longer exists');
   return {
-    kind: ref.kind, seedId: ref.seedId!, title: `${ref.kind === 'parts' ? '分卷' : '版本'} · ${group.title || ''}`,
+    kind: ref.kind, seedId: ref.seedId!, title: `${ref.kind === 'parts' ? 'Volumes' : 'Editions'} · ${group.title || ''}`,
     items: group.items,
     versionCount: ref.kind === 'editions' ? group.count : undefined,
   };
@@ -147,12 +149,12 @@ export const playlistQueue = (playlist: PlaylistPayload): DetailQueue => ({
   currentAssetId: playlist.current_asset_id,
 });
 
-/** 播放列表里标「已消失」的条目：文件不在盘上，列出来、标出来，但不打开去播放（ADR-0087）。 */
+/** Items marked "vanished" in the playlist: the files are not on disk, so they are listed and flagged but never opened for playback (ADR-0087). */
 export const isVanished = (item: QueueItem) => item.disposal === 'vanished';
 
-/** 队列里停在哪一条。Mix 就是点的那一条；分卷与版本点的那一条不在组里（深链写错了、组变了）
- *  就退到第一条；播放列表退到它记下的续播位置，已消失的条目不停，退到第一条能播的。
- *  一条都停不了是 null。 */
+/** Which queue entry to stop on. For Mix it is the clicked one; for volumes and editions, if the clicked one is not in the group (deep link wrong, group changed)
+ *  fall back to the first; playlists fall back to their recorded resume position, skipping vanished entries to the first playable.
+ *  Nothing to stop on is null. */
 export function chooseItem(queue: DetailQueue, requested: number | null): number | null {
   if (queue.kind === 'mix') return requested;
   const items = queue.kind === 'playlist' ? queue.items.filter((item) => !isVanished(item)) : queue.items;
@@ -162,15 +164,15 @@ export function chooseItem(queue: DetailQueue, requested: number | null): number
   return items[0]!.id;
 }
 
-/** 卷标只有分卷队列知道：`/api/item` 是单条口径，它答不出「这是第几卷」。不补的话标题栏里的
- *  卷号在深链进来和点开队列另一条时都不出现。 */
+/** Only the volumes queue knows the volume label: `/api/item` is a single-item view and cannot answer "which volume is this". Without the patch the
+ *  volume number in the title bar is missing both on deep links and when opening another queue entry. */
 export function withPartLabel(item: DetailItem, queue: DetailQueue | null): DetailItem {
   if (queue?.kind !== 'parts' && queue?.kind !== 'editions') return item;
   const part_label = queue.items.find((part) => part.id === item.id)?.part_label || '';
   return item.part_label === part_label ? item : { ...item, part_label };
 }
 
-/** 播完一卷只接同一版本的下一卷；选另一个版本由用户发起。 */
+/** After finishing a volume, only the next volume of the same edition plays; picking another edition is user-initiated. */
 export function nextPart(queue: DetailQueue | null, id: number): QueueItem | null {
   if (!queue || (queue.kind !== 'parts' && queue.kind !== 'editions')) return null;
   const index = queue.items.findIndex((row) => row.id === id);
@@ -180,9 +182,9 @@ export function nextPart(queue: DetailQueue | null, id: number): QueueItem | nul
   return queue.kind === 'parts' || (current.version_id != null && current.version_id === next.version_id) ? next : null;
 }
 
-/** 首屏：先定队列（这一下要不要重取由壳说），再定停在哪一条，最后取那一条。要转走的几种情形
- *  （在线作品转关注详情、队列取不到退回普通详情、播放列表空了回列表页、条目已不在）交给壳，
- *  壳一换舞台，这一次挂载就作废，不会画出来。 */
+/** First screen: first settle the queue (whether this refetches is the shell's call), then settle which entry to stop on, and finally fetch that entry. The redirect cases
+ *  (online video to follows details, queue unavailable falls back to normal details, empty playlist returns to the list page, item gone) go to the shell;
+ *  once the shell swaps the stage, this mount is void and never paints. */
 export async function prefetchItemDetail(props: ItemDetailProps, signal: AbortSignal): Promise<void> {
   const { queue: ref, actions } = props;
   let queue: DetailQueue | null = null;
@@ -206,8 +208,8 @@ export async function prefetchItemDetail(props: ItemDetailProps, signal: AbortSi
     return;
   }
   let item: DetailItem;
-  /* 重开同一条也重取：缓存里那份是上一次打开时的，这期间封面、评分、标签都可能在别处改过，
-     而挂载不重取（`query.ts`）。只有 Mix 的种子不重取，取队列那一步刚把它写进缓存。 */
+  /* Reopening the same entry also refetches: the cached copy is from the last open, and covers, rating and tags may have changed elsewhere since,
+     while mounting alone does not refetch (`query.ts`). Only the Mix seed is not refetched, since the queue fetch just wrote it into the cache. */
   const cachedItem = seeded && id === queue?.seedId ? queryClient.getQueryData<DetailItem>(itemKey(id)) : undefined;
   try {
     item = cachedItem
@@ -220,44 +222,44 @@ export async function prefetchItemDetail(props: ItemDetailProps, signal: AbortSi
   if (!signal.aborted && item.location === 'online' && item.follow_item_id) actions.redirect({ kind: 'follow', id: Number(item.follow_item_id) });
 }
 
-/* ── 壳递进来的那几样 ── */
+/* ── The pieces the shell hands in ── */
 
-/** 标签选择器的一个候选：馆藏里带这枚标签的作品数。 */
+/** One candidate in the tag selector: how many videos in the library carry this tag. */
 export interface TagCount { k: string; n?: number; cat?: string }
 
-/** 详情里仍由遗留层拼的几段 HTML 与读数。都是全站语义契约的唯一实现，这里不另写一份。
- *  身份格与队列行的图、头像和署名直接取 `@peach/card-art`。 */
+/** The HTML fragments and readouts in details still assembled by the legacy layer. Each is the only implementation of a site-wide semantic contract, so no second copy is written here.
+ *  Images, avatars and bylines for identity cells and queue rows come straight from `@peach/card-art`. */
 export interface ItemDetailHelpers {
-  /** 来源角标（遗留层 `srcBadge`）；`cls` 是 `srcbig` 这类尺寸档。 */
+  /** The source corner badge (legacy layer `srcBadge`); `cls` is a size tier like `srcbig`. */
   badgeHtml(location: string, cost: string, cls?: string): string;
-  /** 番号 + 版次徽章 + 片名（遗留层 `javTitleHtml`）。 */
+  /** Code + edition badge + title (legacy layer `javTitleHtml`). */
   titleHtml(item: DetailItem): string;
-  /** 同一标题的纯文本（遗留层 `javDisplayName`）。 */
+  /** Plain text of the same title (the legacy layer's `javDisplayName`). */
   displayName(item: QueueItem): string;
-  /** 「JAV 默认封面」设置，每次现读：队列一行的小图按它取封套或预览图。 */
+  /** The 'JAV default cover' setting, read fresh each time: the queue row's thumbnail picks the sleeve or preview image by it. */
   javImage(): string;
   tagLabel(tag: string): string;
-  /** 时长分档那几枚标签：由时长推出来的，不在详情里列。 */
+  /** The duration-tier tags: derived from the duration, never listed in details. */
   isDurationTag(tag: string): boolean;
-  /** 标签选择器里的全部候选（目录的标签读数）。 */
+  /** All candidates in the tag selector (the catalog's tag counts). */
   tagCandidates(): TagCount[];
-  /** 来源此刻是不是没挂载。 */
+  /** Whether the source is currently unmounted. */
   sourceOffline(location: string): boolean;
   offlineReason(location: string): string;
-  /** 「接着看」那一排的骨架（遗留层 `pageSkeletonHtml`），和壳里别处的是同一份。 */
+  /** The skeleton for the "keep watching" row (legacy layer `pageSkeletonHtml`), the same copy used elsewhere in the shell. */
   relatedSkeletonHtml(): string;
-  /** Mix 的相关作品，每个种子只取一次，和目录里 Mix 卡的悬停翻页共用。 */
+  /** Mix related videos, fetched once per seed, shared with the Mix card's hover paging in the catalog. */
   mixRelated(seedId: number): Promise<QueueItem[]>;
-  /** 横排接上拖动滚动（遗留层 `wireDrag`）。 */
+  /** Horizontal rows get drag scrolling wired in (legacy `wireDrag`). */
   wireDrag(el: HTMLElement): void;
-  /** 播放列表那一列拖着排序（遗留层 `wireDragReorder`）：拖动中的行由它挂 `dragging`、
-   *  `drop-before`／`drop-after`，落下时回调新位置。 */
+  /** Drag-to-reorder for the playlist column (legacy `wireDragReorder`): while dragging it puts `dragging` and
+   *  `drop-before`/`drop-after` on rows, and calls back with the new position on drop. */
   wireDragReorder(root: HTMLElement, options: {
     selector: string; attribute: string; onMove(from: string, target: string, after: boolean): Promise<void> | void;
   }): void;
 }
 
-/** 壳要转走的几种情形。 */
+/** The cases the shell hands off. */
 export type ItemDetailRedirect =
   | { kind: 'follow'; id: number }
   | { kind: 'item'; id: number }
@@ -265,59 +267,60 @@ export type ItemDetailRedirect =
   | { kind: 'gone' };
 
 export interface ItemDetailActions {
-  /** 关闭详情回到来处（壳的 `closeItemDetail`：退场动画、拆舞台、推回列表地址与筛选）。 */
+  /** Closes the detail back to where it came from (the shell's `closeItemDetail`: exit animation, tear down the stage, push back the list URL and filters). */
   close(): void;
-  /** 这一条画出来了：壳据此更新小窗元数据、顶栏的实体上下文、氛围光与剧场模式，队列的地址
-   *  也在这时推（停在哪一条要等岛定下来）。 */
+  /** This entry has rendered: the shell updates mini player metadata, the top bar's entity context, ambient light, and theater mode from this, and pushes the queue address
+   *  at this point too (which entry it pauses on awaits the island settling). */
   present(item: DetailItem, queue: DetailQueue | null): void;
   redirect(to: ItemDetailRedirect): void;
-  /** 队列里点另一条：舞台上的播放器要先拆、地址要换，经壳重挂。`push` 为假时不推地址。 */
+  /** Clicking another item in the queue: the stage's player must be torn down first and the address swapped, remounting through the shell. When `push` is false the address is not pushed. */
   openQueueItem(queue: QueueRef, id: number, push?: boolean): void;
-  /** 把媒体框交给舞台挂播放器：`<video>` 由舞台建在框里、交给 Video.js，不进这棵 React 树——
-   *  从小窗展开回来时同一个实例要整块搬进这块框。返回的清理在这块媒体区卸下时调。签名与关注
-   *  详情同一个：作品详情没有「第几份媒体」，`media` 传 null；`autoplay` 不给就按设置，计费
-   *  拦截点开的那一下给 true。 */
+  /** Hands the media frame to the stage to mount a player: the `<video>` is built by the stage inside the frame and handed to
+ *  Video.js, never entering this React tree, because on expand from the mini player the same instance must move wholesale
+ *  into this frame. The returned cleanup runs when this media area unmounts. The signature matches follow details: video
+ *  details have no "which media", so `media` passes null; without `autoplay` it follows settings, and the metered-source
+ *  intercept click passes true. */
   mountPlayer(frame: HTMLElement, item: DetailItem, media: null, options?: { autoplay?: boolean }): () => void;
-  /** 盘回来了：按正常路径重开这一条，不在半路挂播放器。 */
+  /** The drive is back: reopen this entry through the normal path without mounting the player midway. */
   reopen(): void;
-  /** 重新检测一个来源挂没挂上。 */
+  /** Re-check whether a source is mounted. */
   checkSource(location: string): Promise<boolean>;
-  /** 在线作品反查不到关注条目时的出口：打开关注页「已保存」那一档。 */
+  /** The exit when an online video cannot be traced back to a follows entry: open the follows page's "Saved" tier. */
   openSavedFollow(): void;
   openEntity(kind: string, name: string): void;
   openUnowned(): void;
   openRegion(region: string): void;
-  /** 点一枚标签：回列表只看它。 */
+  /** Click a tag: back to the list filtered to it. */
   openTag(tag: string): void;
-  /** 加入播放列表那一屏（壳的表单弹层：舞台是 `showModal()` 开的原生 dialog，弹层要进同一层）。 */
+  /** The add-to-playlist screen (the shell's form popover: the stage is a native dialog opened with `showModal()`, so the popover has to join that same layer). */
   addToPlaylist(item: DetailItem): void;
-  /** 保存 Mix 那一屏：壳弹表单，确认时调 `save(name)`；存好了壳转去那份播放列表并给撤销。 */
+  /** The save-Mix screen: the shell pops the form and calls `save(name)` on confirm; once saved, the shell moves to that playlist and offers undo. */
   saveMix(options: { title: string; count: number; save(name: string): Promise<PlaylistPayload> }): void;
-  /** 编辑播放列表：去播放列表页。 */
+  /** Edit the playlist: go to the playlist page. */
   editPlaylist(): void;
-  /** 播放列表被移空了：回播放列表页。 */
+  /** The playlist was emptied: go back to the playlist page. */
   openPlaylists(): void;
-  /** 定位源文件；回的是失败原因，成功是空串（成功的回执归全站 Toast）。 */
+  /** Locates the source file; returns the failure reason, an empty string on success (success receipts go through the site-wide Toast). */
   reveal(id: number): Promise<string>;
-  /** 核对这一条所在的目录；回状态一行，外加被移入回收站的那几条。 */
+  /** Verify the directory this entry lives in; it returns one status line plus the entries moved into trash. */
   sync(id: number): Promise<{ text: string; removed: number[] }>;
-  /** 目录的「垃圾文件」那一档按回收站状态列：移入回收站之后（`undo` 为假）、撤销任何一次反馈之后
-   *  （`undo` 为真）由壳判要不要重读列表。 */
+  /** The catalog's "Junk files" tier lists by trash state: after moving to trash (`undo` false) and after undoing any feedback (`undo` true),
+   *  the shell decides whether to re-read the list. */
   trashChanged(disposal: string | null, undo: boolean): Promise<void>;
-  /** 操作回执；给了 `undo` 就带一颗撤销键。失败走 `failure`。 */
+  /** Action receipt; when `undo` is given it carries an undo button. Failures go through `failure`. */
   toast(message: string, options?: { undo?: () => Promise<void> }): void;
   failure(action: string, error: unknown): void;
 }
 
 export interface ItemDetailProps {
-  /** 点的那一条；播放列表从列表页进来时可以没有，退到续播位置。 */
+  /** The clicked entry; it can be absent when the playlist opens from a list page, falling back to the resume position. */
   id: number | null;
   queue: QueueRef | null;
-  /** 「接着看」一排取几条；0 是关掉。有队列时不出这一排。 */
+  /** How many entries the 'Keep watching' row takes; 0 turns it off. The row is omitted when a queue exists. */
   relatedLimit: number;
   helpers: ItemDetailHelpers;
   actions: ItemDetailActions;
-  /** 「接着看」那一排的卡片：和目录网格同一份助手与动作。 */
+  /** Cards in the 'Keep watching' row: the same helpers and actions as the catalog grid. */
   grid: { helpers: MediaCardHelpers; actions: MediaCardActions };
   layout: MediaCardLayout;
   selectMode: boolean;
@@ -325,9 +328,9 @@ export interface ItemDetailProps {
   seekSeconds: number;
 }
 
-/* ── 身份区 ── */
+/* ── Identity area ── */
 
-/** 出镜者超过这个数就收起：BEST 合集实测有 41 位，全铺开会把标签和反馈按钮挤出可视区。 */
+/** Collapse past this many performers on screen: a BEST compilation measured 41 of them, and laying them all out pushes the tags and feedback buttons out of view. */
 export const CAST_SHOWN = 8;
 
 export interface IdentityGroups {
@@ -336,13 +339,13 @@ export interface IdentityGroups {
   makers: DetailEntityRef[];
   creators: DetailEntityRef[];
   series: DetailEntityRef[];
-  /** 判据和 `owner=none` 那条 SQL 一样：没有出镜者、没有创作者实体、扁平 creator 也空。厂牌和
-   *  系列不算归属——两边说的必须是同一批作品，否则卡片上写着「未归属」的这条点进集合会不在里面。 */
+  /** Same criteria as the `owner=none` SQL: no cast member, no creator entity, and flat creator also empty. Studio and series do not count as ownership;
+   *  both sides must speak of the same videos, otherwise a card marked "unowned" clicking into the collection would not contain it. */
   unowned: boolean;
 }
 
-/** 身份按类别分组，同一个名字只出现一次（先到的那一类留下）。共演作品的女优逐个列出；
- *  非规范厂牌只有扁平 `studio`，它的标识可用性单独下发在 `has_studio_logo`。 */
+/** Identities grouped by category, each name appearing once (the first category to claim it keeps it). Performers on co-starred videos are listed individually;
+ *  non-canonical labels only have a flat `studio` field, and their logo availability ships separately in `has_studio_logo`. */
 export function identityGroups(item: DetailItem): IdentityGroups {
   const refs = item.entity_refs || {};
   const seen = new Set<string>();
@@ -366,16 +369,17 @@ export function identityGroups(item: DetailItem): IdentityGroups {
   return { cast, studios, makers, creators, series, unowned: !cast.length && !creators.length && !String(item.creator || '').trim() };
 }
 
-/* ── 评分 ──
-   评分落在 `asset.rating`，量纲是 0–100：这一列是 Stash 的 rating100 直接导进来的，taste_history
-   也按 rating/20 折算成 0–5 分。所以第 n 颗星送出的是 n*20，不是 n。再点当前那一颗表示撤销，
-   送 0，后端写回 NULL——「没评过」和「评了一星」在排序上必须是两件事。 */
+/* Rating.
+   Ratings live on `asset.rating` on a 0-100 scale: this column is imported straight from Stash's rating100, and
+   taste_history also reduces to 0-5 by rating/20. So the n-th star sends n*20, not n. Clicking the current star again means
+ * undo, sending 0, and the backend writes NULL back: "never rated" and "rated one star" must be two different things in
+ * sorting. */
 export { RATING_STEP, clampRating, ratingStars, ratingText, nextRating } from '../components/rating-values';
 
-/* ── 标签 ── */
+/* ── Tags ── */
 
-/** 详情里列的标签：去掉时长分档，按显示名去重（改过显示名的可能与另一条同名，优先留本身就是
- *  规范显示名的那条），最多 40 枚。 */
+/** Tags listed in details: drop duration tiers, dedupe by display name (a renamed one may collide with another, prefer keeping the one whose display name is
+ *  already canonical), at most 40. */
 export function detailTags(item: DetailItem, helpers: Pick<ItemDetailHelpers, 'tagLabel' | 'isDurationTag'>): DetailTag[] {
   const byDisplay = new Map<string, DetailTag>();
   (item.tags || []).filter((tag) => !helpers.isDurationTag(tag.k)).forEach((tag) => {
@@ -406,14 +410,14 @@ export function rememberTag(tag: string): void {
     const rest = recentTags().filter((name) => foldName(name) !== foldName(tag));
     localStorage.setItem(RECENT_TAGS, JSON.stringify([tag, ...rest].slice(0, 12)));
   } catch {
-    // 存储满了或被禁用：最近使用只是便利，不影响添加本身。
+    // Storage full or disabled: recent items are a convenience only and do not affect adding itself.
   }
 }
 
 export interface PickerSections { recent: TagCount[]; results: TagCount[]; create: string }
 
-/** 标签选择器里这一刻列什么：没输入时是最近使用加全部（前 120 枚），输入了是命中的那几枚；
- *  输入的词没有完全命中的，末尾多一格「新建」。 */
+/** What the tag selector lists at this moment: with no input, recent plus all (first 120); with input, the matching ones;
+ *  when the typed word has no exact match, a "New" cell is appended at the end. */
 export function pickerSections(query: string, candidates: readonly TagCount[], recent: readonly string[]): PickerSections {
   const q = foldName(query);
   const byName = new Map(candidates.map((tag) => [foldName(tag.k), tag]));
@@ -424,32 +428,32 @@ export function pickerSections(query: string, candidates: readonly TagCount[], r
   return { recent: recentRows, results, create: q && !exact ? query.trim() : '' };
 }
 
-/* ── 队列 ── */
+/* ── Queue ── */
 
-/** 版次徽章的配色跟卡片标题上的那套走。多一个 `有码`：卡片上正片不加角标是对的（没角标就是
- *  正片），但队列里两条并排时「什么都不写」等于让人自己猜哪条是哪条。 */
+/** Edition badge colors follow the set on card titles. One addition, `Censored`: on cards, the main feature correctly carries no badge (no badge means the main feature),
+ *  but with two entries side by side in the queue, writing nothing leaves people guessing which is which. */
 export const EDITION_TONE: Record<string, string> = { 中字: 'subtitle', 无码: 'uncensored', 无码流出: 'leaked', 无码破解: 'cracked', 有码: 'censored' };
 
-const QUEUE_LABEL: Record<QueueKind, string> = { mix: 'Mix', parts: '分卷', editions: '版本', playlist: '播放列表' };
+const QUEUE_LABEL: Record<QueueKind, string> = { mix: 'Mix', parts: 'Volumes', editions: 'Editions', playlist: 'Playlists' };
 
-/** 队列头那两行：类别与摘要。版次队列的标题是「版本 · 番号」，而番号就印在正上方的详情标题里，
- *  标题栏又已经写着「版本」——三处说同一件事，这里只留数量。别的队列标题带真信息（播放列表名、
- *  Mix 种子），不能一起砍。 */
+/** The queue header's two lines: category and summary. The edition queue's title is "Editions · code", but the code is printed in the details title directly above,
+ *  and the title bar already says "Editions"; three places saying one thing, so only the count stays here. Other queues' titles carry real information (playlist name,
+ *  Mix seed) and cannot be cut along with it. */
 export function queueCopy(queue: DetailQueue): { title: string; summary: string } {
   const count = (queue.kind === 'editions' ? queue.versionCount ?? queue.items.length : queue.items.length).toLocaleString();
-  const countLabel = queue.kind === 'parts' ? `${count} 卷` : queue.kind === 'editions' ? `${count} 个版本` : `${count} 个视频`;
+  const countLabel = queue.kind === 'parts' ? `${count} volumes` : queue.kind === 'editions' ? `${count} editions` : `${count} videos`;
   return { title: QUEUE_LABEL[queue.kind], summary: queue.kind === 'editions' ? countLabel : `${queue.title} · ${countLabel}` };
 }
 
-/** 同一部片的几卷共用文件名，标题、女优、厂牌逐字相同：详情标题不写卷号的话，在队列里换一卷，
- *  右侧整栏看上去纹丝不动。卷号说的是「第几份文件」而不是版次，用中性灰。数字卷写「第 2 卷」，
- *  字母卷照番号分卷后缀的写法大写成「A 卷」。 */
-export const partLabel = (label = '') => /^\d+$/.test(label) ? `第 ${label} 卷`
-  : /^[a-h]$/i.test(label) ? `${label.toUpperCase()} 卷` : label;
+/** Several volumes of one film share a filename, with title, performer, and studio identical verbatim: without the volume number in the details title, switching volumes in the queue
+ *  leaves the whole right column looking unmoved. The volume number says "which file", not which edition, in neutral gray. Numeric volumes write "Volume 2";
+ *  letter volumes follow the code's volume-suffix style, capitalized as "Volume A". */
+export const partLabel = (label = '') => /^\d+$/.test(label) ? `Volume ${label}`
+  : /^[a-h]$/i.test(label) ? `${label.toUpperCase()} volumes` : label;
 export const partLabelHtml = (item: DetailItem, queue: DetailQueue | null) =>
   ((queue?.kind === 'parts' || queue?.kind === 'editions') && item.part_label ? `<small class="javedition partlabel">${esc(partLabel(item.part_label))}</small>` : '');
 
-/** 拖动之后的新顺序：`from` 挪到 `target` 的前面或后面。 */
+/** The new order after dragging: `from` moves before or after `target`. */
 export function movedOrder(ids: readonly number[], from: number, target: number, after: boolean): number[] {
   const rest = ids.filter((id) => id !== from);
   const at = rest.indexOf(target);
@@ -460,12 +464,12 @@ export function movedOrder(ids: readonly number[], from: number, target: number,
 export const sameOrder = (a: readonly number[], b: readonly number[]) =>
   a.length === b.length && a.every((id, index) => id === b[index]);
 
-/* ── 播放区 ── */
+/* ── Playback area ── */
 
 export type MediaGate = 'offline' | 'online' | 'metered' | 'disc' | '';
 
-/** 播放区此刻挡在视频前面的是哪一种说明：来源没挂载、在线作品反查不到关注条目、计费来源要
- *  点一下才拉流。保存过的在线作品照常播（壳在取数时已经把它转去关注详情）。 */
+/** Which explanation currently covers the video in the playback area: source not mounted, an online video with no matching follow entry, or a metered source that needs
+ *  a click to start streaming. Saved online videos play normally (the shell already routes them to follow details during fetching). */
 export function mediaGate(item: DetailItem, offline: boolean): MediaGate {
   if (offline) return 'offline';
   if (String(item.name || '').toLowerCase().endsWith('.iso')) return 'disc';
@@ -474,19 +478,19 @@ export function mediaGate(item: DetailItem, offline: boolean): MediaGate {
   return '';
 }
 
-/** 真实观看那条的初值：看过的秒数占时长。时长未知（0 或 -1 哨兵）时不画。 */
+/** The real watch entry's initial value: watched seconds over duration. Not drawn when duration is unknown (0 or the -1 sentinel). */
 export function realWatched(item: DetailItem): number | null {
   const duration = Number(item.duration) > 0 ? Number(item.duration) : 0;
   if (!item.play_seconds || !duration) return null;
   return Math.min(Number(item.play_seconds) / duration, 1) * 100;
 }
 
-/* ── 写完之后 ── */
+/* ── After writing ── */
 
-/** 反馈键的回执。 */
+/** The feedback button's acknowledgment. */
 export function feedbackReceipt(kind: string, result: { feedback?: string | null; disposal?: string | null }): string {
-  if (kind === 'dislike') return result.feedback === 'dislike' ? '已标记不合口味' : '已取消不合口味';
-  if (kind === 'seen') return result.feedback === 'seen' ? '已标记看过' : '已取消看过';
-  if (kind === 'dispose') return result.disposal === 'trash' ? '已移入回收站' : '已移出回收站';
-  return '已记录一次高潮';
+  if (kind === 'dislike') return result.feedback === 'dislike' ? 'Marked as not my taste' : 'Not my taste cleared';
+  if (kind === 'seen') return result.feedback === 'seen' ? 'Marked as watched' : 'Unmarked as watched';
+  if (kind === 'dispose') return result.disposal === 'trash' ? 'Moved to trash' : 'Restored out of trash';
+  return 'Climax recorded';
 }

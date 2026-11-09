@@ -16,7 +16,7 @@ const SIZE = {
   compact: 'min-h-60 px-4 py-6',
 } as const;
 
-/** 把空态的添加入口接到页面已有表单。 */
+/** Wires the empty state's add entry to the page's existing form. */
 export function EmptyFocusButton({ target, children }: { target: string; children: ReactNode }) {
   return <Button size="small" variant="secondary" onClick={() => document.querySelector<HTMLElement>(target)?.focus()}>{children}</Button>;
 }
@@ -33,8 +33,8 @@ export function EmptyState(
       </span>
       <h3 className="text-body-semibold text-pretty text-text-primary">{title}</h3>
       {children != null ? <p className="max-w-empty-copy text-body-2-regular leading-empty-copy text-text-secondary">{children}</p> : null}
-      {/* 去处属于这一块，不摆到框外面：「还没有内容」和一个不知道属于谁的按钮分开放时，
-          读者要先把两样东西连起来才知道按下去做什么。 */}
+      {/* The destination belongs to this block and does not sit outside the frame: when "No content yet" and a button of unknown ownership sit apart,
+          the reader must first connect the two to know what pressing does. */}
       {actions ? <div className="mt-2 flex flex-wrap justify-center gap-2">{actions}</div> : null}
     </div>
   );

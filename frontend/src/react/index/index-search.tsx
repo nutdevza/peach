@@ -5,9 +5,9 @@ import { composingKey } from '../components/ime';
 
 const SearchGlyph = spriteGlyph('search');
 
-/* 只读筛选不配提交按钮：停手 300ms 就查，回车是「别等了，现在就查」。中文输入法选字过程中
-   一样发 input，拿还没定型的拼音去筛，筛的是「zhon」这种半截输入；组完字由 compositionend
-   接手，组字过程中的回车是在定字，也放过去。 */
+/* A read-only filter gets no submit button: stop typing 300ms and it searches; Enter means "stop waiting, search now". A CJK IME's composition
+   also fires input, and filtering on unfixed pinyin filters on half-typed input like "zhon"; compositionend takes over after composition,
+   and Enter during composition is committing the text, so it is let through. */
 export function IndexSearch({ label, value, onQuery }: { label: string; value: string; onQuery(q: string): void }) {
   const [text, setText] = useState(value);
   const composing = useRef(false);

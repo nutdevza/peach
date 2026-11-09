@@ -36,7 +36,7 @@ export interface EntityControllerPorts {
   dropBars(): void;
 }
 
-/** 页内换筛选复用当前宿主，地址提交由历史的唯一拥有者执行。 */
+/** Changing filters within the page reuses the current host; the address commit is executed by history's sole owner. */
 export function createEntityController(ports: EntityControllerPorts, helpers: EntityPageHelpers,
   delegated: Pick<EntityPageActions, 'toggleTag' | 'openFollowAuthor' | 'javContext'>) {
   const route = (kind: string, name: string, filters: EntityFilters,
@@ -94,7 +94,7 @@ export function createEntityController(ports: EntityControllerPorts, helpers: En
       }),
       avatarChanged: () => ports.dropBars(),
     };
-    // 只缓存当前一页，重开该页的 props 仍读实时偏好与筛选。
+    // Only the current page is cached; reopening that page still reads live preferences and filters through its props.
     actionCache.clear();
     actionCache.set(key, value);
     return value;
