@@ -1,4 +1,4 @@
-/* 学习进度来自本机账本，导览会话独立于安装状态。 */
+/* Learning progress comes from the local ledger; the tour session is independent of install state. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProgress, guideChapterComplete, guideResumePosition, listenGuide, openGuide, readGuideProgress, recordGuideStep, saveGuideProgress } from '../src/onboarding/guide-state';
 import { createGuideSession, findGuideTarget, resolveGuideTarget } from '../src/onboarding/guide-driver';
@@ -22,8 +22,8 @@ afterEach(() => {
   vi.useRealTimers(); vi.unstubAllGlobals(); document.body.replaceChildren();
 });
 
-describe('章节进度', () => {
-  it('到达末尾不代表完成，缺失步骤从未读位置继续，全部已读才可重看', () => {
+describe('Chapter progress', () => {
+  it('Reaching the end is not completion; missing steps resume from the first unread position, and a replay is possible only once everything is read', () => {
     const chapter = GUIDE_CHAPTERS.find(item => item.id === 'basics')!;
     let progress = emptyProgress();
     chapter.steps.forEach((step, index) => { progress = recordGuideStep(progress, chapter.id, step.id, index + 1, index === 1) });
@@ -33,17 +33,17 @@ describe('章节进度', () => {
     expect(guideChapterComplete(progress, chapter)).toBe(true);
     expect(guideResumePosition(progress, chapter)).toBe(0);
   });
-  it('换页步骤给出真实操作路径，设置与数据管理保留必要层级', () => {
+  it('The page steps give real operation paths while settings and data management keep their necessary hierarchy', () => {
     for (const chapter of GUIDE_CHAPTERS) for (const step of chapter.steps) {
       if (step.route) expect(guideEntry(step)?.path.length, `${chapter.id}/${step.id}`).toBeGreaterThan(1);
     }
     const entry = (route: '/review' | '/quality-goals' | '/settings/network' | '/settings/appearance') => guideEntry({ id: 'entry', title: '', body: '', route })?.path;
-    expect(entry('/review')).toEqual(['侧栏', '管理', '数据管理', '人工复核']);
-    expect(entry('/quality-goals')).toEqual(['侧栏', '管理', '数据管理', '高清版']);
-    expect(entry('/settings/network')).toEqual(['侧栏底部的设置', 'Peach 配置', '网络与访问']);
-    expect(entry('/settings/appearance')).toEqual(['侧栏底部的设置', '外观与导航']);
+    expect(entry('/review')).toEqual(['Sidebar', 'Manage', 'Data management', 'Manual review']);
+    expect(entry('/quality-goals')).toEqual(['Sidebar', 'Manage', 'Data management', 'HD version']);
+    expect(entry('/settings/network')).toEqual(['Settings at the bottom of the sidebar', 'Peach configuration', 'Network & access']);
+    expect(entry('/settings/appearance')).toEqual(['Settings at the bottom of the sidebar', 'Appearance & navigation']);
   });
-  it('快速导览在首页四步结束，详细章节都可以从主题目录找到', () => {
+  it('The quick tour ends with four steps on the home page; every detailed chapter is reachable from the topic directory', () => {
     const quick = GUIDE_CHAPTERS.find(chapter => chapter.id === 'basics')!;
     expect(quick.steps).toHaveLength(4);
     expect(quick.steps.every(step => step.route === '/')).toBe(true);
@@ -55,10 +55,10 @@ describe('章节进度', () => {
       expect([...covered].sort()).toEqual(GUIDE_CHAPTERS.filter(chapter => chapter.kind === kind && chapter.id !== 'basics').map(chapter => chapter.id).sort());
     }
   });
-  it('未开始时没有章节完成记录', () => {
+  it('Before starting, no chapter is recorded as complete', () => {
     expect(emptyProgress()).toEqual({ version: 1, campaign: '', invited: false, completed: false, chapters: {} });
   });
-  it('已读与跳过互斥，重看不重复计数，其他章节保持原状', () => {
+  it('Read and skip are mutually exclusive, a replay never counts twice, and other chapters stay untouched', () => {
     const original = recordGuideStep(emptyProgress(), 'settings', 'network', 1, false);
     const skipped = recordGuideStep(original, 'basics', 'search', 1, true);
     expect(skipped.chapters.basics).toEqual({ next: 1, read: [], skipped: ['search'] });
@@ -69,7 +69,7 @@ describe('章节进度', () => {
     expect(original.chapters.basics).toBeUndefined();
     expect(recordGuideStep(read, 'basics', 'search', 1, true).chapters.basics!.read).toEqual([]);
   });
-  it('换页后仍读取账本进度，不采用旧浏览器进度', async () => {
+  it('After a page switch, progress still reads the ledger rather than the stale browser progress', async () => {
     const saved = { ...recordGuideStep(emptyProgress(), 'basics', 'search', 1, false), campaign: 'welcome-1', invited: true };
     localStorage.setItem('peach.guides.v1', JSON.stringify(emptyProgress()));
     const fetcher = vi.fn(async () => new Response(JSON.stringify(saved), { status: 200 }));
@@ -79,19 +79,19 @@ describe('章节进度', () => {
     }
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
-  it('读取或保存失败向调用方报告，不当成空进度或写入成功', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: '服务不可用' }), { status: 503 })));
+  it('Read or save failures are reported to the caller, never mistaken for empty progress or a successful write', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'Service unavailable' }), { status: 503 })));
     await expect(readGuideProgress()).rejects.toThrow();
     await expect(saveGuideProgress('welcome-1', { action: 'dismiss' })).rejects.toThrow();
   });
-  it('保存只发送当前动作，不用本设备快照覆盖其他设备的章节', async () => {
+  it('Saving sends only the current action and never overwrites other devices\' chapters with this device\'s snapshot', async () => {
     const done = { ...emptyProgress(), campaign: 'welcome-1', invited: true, completed: true };
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(done), { status: 200 }));
     vi.stubGlobal('fetch', fetcher);
     expect(await saveGuideProgress('welcome-1', { action: 'complete' })).toEqual(done);
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({ campaign: 'welcome-1', action: 'complete' });
   });
-  it('重开只通知入口，不重置学习或安装状态，不发送请求', () => {
+  it('Reopening only notifies the entry; it never resets learning or install state and sends no requests', () => {
     const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
     localStorage.setItem('peach.post-setup-tutorial.v1', 'complete');
     const listener = vi.fn(), close = listenGuide(listener);
@@ -102,7 +102,7 @@ describe('章节进度', () => {
       expect(fetcher).not.toHaveBeenCalled();
     } finally { close() }
   });
-  it('挂载前的请求交付一次，卸载后的入口不接收排队请求', async () => {
+  it('Requests before mount are delivered once, and an unmounted entry never receives queued requests', async () => {
     openGuide({ chapter: 'settings' });
     const listener = vi.fn(), close = listenGuide(listener);
     await Promise.resolve();
@@ -115,21 +115,21 @@ describe('章节进度', () => {
   });
 });
 
-describe('只读导览会话', () => {
-  const step = { id: 'search', title: '搜索馆藏', body: '输入关键词。', target: '#guide-target' };
+describe('A read-only tour session', () => {
+  const step = { id: 'search', title: 'Search the library', body: 'Type your keywords.', target: '#guide-target' };
   const callbacks = () => ({ mountPopover: mocks.popover, navigate: vi.fn(), next: vi.fn(), previous: vi.fn(), close: vi.fn() });
   const visibleTarget = () => {
     const target = document.createElement('button'); target.id = 'guide-target'; document.body.append(target);
     vi.spyOn(target, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ width: 100, height: 40 }));
     return target;
   };
-  it('首次邀请框选教程按钮并保留入口的键盘操作，遮罩可关闭', async () => {
+  it('The first invitation spotlights the tour button while keeping keyboard access to the entry, and the overlay can be dismissed', async () => {
     const entry = visibleTarget(); entry.id = 'tutorialBtn';
     const instance = { destroy: vi.fn(), highlight: vi.fn(), refresh: vi.fn() };
     mocks.driver.mockReturnValue(instance);
     const actions = callbacks(), session = createGuideSession({ ...actions, invitation: true });
     try {
-      await session.show({ id: 'tutorial-entry', title: '打开教程', body: '认识入口', target: '#tutorialBtn' }, 0, 1);
+      await session.show({ id: 'tutorial-entry', title: 'Open the tour', body: 'Meet the entries', target: '#tutorialBtn' }, 0, 1);
       expect(instance.highlight.mock.calls[0]![0].element).toBe(entry);
       expect(mocks.driver.mock.calls[0]![0].disableActiveInteraction).toBe(false);
       const panel = document.createElement('div'); panel.className = 'peach-guide-popover'; document.body.append(panel);
@@ -142,7 +142,7 @@ describe('只读导览会话', () => {
     } finally { session.stop() }
   });
 
-  it('从馆藏打开真实详情，结束后释放临时播放模式且不保留小窗', async () => {
+  it('Opens real details from the library; when done the temporary playback mode releases and no mini-player remains', async () => {
     history.replaceState({}, '', '/taste');
     const target = visibleTarget(); target.dataset.guideVideo = ''; target.dataset.id = '42';
     mocks.driver.mockReturnValue({ destroy: vi.fn(), highlight: vi.fn(), refresh: vi.fn() });
@@ -157,7 +157,7 @@ describe('只读导览会话', () => {
     expect(isPlayerGuidePreview()).toBe(false);
     expect(mocks.disposeStage).toHaveBeenCalledExactlyOnceWith(false, false, { miniplayer: false });
   });
-  it('缺失目标有等待期限，取消等待后没有遗留计时器', async () => {
+  it('A missing target has a wait deadline, and after the wait is cancelled no timer is left behind', async () => {
     vi.useFakeTimers(); const controller = new AbortController();
     const timed = findGuideTarget('#missing', controller.signal, 160);
     await vi.advanceTimersByTimeAsync(160); expect(await timed).toBeUndefined();
@@ -165,7 +165,7 @@ describe('只读导览会话', () => {
     await vi.advanceTimersByTimeAsync(80); expect(await cancelled).toBeUndefined();
     expect(vi.getTimerCount()).toBe(0);
   });
-  it('骨架或 inert 区域不作为目标，显示后可定位', async () => {
+  it('Skeletons and inert areas are never targets, and once shown the target is locatable', async () => {
     const target = visibleTarget(); target.setAttribute('inert', '');
     expect(await findGuideTarget('#guide-target', new AbortController().signal, 0)).toBeUndefined();
     target.removeAttribute('inert'); target.setAttribute('data-skeleton', '');
@@ -173,7 +173,7 @@ describe('只读导览会话', () => {
     target.removeAttribute('data-skeleton');
     expect(await findGuideTarget('#guide-target', new AbortController().signal, 0)).toBe(target);
   });
-  it('收起的搜索框和移出屏幕的侧栏让位给可见入口', async () => {
+  it('The collapsed search box and the off-screen sidebar yield to the visible entries', async () => {
     const hidden = visibleTarget(); hidden.style.opacity = '0';
     const fallback = document.createElement('button'); fallback.id = 'fallback'; document.body.append(fallback);
     vi.spyOn(fallback, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 20, width: 40, height: 40 }));
@@ -182,39 +182,39 @@ describe('只读导览会话', () => {
     vi.mocked(hidden.getBoundingClientRect).mockReturnValue(DOMRect.fromRect({ x: -110, width: 100, height: 40 }));
     expect(await findGuideTarget('#guide-target,#fallback', new AbortController().signal, 0)).toBe(fallback);
   });
-  it('说明只定位与导航，不点击业务控件或发送请求', async () => {
+  it('Explains that it only highlights and navigates, never clicking business controls or sending requests', async () => {
     const target = visibleTarget(), clicked = vi.fn(), fetcher = vi.fn();
     target.addEventListener('click', clicked); vi.stubGlobal('fetch', fetcher);
     const instance = { destroy: vi.fn(), highlight: vi.fn(), refresh: vi.fn(), isActive: () => true };
     mocks.driver.mockReturnValue(instance);
     const actions = callbacks(), session = createGuideSession(actions);
     try {
-      await session.show({ ...step, route: '/tasks', title: '<搜索>', body: 'A & B' }, 0, 2);
+      await session.show({ ...step, route: '/tasks', title: '<Search>', body: 'A & B' }, 0, 2);
       expect(actions.navigate).toHaveBeenCalledWith('/tasks');
       expect(mocks.driver).toHaveBeenCalledWith(expect.objectContaining({ disableActiveInteraction: true, allowKeyboardControl: false }));
       expect(instance.highlight.mock.calls[0]![0]).toMatchObject({ element: target, popover: { side: 'bottom' } });
       mocks.driver.mock.calls[0]![0].onPopoverRender({ wrapper: document.createElement('div'), arrow: document.createElement('div') });
-      expect(mocks.popover).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ step: expect.objectContaining({ title: '<搜索>', body: 'A & B' }), missing: false }));
+      expect(mocks.popover).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ step: expect.objectContaining({ title: '<Search>', body: 'A & B' }), missing: false }));
       mocks.driver.mock.calls[0]![0].onNextClick(); expect(actions.next).toHaveBeenCalledWith(false);
       mocks.driver.mock.calls[0]![0].overlayClickBehavior(); expect(actions.close).toHaveBeenCalledOnce();
       expect(clicked).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
     } finally { session.stop() }
     expect(instance.destroy).toHaveBeenCalledOnce(); expect(mocks.unlisten).toHaveBeenCalledOnce();
   });
-  it('结束正在等待目标的会话后不会产生浮层', async () => {
+  it('Ending a session that is still waiting for its target leaves no stray overlay', async () => {
     vi.useFakeTimers(); const session = createGuideSession(callbacks());
     const showing = session.show(step, 0, 2); session.stop();
     await vi.advanceTimersByTimeAsync(80); await showing;
     expect(mocks.driver).not.toHaveBeenCalled(); expect(mocks.unlisten).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
-  it('原位改字中的 Escape 留给编辑器取消，不退出导览', () => {
+  it('Inside in-place text editing, Escape belongs to the editor\'s cancel and never exits the tour', () => {
     const actions = callbacks(), session = createGuideSession(actions);
     const input = document.createElement('span'); input.dataset.copyInline = ''; document.body.append(input);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(actions.close).not.toHaveBeenCalled(); session.stop();
   });
-  it('目标仍在等待时 Escape 与外部导航都能结束会话', async () => {
+  it('While the target is still waiting, both Escape and external navigation end the session', async () => {
     vi.useFakeTimers();
     for (const cancel of ['escape', 'navigate']) {
       const actions = callbacks(), session = createGuideSession(actions);
@@ -226,7 +226,7 @@ describe('只读导览会话', () => {
     }
     expect(mocks.driver).not.toHaveBeenCalled();
   });
-  it('缺失目标可继续阅读，下一步记录为跳过', async () => {
+  it('A missing target keeps the tour readable and the next step is recorded as skipped', async () => {
     vi.useFakeTimers();
     const instance = { destroy: vi.fn(), highlight: vi.fn(), refresh: vi.fn(), isActive: () => true }; mocks.driver.mockReturnValue(instance);
     const actions = callbacks(), session = createGuideSession(actions);
@@ -238,12 +238,12 @@ describe('只读导览会话', () => {
       mocks.driver.mock.calls[0]![0].onNextClick(); expect(actions.next).toHaveBeenCalledWith(true);
     } finally { session.stop() }
   });
-  it('框选设置标签和控件所在整行，不只框选开关', () => {
+  it('The spotlight covers the whole row holding the setting\'s label and control, not just the switch', () => {
     const row = document.createElement('label'); row.setAttribute('data-setting-row', ''); document.body.append(row);
     const target = visibleTarget(); row.append(target);
     expect(resolveGuideTarget('#guide-target')).toBe(row);
   });
-  it('内部滚动、窗口变化和目标重挂载后刷新位置，结束时清理跟踪', async () => {
+  it('Position refreshes on internal scrolling, window changes, and target remounts; the tracking cleans up when done', async () => {
     let frame: FrameRequestCallback | undefined;
     const cancel = vi.fn();
     vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { frame = callback; return 1 }));

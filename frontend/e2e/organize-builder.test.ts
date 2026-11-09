@@ -3,17 +3,17 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, settle, VIEWPORTS, visit } from './harness.ts';
 
-describe('整理规则构建', () => {
+describe('Organize rule building', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：参数插入、模板区分与站点图标`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: parameter insertion, template distinction, and site icons`, async () => {
     const opened = await visit(browser, '/data-cleanup/organize', viewport, async (page) => {
       await page.route('**/api/organize', route => route.fulfill({ json: {
         status: 'idle', locations: [{ location: 'local', roots: [] }], last_batch: '',
         templates: { local: { file: '{code}', dir: '' } },
-        presets: [{ label: '按厂牌建文件夹', file: '{code}[ {title}]', dir: '{studio}', example: '厂牌/ABC-123 标题.mp4' }],
-        placeholders: Object.entries({ code: '番号', title: '标题', studio: '厂牌', series: '系列', year: '发行年', actors: '出演者', cd: '分片号', mosaic: '有码无码', definition: '画质' })
+        presets: [{ label: 'Organize folders by label', file: '{code}[ {title}]', dir: '{studio}', example: 'Label/ABC-123 title.mp4' }],
+        placeholders: Object.entries({ code: 'Code', title: 'Title', studio: 'Labels', series: 'Series', year: 'Release year', actors: 'Cast', cd: 'Segment number', mosaic: 'Censored / uncensored', definition: 'Quality' })
           .map(([key, label]) => ({ key, label })),
       } }));
       await page.route('**/api/links', route => route.fulfill({ json: {
@@ -25,43 +25,43 @@ describe('整理规则构建', () => {
     try {
       const { page } = opened;
       const organize = page.locator('#organize');
-      const file = organize.getByRole('textbox', { name: '文件名模板', exact: true });
-      const dir = organize.getByRole('textbox', { name: '目录模板', exact: true });
+      const file = organize.getByRole('textbox', { name: 'File name template', exact: true });
+      const dir = organize.getByRole('textbox', { name: 'Folder template', exact: true });
       await file.waitFor();
       await settle(page);
-      assert.equal(await organize.getByRole('group', { name: '插入参数', exact: true }).getByRole('button').count(), 9);
-      await file.fill('前缀-后缀');
+      assert.equal(await organize.getByRole('group', { name: 'Insert parameters', exact: true }).getByRole('button').count(), 9);
+      await file.fill('prefix-suffix');
       await file.evaluate((input: HTMLInputElement) => { input.focus(); input.setSelectionRange(3, 3) });
-      await organize.getByRole('button', { name: '番号 {code}', exact: true }).click();
-      assert.equal(await file.inputValue(), '前缀-{code}后缀');
+      await organize.getByRole('button', { name: 'Code {code}', exact: true }).click();
+      assert.equal(await file.inputValue(), 'prefix-{code}suffix');
       assert.equal(await file.evaluate(input => document.activeElement === input), true);
-      await dir.fill('厂牌/作品');
+      await dir.fill('Label/video');
       await dir.evaluate((input: HTMLInputElement) => { input.focus(); input.setSelectionRange(3, 5) });
-      await organize.getByRole('button', { name: '标题 {title}', exact: true }).click();
-      assert.equal(await dir.inputValue(), '厂牌/{title}');
+      await organize.getByRole('button', { name: 'Title {title}', exact: true }).click();
+      assert.equal(await dir.inputValue(), 'Label/{title}');
       await dir.evaluate((input: HTMLInputElement) => { input.focus(); input.setSelectionRange(3, 10) });
-      await organize.getByRole('button', { name: '标题 {title}', exact: true }).click();
-      assert.equal(await dir.inputValue(), '厂牌/{title}');
+      await organize.getByRole('button', { name: 'Title {title}', exact: true }).click();
+      assert.equal(await dir.inputValue(), 'Label/{title}');
       assert.equal(await dir.evaluate(input => document.activeElement === input), true);
       assert.equal(await dir.evaluate((input: HTMLInputElement) => input.selectionStart), 10);
-      await file.fill('自定义_{code}[_{definition}]');
+      await file.fill('custom_{code}[_{definition}]');
       await dir.fill('{year}/{studio}');
-      await page.waitForFunction(() => document.querySelector('[data-organize-example]')?.textContent?.includes('2024/厂牌/自定义_ABC-123_1080p.mp4'));
+      await page.waitForFunction(() => document.querySelector('[data-organize-example]')?.textContent?.includes('2024/label/custom_ABC-123_1080p.mp4'));
       const faces = await page.evaluate(() => {
         const face = (label: string) => {
           const button = document.querySelector(`#organize [aria-label="${label}"] button`)!;
           const style = getComputedStyle(button);
           return [style.backgroundColor, style.borderTopWidth, style.boxShadow];
         };
-        return { preset: face('套用模板'), parameter: face('插入参数'), overflow: document.documentElement.scrollWidth > innerWidth };
+        return { preset: face('Apply template'), parameter: face('Insert parameters'), overflow: document.documentElement.scrollWidth > innerWidth };
       });
-      assert.notDeepEqual(faces.preset, faces.parameter, '模板与参数使用不同按钮样式');
+      assert.notDeepEqual(faces.preset, faces.parameter, 'The template and params use different button styles');
       assert.equal(faces.overflow, false);
-      await organize.getByRole('button', { name: '按厂牌建文件夹', exact: true }).click();
+      await organize.getByRole('button', { name: 'Organize folders by label', exact: true }).click();
       assert.equal(await file.inputValue(), '{code}[ {title}]');
       assert.equal(await dir.inputValue(), '{studio}');
-      await page.waitForFunction(() => document.querySelector('[data-organize-example]')?.textContent?.includes('厂牌/ABC-123 标题.mp4'));
-      assert.ok((await organize.textContent())?.includes('路径示例：厂牌/ABC-123 标题.mp4'));
+      await page.waitForFunction(() => document.querySelector('[data-organize-example]')?.textContent?.includes('Label/ABC-123 title.mp4'));
+      assert.ok((await organize.textContent())?.includes('Path example: label/ABC-123 Title.mp4'));
       await page.goto(new URL('/data-cleanup/links', page.url()).href);
       const icon = page.locator('#link-manager a[href="https://example.com"] img');
       await icon.scrollIntoViewIfNeeded();

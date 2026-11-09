@@ -1,5 +1,5 @@
-/* 低频页 chunk 的装载（ADR-0118）：打开页面时装不上而服务还在，说明旧入口指着已删除的 chunk，整页重载一次；
- * 同一会话 30 秒内不重载第二次，服务连不上不重载，空闲预热失败不重载。 */
+/* Low-frequency page chunk loading (ADR-0118): failing to load while opening a page but the service is up means the old entry points to a deleted chunk, so full reload once;
+ * no second reload within 30s of the same session, no reload when the service is unreachable, and no reload on failed idle prewarm. */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 let reload: ReturnType<typeof vi.fn>;
@@ -13,18 +13,18 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() });
 
 const missing = () => Promise.reject(new TypeError('Failed to fetch dynamically imported module'));
 
-it('装上之前 get() 抛错，装上之后同步拿到模块，第二次打开不再装载', async () => {
+it('get() throws before install, returns the module synchronously after it, and the second open does not load again', async () => {
   const { routeChunk } = await import('../src/react/router/route-chunk');
   const load = vi.fn(async () => ({ Page: 'page' }));
   const chunk = routeChunk(load);
-  expect(() => chunk.get()).toThrow('页面代码还没装载');
+  expect(() => chunk.get()).toThrow('Page code is still loading');
   await chunk.preload();
   await chunk.preload();
   expect(chunk.get()).toEqual({ Page: 'page' });
   expect(load).toHaveBeenCalledTimes(1);
 });
 
-it('打开时装不上而服务可达就重载一次，30 秒内再失败不重载，失败的那次不记住、下次重试', async () => {
+it('If mounting fails on open while the service is reachable, reload once; a second failure within 30 seconds does not reload, the failed attempt is not remembered and retries next time', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
   const { routeChunk } = await import('../src/react/router/route-chunk');
   const load = vi.fn(missing);
@@ -37,14 +37,14 @@ it('打开时装不上而服务可达就重载一次，30 秒内再失败不重�
   expect(reload).toHaveBeenCalledTimes(1);
 });
 
-it('服务连不上时不重载，错误交给页面', async () => {
+it('When the service is unreachable it never reloads, handing errors to the page', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }));
   const { routeChunk } = await import('../src/react/router/route-chunk');
   await expect(routeChunk(missing).preload()).rejects.toThrow('dynamically imported module');
   expect(reload).not.toHaveBeenCalled();
 });
 
-it('空闲预热逐个装载，失败不重载，留到打开时再试', async () => {
+it('Idle warm-up loads one by one; failures are not reloaded and are retried when opened', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
   vi.stubGlobal('requestIdleCallback', (callback: () => void) => { queueMicrotask(callback); return 0 });
   const { routeChunk, warmRouteChunks } = await import('../src/react/router/route-chunk');

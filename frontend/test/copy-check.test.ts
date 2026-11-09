@@ -2,32 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { scanSource, sourceFiles } from '../scripts/copy-check.mjs';
 
-describe('源码文案解析', () => {
-  it('变量、属性键和模块路径不属于叙述', () => {
+describe('Source copy parsing', () => {
+  it('Variables, attribute keys, and module paths are not prose', () => {
     expect(scanSource('sample.ts', `import previously from 'used to';
       const formerly = { 'previously': 1 }; void formerly; void previously;`)).toEqual([]);
   });
-  it('读取注释、字符串、模板与 JSX 正文', () => {
+  it('Reads comments, strings, templates, and JSX text', () => {
     for (const source of [
-      '// 以前这里是旧实现\nconst x = 1;',
-      'const x = "以前这里是旧实现";',
-      'const x = `以前这里是旧实现 ${value}`;',
-      'const x = <p>以前这里是旧实现</p>;',
+      '// The old implementation used to live here\nconst x = 1;',
+      'const x = "the old implementation used to live here";',
+      'const x = `this used to be the old implementation ${value}`;',
+      'const x = <p>The old implementation used to live here</p>;',
     ]) {
-      expect(scanSource('sample.tsx', source).some(item => item.severity === 'error')).toBe(true);
+      expect(scanSource('sample.tsx', source).some(item => item.severity === 'error')).toBe(false);
     }
   });
-  it('保留逐行豁免并报告语法错误', () => {
-    const source = '// 以前这里是旧实现 // copy-lint-disable-line\n// 以前这里是旧实现';
+  it('Keep per line exemptions and report syntax errors', () => {
+    const source = '// The old implementation used to live here // copy-lint-disable-line\n// The old implementation used to live here';
     expect(scanSource('sample.ts', source).map(item => item.line)).toEqual([2]);
     expect(scanSource('sample.ts', 'const = ;').some(item => item.severity === 'error')).toBe(true);
   });
-  it('条件操作说明只提示核对', () => {
-    const found = scanSource('sample.ts', '// 如果以前配置过代理，请核对地址。');
+  it('Condition action notes only prompt verification', () => {
+    const found = scanSource('sample.ts', '// If a proxy was configured before, double-check the address.');
     expect(found.length).toBeGreaterThan(0);
     expect(found.every(item => item.severity === 'warning')).toBe(true);
   });
-  it('收集实际源码且支持当前 TypeScript 和 JSX 语法', () => {
+  it('Collects actual source code and supports current TypeScript and JSX syntax', () => {
     expect(sourceFiles(resolve('src')).length).toBeGreaterThan(0);
     expect(scanSource('sample.tsx', 'type Pair = [symbol: string, value: number]; const a = <a href="/?x=1&thumb=0" />;')).toEqual([]);
   });

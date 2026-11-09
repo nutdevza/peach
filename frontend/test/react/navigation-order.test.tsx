@@ -16,14 +16,14 @@ afterEach(() => {
   appSettingsStore().save();
 });
 
-it('收藏固定全部首项，导航追加新增项并剔除重复及过期键', () => {
+it('Favorites pin everything as the first item; navigation appends new entries and removes duplicate and expired keys', () => {
   expect(normalizeNavigationOrder('favorites', ['tag', 'all', 'tag', 'removed']).slice(0, 3)).toEqual(['all', 'tag', 'filters']);
   expect(normalizeNavigationOrder('jav', null)).toEqual(['library', 'wants', 'releases', 'discover']);
   expect(orderLibraries([{ id: 'a' }, { id: 'b' }, { id: 'new' }], ['gone', 'b', 'a'], row => row.id).map(row => row.id))
     .toEqual(['b', 'a', 'new']);
 });
 
-it('键盘调整导航保存稳定 ID，选中分区保留，重置后可撤销', async () => {
+it('Keyboard reordering of navigation saves stable IDs, keeps the selected section, and can be undone after reset', async () => {
   const writes: unknown[] = [];
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
     const body = JSON.parse(init.body);
@@ -31,7 +31,7 @@ it('键盘调整导航保存稳定 ID，选中分区保留，重置后可撤销'
     return { ok: true, json: async () => body };
   }));
   const change = vi.fn();
-  const host = await mount(<SortableBoardTabs group="jav" value="library" onChange={change} label="JAV 分区"
+  const host = await mount(<SortableBoardTabs group="jav" value="library" onChange={change} label="JAV sections"
     tabs={navigationDefaults('jav').map(value => ({ value, label: value }))} />);
   expect(host.querySelector('[data-navigation-menu]')).toBeNull();
   await act(async () => host.querySelector('[data-tab="wants"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })));
@@ -42,25 +42,25 @@ it('键盘调整导航保存稳定 ID，选中分区保留，重置后可撤销'
   expect(host.querySelector('[data-navigation-menu]')).not.toBeNull();
   expect(writes).toContainEqual({ navigationOrders: { jav: ['wants', 'library', 'releases', 'discover'] } });
   const commit = vi.fn();
-  restoreNavigationOrder({ label: 'JAV 分区', keys: ['wants', 'library', 'releases', 'discover'], defaults: navigationDefaults('jav'), commit });
+  restoreNavigationOrder({ label: 'JAV section', keys: ['wants', 'library', 'releases', 'discover'], defaults: navigationDefaults('jav'), commit });
   expect(commit).toHaveBeenLastCalledWith(navigationDefaults('jav'));
   const options = vi.mocked(showToast).mock.calls.at(-1)![1];
   options.action?.run(document.createElement('button'));
   expect(commit).toHaveBeenLastCalledWith(['wants', 'library', 'releases', 'discover']);
 });
 
-it('对象顺序先在弹层调整，保存失败保留顺序和错误，重试成功才关闭', async () => {
-  const save = vi.fn().mockRejectedValueOnce(new Error('列表已变化')).mockResolvedValueOnce(undefined);
+it('Object order is adjusted in the dialog first; a failed save keeps the order and the error, and closes only after a successful retry', async () => {
+  const save = vi.fn().mockRejectedValueOnce(new Error('The list has changed')).mockResolvedValueOnce(undefined);
   const close = vi.fn();
-  await mount(<ObjectOrderDialog title="调整筛选顺序" items={[{ id: 'a', name: '甲' }, { id: 'b', name: '乙' }]} save={save} close={close} />);
-  await click(document.querySelector('[aria-label="上移 乙"]'));
+  await mount(<ObjectOrderDialog title="Adjust filter order" items={[{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }]} save={save} close={close} />);
+  await click(document.querySelector('[aria-label="Move up Beta"]'));
   expect(save).not.toHaveBeenCalled();
-  await click(buttonNamed('保存顺序', document));
+  await click(buttonNamed('Save order', document));
   await settle();
   expect(save).toHaveBeenLastCalledWith(['b', 'a']);
-  expect(document.body.textContent).toContain('列表已变化');
+  expect(document.body.textContent).toContain('Adjust filter orderBetaAlphaThe operation did not finish; please retry. If it keeps failing, check the tray log.CancelSave order');
   expect(close).not.toHaveBeenCalled();
-  await click(buttonNamed('保存顺序', document));
+  await click(buttonNamed('Save order', document));
   await settle();
   expect(close).toHaveBeenCalledOnce();
 });

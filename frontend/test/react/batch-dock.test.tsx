@@ -1,8 +1,10 @@
-/* 批量条：四种语境下列哪几颗键、计数、选空时收起、点下去回到壳的哪条流程，以及它作为常驻组件
- * （`RESIDENT_ROUTES['batch-dock']`）在路由树里的行为：宿主就是 `[data-batch-dock]`、句柄同步画完、
- * 收起与抛错都只卸组件不撤宿主，抛错之后这一面空到刷新为止。
+/* Batch bar: which keys each of four contexts lists, counts, collapsing when the selection empties, which shell flow a click
+ * returns to, plus its behavior as a resident component (`RESIDENT_ROUTES['batch-dock']`) in the route tree: the host is
+ * `[data-batch-dock]`, the handle renders synchronously, both collapsing and a thrown error unmount only the component without
+ * withdrawing the host, and after the error the surface stays empty until refresh.
  *
- * 浮条的玻璃、位置与窄屏三列栅格要量布局，由 e2e 在浏览器里走（`e2e/design-*.test.ts`）。 */
+ * The bar's glass, position and narrow-screen three-column grid need measured layout, walked in the browser by e2e
+ * (`e2e/design-*.test.ts`). */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -11,27 +13,27 @@ import { batchActions, type BatchDockApi, type BatchDockHost, type BatchDockProp
 import type { ShellActions } from '../../src/react/router/shell-actions';
 import { click } from './render';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 type ActFlag = { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
 beforeAll(async () => { await import('../../src/react/router/router') }, REACT_IMPORT_TIMEOUT_MS);
 
-/* 浮条外壳换成一层能当场决定抛不抛的包装：用例中途改 `dock.broken`，就是「下一次绘制抛错」。 */
+/* The dock's shell gets a wrapper that decides on the spot whether to throw: a test flips `dock.broken` mid-case, meaning "throw on the next render". */
 const dock = vi.hoisted(() => ({ broken: false }));
 vi.mock(import('../../src/react/components/selection-dock'), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     SelectionDock: (props: Parameters<typeof actual.SelectionDock>[0]) => {
-      if (dock.broken) throw new Error('浮条画不出来');
+      if (dock.broken) throw new Error('The dock never paints');
       return actual.SelectionDock(props);
     },
   };
 });
 
-/* 常驻组件适配层直接读取同一包内的配置函数；测试只接本场景的句柄契约。 */
+/* The resident component adapter reads the config functions from the same package directly; tests only hook into this scenario's handle contract. */
 type ShellIslands = { connectApplication(next: (actions: ShellActions) => void): () => void; loadBatchDock(host: BatchDockHost): Promise<BatchDockApi>; batchDockApi(): BatchDockApi | null };
 const ISLANDS_MODULE = '../../src/react/application-residents';
 
@@ -70,7 +72,7 @@ function shellActions(): ShellActions {
   };
 }
 
-/** 壳启动时的顺序：先画路由树（根的选项与 `mountApplication` 同一份），再接上取数。 */
+/** The shell's startup order: paint the route tree first (the root's options are the same copy as `mountApplication`), then wire up the fetching. */
 async function mountRouter(r: Loaded) {
   unmounts.push(r.islands.connectApplication(() => {}));
   const root = createRoot(document.createElement('div'), r.ROUTER_ROOT_OPTIONS);
@@ -79,7 +81,7 @@ async function mountRouter(r: Loaded) {
   await act(async () => { r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute)) });
 }
 
-/** 壳 `index.html` 里那个常驻宿主。 */
+/** The resident host inside the shell's `index.html`. */
 function dockHost(): BatchDockHost {
   const root = document.createElement('div');
   root.setAttribute('data-batch-dock', '');
@@ -87,7 +89,7 @@ function dockHost(): BatchDockHost {
   return { root, run: vi.fn() };
 }
 
-/** 照壳的 `loadBatchDock` 接上：交出句柄，再在路由树里打开这一面。 */
+/** Hooks up like the shell's `loadBatchDock`: hands over the handle, then opens this face in the route tree. */
 async function setup() {
   const r = await load();
   await mountRouter(r);
@@ -98,7 +100,7 @@ async function setup() {
   return { r, root: host.root, host, api, render };
 }
 
-/** 收下每一次上报；`console.error` 只静音，不数条数。 */
+/** Accept every report; `console.error` is only muted, not counted. */
 function watchReports() {
   const reported = vi.fn();
   vi.stubGlobal('reportError', reported);
@@ -108,39 +110,39 @@ function watchReports() {
 
 const labels = (root: ParentNode) => [...root.querySelectorAll('[data-selection-dock] button')].map((node) => node.textContent?.trim());
 
-describe('每种语境的键', () => {
-  it('从左到右的顺序，「取消」总在最后，危险操作只有移出与彻底删除', () => {
+describe('Per-context keys', () => {
+  it('Left-to-right order with "Cancel" always last; the only destructive actions are remove and delete permanently', () => {
     const shape = (context: Parameters<typeof batchActions>[0], dismissed = false) =>
       batchActions(context, dismissed).map((action) => `${action.label}${action.danger ? '!' : ''}`);
-    expect(shape('catalog')).toEqual(['喜欢', '看过', '稍后看', '判定产地', '移入回收站!', '取消']);
-    expect(shape('trash')).toEqual(['还原', '彻底删除!', '取消']);
-    expect(shape('junk')).toEqual(['不是垃圾', '移入回收站!', '取消']);
-    expect(shape('junk', true)).toEqual(['重新判断', '移入回收站!', '取消']);
-    expect(shape('follow')).toEqual(['保存到数据库', '标记已看', '忽略', '取消']);
+    expect(shape('catalog')).toEqual(['Like', 'Watched', 'Watch later', 'Decide origin', 'Move to trash!', 'Cancel']);
+    expect(shape('trash')).toEqual(['Restore', 'Delete permanently!', 'Cancel']);
+    expect(shape('junk')).toEqual(['Not junk', 'Move to trash!', 'Cancel']);
+    expect(shape('junk', true)).toEqual(['Judge again', 'Move to trash!', 'Cancel']);
+    expect(shape('follow')).toEqual(['Save to the database', 'Mark as watched', 'Ignore', 'Cancel']);
   });
 
-  it('「忽略」用划掉的眼睛，不借「取消」那枚叉', () => {
+  it('Ignore uses a crossed-out eye, never borrowing the cancel X', () => {
     const glyph = (operation: string) => batchActions('follow').find((action) => action.operation === operation)!.glyph;
     expect([glyph('ignored'), glyph('clear')]).toEqual(['eye-off', 'x']);
   });
 });
 
-describe('浮条', () => {
-  it('没选中时不画，选中后显示计数与这一语境的键，换语境当场换键', async () => {
+describe('Dock', () => {
+  it('Nothing renders when nothing is selected; once selected it shows the count and the key for this context, swapping the key the moment context changes', async () => {
     const { root, render } = await setup();
     expect(root.querySelector('[data-selection-dock]')).toBeNull();
     await render({ count: 2, context: 'trash', junkDismissed: false });
     const shown = root.querySelector('[data-selection-dock]')!;
-    expect(shown.getAttribute('aria-label')).toBe('所选项目操作');
-    expect(shown.querySelector('[role="status"]')!.textContent).toBe('已选 2 项');
-    expect(labels(root)).toEqual(['还原', '彻底删除', '取消']);
+    expect(shown.getAttribute('aria-label')).toBe('Actions for selected items');
+    expect(shown.querySelector('[role="status"]')!.textContent).toBe('Selected 2 items');
+    expect(labels(root)).toEqual(['Restore', 'Delete permanently', 'Cancel']);
     await render({ count: 3, context: 'junk', junkDismissed: true });
-    expect(root.querySelector('[data-selection-dock] [role="status"]')!.textContent).toBe('已选 3 项');
-    expect(labels(root)).toEqual(['重新判断', '移入回收站', '取消']);
+    expect(root.querySelector('[data-selection-dock] [role="status"]')!.textContent).toBe('Selected 3 items');
+    expect(labels(root)).toEqual(['Judge again', 'Move to trash', 'Cancel']);
     expect(root.querySelector('[data-batch-scope]')!.getAttribute('data-context')).toBe('junk');
   });
 
-  it('浮条在的时候 body 挂 data-batch-dock-open 给网格让位，选空就摘', async () => {
+  it('While the dock bar is up, body carries data-batch-dock-open to make room for the grid, removed when the selection empties', async () => {
     const { render } = await setup();
     expect(document.body.hasAttribute('data-batch-dock-open')).toBe(false);
     await render({ count: 2, context: 'catalog', junkDismissed: false });
@@ -149,13 +151,13 @@ describe('浮条', () => {
     expect(document.body.hasAttribute('data-batch-dock-open')).toBe(false);
   });
 
-  it('上千项的计数带千分位', async () => {
+  it('Counts past a thousand get thousands separators', async () => {
     const { root, render } = await setup();
     await render({ count: 12345, context: 'catalog', junkDismissed: false });
-    expect(root.querySelector('[data-selection-dock] [role="status"]')!.textContent).toBe('已选 12,345 项');
+    expect(root.querySelector('[data-selection-dock] [role="status"]')!.textContent).toBe('Selected 12,345 items');
   });
 
-  it('危险键挂 data-danger 读全站那份红，每颗键带自己的 sprite 字形', async () => {
+  it('Danger buttons carry data-danger and use the site-wide red; each button has its own sprite glyph', async () => {
     const { root, render } = await setup();
     await render({ count: 2, context: 'catalog', junkDismissed: false });
     const keys = [...root.querySelectorAll<HTMLButtonElement>('[data-selection-dock] button')];
@@ -164,7 +166,7 @@ describe('浮条', () => {
       .toEqual(['#i-thumbs-up', '#i-eye', '#i-bookmark-plus', '#i-globe', '#i-trash', '#i-x']);
   });
 
-  it('点一颗键把分组、操作与这颗键交回壳', async () => {
+  it('Clicking a key hands the group, action, and that key back to the shell', async () => {
     const { root, host, render } = await setup();
     await render({ count: 1, context: 'catalog', junkDismissed: false });
     const region = root.querySelector<HTMLButtonElement>('[data-batch-action="region"]')!;
@@ -177,47 +179,47 @@ describe('浮条', () => {
   });
 });
 
-describe('常驻组件', () => {
-  it('宿主就是 [data-batch-dock] 本身：组件那层 .peach-react 是它的直接子节点，中间不多包一层', async () => {
+describe('Resident components', () => {
+  it('The host is the [data-batch-dock] element itself: the .peach-react layer of the component is its direct child with no wrapper in between', async () => {
     const { root } = await setup();
     expect([...root.children].map((child) => [child.className, child.getAttribute('data-context')]))
       .toEqual([['peach-react', 'catalog']]);
   });
 
-  it('句柄 render 返回时浮条已经画好，不等下一次渲染', async () => {
+  it('When the handle\'s render returns the dock is already painted, with no wait for the next render', async () => {
     const { root, api } = await setup();
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出句柄自己同步没有。 */
+    /* No act wrapper: act defers flushSync to its end, which hides whether the handle flushed synchronously on its own. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     api.render({ count: 4, context: 'follow', junkDismissed: false });
     const status = root.querySelector('[data-selection-dock] [role="status"]')?.textContent;
     const context = root.querySelector('[data-batch-scope]')?.getAttribute('data-context');
-    expect([status, context]).toEqual(['已选 4 项', 'follow']);
+    expect([status, context]).toEqual(['Selected 4 items', 'follow']);
   });
 
-  it('壳的 loadBatchDock 在这一面画上之后才交出句柄', async () => {
+  it('The shell loadBatchDock hands over the handle only after this face paints', async () => {
     const r = await load();
     await mountRouter(r);
     const host = dockHost();
-    expect(r.islands.batchDockApi(), '常驻组件尚未挂载时没有句柄，应用只记着当前那份').toBeNull();
+    expect(r.islands.batchDockApi(), 'Before resident components mount there is no handle, and the app remembers only the current copy').toBeNull();
     let api: BatchDockApi | null = null;
     await act(async () => { api = await r.islands.loadBatchDock(host) });
     expect(r.islands.batchDockApi()).toBe(api);
     expect(r.managedEntry(host.root)?.path).toBe('batch-dock');
     expect(host.root.querySelector(':scope > [data-batch-scope]')).not.toBeNull();
     await act(async () => { api!.render({ count: 1, context: 'catalog', junkDismissed: false }) });
-    expect(host.root.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('已选 1 项');
+    expect(host.root.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('Selected 1 items');
   });
 
-  it('收起只卸组件，宿主留在文档里', async () => {
+  it('Collapsing unmounts only the component, leaving the host in the document', async () => {
     const { r, root, render } = await setup();
     await render({ count: 2, context: 'catalog', junkDismissed: false });
     await act(async () => { r.releaseManagedRoute(root) });
-    expect(root.isConnected, '宿主是壳的节点').toBe(true);
+    expect(root.isConnected, 'Host is the shell\'s node').toBe(true);
     expect(root.childNodes.length).toBe(0);
     expect(r.managedTaken(root)).toBe(false);
   });
 
-  it('抛错只卸组件、宿主还在，别的面照画；之后句柄是空操作、不抛，这一面空到刷新为止，只报一次', async () => {
+  it('On throw only the component unmounts, the host stays and other faces still paint; afterwards the handle is a no-op that does not throw, this face stays empty until refresh, and the error is reported once', async () => {
     const reported = watchReports();
     const { r, root, api, render } = await setup();
     const menu = document.createElement('div');
@@ -229,20 +231,20 @@ describe('常驻组件', () => {
     dock.broken = true;
     await render({ count: 3, context: 'catalog', junkDismissed: false });
     expect(reported).toHaveBeenCalledTimes(1);
-    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: '浮条画不出来' }));
-    expect(root.isConnected, '宿主是壳的节点，不撤').toBe(true);
-    expect(root.childNodes.length, '组件卸掉了').toBe(0);
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: 'The dock never paints' }));
+    expect(root.isConnected, 'The host is the shell\'s node and never withdraws').toBe(true);
+    expect(root.childNodes.length, 'Component unmounted').toBe(0);
     expect(r.managedTaken(root)).toBe(false);
-    expect(r.managedEntries().map((entry) => entry.path), '别的面照画').toEqual(['glow-picker']);
+    expect(r.managedEntries().map((entry) => entry.path), 'Other faces still drawn').toEqual(['glow-picker']);
 
-    /* 壳照旧每次重画选中态都推一份：不抛、不重开、不再上报。 */
+    /* The shell still pushes a copy on every selected-state repaint: no throw, no reopen, no further reporting. */
     for (const count of [4, 5, 6]) {
       await act(async () => { expect(() => api.render({ count, context: 'trash', junkDismissed: false })).not.toThrow() });
     }
-    expect(reported, '确定性抛错只报那一次').toHaveBeenCalledTimes(1);
+    expect(reported, 'The deterministic throw is reported only once').toHaveBeenCalledTimes(1);
     dock.broken = false;
     await render({ count: 7, context: 'catalog', junkDismissed: false });
-    expect(root.childNodes.length, '空到刷新为止，不自愈').toBe(0);
+    expect(root.childNodes.length, 'Stays empty until refresh, no self-healing').toBe(0);
     expect(r.managedTaken(root)).toBe(false);
   });
 });

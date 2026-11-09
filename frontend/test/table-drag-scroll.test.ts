@@ -6,7 +6,7 @@ afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()); document.bod
 
 function fixture() {
   const viewport = document.createElement('div');
-  viewport.innerHTML = '<table><tbody><tr><td>内容</td><td><button>操作</button><input type="checkbox"><a href="#">链接</a><label>选择</label><div class="react-aria-ColumnResizer"></div></td></tr></tbody></table>';
+  viewport.innerHTML = '<table><tbody><tr><td>Content</td><td><button>Action</button><input type="checkbox"><a href="#">Link</a><label>Select</label><div class="react-aria-ColumnResizer"></div></td></tr></tbody></table>';
   document.body.append(viewport);
   Object.defineProperties(viewport, { clientWidth: { get: () => 200 }, scrollWidth: { get: () => 900 } });
   const control = wireTableScroller(viewport);
@@ -16,12 +16,12 @@ function fixture() {
 
 function mouse(target: EventTarget, type: string, clientX: number, extra: MouseEventInit = {}) {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX, ...extra });
-  // happy-dom 未从 clientX 计算 pageX，夹具补齐浏览器坐标。
+  // happy-dom does not derive pageX from clientX; the fixture fills in the browser coordinates.
   Object.defineProperty(event, 'pageX', { value: clientX });
   target.dispatchEvent(event); return event;
 }
 
-it('拖动表格滚动并拦截拖动产生的点击，普通点击保留', () => {
+it('Dragging scrolls the table and swallows the click the drag produces, while normal clicks are kept', () => {
   const viewport = fixture(), cell = viewport.querySelector('td')!;
   const clicked = vi.fn(); cell.addEventListener('click', clicked);
   mouse(cell, 'mousedown', 180); mouse(window, 'mousemove', 80); mouse(window, 'mouseup', 80);
@@ -32,7 +32,7 @@ it('拖动表格滚动并拦截拖动产生的点击，普通点击保留', () =
   expect(clicked).toHaveBeenCalledOnce();
 });
 
-it('表格控件、列宽手柄和修饰键不触发拖动，滚轮维持浏览器默认行为', () => {
+it('Table controls, column width handles, and modifier keys never trigger dragging; the wheel keeps browser default behavior', () => {
   const viewport = fixture();
   for (const target of viewport.querySelectorAll('button,input,a,label,.react-aria-ColumnResizer')) {
     mouse(target, 'mousedown', 180); mouse(window, 'mousemove', 80); mouse(window, 'mouseup', 80);
@@ -47,7 +47,7 @@ it('表格控件、列宽手柄和修饰键不触发拖动，滚轮维持浏览�
   expect(viewport.scrollLeft).toBe(0);
 });
 
-it('窗口失焦和组件回收均结束拖动', () => {
+it('Both window blur and component teardown end the drag', () => {
   const viewport = fixture(), cell = viewport.querySelector('td')!;
   mouse(cell, 'mousedown', 180); mouse(window, 'mousemove', 150);
   window.dispatchEvent(new Event('blur'));
@@ -58,7 +58,7 @@ it('窗口失焦和组件回收均结束拖动', () => {
   expect(viewport.scrollLeft).toBe(30);
 });
 
-it('在表格外松手后，下一次鼠标或键盘操作可直接激活控件', () => {
+it('After releasing outside the table, the next mouse or keyboard action can activate the control directly', () => {
   const viewport = fixture(), cell = viewport.querySelector('td')!, button = viewport.querySelector('button')!;
   const clicked = vi.fn(); button.addEventListener('click', clicked);
   const dragOutside = () => { mouse(cell, 'mousedown', 180); mouse(window, 'mousemove', 80); mouse(window, 'mouseup', 80) };

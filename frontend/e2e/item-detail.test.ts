@@ -1,9 +1,11 @@
-/* 作品详情岛（`item-detail`）在真浏览器里的行为：从目录卡进出、深链、后退回到详情与刷新后关掉回哪一页、
- * 播放列表换条后关掉回列表页、舞台在媒体框里挂 Video.js、
- * 脱盘说明、共演收起、标题折叠、评分与标签的撤销、反馈键态、四种队列、播放列表排序与移出、保存 Mix、接着看、
- * 实体页入口与手机布局。
+/* The video details island (`item-detail`) in a real browser: entering and leaving from catalog cards, deep links, back to
+ * details and which page closing returns to after refresh, closing back to the list page after a playlist switched entries,
+ * the stage mounting Video.js in the media frame,
+ * offline notice, co-star collapse, title folding, rating and tag undo, feedback key states, the four queues, playlist
+ * ordering and removal, saving a Mix, Continue watching, entity page entries and phone layout.
  *
- * 桩数据见 `item-fixture.ts`；读写接口全部由桩接住，演示库数据库一次都不写。 */
+ * Stub data in `item-fixture.ts`; all read and write endpoints are caught by stubs, and the demo library database is never
+ * written. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -15,20 +17,20 @@ import { CATALOG, EDITIONS, ITEM, NAMES, PARTS, PLAYLIST, RELATED, card as itemC
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 const MOBILE = VIEWPORTS.find((viewport) => viewport.mobile)!;
 const DETAIL_READY = '#stage[open] [data-item-side]';
-/** 主网格卡点标题打开分卷；竖屏带中的同条目卡点标题进入沉浸。 */
+/** In the main grid, a card's title opens volumes; for the same entry in the portrait strip, the title enters immersive. */
 const PART_CARD = `#grid [data-media-card][data-variant="grid"][data-id="${ITEM.part}"] [data-media-text] > button[data-media-title][data-open]`;
-/** 桩里的片源没有正片，播放器拿到空响应会报一条 VIDEOJS 错误；量的不是它。 */
+/** The stub stream has no actual feature; the player reports a VIDEOJS error on the empty response. That is not what is being measured. */
 const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
 const pathIs = (page: Page, path: string) => page.waitForFunction(
   (wanted) => (wanted.includes('?') ? location.pathname + location.search : location.pathname) === wanted, path, { timeout: 10_000 });
-/** 回执栈在 body 下，舞台是模态 dialog，外面整页惰性，鼠标点不到撤销键；这里量的是撤销本身。 */
-const undo = (page: Page) => page.locator('#toasts').getByRole('button', { name: '撤销' }).last().dispatchEvent('click');
+/** The receipt stack sits under body, the stage is a modal dialog, and the page outside is inert, so the mouse cannot reach the undo key; this measures undo itself. */
+const undo = (page: Page) => page.locator('#toasts').getByRole('button', { name: 'Undo' }).last().dispatchEvent('click');
 const current = (page: Page) => page.locator('#stage [data-queue-item][aria-current="true"]').getAttribute('data-queue-item');
 const ids = (page: Page, selector: string, attribute: string) => page.locator(selector).evaluateAll(
   (nodes, name) => nodes.map((node) => Number(node.getAttribute(name))), attribute);
 
 
-/** 换条前记下舞台节点并盯住骨架：原地换条时浮窗还是同一个节点，中途不回骨架，焦点留在浮窗里。 */
+/** Before swapping, record the stage node and keep watching the skeleton: on an in-place swap the overlay stays the same node, never falls back to the skeleton mid-way, and focus stays inside the overlay. */
 const watchStage = (page: Page) => page.evaluate(() => {
   const watch = { stage: document.getElementById('stage'), skeleton: false, heights: [] as number[] };
   const sample = () => {
@@ -43,12 +45,12 @@ const watchStage = (page: Page) => page.evaluate(() => {
 const stageKept = (page: Page) => page.evaluate(() => {
   const watch = (window as unknown as { stageWatch: { stage: Element | null; skeleton: boolean; heights: number[] } }).stageWatch;
   if (Math.max(...watch.heights) - Math.min(...watch.heights) > 1)
-    throw new Error(`作品切换画框高度不稳定：${JSON.stringify(watch.heights)}`);
+    throw new Error(`The watch switch frame height is unstable: ${JSON.stringify(watch.heights)}`);
   return { same: document.getElementById('stage') === watch.stage, skeleton: watch.skeleton,
     focused: !!watch.stage?.contains(document.activeElement) };
 });
 
-describe('作品详情岛', () => {
+describe('Video details island', () => {
   let browser: Browser;
 
   before(async () => {
@@ -59,7 +61,7 @@ describe('作品详情岛', () => {
     await browser.close();
   });
 
-  it('推荐加载保持详情高度稳定，理由与悬停圆角适配默认视口', { timeout: 60_000 }, async () => {
+  it('Recommendation loading keeps details height stable, with reason and hover radius fitting the default viewport', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     let release = () => {};
     try {
@@ -70,14 +72,14 @@ describe('作品详情岛', () => {
       await page.route(url => url.pathname === '/api/related', async route => {
         requested();
         await waiting;
-        await route.fulfill({ json: { items: RELATED.map(id => ({ ...itemCard(id), why: '标签接近' })) } });
+        await route.fulfill({ json: { items: RELATED.map(id => ({ ...itemCard(id), why: 'Similar tags' })) } });
       });
       await page.reload();
       await received;
       const media = page.locator('#stage [data-item-media]');
       const initialHeight = await media.evaluate(node => node.getBoundingClientRect().height);
       release();
-      const reasons = '#stage [data-item-related] [aria-label^="查看推荐理由"]';
+      const reasons = '#stage [data-item-related] [aria-label^="View recommendation reasons"]';
       await page.locator(reasons).first().waitFor();
       const visible = () => page.waitForFunction(selector => {
         const scroll = document.querySelector('#stage [data-stage-scroll]')!;
@@ -100,7 +102,7 @@ describe('作品详情岛', () => {
       assert.equal(shape.outer, shape.inner + 8);
       assert.ok(shape.height < 220, JSON.stringify(shape));
       await page.locator('#stage [data-item-related] h3').evaluate(node => {
-        node.textContent = '接着看 '.repeat(60);
+        node.textContent = 'Continue watching '.repeat(60);
       });
       await visible();
       await page.setViewportSize({ width: 1280, height: 720 });
@@ -109,7 +111,7 @@ describe('作品详情岛', () => {
     } finally { release(); await opened.close() }
   });
 
-  for (const viewport of VIEWPORTS) it(`本地标签选择器复用覆盖式滚动条（${viewport.name}）`, async () => {
+  for (const viewport of VIEWPORTS) it(`The local tag picker reuses the overlay scrollbar (${viewport.name})`, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, viewport);
     try {
       const { page } = opened;
@@ -127,7 +129,7 @@ describe('作品详情岛', () => {
   });
 
   for (const kind of ['parts', 'editions'] as const) for (const count of [1, 2, 3]) {
-    it(`${kind} 队列的 ${count} 张卡按内容分配空间，推荐卡等宽对齐`, { timeout: 60_000 }, async () => {
+    it(`${kind} queue: the ${count} cards get space by content, and recommendation cards align at equal width`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, '/', DESKTOP, { ready: '#grid [data-media-card]' });
       try {
         const page = opened.page;
@@ -156,7 +158,7 @@ describe('作品详情岛', () => {
   }
 
   for (const destination of ['/tasks', '/performers']) {
-    it(`分卷等待响应时后退到 ${destination}：舞台撤回，晚到的响应不能改变地址或历史深度`, { timeout: 60_000 }, async () => {
+    it(`Going back to ${destination} while volumes await a response: the stage withdraws, and a late response cannot change the address or history depth`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, '/', DESKTOP, { ready: PART_CARD, catalogIds: [...CATALOG, ITEM.part] });
       let release = () => {};
       try {
@@ -186,7 +188,7 @@ describe('作品详情岛', () => {
         await requested;
         await page.locator('#stage[open]').waitFor();
         assert.equal(await page.evaluate(() => location.pathname), '/');
-        assert.equal(await page.evaluate(() => history.length), depth, '队列未取齐时没有临时历史条目');
+        assert.equal(await page.evaluate(() => history.length), depth, 'While the queue is incomplete there are no temporary history entries');
         await page.goBack();
         await pathIs(page, destination);
         await page.waitForFunction(() => !document.querySelector('#stage[open]'));
@@ -204,7 +206,7 @@ describe('作品详情岛', () => {
     });
   }
 
-  it('点分卷的同一任务里重放源页 POP：队列意图不取数、不铺舞台、不写条目', { timeout: 60_000 }, async () => {
+  it('Replaying the source page POP in the same task as clicking a volume: the queue intent fetches nothing, lays no stage and writes no entry', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: PART_CARD, catalogIds: [...CATALOG, ITEM.part] });
     try {
       const page = opened.page;
@@ -221,7 +223,7 @@ describe('作品详情岛', () => {
     } finally { await opened.close() }
   });
 
-  it('首次舞台宿主接上时重放源页 POP：包已到货的旧队列请求也不能开舞台', { timeout: 60_000 }, async () => {
+  it('The first stage host attach replays the source page POP: even an old queue request whose package already arrived cannot open the stage', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: PART_CARD, catalogIds: [...CATALOG, ITEM.part] });
     try {
       const page = opened.page;
@@ -248,7 +250,7 @@ describe('作品详情岛', () => {
     } finally { await opened.close() }
   });
 
-  it('目录点卡进详情：地址换成这一条；关掉回列表不重取', { timeout: 60_000 }, async () => {
+  it('Clicking a card in the catalog opens details: the address becomes that item; closing back to the list does not refetch', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     try {
       const page = opened.page;
@@ -276,21 +278,21 @@ describe('作品详情岛', () => {
       const heights = await page.evaluate(() => (window as unknown as { coldCatalogHeights: number[] }).coldCatalogHeights);
       assert.ok(heights.length > 5 && Math.max(...heights) - Math.min(...heights) < 1, JSON.stringify(heights));
       assert.ok((await backgroundPlayState()).split(',').every(state=>state.trim()==='paused'));
-      assert.equal(await page.evaluate(() => document.activeElement?.id), 'closeStage', '内容到了焦点不在关闭键上');
+      assert.equal(await page.evaluate(() => document.activeElement?.id), 'closeStage', 'When content arrives, focus is not on the close button');
       await page.locator('#closeStage').click();
       await pathIs(page, '/');
       await page.locator('#stage[open]').waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
       assert.equal(await page.locator('#stage[open]').count(), 0);
-      assert.equal(await backgroundPlayState(),initialPlayState,'关闭详情恢复背景动画状态');
+      assert.equal(await backgroundPlayState(),initialPlayState,'Closing details restores the background animation state');
       await page.locator(`#grid [data-media-card][data-id="${ITEM.plain}"]`).first().waitFor();
-      assert.equal(opened.stub.reads.get('/api/items') || 0, listed, '关掉详情回列表重取了一遍');
+      assert.equal(opened.stub.reads.get('/api/items') || 0, listed, 'Closing details returns to the list and refetches');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('深链进详情：单条取这一条；关掉之后照地址补画列表', { timeout: 60_000 }, async () => {
+  it('A deep link into details fetches that item singly; closing backfills the list per the address', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -298,14 +300,14 @@ describe('作品详情岛', () => {
       await page.locator('#closeStage').click();
       await pathIs(page, '/');
       await page.locator(`#grid [data-media-card][data-id="${ITEM.plain}"]`).first().waitFor({ timeout: 15_000 });
-      assert.ok((opened.stub.reads.get('/api/items') || 0) >= 1, '深链关掉之后没有补取列表');
+      assert.ok((opened.stub.reads.get('/api/items') || 0) >= 1, 'After the deep link closes, the list is not refetched to catch up');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('后退回到详情再关掉：回到这一条打开时压着的那一页，地址与画面一致', { timeout: 90_000 }, async () => {
+  it('Going back to details then closing: it returns to the page this item opened over, with address and picture in agreement', { timeout: 90_000 }, async () => {
     const opened = await openItemPage(browser, '/trash', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     try {
       const page = opened.page;
@@ -337,7 +339,7 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('刷新落在详情上不读条目记的来处：下面补画目录网格，关掉回首页', { timeout: 60_000 }, async () => {
+  it('A refresh landing on details does not read the origin recorded on the entry: the catalog grid paints underneath, and closing returns home', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/trash', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     try {
       const page = opened.page;
@@ -356,12 +358,12 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('播放列表里换条再关掉回到列表页并重读；后退回到其中一条再关掉也一样', { timeout: 90_000 }, async () => {
+  it('Switching items in a playlist then closing returns to the list page and refetches; going back to one item then closing does the same', { timeout: 90_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     try {
       const page = opened.page;
       let listed = 0;
-      // 列表摘要反映成功写入的续播点，关闭后卡片与再次打开都应使用它。
+      // The list summary reflects the resume point successfully written; after closing, both the card and reopening should use it.
       await page.route((url) => url.pathname === '/api/playlists', (route) => {
         listed += 1;
         const progress = opened.stub.writes.findLast(write => write.url === '/api/playlist'
@@ -394,7 +396,7 @@ describe('作品详情岛', () => {
         await card.waitFor();
         assert.equal(await page.locator('#stage[open]').count(), 0);
         for (const deadline = Date.now() + 10_000; listed <= before && Date.now() < deadline;) await page.waitForTimeout(50);
-        assert.ok(listed > before, '关掉之后列表页没有重读');
+        assert.ok(listed > before, 'After closing the list page never reread');
         await card.locator(`img[src*="id=${resume}&"]`).first().waitFor();
       };
       await card.waitFor({ timeout: 15_000 });
@@ -412,7 +414,7 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('舞台在媒体框里挂上 Video.js，氛围光画布与统计角标跟它进同一块媒体区', { timeout: 60_000 }, async () => {
+  it('The stage mounts Video.js inside the media frame; the ambient light canvas and stat badge join it in the same media area', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -429,15 +431,15 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('来源不可读取：说明块代替播放器，刷新状态后显示读取结果', { timeout: 60_000 }, async () => {
+  it('Source unreadable: a note block replaces the player, and after a status refresh the read result shows', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.offline}`, DESKTOP);
     try {
       const page = opened.page;
       const gate = page.locator('#stage [data-item-gate="offline"]');
       assert.match(await gate.innerText(), /媒体目录无法访问/);
-      assert.equal(await page.locator('#stage .vjs-tech').count(), 0, '脱盘的条目挂了播放器');
+      assert.equal(await page.locator('#stage .vjs-tech').count(), 0, 'A dead-link entry mounted a player');
       await page.locator('#offlineRetry').click();
-      await page.locator('#offlineRetry', { hasText: '仍无法读取 · 刷新' }).waitFor();
+      await page.locator('#offlineRetry', { hasText: 'Still unreadable · refresh' }).waitFor();
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
@@ -445,7 +447,7 @@ describe('作品详情岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.mobile ? '手机' : '桌面'}来源状态：权限原因可见，未取得状态不判脱盘`, { timeout: 60_000 }, async () => {
+    it(`${viewport.mobile ? 'Phone' : 'Desktop'} source states: permission reasons stay visible, and an unfetched state is never judged a dead link`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, `/assets/${ITEM.offline}`, viewport);
       try {
         const page = opened.page;
@@ -453,7 +455,7 @@ describe('作品详情岛', () => {
         await page.route((url) => url.pathname === '/api/sources', (route) => route.fulfill({ json: {
           sources: [{ location: 'local', online: true }, { location: '115', online,
             state: online === false ? 'permission_denied' : 'timeout',
-            message: online === false ? 'CloudDrive · 115：没有权限读取' : 'CloudDrive · 115：探测未返回' }],
+            message: online === false ? 'CloudDrive · 115: no read permission' : 'CloudDrive · 115: probe did not respond' }],
         } }));
         await page.reload({ waitUntil: 'load' });
         await page.locator(DETAIL_READY).waitFor();
@@ -471,14 +473,14 @@ describe('作品详情岛', () => {
   }
 
   for (const viewport of [DESKTOP, MOBILE]) {
-  it(`${viewport.name}：出演超过 8 位先收起，点「还有 N 位」全部展开`, { timeout: 60_000 }, async () => {
+  it(`${viewport.name}: casts over 8 people collapse first, and clicking "N more people" expands them all`, { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.cast}`, viewport);
     try {
       const page = opened.page;
       const shown = () => page.locator('#stage [data-item-identity] [data-entity-kind="performer"]:visible').count();
       assert.equal(await shown(), 8);
-      assert.equal((await page.locator('#castMore').innerText()).trim(), `还有 ${NAMES.length - 8} 位`);
-      const button = page.getByRole('button', { name: `还有 ${NAMES.length - 8} 位` });
+      assert.equal((await page.locator('#castMore').innerText()).trim(), `${NAMES.length - 8} more`);
+      const button = page.getByRole('button', { name: `${NAMES.length - 8} more` });
       const appearance = await button.evaluate((node) => {
         const style = getComputedStyle(node);
         return { border: style.borderTopStyle, width: parseFloat(style.borderTopWidth),
@@ -496,7 +498,7 @@ describe('作品详情岛', () => {
         return { margin: getComputedStyle(node).marginTop,
           delta: siblings.map((cell) => own.top + own.height / 2 - cell.top - cell.height / 2) };
       });
-      assert.equal(centers.margin, '0px', '展开按钮应在出演名单行内垂直居中');
+      assert.equal(centers.margin, '0px', 'The expand button should vertically center within the cast row');
       assert.ok(centers.delta.every((delta) => Math.abs(delta) < 1), JSON.stringify(centers));
       await button.focus();
       await page.keyboard.press('Enter');
@@ -509,7 +511,7 @@ describe('作品详情岛', () => {
   });
   }
 
-  it('标题折成两行，真溢出才给展开键；展开键与标题文字都能展开，再点收回', { timeout: 60_000 }, async () => {
+  it('The title wraps to two lines and the expand button appears only on real overflow; both the button and the title text expand, and clicking again collapses', { timeout: 60_000 }, async () => {
     const short = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       assert.equal(await short.page.locator('#stage [data-title-fold]').isHidden(), true);
@@ -525,10 +527,10 @@ describe('作品详情岛', () => {
       assert.equal(await fold.isVisible(), true);
       assert.equal(await lines(), 2);
       await fold.click();
-      assert.equal(await fold.getAttribute('aria-label'), '收起标题');
-      assert.ok(await lines() > 2, '展开之后整段标题都在');
+      assert.equal(await fold.getAttribute('aria-label'), 'Collapse title');
+      assert.ok(await lines() > 2, 'After expanding the whole title is there');
       await title.click();
-      assert.equal(await fold.getAttribute('aria-label'), '展开标题');
+      assert.equal(await fold.getAttribute('aria-label'), 'Expand title');
       assert.equal(await lines(), 2);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -536,17 +538,17 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('评分：点当前那一颗是撤销评分；回执的撤销写回原分', { timeout: 60_000 }, async () => {
+  it('Rating: clicking the current star clears the rating; the receipt\'s undo writes back the original score', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       const value = page.locator('#detailRating [data-rating-value]');
-      assert.equal((await value.innerText()).trim(), '3 星');
+      assert.equal((await value.innerText()).trim(), '3 stars');
       await page.locator('#detailRating [data-rate="3"]').click();
-      await page.locator('#detailRating [data-rating-value]', { hasText: '未评分' }).waitFor();
+      await page.locator('#detailRating [data-rating-value]', { hasText: 'Unrated' }).waitFor();
       assert.equal(await page.locator('#detailRating [data-on="true"]').count(), 0);
       await undo(page);
-      await page.locator('#detailRating [data-rating-value]', { hasText: '3 星' }).waitFor();
+      await page.locator('#detailRating [data-rating-value]', { hasText: '3 stars' }).waitFor();
       assert.deepEqual(opened.stub.writes.filter((write) => write.url === '/api/feedback').map((write) => write.body), [
         { id: ITEM.plain, kind: 'rate', value: 0 },
         { id: ITEM.plain, kind: 'rate', value: 60 },
@@ -557,26 +559,26 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('标签：删一枚再撤销回来；从选择器新建一枚', { timeout: 60_000 }, async () => {
+  it('Tags: delete one and undo it back; create a new one from the selector', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       const tag = (name: string) => page.locator(`#detailTags [data-tag="${name}"]`);
-      await page.locator('#detailTags [data-remove-tag="剧情"]').click();
-      await tag('剧情').waitFor({ state: 'detached' });
+      await page.locator('#detailTags [data-remove-tag="Drama"]').click();
+      await tag('Drama').waitFor({ state: 'detached' });
       await undo(page);
-      await tag('剧情').waitFor();
+      await tag('Drama').waitFor();
       await page.locator('#tagPlus').click();
       await page.locator('#tagPicker:not([hidden])').waitFor();
-      await page.locator('#tagPickSearch').fill('新建的标签');
-      await page.locator('#tagPicker [data-pick="新建的标签"]', { hasText: '新建“新建的标签”' }).waitFor();
+      await page.locator('#tagPickSearch').fill('The newly created tag');
+      await page.locator('#tagPicker [data-pick="New tag"]', { hasText: 'Created "New tag"' }).waitFor();
       await page.locator('#tagPickSearch').press('Enter');
-      await tag('新建的标签').waitFor();
-      assert.equal(await page.locator('#tagPicker').isHidden(), true, '加完标签选择器没有收起');
+      await tag('The newly created tag').waitFor();
+      assert.equal(await page.locator('#tagPicker').isHidden(), true, 'After adding a tag the picker never collapsed');
       assert.deepEqual(opened.stub.writes.filter((write) => write.url === '/api/item-tag').map((write) => write.body), [
-        { id: ITEM.plain, operation: 'remove', tag: '剧情' },
-        { id: ITEM.plain, operation: 'add', tag: '剧情' },
-        { id: ITEM.plain, operation: 'add', tag: '新建的标签' },
+        { id: ITEM.plain, operation: 'remove', tag: 'Drama' },
+        { id: ITEM.plain, operation: 'add', tag: 'Drama' },
+        { id: ITEM.plain, operation: 'add', tag: 'The newly created tag' },
       ]);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -585,7 +587,7 @@ describe('作品详情岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name}详情动作保持单行，提示显示在浮窗顶层`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} details actions stay on one line with tooltips on the popover's top layer`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, viewport);
       try {
         const page = opened.page;
@@ -612,7 +614,7 @@ describe('作品详情岛', () => {
     });
   }
 
-  it('稍后看与反馈键：写完键态跟着服务端的回话变', { timeout: 60_000 }, async () => {
+  it('Watch later and feedback keys: after writing, the key state follows the server\'s response', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -622,7 +624,7 @@ describe('作品详情岛', () => {
       await page.locator('#stage [data-kind="dislike"][aria-pressed="true"]').waitFor();
       await page.locator('#stage [data-kind="seen"]').click();
       await page.locator('#stage [data-kind="seen"][aria-pressed="true"]').waitFor();
-      assert.equal(await page.locator('#stage [data-kind="dislike"]').getAttribute('aria-pressed'), 'false', '看过与不合口味同时亮着');
+      assert.equal(await page.locator('#stage [data-kind="dislike"]').getAttribute('aria-pressed'), 'false', 'Watched and not-my-taste glow at the same time');
       assert.deepEqual(opened.stub.writes.map((write) => [write.url, write.body.kind ?? null]), [
         ['/api/watch-later', null], ['/api/feedback', 'dislike'], ['/api/feedback', 'seen'],
       ]);
@@ -633,18 +635,18 @@ describe('作品详情岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name}完整文件与修复分卷共用一张卡，版本队列只续播同版下一卷`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} full files and repaired volumes share one card, and the edition queue only continues into the next volume of the same edition`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, '/', viewport, { catalogIds: [ITEM.edition], ready: '#grid [data-media-card]' });
       try {
         const page = opened.page;
         const full = await page.evaluate(async id => (await fetch(`/api/item?id=${id}`)).json(), ITEM.edition);
         const repair = await page.evaluate(async () => (await fetch('/api/item?id=32')).json());
-        const edition_group = { key: 'PCH-031', seed_id: 31, count: 2, editions: ['1080p', '4K 修复'] };
+        const edition_group = { key: 'PCH-031', seed_id: 31, count: 2, editions: ['1080p', '4K repair'] };
         const part_group = { key: 'PCH-031:32', seed_id: 32, count: 2 };
         const files = [
           { ...full, edition_group, edition_label: '1080p', version_id: 31 },
-          { ...repair, edition_group, part_group, edition_label: '4K 修复', version_id: 32, part_label: '1' },
-          { ...repair, id: 33, edition_group, part_group, edition_label: '4K 修复', version_id: 32, part_label: '2' },
+          { ...repair, edition_group, part_group, edition_label: '4K repair', version_id: 32, part_label: '1' },
+          { ...repair, id: 33, edition_group, part_group, edition_label: '4K repair', version_id: 32, part_label: '2' },
         ];
         await page.route(url => url.pathname === '/api/item', route => {
           const file = files.find(row => row.id === Number(new URL(route.request().url()).searchParams.get('id')));
@@ -659,12 +661,12 @@ describe('作品详情岛', () => {
         const card = page.locator('#grid [data-media-card][data-variant="grid"]');
         await card.first().waitFor();
         assert.equal(await card.count(), 1);
-        assert.deepEqual(await card.locator('[data-media-group]').allTextContents(), ['2 个版本']);
+        assert.deepEqual(await card.locator('[data-media-group]').allTextContents(), ['2 editions']);
         await card.locator('[data-media-title]').click();
         await pathIs(page, '/assets/33?editions=31');
         await page.locator('#stage [data-queue-item="33"][aria-current="true"]').waitFor();
         assert.equal(await page.locator('#stage [data-queue-item]').count(), 3);
-        assert.equal(await page.locator('#stage').getByText('2 个版本', { exact: true }).count(), 1);
+        assert.equal(await page.locator('#stage').getByText('2 editions', { exact: true }).count(), 1);
         await page.locator('#stage [data-queue-item="32"]').click();
         await page.locator('#stage [data-queue-item="32"][aria-current="true"]').waitFor();
         await page.locator('#stage video.vjs-tech').dispatchEvent('ended');
@@ -683,11 +685,11 @@ describe('作品详情岛', () => {
 
   for (const [kind, path, next, wanted] of [
     ['Mix', `/assets/${ITEM.plain}?mix=${ITEM.plain}`, 14, `/assets/14?mix=${ITEM.plain}`],
-    ['分卷', `/assets/22?parts=${ITEM.part}`, 23, `/assets/23?parts=${ITEM.part}`],
-    ['版本', `/assets/${ITEM.edition}?editions=${ITEM.edition}`, 32, `/assets/32?editions=${ITEM.edition}`],
-    ['播放列表', `/assets/11?playlist=${PLAYLIST.id}`, 15, `/assets/15?playlist=${PLAYLIST.id}`],
+    ['Volumes', `/assets/22?parts=${ITEM.part}`, 23, `/assets/23?parts=${ITEM.part}`],
+    ['Editions', `/assets/${ITEM.edition}?editions=${ITEM.edition}`, 32, `/assets/32?editions=${ITEM.edition}`],
+    ['Playlists', `/assets/11?playlist=${PLAYLIST.id}`, 15, `/assets/15?playlist=${PLAYLIST.id}`],
   ] as const) {
-    it(`${kind}队列：深链停在给的那一条，点另一条原地换过去且不重取队列`, { timeout: 60_000 }, async () => {
+    it(`${kind} queue: a deep link lands on the given item, clicking another swaps in place without refetching the queue`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, path, DESKTOP);
       try {
         const page = opened.page;
@@ -698,14 +700,14 @@ describe('作品详情岛', () => {
         await pathIs(page, wanted);
         await page.locator(`#stage [data-queue-item="${next}"][aria-current="true"]`).waitFor();
         await page.locator(DETAIL_READY).waitFor();
-        assert.deepEqual(await stageKept(page), { same: true, skeleton: false, focused: true }, `${kind}队列换一条重开了浮窗`);
-        if (kind === '分卷') assert.match(await page.locator('#stage [data-detail-title]').innerText(), /第 3 卷/);
+        assert.deepEqual(await stageKept(page), { same: true, skeleton: false, focused: true }, `Switching items in the ${kind} queue reopened the popover`);
+        if (kind === 'Volumes') assert.match(await page.locator('#stage [data-detail-title]').innerText(), /第 3 卷/);
         for (const url of ['/api/parts', '/api/editions', '/api/related']) {
-          assert.equal(opened.stub.reads.get(url) || 0, reads.get(url) || 0, `同一个${kind}队列里换一条又取了 ${url}`);
+          assert.equal(opened.stub.reads.get(url) || 0, reads.get(url) || 0, `Switching items within the same ${kind} queue fetched ${url} again`);
         }
-        if (kind === '播放列表') {
+        if (kind === 'Playlists') {
           assert.deepEqual(opened.stub.writes.filter((write) => write.body.action === 'progress').map((write) => write.body.asset_id),
-            [11, next], '播放列表没有记下续播位置');
+            [11, next], 'The playlist does not save the resume position');
         }
         assert.deepEqual(withoutPlayer(opened.problems), []);
       } finally {
@@ -714,7 +716,7 @@ describe('作品详情岛', () => {
     });
   }
 
-  it('播放列表：拖动换顺序、移出一条，两者都能撤销', { timeout: 60_000 }, async () => {
+  it('Playlist: drag to reorder and remove an item, both undoable', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/11?playlist=${PLAYLIST.id}`, DESKTOP);
     try {
       const page = opened.page;
@@ -744,19 +746,19 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('保存 Mix：确认之后转去新建的那份播放列表', { timeout: 60_000 }, async () => {
+  it('Save Mix: after confirming, go to the newly created playlist', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}?mix=${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       await page.locator('#stage [data-save-mix]').click();
-      await page.locator('[name="name"]').fill('我的 Mix');
+      await page.locator('[name="name"]').fill('My Mix');
       await page.locator('[data-modal-confirm]').click();
       await page.waitForFunction(() => location.pathname.startsWith('/assets/') && new URLSearchParams(location.search).get('playlist') === '8', undefined, { timeout: 10_000 });
       await page.locator('#stage [data-queue-row]').first().waitFor();
       assert.deepEqual(await ids(page, '#stage [data-queue-row]', 'data-queue-row'), [ITEM.plain, ...RELATED]);
       const created = opened.stub.writes.find((write) => write.body.action === 'create')!;
       assert.deepEqual(created.body, {
-        action: 'create', name: '我的 Mix', asset_ids: [ITEM.plain, ...RELATED], source_kind: 'mix',
+        action: 'create', name: 'My Mix', asset_ids: [ITEM.plain, ...RELATED], source_kind: 'mix',
         source_seed_asset_id: ITEM.plain,
       });
       assert.deepEqual(withoutPlayer(opened.problems), []);
@@ -765,7 +767,7 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('接着看：一排卡按相关作品的顺序；点一张原地换到那一条', { timeout: 60_000 }, async () => {
+  it('Continue watching: one row of cards in related-video order; clicking one swaps to it in place', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -780,14 +782,14 @@ describe('作品详情岛', () => {
         return !!now && (now as HTMLElement).innerText !== title;
       }, before, { timeout: 10_000 });
       await page.locator(DETAIL_READY).waitFor();
-      assert.deepEqual(await stageKept(page), { same: true, skeleton: false, focused: true }, '接着看换一条重开了浮窗');
+      assert.deepEqual(await stageKept(page), { same: true, skeleton: false, focused: true }, 'Continue watching reopened the popover when switching items');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('点女优进她的实体页，舞台收起', { timeout: 60_000 }, async () => {
+  it('Clicking a performer opens her entity page and collapses the stage', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -809,7 +811,7 @@ describe('作品详情岛', () => {
     }
   });
 
-  it('取不到这一条：播放器格照 16:9 撑开，重试提示居中，不塌成一条窄条', { timeout: 60_000 }, async () => {
+  it('Item unavailable: the player box still fills at 16:9 with a centered retry note instead of collapsing into a thin strip', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -821,14 +823,14 @@ describe('作品详情岛', () => {
         const note = document.querySelector('#stage [data-item-placeholder] [data-media-error]')!.getBoundingClientRect();
         return { ratio: frame.width / frame.height, offset: Math.abs((note.top + note.bottom) / 2 - (frame.top + frame.bottom) / 2) };
       });
-      assert.ok(Math.abs(box.ratio - 16 / 9) < 0.02, `播放器格不是 16:9：${JSON.stringify(box)}`);
-      assert.ok(box.offset < 2, `提示没有竖直居中：${JSON.stringify(box)}`);
+      assert.ok(Math.abs(box.ratio - 16 / 9) < 0.02, `The player box is not 16:9: ${JSON.stringify(box)}`);
+      assert.ok(box.offset < 2, `The tooltip is not vertically centered: ${JSON.stringify(box)}`);
     } finally {
       await opened.close();
     }
   });
 
-  it('长标签单行省略，高度和别的标签一样', { timeout: 60_000 }, async () => {
+  it('Long tags ellipsize on one line at the same height as other tags', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, MOBILE);
     try {
       const page = opened.page;
@@ -838,15 +840,15 @@ describe('作品详情岛', () => {
         tag.textContent = 'customer-feedback-from-enterprise-onboarding-customer-feedback-from-enterprise-onboarding';
         return { before, after: tag.getBoundingClientRect().height, wide: tag.scrollWidth > tag.clientWidth };
       });
-      assert.equal(heights.after, heights.before, `长标签折行了：${JSON.stringify(heights)}`);
-      assert.equal(heights.wide, true, '长标签应当被省略');
-      assert.deepEqual((await layout(page)).offenders, [], '长标签撑出视口');
+      assert.equal(heights.after, heights.before, `A long tag wrapped: ${JSON.stringify(heights)}`);
+      assert.equal(heights.wide, true, 'Long tags should be ellipsized');
+      assert.deepEqual((await layout(page)).offenders, [], 'A long tag stretches past the viewport');
     } finally {
       await opened.close();
     }
   });
 
-  it('桩片源的连续解码错误不消耗真实诊断预算，其他错误继续下传', { timeout: 60_000 }, async () => {
+  it('Consecutive decode errors from a stub source never consume the real diagnosis budget; other errors keep passing through', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const forwarded: unknown[] = [];
@@ -855,36 +857,36 @@ describe('作品详情岛', () => {
         return route.fulfill({ json: { recorded: false } });
       });
       const replies = await opened.page.evaluate(async () => {
-        const send = async (kind: string, source_route: string, message = '夹具错误') => (await fetch('/api/diagnostics/client-error', {
+        const send = async (kind: string, source_route: string, message = 'Fixture error') => (await fetch('/api/diagnostics/client-error', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ kind, message, playback: { source_route } }),
         })).json();
-        const ambient = await send('media', '/stream', '并发播放器错误');
+        const ambient = await send('media', '/stream', 'Concurrent player errors');
         const media = await Promise.all(Array.from({ length: 21 }, () => send('media', '/stream')));
         return { ambient, media, other: await send('error', '/stream'), external: await send('media', '/external') };
       });
       assert.deepEqual(replies.ambient, { recorded: true });
       assert.deepEqual(replies.media, Array.from({ length: 21 }, () => ({ recorded: true })));
-      assert.equal(opened.stub.mediaErrors.filter((sent) => sent.message === '夹具错误').length, 21);
+      assert.equal(opened.stub.mediaErrors.filter((sent) => sent.message === 'Fixture error').length, 21);
       assert.deepEqual(replies.other, { recorded: false });
       assert.deepEqual(replies.external, { recorded: false });
       assert.deepEqual(forwarded, [
-        { kind: 'error', message: '夹具错误', playback: { source_route: '/stream' } },
-        { kind: 'media', message: '夹具错误', playback: { source_route: '/external' } },
+        { kind: 'error', message: 'Fixture error', playback: { source_route: '/stream' } },
+        { kind: 'media', message: 'Fixture error', playback: { source_route: '/external' } },
       ]);
     } finally { await opened.close() }
   });
 
-  it('手机 390：详情不横向溢出，侧栏排在播放区下面', { timeout: 60_000 }, async () => {
+  it('Phone 390: details never overflow horizontally, and the sidebar sits below the playback area', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, MOBILE);
     try {
       const page = opened.page;
-      assert.deepEqual((await layout(page)).offenders, [], '详情里有元素越出视口右边');
+      assert.deepEqual((await layout(page)).offenders, [], 'An element in details overflows the viewport right edge');
       const boxes = await page.evaluate(() => ({
         media: document.querySelector('#stage [data-item-media]')!.getBoundingClientRect().bottom,
         side: document.querySelector('#stage [data-item-side]')!.getBoundingClientRect().top,
       }));
-      assert.ok(boxes.side >= boxes.media - 1, `侧栏不在播放区下面：${JSON.stringify(boxes)}`);
+      assert.ok(boxes.side >= boxes.media - 1, `The sidebar is not under the playback area: ${JSON.stringify(boxes)}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();

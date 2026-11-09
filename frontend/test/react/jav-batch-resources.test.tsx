@@ -7,9 +7,9 @@ import { buttonNamed, click, mount, settle } from './render';
 
 notifyManager.setScheduler(notify => notify());
 afterEach(() => { queryClient.clear(); localStorage.clear() });
-const works = [1, 2].map(id => ({ id, code: `DEMO-00${id}`, title: `作品 ${id}` } as Discovery));
+const works = [1, 2].map(id => ({ id, code: `DEMO-00${id}`, title: `Video ${id}` } as Discovery));
 
-it('批量查找逐番号取资源，沿用下载配置，查看不会自动提交下载', async () => {
+it('Bulk search fetches resources code by code, reusing the download configuration; viewing never submits a download by itself', async () => {
   const fetcher = vi.fn(async (url: string, _init?: RequestInit) => ({ ok: true, status: 200, json: async () =>
     url.startsWith('/api/downloads') ? { available: true, providers: [], tasks: [] }
       : { state: 'ready', items: [], error: '', checked_at: null } }));
@@ -22,18 +22,18 @@ it('批量查找逐番号取资源，沿用下载配置，查看不会自动提�
   ]));
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
   expect(document.querySelectorAll('[data-want-magnets]')).toHaveLength(2);
-  await click(document.querySelector('button[aria-label="关闭批量资源查找"]'));
+  await click(document.querySelector('button[aria-label="Close bulk resource search"]'));
   expect(close).toHaveBeenCalledOnce();
 });
 
-it('下载配置失败显示原因，资源查询仍独立返回', async () => {
+it('When the download configuration fails it shows the reason; the resource query still returns independently', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: !url.startsWith('/api/downloads'),
     status: url.startsWith('/api/downloads') ? 503 : 200,
-    json: async () => url.startsWith('/api/downloads') ? { error: '服务暂不可用' }
+    json: async () => url.startsWith('/api/downloads') ? { error: 'The service is temporarily unavailable' }
       : { state: 'ready', items: [], error: '', checked_at: null } })));
   await mount(<QueryClientProvider client={queryClient}><JavBatchResources items={[works[0]!]} close={vi.fn()} readOnly={false} receipt={vi.fn()} /></QueryClientProvider>);
   await settle();
-  expect(document.body.textContent).toContain('下载配置未取得');
-  expect(document.body.textContent).toContain('服务暂不可用');
-  expect(buttonNamed('添加下载')).toBeNull();
+  expect(document.body.textContent).toContain('Download configuration not obtained');
+  expect(document.body.textContent).toContain('Find resources for the selection · 1 部\'Download configuration not obtained:\'The Peach service is temporarily unavailable; please retry later.DEMO-001Video 1Resource linksQuery againNo resource links found yet.');
+  expect(buttonNamed('Add download')).toBeNull();
 });

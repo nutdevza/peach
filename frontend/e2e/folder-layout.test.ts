@@ -3,13 +3,13 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, settle, VIEWPORTS, visit } from './harness.ts';
 
-describe('文件夹反馈与滚动边界', () => {
+describe('Folder feedback and scroll boundaries', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
-  it('224px 目录栏里的短提示和重试在同一行，失败不显示空目录', async () => {
-    let message = '演示回放未取得';
+  it('In the 224px catalog rail the short hint and retry share one row, and a failure never shows an empty catalog', async () => {
+    let message = 'The demo replay could not be fetched';
     const opened = await visit(browser, '/?browse=folders', VIEWPORTS[0]!, async page => {
       await page.route(url => url.pathname === '/api/folders', route => route.fulfill({
         status: 503, json: { message },
@@ -27,7 +27,7 @@ describe('文件夹反馈与滚动边界', () => {
       assert.ok(bounds.button.top < bounds.text.bottom, JSON.stringify(bounds));
       assert.equal(await opened.page.locator('#catalogFoldersTree [role="alert"]').count(), 0);
       assert.equal(await opened.page.locator('#catalogFoldersTree [data-empty-state]').count(), 0);
-      message = '目录读取失败，请检查媒体库来源是否可用，然后重新读取文件夹。';
+      message = 'Failed to read the catalog. Check that the media library source is available, then read the folders again.';
       await opened.page.reload({ waitUntil: 'load' });
       await note.waitFor();
       await note.evaluate(element => { element.style.width = '224px' });
@@ -40,24 +40,24 @@ describe('文件夹反馈与滚动边界', () => {
     } finally { await opened.close() }
   });
 
-  it('手机目录弹窗接管同一错误提示，关闭后恢复正文的重试入口', async () => {
+  it('The phone catalog dialog takes over the same error note, and closing restores the body\'s retry entry', async () => {
     const opened = await visit(browser, '/?browse=folders', VIEWPORTS[1]!, async page => {
-      await page.route(url => url.pathname === '/api/folders', route => route.fulfill({ status: 503, json: { message: '目录读取失败' } }));
+      await page.route(url => url.pathname === '/api/folders', route => route.fulfill({ status: 503, json: { message: 'Directory read failed' } }));
     });
     try {
       const { page } = opened;
       await page.locator('#catalogFolderHeader [role="alert"]').waitFor();
-      await page.getByRole('button', { name: '打开文件夹目录', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: '文件夹目录', exact: true });
+      await page.getByRole('button', { name: 'Open the folder view', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Folder view', exact: true });
       await dialog.getByRole('alert').waitFor();
       assert.equal(await page.locator('#catalogFolderHeader [role="alert"]').count(), 0);
-      await dialog.getByRole('button', { name: '立即重试', exact: true }).click();
-      await dialog.getByRole('button', { name: '关闭文件夹目录', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Retry now', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Close the folder view', exact: true }).click();
       await page.locator('#catalogFolderHeader [role="alert"]').waitFor();
     } finally { await opened.close() }
   });
 
-  it('224px 目录空态标题完整占一行', async () => {
+  it('At 224px the catalog empty-state title fills its line completely', async () => {
     const opened = await visit(browser, '/?browse=folders', VIEWPORTS[0]!, async page => {
       await page.route(url => url.pathname === '/api/folders', route => route.fulfill({ json: {
         roots: [], children: [], ancestors: [], matches: [], selected: null,
@@ -74,10 +74,10 @@ describe('文件夹反馈与滚动边界', () => {
     } finally { await opened.close() }
   });
 
-  it('目录树在矮窗口里可滚到首尾，页面滚动不遮挡目录', async () => {
+  it('The folder tree scrolls to both ends in short windows, and page scrolling never covers it', async () => {
     const roots = Array.from({ length: 45 }, (_, i) => ({
-      id: `root-${i}`, name: `演示目录 ${String(i + 1).padStart(2, '0')}`, location: 'local',
-      path: `R:\\演示\\${i}`, parent: null, root: `root-${i}`, videos: 1, files: 1, has_children: false,
+      id: `root-${i}`, name: `Demo catalog ${String(i + 1).padStart(2, '0')}`, location: 'local',
+      path: `R:\\demo\\${i}`, parent: null, root: `root-${i}`, videos: 1, files: 1, has_children: false,
     }));
     const opened = await visit(browser, '/?browse=folders', { ...VIEWPORTS[0]!, height: 560 }, async page => {
       await page.route(url => url.pathname === '/api/folders', route => route.fulfill({ json: {
@@ -89,7 +89,7 @@ describe('文件夹反馈与滚动边界', () => {
       const { page } = opened;
       await page.locator('#catalogFoldersTree [role="treegrid"]').waitFor();
       await settle(page, '#catalogFolderHeader');
-      // 头像排取回之前先画两排占位；这份数据里没有人，取回后两排收起，目录栏才是量的那个高度。
+      // Two placeholder rows paint before the avatar rows come back; this fixture has no people, so both rows collapse after the fetch and the catalog bar holds the measured height.
       await page.locator('[data-catalog-root]:not([data-loading])').waitFor();
       for (const position of [0, 600, Number.MAX_SAFE_INTEGER, 0]) {
         await page.evaluate(async y => { scrollTo(0, y); await new Promise(requestAnimationFrame) }, position);

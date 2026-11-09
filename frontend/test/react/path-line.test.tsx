@@ -1,4 +1,4 @@
-/* 印着本机路径的那一行：递出去的是哪一串，弹窗不在这台机器上时怎么回执，开不了怎么说。 */
+/* The line carrying the local path: which string gets handed over, how to respond when the dialog is not on this machine, and what to say when it cannot open. */
 import { expect, it, vi } from 'vitest';
 
 import { PathLine } from '../../src/react/components/path-line';
@@ -7,48 +7,48 @@ import { click, fetchMock, mount, sentBody } from './render';
 
 const LOG = 'C:\\peach-data\\state\\library-processing-one.issues.jsonl';
 
-it('定位请求只递这条路径，成功回执一句', async () => {
+it('Locate requests submit only this path, with one receipt line on success', async () => {
   const fetcher = fetchMock(200, { ok: true, path: LOG });
   vi.stubGlobal('fetch', fetcher);
   const revealed = vi.fn();
-  const host = await mount(<PathLine path={LOG} prefix="完整记录：" onRevealed={revealed} />);
+  const host = await mount(<PathLine path={LOG} prefix="Full log:" onRevealed={revealed} />);
 
-  expect(host.textContent).toContain(`完整记录：${LOG}`);
-  await click(host.querySelector('button[aria-label="在资源管理器中显示"]'));
+  expect(host.textContent).toContain(`Full record: ${LOG}`);
+  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
 
   expect(fetcher.mock.calls[0]?.[0]).toBe('/api/reveal');
   expect(sentBody(fetcher)).toEqual({ path: LOG });
-  /* 资源管理器弹在跑 Peach 那台机器上：从别的设备看这一页时，屏幕上不会有任何动静。 */
-  expect(revealed).toHaveBeenCalledWith('已在资源管理器中显示');
+  /* The file explorer pops up on the machine running Peach: viewed from another device, nothing happens on screen. */
+  expect(revealed).toHaveBeenCalledWith('Revealed in File Explorer');
 });
 
-it('开不了时原因留在路径旁边，不冒充成功的回执', async () => {
-  vi.stubGlobal('fetch', fetchMock(410, { error: 'file missing', message: '这个位置已经不在了' }));
+it('When it cannot open, the reason stays next to the path instead of faking a success receipt', async () => {
+  vi.stubGlobal('fetch', fetchMock(410, { error: 'file missing', message: 'This position no longer exists' }));
   const revealed = vi.fn();
   const host = await mount(<PathLine path={LOG} onRevealed={revealed} />);
 
-  await click(host.querySelector('button[aria-label="在资源管理器中显示"]'));
+  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
 
-  expect(host.textContent).toContain('这个位置已经不在了');
+  expect(host.textContent).toContain('This position no longer exists');
   expect(revealed).not.toHaveBeenCalled();
 });
 
-/* 403 在全站错误映射里有一句通用的「当前设备没有权限」，越界的路径不是那回事；
-   服务端自带的那句中文要能盖过它，否则人会去换一台电脑重试。 */
-it('服务端不认这条路径时照直说，不落进通用的权限说法', async () => {
+/* 403 has a generic "this device has no permission" line in the site-wide error mapping, but an out-of-bounds path is not that;
+   the server's own bundled message must be able to override it, otherwise the person will go retry on another computer. */
+it('When the server rejects this path it says so plainly instead of hiding behind a generic permissions line', async () => {
   vi.stubGlobal('fetch', fetchMock(403, {
-    error: 'path not in the data root', message: '这个位置不归 Peach 管，只能自己打开',
+    error: 'path not in the data root', message: 'This location is not managed by Peach and can only be opened manually',
   }));
   const host = await mount(<PathLine path={'C:\\Windows'} />);
 
-  await click(host.querySelector('button[aria-label="在资源管理器中显示"]'));
+  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
 
-  expect(host.textContent).toContain('这个位置不归 Peach 管，只能自己打开');
+  expect(host.textContent).toContain('This location is not managed by Peach and can only be opened manually');
 });
 
-it('路径和那颗键排在同一条中线上', async () => {
-  // 键比这行小字高一截，顶对齐时它自己看着往上飘。
-  const host = await mount(<PathLine path={LOG} prefix="完整记录：" />);
+it('The path and that key share one midline', async () => {
+  // The key is taller than this small text, so when top-aligned it looks like it floats upward.
+  const host = await mount(<PathLine path={LOG} prefix="Full log:" />);
 
   expect(host.querySelector('p')!.parentElement!.className).toContain('items-center');
 });

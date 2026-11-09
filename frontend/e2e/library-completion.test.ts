@@ -7,16 +7,16 @@ import type { Browser } from 'playwright-core';
 import { launch, layout, requiredEnv, VIEWPORTS } from './harness.ts';
 import { openItemPage } from './item-fixture.ts';
 
-// 暂无预览只表示图片尚未生成，媒体仍复用测试服务提供的有效短片。
+// 'No preview yet' only means the image has not been generated; the media still reuses the valid short clip the test service provides.
 const itemId = Number(requiredEnv('PEACH_E2E_ITEM'));
 
-describe('缺预览时的统一补全入口', () => {
+describe('The unified completion entry when previews are missing', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：菜单可用且不溢出，补全结束后卡面显示预览`, async () => {
+    it(`${viewport.name}: the menu works without overflowing, and the card face shows the preview once completion finishes`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-media-card]' });
       const { page } = opened;
       try {
@@ -25,7 +25,7 @@ describe('缺预览时的统一补全入口', () => {
         let pendingStage = '';
         const posts: Record<string, unknown>[] = [];
         await page.route(url => url.pathname === '/api/items', route => route.fulfill({ json: {
-          items: [{ id: itemId, name: '没有预览的本地影片.mp4', medium: 'video', location: 'local',
+          items: [{ id: itemId, name: 'Local video with no preview.mp4', medium: 'video', location: 'local',
             has_thumb: complete, has_local_poster: complete, size: 12345, duration: 3600 }],
           total: 1, has_more: false,
         } }));
@@ -59,37 +59,37 @@ describe('缺预览时的统一补全入口', () => {
           assert.ok(Math.abs(placement.action.left - placement.text.left) < 1, JSON.stringify(placement));
         } else {
           assert.ok(placement.action.left >= placement.text.right + 8,
-            `宽容器中按钮应位于说明右侧：${JSON.stringify(placement)}`);
+            `In wide containers the button should sit to the right of the description: ${JSON.stringify(placement)}`);
           assert.ok(placement.action.top < placement.text.bottom,
-            `宽容器中按钮不应另起一行：${JSON.stringify(placement)}`);
+            `In a wide container the button should not wrap to a new line: ${JSON.stringify(placement)}`);
           const textCenter = placement.text.top + placement.text.height / 2;
           const actionCenter = placement.action.top + placement.action.height / 2;
           assert.ok(Math.abs(textCenter - actionCenter) <= 1,
-            `说明文字应与按钮垂直居中：${JSON.stringify(placement)}`);
+            `The description text should be vertically centered with the button: ${JSON.stringify(placement)}`);
         }
         await prompt.evaluate(element => { element.style.width = '320px' });
         const narrowText = await prompt.locator('p').boundingBox();
         const narrowAction = await prompt.locator('[data-note-action]').boundingBox();
-        assert.ok(narrowText && narrowText.width >= 280, '窄容器中的提示正文应独占一行宽度');
+        assert.ok(narrowText && narrowText.width >= 280, 'In narrow containers the note body should own the full line width');
         assert.ok(narrowAction && narrowAction.y >= narrowText.y + narrowText.height + 8,
-          '窄容器中按钮应退到说明下方');
+          'In a narrow container the button should drop below the description');
         await prompt.evaluate(element => { element.style.width = '' });
         if (viewport.mobile) {
           const text = await prompt.locator('p').boundingBox();
-          assert.ok(text && text.width >= viewport.width - 80, '手机提示正文应独占一行宽度');
+          assert.ok(text && text.width >= viewport.width - 80, 'The phone notice body should take the full row width');
         }
-        const more = prompt.getByRole('button', { name: '更多同步方式' });
+        const more = prompt.getByRole('button', { name: 'More sync options' });
         await more.focus();
         await page.keyboard.press('Enter');
-        const menu = page.getByRole('dialog', { name: '同步方式' });
+        const menu = page.getByRole('dialog', { name: 'Sync method' });
         await menu.waitFor();
-        assert.deepEqual(await menu.getByRole('button').locator(':scope > span > span:first-child').allTextContents(), ['仅补全影片资料', '仅补全预览图']);
+        assert.deepEqual(await menu.getByRole('button').locator(':scope > span > span:first-child').allTextContents(), ['Complete video details only', 'Complete preview images only']);
         const box = await menu.boundingBox();
         assert.ok(box && box.x >= 0 && box.x + box.width <= viewport.width);
         await page.keyboard.press('Escape');
         await menu.waitFor({ state: 'hidden' });
         await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')
-          === '更多同步方式', null, { timeout: 5_000 });
+          === 'More sync options', null, { timeout: 5_000 });
         for (const dark of [false, true]) {
           await page.evaluate(value => {
             document.documentElement.dataset.theme = value ? 'dark' : 'light';

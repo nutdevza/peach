@@ -1,7 +1,8 @@
-/* `@peach/legacy/ui`（主界面指向 `src/ui-kit/index.ts`）在测试里的替身（vitest.config.ts 里做 alias）。
+/* The test double for `@peach/legacy/ui` (the main UI points at `src/ui-kit/index.ts`) (aliased in vitest.config.ts).
  *
- * 只保留断言真正依赖的结构标记（`data-geist-empty-state`、`geist-note-error`）；要用正式实现的那几样从
- * `src/ui-kit` 转出，与主界面共享源码是同一个模块实例。完整页面的结构和样式由 `frontend/e2e` 使用真实模块验证。 */
+ * Only the structural markers the assertions actually depend on are kept (`data-geist-empty-state`, `geist-note-error`); the
+ * pieces needing the real implementation are re-exported from `src/ui-kit`, sharing source with the main UI as one module
+ * instance. Full pages' structure and styles are verified against the real modules by `frontend/e2e`. */
 export const emptyStateHtml = (
   iconName: string,
   title: string,
@@ -11,19 +12,19 @@ export const emptyStateHtml = (
   + `<div class="ui-es-icon" data-icon="${iconName}"></div>`
   + `<div class="ui-es-copy"><h3>${title}</h3><p>${description}</p></div>${options.actions || ''}</div>`;
 
-// 索引页进页骨架的页头（Tabs 与过滤框）用正式模板。
+// The index page's entry skeleton header (Tabs and the filter box) uses the production template.
 export {boardTabsHtml, formModal, searchInputHtml} from '../../src/ui-kit';
-// 索引骨架复用正式模板，折叠开合、覆盖式滚动条、徽标与读数弹跳、换字、滚动判据与补充信息卡用正式实现。
+// The index skeleton reuses the production template; collapse toggling, overlay scrollbars, badge and stat bounce, text swap, scroll criteria, and the supplementary info card all use the production implementations.
 export {attachOverlayScrollbar, growCollapse, iconSwapHtml, indexSkeletonHtml, popBadges, popCount, revealTexts, scrollMovesAnchor, setCollapseOpen, setIconSwap, swapText, wireContextCard} from '../../src/ui-kit';
-// 设置面板沿用的互斥视图、拉条、锚定菜单与横向滚动层用正式实现。
+// The settings panel reuses the real implementations for the exclusive view, sliders, anchored menus and horizontal scroll layers.
 export {closeAnchoredMenu, dialSliderHtml, iconSwitchHtml, wireAnchoredMenu, wireDialSlider, wireHorizontalScroller, wireIconSwitch} from '../../src/ui-kit';
-// 骨架露面的等待门槛用正式那一个数；管理区的加载态用正式模板，骨架交给整页的淡出用正式实现。
+// The skeleton's visibility wait threshold uses the production number; the manage area's loading state uses the production template, and the skeleton handed to the page-wide fade-out uses the production implementation.
 export {configurationSkeletonHtml, revealSkeleton, SKELETON_REVEAL_DELAY, skeletonHtml} from '../../src/ui-kit';
-// 微光的视口照看与底板动画的撤销用正式实现。
+// The shimmer's viewport tending and the backing animation's undo use the production implementations.
 export {cancelGlide, gateSweep, releaseSweep} from '../../src/ui-kit';
 // 封面格「抓取中」的不定进度圆环用正式模板。
 export {gaugeHtml} from '../../src/ui-kit';
-/* 测试环境没有布局，骨架补齐量不出东西，这里什么都不做。 */
+/* The test environment has no layout and skeleton fill-in measures nothing, so this does nothing. */
 export const fitSkeleton = (_root: Element | null): void => {};
 export const loadingDotsHtml = (label: string): string => `<span>${label}</span>`;
 export {LOAD_MORE_STATUS} from '../../src/ui-kit';
@@ -32,7 +33,7 @@ export const checkboxHtml = (attrs = ''): string => `<span class="ui-pcheck"><in
 export const progressHtml = (label: string, value: number, max = 100): string =>
   `<progress role="progressbar" aria-label="${label}" value="${value}" max="${max}" aria-valuenow="${value}" aria-valuemax="${max}"></progress>`;
 export const confirmModal = async (_options: unknown) => ({confirmed:false});
-/* 菜单开合：测试环境不放动画，退场当场藏起。 */
+/* Menu open and close: no animation in the test environment; the exit hides immediately. */
 export const presentMenu = (menu: HTMLElement): void => { menu.hidden = false };
 export const dismissMenu = (menu: HTMLElement, finish?: () => void): void => {
   if (menu.hidden) return;
@@ -43,11 +44,11 @@ export const dismissMenu = (menu: HTMLElement, finish?: () => void): void => {
 export const MEDIA_SOURCE_ICONS: Record<string,string> = {local:'hard-drive','115':'fixture-115',pikpak:'fixture-pikpak'};
 export const selectOptionIconHtml = (mark?: string): string => mark ? `<i data-source-icon="${mark}"></i>` : '';
 
-// 设置面板的选项、change 与持久化回归使用正式下拉控件。
+// The settings panel's option, change and persistence regressions use the real dropdown control.
 export {selectFieldHtml, wireSelectField} from '../../src/ui-kit';
 export const wireCollapse = (_root: ParentNode, _selector: string, _idPrefix: string): void => {};
-/* 只落位，不动画：jsdom 没有布局，量出来处处是零，那段弹簧也就没有什么可跑的。
-   动作本身由 `frontend/e2e/design-*.test.ts` 在浏览器中验证。 */
+/* Positions land but nothing animates: jsdom has no layout, everything measures zero, and the spring has nothing to run on.
+   The motion itself is verified in the browser by `frontend/e2e/design-*.test.ts`. */
 export const moveGlidePane = (
   pane: HTMLElement,
   _from: unknown,
@@ -69,7 +70,7 @@ export const setActionBusy = (control: Element | null, busy = true): void => {
   }
 };
 
-// 使用正式 Note 验证内部操作。
+// Use the official Note to verify internal operations.
 export {noteHtml} from '../../src/ui-kit';
 
 export const badgeHtml = (text: string): string => `<span class="ui-geist-badge">${text}</span>`;

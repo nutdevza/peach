@@ -5,7 +5,7 @@ import { mountToaster, showToast, unmountToaster } from '../../src/react/toaster
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-// Toaster 全站只挂一次，这份文件里的用例共用同一个栈，各自用不同的 id。
+// The Toaster mounts once site-wide; the tests in this file share one stack, each using distinct ids.
 const host = document.createElement('div');
 beforeAll(async () => {
   document.body.append(host);
@@ -16,34 +16,34 @@ afterAll(async () => { await act(async () => unmountToaster()); host.remove(); }
 const toastsWith = (text: string) => [...host.querySelectorAll<HTMLElement>('[data-sonner-toast]')]
   .filter((node) => node.textContent?.includes(text));
 
-it('撤销的结果写回同一条，栈里不另起一条', async () => {
+it('Undo writes its result back to the same entry without starting another stack entry', async () => {
   const run = vi.fn();
   await act(async () => showToast('undo', {
-    html: '已删除标签「<b>剧情</b>」', alert: false, timeout: 8000, action: { label: '撤销', run },
+    html: 'Deleted the tag "<b>Drama</b>"', alert: false, timeout: 8000, action: { label: 'Undo', run },
   }));
-  await vi.waitFor(() => expect(toastsWith('已删除标签')).toHaveLength(1));
-  const [receipt] = toastsWith('已删除标签');
+  await vi.waitFor(() => expect(toastsWith('Tag deleted')).toHaveLength(1));
+  const [receipt] = toastsWith('Tag deleted');
   const button = receipt.querySelector<HTMLButtonElement>('[data-action]')!;
-  expect(button.textContent).toBe('撤销');
+  expect(button.textContent).toBe('Undo');
   await act(async () => button.click());
-  // 点了不关：请求还在路上，结果要写回这一条。
+  // Clicking does not close: the request is still in flight and the result must be written back to this entry.
   expect(run).toHaveBeenCalledWith(button);
   expect(receipt.dataset.removed).toBe('false');
 
-  await act(async () => showToast('undo', { html: '已撤销', alert: false, timeout: 4000, action: null }));
-  await vi.waitFor(() => expect(toastsWith('已撤销')).toHaveLength(1));
-  expect(toastsWith('已删除标签')).toHaveLength(0);
-  // 同一个节点换了内容，撤销键跟着走掉。
-  expect(toastsWith('已撤销')[0]).toBe(receipt);
+  await act(async () => showToast('undo', { html: 'Undone', alert: false, timeout: 4000, action: null }));
+  await vi.waitFor(() => expect(toastsWith('Undone')).toHaveLength(1));
+  expect(toastsWith('Tag deleted')).toHaveLength(0);
+  // The same node was replaced with new content, so the undo button went away with it.
+  expect(toastsWith('Undone')[0]).toBe(receipt);
   expect(receipt.querySelector('[data-action]')).toBeNull();
 });
 
-it('成功的勾画出来，失败的圈不画，正文按调用点给的 HTML 插入', async () => {
-  await act(async () => showToast('ok', { html: '检查了 <b>3</b> 个来源', alert: false, timeout: Infinity, action: null }));
-  await act(async () => showToast('bad', { html: '保存失败：磁盘已满', alert: true, timeout: Infinity, action: null }));
-  await vi.waitFor(() => expect(toastsWith('保存失败')).toHaveLength(1));
-  const [ok] = toastsWith('检查了');
-  const [bad] = toastsWith('保存失败');
+it('Successes draw a check and failures draw no circle; the body inserts the HTML provided by the call site', async () => {
+  await act(async () => showToast('ok', { html: 'Checked <b>3</b> sources', alert: false, timeout: Infinity, action: null }));
+  await act(async () => showToast('bad', { html: 'Save failed: disk full', alert: true, timeout: Infinity, action: null }));
+  await vi.waitFor(() => expect(toastsWith('Save failed')).toHaveLength(1));
+  const [ok] = toastsWith('Checked');
+  const [bad] = toastsWith('Save failed');
   expect(ok.dataset.type).toBe('success');
   expect(ok.querySelector('[data-toast-glyph="draw"] [data-glyph="check"]')).not.toBeNull();
   expect(ok.querySelector('b')?.textContent).toBe('3');
@@ -51,7 +51,7 @@ it('成功的勾画出来，失败的圈不画，正文按调用点给的 HTML �
   expect(bad.querySelector('[data-toast-glyph="still"] [data-glyph="alert"]')).not.toBeNull();
 });
 
-it('同宿主重复挂载共用栈，卸载后可重挂，换宿主撤下原栈', async () => {
+it('Remounting on the same host shares the stack, unmount allows remounting, and switching hosts tears down the original stack', async () => {
   const next = document.createElement('div'); document.body.append(next);
   const icons = { success: '', error: '' };
   await act(async () => mountToaster(next, icons));

@@ -1,7 +1,7 @@
-/* 索引五页的进页骨架。
+/* The five index pages' entry skeletons.
  *
- * 骨架里的字形走壳 `index.html` 那张 sprite（`<use href="#i-…">`），写了表里没有的名字不会报错，
- * 只是那一格空着：页签上「艺人」「卖家」写成 `user` 时，骨架里只剩「在线」带图标。 */
+ * Glyphs in the skeleton use the shell `index.html` sprite (`<use href="#i-…">`); writing a name not in the sheet does not error,
+ * the cell is just empty: when the tabs "Artists" and "Sellers" are written as `user`, only "Online" in the skeleton has an icon. */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -19,7 +19,7 @@ const PAGES: [IndexPageKind, string][] = [
   ['studios', ''], ['agencies', ''], ['series', ''], ['tags', ''], ['tags', '?scope=online&view=cloud'],
 ];
 
-it.each(['cloud', 'alphabet'])('%s 标签占位按页大小预留正文与分页', mode => {
+it.each(['cloud', 'alphabet'])('%s tag placeholders reserve body and pagination per the page size', mode => {
   for (const pageSize of [50, 100, 200]) {
     const host = document.createElement('div');
     host.innerHTML = tagSkeletonHtml({ mode, pageSize });
@@ -29,7 +29,7 @@ it.each(['cloud', 'alphabet'])('%s 标签占位按页大小预留正文与分页
   }
 });
 
-it.each(PAGES)('%s%s 骨架里的每个字形都在 sprite 里', (kind, search) => {
+it.each(PAGES)('Every glyph in the %s%s skeleton lives in the sprite', (kind, search) => {
   for (const layout of ['big', 'compact'] as const) {
     const html = indexPlaceholderHtml(indexParams(kind, search), layout);
     const used = [...html.matchAll(/href="#i-([^"]+)"/g)].map((match) => match[1]);

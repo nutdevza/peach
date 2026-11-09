@@ -1,9 +1,11 @@
-/* 舞台岛（`frontend/src/react/stage/`）在真浏览器里的行为：两种详情走同一个舞台、关掉回来处、深链、
- * 骨架揭示、Video.js 与它的控件（清晰度、剧场、提示、窄屏折叠、统计角标、右键菜单）、小窗（进出、
- * 展开不重建、拖动吸附）、队列换条时播放器的交接、Escape 先关最里层，以及手机 390。
+/* The stage island's (`frontend/src/react/stage/`) behavior in a real browser: both details share one stage, closing returns
+ * to the origin, deep links, skeleton reveal, Video.js and its controls (quality, theater, hints, narrow-screen collapse,
+ * stats badge, context menu), the mini player (enter/exit, expand without rebuild, drag snapping), the player handoff when
+ * the queue switches entries, Escape closing the innermost layer first, and phone 390.
  *
- * 桩数据见 `item-fixture.ts` 与 `follow-fixture.ts`；读写接口全部由桩接住，演示库数据库一次都不写。
- * 片源不给正片：小窗一律经 i 键或右键菜单请求进入（越过播放态判定），不靠真在放。 */
+ * Stub data in `item-fixture.ts` and `follow-fixture.ts`; all read and write endpoints are caught by stubs, and the demo
+ * library database is never written. The stream source serves no actual video: the mini player is always entered via the i
+ * key or context menu (bypassing playback-state judgment), never by actually playing. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -18,13 +20,13 @@ const MOBILE = VIEWPORTS.find((viewport) => viewport.mobile)!;
 const ITEM_READY = '#stage[open] [data-item-side]';
 const FOLLOW_READY = '#stage[open] [data-follow-detail-side]';
 const PLAYER = '#stage .video-js .vjs-control-bar';
-/** 桩里的片源没有正片，播放器拿到空响应会报一条 VIDEOJS 错误；量的不是它。 */
+/** The stub stream has no actual feature; the player reports a VIDEOJS error on the empty response. That is not what is being measured. */
 const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
 const pathIs = (page: Page, path: string) => page.waitForFunction(
   (wanted) => location.pathname === wanted, path, { timeout: 10_000 });
 const card = (id: number) => `#grid [data-media-card][data-id="${id}"] [data-media-title]`;
 
-/** 舞台的宿主在 body 上常驻，宿主里只有一个 `<dialog id="stage">`。 */
+/** The stage host lives permanently on body, and the host contains exactly one `<dialog id="stage">`. */
 const stageShape = (page: Page) => page.evaluate(() => {
   const stage = document.getElementById('stage');
   return {
@@ -35,13 +37,13 @@ const stageShape = (page: Page) => page.evaluate(() => {
   };
 });
 
-/** 给舞台上此刻那个播放器做记号：之后找得到同一个记号，就是同一个实例。 */
+/** Marks the player currently on the stage: finding the same mark later means it is the same instance. */
 const markPlayer = (page: Page, selector: string) => page.evaluate((scope) => {
   const player = document.querySelector<HTMLElement>(`${scope} .video-js`)!;
   player.dataset.probe = 'kept';
 }, selector);
 
-/** 进小窗：焦点在舞台里按 i，与 YouTube 同义。 */
+/** Enter the mini player: press i with focus in the stage, matching YouTube's meaning. */
 async function toMiniplayer(page: Page): Promise<void> {
   await page.locator(PLAYER).waitFor({ state: 'attached' });
   await page.keyboard.press('i');
@@ -49,7 +51,7 @@ async function toMiniplayer(page: Page): Promise<void> {
   await page.locator('#stage[open]').waitFor({ state: 'detached', timeout: 10_000 });
 }
 
-describe('舞台岛', () => {
+describe('Stage island', () => {
   let browser: Browser;
 
   before(async () => {
@@ -60,7 +62,7 @@ describe('舞台岛', () => {
     await browser.close();
   });
 
-  it('目录卡与关注卡走同一个舞台：宿主常驻 body，关掉回来处，列表不重取', { timeout: 90_000 }, async () => {
+  it('Catalog cards and follow cards share one stage: the host stays on body, closing returns to where you came from, and the list is not refetched', { timeout: 90_000 }, async () => {
     const catalog = await openItemPage(browser, '/', DESKTOP, { ready: card(ITEM.plain) });
     try {
       const page = catalog.page;
@@ -75,10 +77,10 @@ describe('舞台岛', () => {
       await page.locator(card(ITEM.cast)).first().click();
       await page.locator(ITEM_READY).waitFor();
       assert.equal(await page.evaluate(() =>
-        (window as unknown as { stageHost: Element }).stageHost === document.querySelector('[data-stage-host]')), true, '换一条之后舞台宿主换了一个');
+        (window as unknown as { stageHost: Element }).stageHost === document.querySelector('[data-stage-host]')), true, 'After switching entries the stage host changes to another one');
       await page.locator('#closeStage').click();
       await pathIs(page, '/');
-      assert.equal(catalog.stub.reads.get('/api/items') || 0, listed, '关掉详情回列表重取了一遍');
+      assert.equal(catalog.stub.reads.get('/api/items') || 0, listed, 'Closing details returns to the list and refetches');
       assert.deepEqual(withoutPlayer(catalog.problems), []);
     } finally {
       await catalog.close();
@@ -99,14 +101,14 @@ describe('舞台岛', () => {
       await page.locator('#closeStage').click();
       await pathIs(page, '/follow');
       await page.locator('[data-follow-list] > [data-follow-item]').first().waitFor();
-      assert.equal(listed, listedBeforeClose, '关掉详情回关注列表重取了一遍');
+      assert.equal(listed, listedBeforeClose, 'Closing details back to the follows list refetched once');
       assert.deepEqual(withoutPlayer(follow.problems), []);
     } finally {
       await follow.close();
     }
   });
 
-  it('点浮窗外面退出详情，回到来处；从浮窗里按下、拖到外面松手不算', { timeout: 60_000 }, async () => {
+  it('Clicking outside the overlay exits details back to the origin; pressing inside the overlay and releasing outside does not count', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: card(ITEM.plain) });
     try {
       const page = opened.page;
@@ -117,7 +119,7 @@ describe('舞台岛', () => {
       await page.mouse.down();
       await page.mouse.move(4, 4, { steps: 4 });
       await page.mouse.up();
-      assert.equal(await page.locator('#stage[open]').count(), 1, '从浮窗里拖出去松手也关了详情');
+      assert.equal(await page.locator('#stage[open]').count(), 1, 'Dragging out of the popover and releasing also closed the details');
       await page.mouse.click(4, 4);
       await pathIs(page, '/');
       await page.locator('#stage').waitFor({ state: 'detached', timeout: 10_000 });
@@ -127,12 +129,12 @@ describe('舞台岛', () => {
     }
   });
 
-  it('深链直接进两种详情：先画骨架再揭示，内容到了焦点给关闭键', { timeout: 60_000 }, async () => {
+  it('Deep links enter both kinds of details directly: skeleton first, then reveal, and focus moves to the close button once content arrives', { timeout: 60_000 }, async () => {
     const item = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       assert.deepEqual(await stageShape(item.page), { host: true, modal: true, stages: 1, hosts: 1 });
       assert.equal(await item.page.evaluate(() => document.activeElement?.id), 'closeStage');
-      assert.equal(await item.page.locator('#stage [data-skeleton]').count(), 0, '揭示完骨架还留着');
+      assert.equal(await item.page.locator('#stage [data-skeleton]').count(), 0, 'The skeleton stays after the reveal');
       assert.deepEqual(withoutPlayer(item.problems), []);
     } finally {
       await item.close();
@@ -147,7 +149,7 @@ describe('舞台岛', () => {
     }
   });
 
-  it('骨架揭示的那一段标题已经折成两行，不先铺满再收回', { timeout: 60_000 }, async () => {
+  it('The title in the skeleton\'s reveal segment already wraps to two lines instead of filling first and retracting', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: card(ITEM.plain) });
     try {
       const page = opened.page;
@@ -155,10 +157,10 @@ describe('舞台岛', () => {
       let release = () => {};
       const held = new Promise<void>((resolve) => { release = resolve });
       await page.route((url) => url.pathname === '/api/item', async (route) => { await held; await route.fallback() });
-      // 长标题那一条不在目录里：深链进去，骨架由舞台岛画。
+      // The long-title entry is not in the catalog: it is deep-linked, and the stage island draws the skeleton.
       await page.goto(new URL(`/assets/${ITEM.long}`, page.url()).toString(), { waitUntil: 'load' });
       await page.locator('#stage[open] [data-skeleton="detail"]').waitFor({ timeout: 15_000 });
-      /* 揭示期间每一帧量一次标题行数，直到淡出层撤掉。 */
+      /* During the reveal, measure the title's line count every frame until the fade layer is removed. */
       const sampled = page.evaluate(() => new Promise<number[]>((resolve) => {
         const lines: number[] = [];
         const tick = () => {
@@ -171,15 +173,15 @@ describe('舞台岛', () => {
       }));
       release();
       const lines = await sampled;
-      assert.ok(lines.length > 0, '揭示期间没量到标题');
-      assert.deepEqual([...new Set(lines)], [2], `揭示期间标题行数：${lines.join(',')}`);
+      assert.ok(lines.length > 0, 'Title not measured during the reveal');
+      assert.deepEqual([...new Set(lines)], [2], `Title line counts during the reveal: ${lines.join(',')}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('Video.js 挂上：清晰度键开设置面板，统计角标与它互斥，剧场键与 T 键切换，提示带快捷键', { timeout: 60_000 }, async () => {
+  it('Video.js mounted: the quality key opens the settings panel, the stats badge is mutually exclusive with it, the theater key and T toggle, and tooltips carry shortcuts', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -191,22 +193,22 @@ describe('舞台岛', () => {
       const stats = page.locator('#stage #playerStatsBtn');
       await stats.waitFor();
       await settings.dispatchEvent('click');
-      assert.equal(await settings.getAttribute('aria-expanded'), 'true', '清晰度键没打开设置面板');
+      assert.equal(await settings.getAttribute('aria-expanded'), 'true', 'The quality key never opened the settings panel');
       await stats.click();
       assert.equal(await stats.getAttribute('aria-pressed'), 'true');
-      assert.equal(await page.locator('#stage #playerStats').isVisible(), true, '统计面板没打开');
-      assert.equal(await settings.getAttribute('aria-expanded'), 'false', '开统计时设置面板没收起');
+      assert.equal(await page.locator('#stage #playerStats').isVisible(), true, 'The stats panel never opened');
+      assert.equal(await settings.getAttribute('aria-expanded'), 'false', 'Opening stats never collapsed the settings panel');
       await settings.dispatchEvent('click');
-      assert.equal(await page.locator('#stage #playerStats').isHidden(), true, '开设置面板时统计没收起');
+      assert.equal(await page.locator('#stage #playerStats').isHidden(), true, 'Opening the settings panel never collapsed stats');
       await settings.dispatchEvent('click');
 
       const theater = page.locator('#stage [data-player-theater]');
       await theater.dispatchEvent('click');
-      assert.equal(await page.locator('#stage[data-theater]').count(), 1, '剧场键没切到剧场模式');
+      assert.equal(await page.locator('#stage[data-theater]').count(), 1, 'The theater key never switched to theater mode');
       assert.equal(await theater.getAttribute('aria-pressed'), 'true');
       await page.locator('#closeStage').focus();
       await page.keyboard.press('t');
-      assert.equal(await page.locator('#stage[data-theater]').count(), 0, 'T 键没切回来');
+      assert.equal(await page.locator('#stage[data-theater]').count(), 0, 'The T key never switched back');
       assert.equal(await theater.getAttribute('aria-pressed'), 'false');
 
       for (const size of [{ width: 1074, height: 884 }, { width: 390, height: 844 }, { width: 1320, height: 1088 }]) {
@@ -221,27 +223,27 @@ describe('舞台岛', () => {
       }
       await page.setViewportSize({ width: DESKTOP.width, height: DESKTOP.height });
 
-      /* 桩里的片源放不出来，Video.js 停在错误态、控件条不接指针，悬停量不到；只量提示的内容。 */
+      /* The stubbed source cannot play, so Video.js sits in the error state and the control bar ignores pointers, which makes hover unmeasurable; only the prompt's content is measured. */
       const tip = page.locator('#stage [data-player-theater] > .vjs-peach-tooltip');
-      assert.equal(await theater.getAttribute('title'), null, '原生 title 与自绘提示会叠在一起');
+      assert.equal(await theater.getAttribute('title'), null, 'The native title and the drawn tooltip would stack');
       assert.deepEqual(await tip.evaluate((node) => [node.querySelector('.vjs-peach-tooltip-text')?.textContent,
-        node.querySelector('kbd')?.textContent]), ['影院模式', 'T']);
+        node.querySelector('kbd')?.textContent]), ['Theater mode', 'T']);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('进度条画面预览：按时刻取格、靠边整块留在进度条里、每页拼图只取一次；小窗与触屏拖动同一块', { timeout: 60_000 }, async () => {
+  it('Progress bar frame preview: take a cell by time, edges stay whole within the progress bar, and each page\'s mosaic is fetched only once; the mini window and touch drag share the same block', { timeout: 60_000 }, async () => {
     let requested = new Map<number, number>();
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
-      // 桩条目 3600 秒，10 秒一帧共 360 帧、4 张拼图。挂上之后再进详情，播放器挂载时取索引。
+      // The stub entry is 3600 seconds, one frame every 10 seconds, 360 frames total, 4 tile images. After mounting, entering detail, the player fetches the index on mount.
       requested = await stubTimelineSheets(page, { frames: 360, interval: 10 });
       await page.reload({ waitUntil: 'load' });
       await page.locator(PLAYER).waitFor({ state: 'attached' });
-      /* 桩片源放不出来，控件条不接指针：指针事件直接派到进度条上，量的是接线与几何。 */
+      /* The stub source can't play, so the control bar doesn't take the pointer: pointer events go straight to the progress bar, measuring wiring and geometry. */
       const point = (scope: string, type: string, at: number, pointerType = 'mouse') => page.evaluate(
         ([selector, kind, ratio, pointer]) => {
           const bar = document.querySelector<HTMLElement>(selector)!, box = bar.getBoundingClientRect();
@@ -262,17 +264,17 @@ describe('舞台岛', () => {
       const middle = await measure(progress);
       assert.equal(middle.hidden, false);
       assert.equal(middle.time, '30:00');
-      assert.equal(middle.src, `/timeline?id=${ITEM.plain}&s=1&source=peach`, '30 分钟是第 180 帧，落在第 2 张拼图');
-      assert.equal(middle.offset, '-800%', '第 180 帧是第 2 张的第 80 格，第 9 行');
-      assert.ok(Math.abs(middle.scale - 10) < .3, `拼图要放大到取景框的 10 倍才能只露一格：${middle.scale}`);
-      assert.equal(middle.transition, '0s', '减少动态效果时预览不做位移动画');
+      assert.equal(middle.src, `/timeline?id=${ITEM.plain}&s=1&source=peach`, '30 minutes is frame 180, which falls in sprite sheet 2');
+      assert.equal(middle.offset, '-800%', 'Frame 180 is sheet 2\'s cell 80, row 9');
+      assert.ok(Math.abs(middle.scale - 10) < .3, `The mosaic must be zoomed to 10× the viewfinder to reveal just one cell: ${middle.scale}`);
+      assert.equal(middle.transition, '0s', 'With reduced motion, the preview has no translation animation');
       for (const at of [0, .01, .99, 1]) {
         await point(progress, 'pointermove', at);
         const edge = await measure(progress);
-        assert.ok(edge.left >= -0.5 && edge.right >= -0.5, `靠边被裁：${JSON.stringify({ at, ...edge })}`);
+        assert.ok(edge.left >= -0.5 && edge.right >= -0.5, `Clipped at the edge: ${JSON.stringify({ at, ...edge })}`);
       }
       for (let at = 0; at <= 1; at += .05) await point(progress, 'pointermove', at);
-      assert.deepEqual([...requested.entries()].sort(), [[0, 1], [1, 1], [2, 1], [3, 1]], '拼图预热一次后不该随指针重取');
+      assert.deepEqual([...requested.entries()].sort(), [[0, 1], [1, 1], [2, 1], [3, 1]], 'After a sprite is warmed once, it should not re-fetch on every pointer move');
       await point(progress, 'pointerleave', 1);
       assert.equal((await measure(progress)).hidden, true);
 
@@ -289,21 +291,21 @@ describe('舞台岛', () => {
           clock: clock ? getComputedStyle(clock).visibility : 'hidden' };
       });
       assert.deepEqual(inMini, { hidden: false, display: 'flex', inside: true, width: inMini.width, clock: 'hidden' }, JSON.stringify(inMini));
-      assert.ok(inMini.width <= 170, `小窗里的预览没收到窄档：${inMini.width}`);
+      assert.ok(inMini.width <= 170, `The mini window's preview did not get the narrow variant: ${inMini.width}`);
 
       await point(mini, 'pointerdown', .75, 'touch');
       assert.equal((await measure(mini)).time, '45:00');
       await point(mini, 'pointermove', .8, 'touch');
       assert.equal((await measure(mini)).time, '48:00');
       await point(mini, 'pointerup', .8, 'touch');
-      assert.equal((await measure(mini)).hidden, true, '触屏抬手预览没收起');
+      assert.equal((await measure(mini)).hidden, true, 'Touch-screen: preview not dismissed on release');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('右键菜单逐项：Escape 只关菜单；「迷你播放器」进小窗，小窗里的菜单换成「展开」', { timeout: 60_000 }, async () => {
+  it('Context menu item by item: Escape closes only the menu; "Mini player" enters the mini player, where the menu becomes "Expand"', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -311,22 +313,22 @@ describe('舞台岛', () => {
       const labels = () => page.locator('#playerMenu [data-player-menu] span').allInnerTexts();
       await page.locator('#stage .video-js').click({ button: 'right' });
       await page.locator('#stage #playerMenu:popover-open').waitFor();
-      assert.deepEqual((await labels()).filter((label) => label !== '画中画'),
-        ['循环播放', '迷你播放器', '复制视频网址', '复制当前时间的视频网址', '播放统计']);
+      assert.deepEqual((await labels()).filter((label) => label !== 'Picture in picture'),
+        ['Loop playback', 'Mini player', 'Copy video URL', 'Copy the video URL at the current time', 'Play stats']);
       await page.keyboard.press('Escape');
       await page.locator('#playerMenu:popover-open').waitFor({ state: 'detached' }).catch(() => {});
-      assert.equal(await page.locator('#playerMenu:popover-open').count(), 0, 'Escape 没关掉菜单');
-      assert.equal(await page.locator('#stage[open]').count(), 1, 'Escape 连舞台一起关了');
+      assert.equal(await page.locator('#playerMenu:popover-open').count(), 0, 'Escape does not close the menu');
+      assert.equal(await page.locator('#stage[open]').count(), 1, 'Escape closed the stage along with it');
 
       await page.locator('#stage .video-js').click({ button: 'right' });
-      await page.locator('#playerMenu [data-player-menu]', { hasText: '迷你播放器' }).click();
+      await page.locator('#playerMenu [data-player-menu]', { hasText: 'Mini player' }).click();
       await page.locator('#miniplayer:not([hidden]) .video-js').waitFor({ timeout: 10_000 });
       await pathIs(page, '/');
-      /* 小窗的按键层盖在画面上，右键直接派给播放器。 */
+      /* The mini player's key layer sits over the video, and right-clicks dispatch straight to the player. */
       await page.locator('#miniplayer .video-js').dispatchEvent('contextmenu', { clientX: 1000, clientY: 600 });
       await page.locator('#playerMenu:popover-open').waitFor();
-      const mini = (await labels()).filter((label) => label !== '画中画');
-      assert.deepEqual(mini, ['循环播放', '展开', '复制视频网址', '复制当前时间的视频网址'], '小窗里的菜单不对');
+      const mini = (await labels()).filter((label) => label !== 'Picture in picture');
+      assert.deepEqual(mini, ['Loop playback', 'Expand', 'Copy video URL', 'Copy the video URL at the current time'], 'The mini window\'s menu is wrong');
       await page.keyboard.press('Escape');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -334,7 +336,7 @@ describe('舞台岛', () => {
     }
   });
 
-  it('小窗展开回详情不重建播放器；拖到左上象限松手吸附到左上角', { timeout: 60_000 }, async () => {
+  it('Expanding the mini player back to details never rebuilds the player; dropping it in the top-left quadrant snaps to the top-left corner', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -342,7 +344,7 @@ describe('舞台岛', () => {
       await markPlayer(page, '#stage');
       await toMiniplayer(page);
       await pathIs(page, '/');
-      assert.equal(await page.locator('#miniplayer .video-js[data-probe="kept"]').count(), 1, '进小窗换了一个播放器');
+      assert.equal(await page.locator('#miniplayer .video-js[data-probe="kept"]').count(), 1, 'Entering the mini window swapped in another player');
       assert.equal(await page.locator('#miniplayer').getAttribute('data-corner'), 'br');
 
       const info = await page.locator('#miniplayerInfo').boundingBox();
@@ -355,9 +357,9 @@ describe('舞台岛', () => {
       await page.waitForFunction(() => document.getElementById('miniplayer')?.dataset.corner === 'tl', null, { timeout: 5_000 });
       assert.equal(await page.locator('#miniplayer').evaluate((node) => (node as HTMLElement).style.transform), '');
       await pathIs(page, '/');
-      assert.equal(await page.locator('#stage[open]').count(), 0, '拖完松手那一下被当成了「展开」');
+      assert.equal(await page.locator('#stage[open]').count(), 0, 'The release after dragging was treated as "Expand"');
 
-      // 小窗上的键只在指针落在小窗上时浮出来。
+      // Controls on the mini player only surface when the pointer is over it.
       let releaseRefresh = () => {};
       const refreshed = new Promise<void>(resolve => { releaseRefresh = resolve });
       await page.route(/\/api\/item\?id=11$/, async route => { await refreshed; await route.continue() });
@@ -366,11 +368,11 @@ describe('舞台岛', () => {
       await pathIs(page, `/assets/${ITEM.plain}`);
       try {
         await page.locator(ITEM_READY).waitFor({ timeout: 3000 });
-        assert.equal(await page.locator('#stage [data-skeleton="detail"]').count(), 0, '展开已加载的详情不该退回骨架');
+        assert.equal(await page.locator('#stage [data-skeleton="detail"]').count(), 0, 'Expanding already-loaded details must never fall back to the skeleton');
       } finally { releaseRefresh() }
       await page.locator('#stage [data-item-media="video"] > .video-js[data-probe="kept"]').waitFor({ state: 'attached' });
-      assert.equal(await page.locator('.video-js').count(), 1, '展开之后多出一个播放器');
-      assert.equal(await page.locator('#miniplayer').isHidden(), true, '展开之后小窗还露着');
+      assert.equal(await page.locator('.video-js').count(), 1, 'After expanding there is one extra player');
+      assert.equal(await page.locator('#miniplayer').isHidden(), true, 'Mini player still visible after expanding');
       assert.equal(await page.locator('#stage #playerStatsBtn').count(), 1);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -378,7 +380,7 @@ describe('舞台岛', () => {
     }
   });
 
-  it('队列换条：旧播放器先拆，新播放器才挂，同一时刻只有一个', { timeout: 60_000 }, async () => {
+  it('Queue switching: the old player tears down before the new one mounts, with exactly one at any moment', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}?mix=${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -403,16 +405,16 @@ describe('舞台岛', () => {
       await page.locator(`#stage [data-queue-item="${next}"][aria-current="true"]`).waitFor();
       await page.locator(PLAYER).waitFor({ state: 'attached' });
       const log = await page.evaluate(() => (window as unknown as { playerLog: { live: number; most: number; order: string[] } }).playerLog);
-      assert.equal(log.most, 1, `换条时同时挂着 ${log.most} 个播放器`);
+      assert.equal(log.most, 1, `Switching items had ${log.most} players mounted at once`);
       assert.deepEqual(log.order.slice(0, 2), ['拆', '挂']);
-      assert.equal(await page.locator('.video-js[data-probe="kept"]').count(), 0, '换条之后还是上一条的播放器');
+      assert.equal(await page.locator('.video-js[data-probe="kept"]').count(), 0, 'After switching entries the player still belongs to the previous one');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('标签搜索框里按 Escape 只收起选择器，舞台留着；再按一下才关舞台', { timeout: 60_000 }, async () => {
+  it('Escape in the tag search box only collapses the picker and leaves the stage up; another press closes the stage', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -421,7 +423,7 @@ describe('舞台岛', () => {
       await page.locator('#tagPickSearch').focus();
       await page.keyboard.press('Escape');
       await page.locator('#tagPicker').waitFor({ state: 'hidden' });
-      assert.equal(await page.locator('#stage[open]').count(), 1, 'Escape 连舞台一起关了');
+      assert.equal(await page.locator('#stage[open]').count(), 1, 'Escape closed the stage along with it');
       assert.equal(await page.evaluate(() => location.pathname), `/assets/${ITEM.plain}`);
       await page.keyboard.press('Escape');
       await pathIs(page, '/');
@@ -431,7 +433,7 @@ describe('舞台岛', () => {
     }
   });
 
-  it('关注详情：/follow-qualities 挂住时视频照挂，海报挂载前后是同一张，统计键在同一个媒体框里', { timeout: 60_000 }, async () => {
+  it('Follow details: while /follow-qualities hangs the video still mounts, the poster is the same node before and after mount, and the stats key lives in the same media box', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, `/posts/${DETAIL.collection}`, DESKTOP, { ready: FOLLOW_READY });
     try {
       const page = opened.page;
@@ -439,7 +441,7 @@ describe('舞台岛', () => {
       await frame.locator('.video-js .vjs-control-bar').waitFor({ state: 'attached' });
       await frame.locator(':scope > #playerStatsBtn').waitFor();
       const poster = () => frame.locator('video.vjs-tech').getAttribute('poster');
-      assert.match(await poster() || '', /\/stub-thumb\/5101$/, 'Video.js 挂上之后海报丢了');
+      assert.match(await poster() || '', /\/stub-thumb\/5101$/, 'The poster vanished after Video.js mounted');
 
       await page.route('**/follow-qualities**', () => {});
       await page.locator('[data-follow-queue-item="5102"]').click();
@@ -453,7 +455,7 @@ describe('舞台岛', () => {
     }
   });
 
-  it('手机 390：详情不横向溢出，播放器控件收成窄屏那一套；小窗落在视口里', { timeout: 60_000 }, async () => {
+  it('Phone 390: details do not overflow horizontally, player controls collapse to the narrow set, and the mini player stays inside the viewport', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, MOBILE);
     try {
       const page = opened.page;
@@ -461,12 +463,12 @@ describe('舞台岛', () => {
       await page.waitForFunction(() => document.querySelector('#stage .video-js')?.classList.contains('vjs-peach-xsmall'),
         null, { timeout: 5_000 });
       const measured = await layout(page);
-      assert.equal(measured.scrollWidth, measured.viewportWidth, `横向溢出：${measured.offenders.join(', ')}`);
+      assert.equal(measured.scrollWidth, measured.viewportWidth, `Horizontal overflow: ${measured.offenders.join(', ')}`);
       await toMiniplayer(page);
       const box = await page.locator('#miniplayerCard').boundingBox();
       assert.ok(box);
-      assert.ok(box.x >= 0 && box.x + box.width <= MOBILE.width, `小窗越出视口：${JSON.stringify(box)}`);
-      assert.ok(box.y >= 0 && box.y + box.height <= MOBILE.height, `小窗越出视口：${JSON.stringify(box)}`);
+      assert.ok(box.x >= 0 && box.x + box.width <= MOBILE.width, `The mini player overflows the viewport: ${JSON.stringify(box)}`);
+      assert.ok(box.y >= 0 && box.y + box.height <= MOBILE.height, `The mini player overflows the viewport: ${JSON.stringify(box)}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();

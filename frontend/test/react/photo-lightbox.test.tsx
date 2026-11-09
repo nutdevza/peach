@@ -1,7 +1,7 @@
-/* 图片灯箱：按需加载 Swiper、从点中那一张开始、翻页与缩略图条跟随、缩放条、信息面板与关闭。
+/* Photo lightbox: loads Swiper on demand, starts from the clicked image, paging and thumbnail strip follow, zoom bar, info panel, and close.
  *
- * Swiper 换成一个记账的替身：这里看的是灯箱交给它什么、听它什么，轮播本身的位移、键盘与滚轮
- * 由 e2e 在真浏览器里用真 Swiper 走一遍（`e2e/photo-lightbox.test.ts`）。 */
+ * Swiper is replaced with an accounting double: what is tested here is what the lightbox hands it and what it listens to; the carousel's own panning, keyboard, and wheel
+ * are exercised by e2e in a real browser with real Swiper (`e2e/photo-lightbox.test.ts`). */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,7 +30,7 @@ class FakeSwiper {
     if (event === 'slideChange') this.options.on?.slideChange?.call(this);
     for (const handler of this.handlers[event] ?? []) handler(this as unknown as SwiperInstance, ...args);
   }
-  /** 翻到第 `at` 张，照 Swiper 的顺序先改 `activeIndex` 再发 `slideChange`。 */
+  /** Moves to slide `at`, in Swiper's order: update `activeIndex` first, then emit `slideChange`. */
   go(at: number) { return act(async () => { this.activeIndex = at; this.emit('slideChange') }) }
 }
 const strip = () => FakeSwiper.made.at(-2)!;
@@ -47,7 +47,7 @@ beforeEach(() => {
     observe() {}
     disconnect() { disconnected() }
   });
-  /* happy-dom 没有原生 popover：顶层开合记在一个属性上，`:popover-open` 读它。 */
+  /* happy-dom has no native popover: top-layer open state is recorded in an attribute, which `:popover-open` reads. */
   const proto = HTMLElement.prototype as HTMLElement & Record<string, unknown>;
   const matches = Element.prototype.matches;
   vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
@@ -65,8 +65,8 @@ afterEach(async () => {
 });
 
 const frame = () => act(() => new Promise<void>((done) => requestAnimationFrame(() => done())));
-/** 加载器还没取过样式表时，插进来的 link 不进文档（进了 happy-dom 会真去取 `/vendor/`），
- *  当场放行 load；取过就直接打开。 */
+/** When the loader has not fetched the stylesheet yet, the injected link does not enter the document (in happy-dom it would really fetch `/vendor/`),
+ *  and load is resolved on the spot; once fetched, it opens directly. */
 async function open(index: number, slides: LightboxSlide[], host?: LightboxHost) {
   const append = vi.spyOn(document.head, 'append').mockImplementation((...nodes) => {
     for (const node of nodes) if (node instanceof HTMLLinkElement) queueMicrotask(() => node.dispatchEvent(new Event('load')));
@@ -86,7 +86,7 @@ const local = (id: number, extra: Record<string, unknown> = {}): LightboxSlide =
 });
 const sample = (n: number): LightboxSlide => ({
   src: `/sample-image?code=SSIS-057&n=${n}`, thumb: `/sample-thumb?code=SSIS-057&n=${n}`,
-  name: `SSIS-057 样张 ${n}`, asset: null, source: 'DMM',
+  name: `SSIS-057 sample ${n}`, asset: null, source: 'DMM',
 });
 const WALL = [sample(1), sample(2), local(100), local(101), local(102)];
 
@@ -96,10 +96,10 @@ const escape = () => act(async () => {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 });
 
-describe('打开', () => {
-  it('Swiper 按固定版本按需取，样式与脚本都到了才建轮播；取不到就在新标签页开那张大图', async () => {
+describe('Open', () => {
+  it('Swiper is fetched on demand at a pinned version, building the carousel only once both styles and scripts arrive; if it cannot be fetched, the full image opens in a new tab', async () => {
     delete (window as { Swiper?: unknown }).Swiper;
-    /* 元素记下来但不进文档：进了文档 happy-dom 会真去取 `/vendor/`，load 与 error 由这里派发。 */
+    /* The element records it but does not enter the document: once in the document, happy-dom would actually fetch `/vendor/`; load and error are dispatched from here. */
     const appended: Element[] = [];
     const append = vi.spyOn(document.head, 'append').mockImplementation((...nodes) => { appended.push(...nodes as Element[]) });
     const link = () => appended.filter((node) => node instanceof HTMLLinkElement).at(-1) as HTMLLinkElement;
@@ -131,10 +131,10 @@ describe('打开', () => {
     expect(FakeSwiper.made).toHaveLength(2);
   });
 
-  it('从点中那一张开始：模态打开、页码写「n / N」并读给读屏、缩略图条当场居中到这一张', async () => {
+  it('Starts from the clicked image: the modal opens, the page number reads "n / N" and is announced to screen readers, and the thumbnail strip centers on it immediately', async () => {
     const box = await open(2, WALL);
     expect(box.open).toBe(true);
-    expect(box.getAttribute('aria-label')).toBe('图片浏览');
+    expect(box.getAttribute('aria-label')).toBe('Image browsing');
     expect(box.hasAttribute('data-has-strip')).toBe(true);
     expect(document.body.classList.contains('photolight-open')).toBe(true);
     expect(box.closest('.peach-react')?.parentElement).toBe(document.body);
@@ -151,7 +151,7 @@ describe('打开', () => {
       .toEqual(WALL.map((slide) => slide.thumb));
   });
 
-  it('主画布带缩放、键盘、滚轮翻页、缩略图联动、动态页码点与左右键；缩略图条自由拖、点哪张居中哪张', async () => {
+  it('The main canvas has zoom, keyboard, wheel paging, thumbnail sync, dynamic page dots and arrow keys; the thumbnail strip drags freely and clicking any thumbnail centers it', async () => {
     const box = await open(0, WALL);
     const options = main().options;
     expect(options).toMatchObject({
@@ -161,30 +161,30 @@ describe('打开', () => {
     });
     expect(options.thumbs.swiper).toBe(strip());
     expect(options.pagination.el).toBe(q(box, '[data-photo-pagination]'));
-    expect(options.pagination.el.getAttribute('aria-label')).toBe('选择图片');
+    expect(options.pagination.el.getAttribute('aria-label')).toBe('Pick images');
     expect(options.pagination.renderBullet(1, 'swiper-pagination-bullet'))
-      .toBe('<button type="button" class="swiper-pagination-bullet" aria-label="查看第 2 张图片"></button>');
-    expect(options.navigation).toEqual({ prevEl: labelled(box, '上一张'), nextEl: labelled(box, '下一张') });
+      .toBe('<button type="button" class="swiper-pagination-bullet" aria-label="View image 2"></button>');
+    expect(options.navigation).toEqual({ prevEl: labelled(box, 'Previous image'), nextEl: labelled(box, 'Next image') });
     expect(strip().options).toEqual({
       slidesPerView: 'auto', spaceBetween: 8, freeMode: true, watchSlidesProgress: true,
       centeredSlides: true, slideToClickedSlide: true,
     });
   });
 
-  it('只有一张时不出缩略图条与页码点', async () => {
+  it('With a single image neither the thumbnail strip nor page dots render', async () => {
     const box = await open(0, [local(7)]);
     expect(box.hasAttribute('data-has-strip')).toBe(false);
     expect(box.querySelector('[data-photo-pagination]')).toBeNull();
     expect(q(box, '[data-photo-count]').textContent).toBe('1 / 1');
   });
 
-  it('序号越界或一张都没有就不开', async () => {
+  it('Do not open when the index is out of range or there are no images', async () => {
     await act(async () => { await openPhotoLightbox(5, WALL) });
     await act(async () => { await openPhotoLightbox(0, []) });
     expect(document.querySelector('dialog')).toBeNull();
   });
 
-  it('同一时刻只有一份：再开一次，上一份的两条轮播先拆掉', async () => {
+  it('Only one exists at a time: opening again tears down the previous pair of carousels first', async () => {
     await open(0, WALL);
     const [firstStrip, firstMain] = FakeSwiper.made;
     await open(1, [local(9), local(10)]);
@@ -195,8 +195,8 @@ describe('打开', () => {
   });
 });
 
-describe('翻页', () => {
-  it('换一张：页码跟上，缩略图条滑到这一张，信息面板换成这一张', async () => {
+describe('Paging', () => {
+  it('Switching images: the pager follows, the thumbnail strip slides to it, and the info panel swaps to it', async () => {
     const box = await open(2, WALL);
     await main().go(3);
     expect(q(box, '[data-photo-count]').textContent).toBe('4 / 5');
@@ -204,7 +204,7 @@ describe('翻页', () => {
     expect(q(box, '[data-photo-detail] h2').textContent).toBe('101.jpg');
   });
 
-  it('原图取不到换上这张的缩略图，只换一次；缩略图也取不到就换成占位', async () => {
+  it('If the original fails to load, swap in its thumbnail once; if the thumbnail also fails, swap in a placeholder', async () => {
     const box = await open(0, WALL);
     const slide = q(box, '[data-photo-main] .swiper-slide');
     const img = q<HTMLImageElement>(slide, 'img');
@@ -212,10 +212,10 @@ describe('翻页', () => {
     expect(img.getAttribute('src')).toBe('/sample-thumb?code=SSIS-057&n=1');
     await act(async () => { img.dispatchEvent(new Event('error')) });
     expect(slide.querySelector('img')).toBeNull();
-    expect(slide.querySelector('[data-photo-missing]')?.textContent).toBe('图片取不到');
+    expect(slide.querySelector('[data-photo-missing]')?.textContent).toBe('Image unavailable');
   });
 
-  it('灯箱量到新尺寸就让两条轮播重量，缩放按上一次的目标重算', async () => {
+  it('When the lightbox measures a new size both carousels re-measure, and zoom recomputes from the previous target', async () => {
     await open(0, WALL);
     main().zoom.out.mockClear();
     observed.forEach((callback) => callback());
@@ -225,47 +225,47 @@ describe('翻页', () => {
   });
 });
 
-describe('缩放条', () => {
-  /* 测试环境没有布局，量不出适应窗口的比例：图没有自然尺寸时按 100% 算，这里的百分比就是倍数。 */
-  it('步进键一次十个百分点，1:1 回到原图像素，滑杆直接给目标；读数与滑杆跟着走', async () => {
+describe('Zoom bar', () => {
+  /* The test environment has no layout, so the fit-to-window ratio cannot be measured: an image with no natural size counts as 100%, so the percentage here is a multiplier. */
+  it('Stepper keys move ten percentage points at a time, 1:1 returns to original pixels, and the slider takes the target directly; readout and slider follow along', async () => {
     const box = await open(0, WALL);
     const readout = q(box, '[data-photo-zoom-readout]');
     const range = q<HTMLInputElement>(box, '[data-photo-zoom] input[type=range]');
-    expect([range.min, range.max, range.getAttribute('aria-label')]).toEqual(['10', '400', '缩放']);
+    expect([range.min, range.max, range.getAttribute('aria-label')]).toEqual(['10', '400', 'Zoom']);
     expect(readout.textContent).toBe('100%');
-    await click(labelled(box, '放大'));
+    await click(labelled(box, 'Zoom in'));
     expect(main().zoom.in).toHaveBeenLastCalledWith(1.1);
     expect([readout.textContent, range.value]).toEqual(['110%', '110']);
-    await click(labelled(box, '原大小'));
+    await click(labelled(box, 'Original size'));
     expect(readout.textContent).toBe('100%');
     expect(main().zoom.out).toHaveBeenCalled();
-    await click(labelled(box, '缩小'));
+    await click(labelled(box, 'Zoom out'));
     expect(main().zoom.in).toHaveBeenLastCalledWith(.9);
     await type(range, '250');
     expect(main().zoom.in).toHaveBeenLastCalledWith(2.5);
     expect(readout.textContent).toBe('250%');
     main().zoom.out.mockClear();
-    await click(labelled(box, '适应窗口'));
+    await click(labelled(box, 'Fit to window'));
     expect(main().zoom.out).toHaveBeenCalledTimes(1);
     expect(readout.textContent).toBe('100%');
   });
 
-  it('两端步进键画的是放大镜加减号，不是文本字形', async () => {
+  it('The end stepper keys draw magnifier plus and minus icons, not text glyphs', async () => {
     const box = await open(0, WALL);
-    expect(labelled(box, '缩小').innerHTML).toContain('href="#i-zoom-out"');
-    expect(labelled(box, '放大').innerHTML).toContain('href="#i-zoom-in"');
-    expect(labelled(box, '适应窗口').innerHTML).toContain('href="#i-maximize"');
-    expect(labelled(box, '原大小').textContent).toBe('1:1');
+    expect(labelled(box, 'Zoom out').innerHTML).toContain('href="#i-zoom-out"');
+    expect(labelled(box, 'Zoom in').innerHTML).toContain('href="#i-zoom-in"');
+    expect(labelled(box, 'Fit to window').innerHTML).toContain('href="#i-maximize"');
+    expect(labelled(box, 'Original size').textContent).toBe('1:1');
   });
 
-  it('捏合或双击改了倍数，读数按原图像素折算回来', async () => {
+  it('Pinch or double click changes the zoom level; the readout converts back to source pixels', async () => {
     const box = await open(0, WALL);
     await act(async () => main().emit('zoomChange', 3));
     expect(q(box, '[data-photo-zoom-readout]').textContent).toBe('300%');
   });
 });
 
-describe('缩放换算', () => {
+describe('Zoom conversion', () => {
   const fixture = (natural: [number, number], shown: [number, number]) => {
     const box = document.createElement('div');
     box.innerHTML = '<div class="swiper-slide"><img></div>';
@@ -285,7 +285,7 @@ describe('缩放换算', () => {
     return { box, img, swiper, show, handlers, zoom: photoZoom(box, swiper, show) };
   };
 
-  it('百分比相对原图像素：适应窗口的那一档就是显示宽高与原图之比，封顶 100%', () => {
+  it('Percentages are relative to original pixels: the fit-to-window tier is exactly the ratio of display size to original, capped at 100%', () => {
     const { swiper, show, zoom } = fixture([2000, 1000], [500, 250]);
     zoom.apply('fit');
     expect(show).toHaveBeenLastCalledWith(25);
@@ -299,7 +299,7 @@ describe('缩放换算', () => {
     expect(swiper.zoom.in).toHaveBeenLastCalledWith(.4);
   });
 
-  it('量尺寸与大图到了都按上一次的目标重算；不是当前这张的图到了不算', () => {
+  it('Both the measured size and the arriving large image recompute against the last target; an image that is not the current one does not count', () => {
     const { img, swiper, zoom } = fixture([2000, 1000], [500, 250]);
     zoom.apply(200);
     swiper.zoom.in.mockClear();
@@ -311,7 +311,7 @@ describe('缩放换算', () => {
     expect(swiper.zoom.in).toHaveBeenCalledTimes(2);
   });
 
-  it('灯箱已经关掉或 Swiper 已经拆掉：迟到的尺寸与加载回调什么都不做，不抛错', () => {
+  it('Lightbox already closed or Swiper already torn down: late size and load callbacks do nothing and throw no errors', () => {
     const { box, img, swiper, zoom } = fixture([2000, 1000], [500, 250]);
     swiper.destroyed = true;
     expect(() => { zoom.resize(); zoom.loaded(img) }).not.toThrow();
@@ -322,52 +322,52 @@ describe('缩放换算', () => {
     expect(swiper.zoom.in).not.toHaveBeenCalled();
   });
 
-  it('捏合的倍数按适应窗口那一档折回原图像素', () => {
+  it('Pinch zoom folds back to original pixels through the fit-to-window tier', () => {
     const { show, handlers } = fixture([2000, 1000], [500, 250]);
     handlers.zoomChange({} as SwiperInstance, 2);
     expect(show).toHaveBeenLastCalledWith(50);
   });
 });
 
-describe('信息面板', () => {
-  it('本地图写来源与大小，定位只把 asset id 交给壳；路径不进页面', async () => {
+describe('Info panel', () => {
+  it('Local images carry source and size, and locating hands only the asset id to the shell; the path never enters the page', async () => {
     const revealSource = vi.fn(async () => '');
     const slides = [local(100, { path: 'R:\\media\\secret\\100.jpg' })];
     const box = await open(0, slides, { revealSource });
     const panel = q(box, '[data-photo-detail]');
     expect(q(panel, 'h2').textContent).toBe('100.jpg');
     expect(q(panel, 'h2').getAttribute('tabindex')).toBe('-1');
-    expect(q(panel, '[data-photo-detail-meta]').textContent).toBe('本地 · 2\u00a0MB');
+    expect(q(panel, '[data-photo-detail-meta]').textContent).toBe('Local · 2\u00a0MB');
     const reveal = q<HTMLButtonElement>(panel, '[data-photo-reveal]');
     expect(reveal.hidden).toBe(false);
-    expect(reveal.textContent).toBe('在资源管理器中显示');
+    expect(reveal.textContent).toBe('Show in File Explorer');
     await click(reveal);
     expect(revealSource).toHaveBeenCalledWith(100);
     expect(document.body.innerHTML).not.toContain('secret');
   });
 
-  it('定位等回话时按钮忙着、再点不重发；失败的原因写在按钮下，换一张就清掉', async () => {
+  it('While locating waits for a reply the button is busy and repeat presses do not resend; the failure reason sits under the button and clears when another image is picked', async () => {
     let release!: (text: string) => void;
     const revealSource = vi.fn(() => new Promise<string>((done) => { release = done }));
     const box = await open(0, [local(100), local(101)], { revealSource });
     const reveal = q<HTMLButtonElement>(box, '[data-photo-reveal]');
     await click(reveal);
     expect(reveal.getAttribute('aria-busy')).toBe('true');
-    expect(reveal.querySelector('[role=status]')?.getAttribute('aria-label')).toBe('正在定位');
+    expect(reveal.querySelector('[role=status]')?.getAttribute('aria-label')).toBe('Locating');
     await click(reveal);
     expect(revealSource).toHaveBeenCalledTimes(1);
-    await act(async () => release('源文件不在这台机器上'));
+    await act(async () => release('The source file is not on this machine'));
     await settle();
     expect(reveal.hasAttribute('aria-busy')).toBe(false);
-    expect(reveal.textContent).toBe('在资源管理器中显示');
+    expect(reveal.textContent).toBe('Show in File Explorer');
     const status = q(box, '[data-photo-status]');
     expect(status.getAttribute('aria-live')).toBe('polite');
-    expect(status.textContent).toBe('源文件不在这台机器上');
+    expect(status.textContent).toBe('The source file is not on this machine');
     await main().go(1);
     expect(status.textContent).toBe('');
   });
 
-  it('样张与在线图不出定位键：写来源，大图到了补上分辨率，第几张只看底栏；没名字写「未命名图片」', async () => {
+  it('Samples and online images have no locate key: they show the source, add resolution once the full image arrives, and the index comes only from the bottom bar; unnamed ones read "Untitled image"', async () => {
     const box = await open(0, [sample(1), { src: '/follow-stream?id=5&media=0', thumb: '/t.jpg', size: 3000 }]);
     const meta = q(box, '[data-photo-detail-meta]');
     expect(q<HTMLButtonElement>(box, '[data-photo-reveal]').hidden).toBe(true);
@@ -378,18 +378,18 @@ describe('信息面板', () => {
     await act(async () => { img.dispatchEvent(new Event('load')) });
     expect(meta.textContent).toBe('DMM · 1600 × 1200');
     await main().go(1);
-    expect(q(box, '[data-photo-detail] h2').textContent).toBe('未命名图片');
-    expect(meta.textContent).toBe('在线图片 · 3\u00a0KB');
+    expect(q(box, '[data-photo-detail] h2').textContent).toBe('Untitled image');
+    expect(meta.textContent).toBe('Online image · 3\u00a0KB');
   });
 
-  it('本地图没给定位的壳也不出定位键', async () => {
+  it('Local images without a locator get no locate key from the shell either', async () => {
     const box = await open(0, [local(100)]);
     expect(q<HTMLButtonElement>(box, '[data-photo-reveal]').hidden).toBe(true);
   });
 
-  it('圆圈 i 点开面板、点面板外收起而不关灯箱；Escape 先收面板再关灯箱', async () => {
+  it('The circled i opens the panel; clicking outside collapses the panel without closing the lightbox; Escape collapses the panel first, then closes the lightbox', async () => {
     const box = await open(0, WALL);
-    const toggle = labelled(box, '图片详情');
+    const toggle = labelled(box, 'Image details');
     const panel = q(box, '[data-photo-detail]');
     expect(toggle.getAttribute('aria-haspopup')).toBe('dialog');
     expect(toggle.getAttribute('aria-controls')).toBe(panel.id);
@@ -410,11 +410,11 @@ describe('信息面板', () => {
   });
 });
 
-describe('关闭', () => {
-  it('关闭键：拆掉两条轮播、摘掉页面锁滚、停止量尺寸，Escape 不再归它管', async () => {
+describe('Off', () => {
+  it('Close button: tears down both carousels, removes the page scroll lock, stops measuring, and Escape is no longer handled by it', async () => {
     const box = await open(0, WALL);
     const [s, m] = [strip(), main()];
-    await click(labelled(box, '关闭'));
+    await click(labelled(box, 'Off'));
     expect(box.isConnected).toBe(false);
     expect(m.destroy).toHaveBeenCalledWith(true, true);
     expect(s.destroy).toHaveBeenCalledWith(true, true);
@@ -427,7 +427,7 @@ describe('关闭', () => {
     expect(later).toHaveBeenCalled();
   });
 
-  it('点黑底或图四周的留白关掉，点图、工具条和缩略图不关', async () => {
+  it('Clicking the black or the padding around the image closes it, while the image, toolbar, and thumbnails never do', async () => {
     let box = await open(0, WALL);
     await click(q(box, '[data-photo-main] img'));
     await click(q(box, '[data-photo-bar]'));
@@ -440,7 +440,7 @@ describe('关闭', () => {
     expect(box.isConnected).toBe(false);
   });
 
-  it('浏览器自己的取消（Esc 关模态）先拦下，再走同一条关闭', async () => {
+  it('The browser\'s own cancel (Escape closing the modal) is intercepted first, then the same close path runs', async () => {
     const box = await open(0, WALL);
     const cancel = new Event('cancel', { cancelable: true });
     await act(async () => { box.dispatchEvent(cancel) });
@@ -449,7 +449,7 @@ describe('关闭', () => {
   });
 });
 
-it('面板第二行的口径：本地图缺来源写「来源未知」、缺大小写「大小未知」，一千字节以下也写 1 KB', () => {
-  expect(photoMeta({ src: '', thumb: '', asset: { id: 1 } }, undefined)).toBe('来源未知 · 大小未知');
+it('Second line of the panel convention: local images without a source read "Unknown source", without a size read "Unknown size", and anything under a thousand bytes still reads 1 KB', () => {
+  expect(photoMeta({ src: '', thumb: '', asset: { id: 1 } }, undefined)).toBe('Source unknown · Unknown size');
   expect(photoMeta({ src: '', thumb: '', asset: { id: 1, location: 'pikpak', size: 10 } }, undefined)).toBe('PikPak · 1\u00a0KB');
 });

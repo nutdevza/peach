@@ -1,6 +1,6 @@
-/* 界面音效模块的行为：开关、配方的安全边界、document 上的两路监听。
- * happy-dom 没有 Web Audio，这里搭一个只记录调度的假 AudioContext。模块里的
- * AudioContext 是单例，整份文件从头到尾只该建出这一个，所以用例按顺序共用它。 */
+/* UI sound module behavior: the switch, recipe safety bounds, and the two listeners on document.
+ * happy-dom has no Web Audio, so a fake AudioContext that only records scheduling is set up here. The module's
+ * AudioContext is a singleton; the whole file should build exactly this one, so tests share it in order. */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { UI_SOUNDS, playUiSound, setUiSoundsEnabled, uiSoundsEnabled, wireUiSounds } from '../src/ui-kit/sounds';
 
@@ -30,7 +30,7 @@ function param(): Param {
     sets: [], ramps: [], value: 0,
     setValueAtTime(value, at) { created.sets.push({ value, at }); },
     exponentialRampToValueAtTime(value, at) {
-      if (value <= 0) throw new RangeError('指数斜坡不能落到 0');
+      if (value <= 0) throw new RangeError('Exponential ramp must not reach 0');
       created.ramps.push({ value, at });
     },
   };
@@ -83,20 +83,20 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe('开关', () => {
-  it('关着时不出声也不建 AudioContext', () => {
+describe('Switches', () => {
+  it('No sound and no AudioContext while off', () => {
     setUiSoundsEnabled(false);
     expect(uiSoundsEnabled()).toBe(false);
     expect(playUiSound('click')).toBe(false);
     expect(FakeContext.created).toBe(0);
   });
-  it('不认识的名字直接抛，别把拼错的音效名当成静音', () => {
+  it('Throw on unknown names; do not treat a misspelled sound name as silence', () => {
     expect(() => playUiSound('ding')).toThrow('ding');
   });
 });
 
-describe('配方', () => {
-  it('全部音效共用一个 AudioContext，音量不越过 0.8，尾音都收在 0.001', () => {
+describe('Recipe', () => {
+  it('All sound effects share one AudioContext, volume never exceeds 0.8, and tails decay to 0.001', () => {
     setUiSoundsEnabled(true);
     expect(UI_SOUNDS).toEqual(['click', 'toggle-on', 'toggle-off', 'success', 'warning', 'error', 'whoosh', 'pop']);
     for (const name of UI_SOUNDS) expect(playUiSound(name)).toBe(true);
@@ -111,7 +111,7 @@ describe('配方', () => {
     }
     for (const osc of kind('oscillator')) expect(osc.stopped!).toBeGreaterThan(osc.started!);
   });
-  it('开关音的方向就是状态：开升、关降', () => {
+  it('The toggle sound\'s direction is the state: on rises, off falls', () => {
     setUiSoundsEnabled(true);
     playUiSound('toggle-on');
     const rising = kind('oscillator')[0]!.params.frequency!;
@@ -121,7 +121,7 @@ describe('配方', () => {
     const falling = kind('oscillator')[0]!.params.frequency!;
     expect(falling.ramps[0]!.value).toBeLessThan(falling.sets[0]!.value);
   });
-  it('噪声源放完把整条链拆掉', () => {
+  it('After the noise source finishes the whole chain tears down', () => {
     setUiSoundsEnabled(true);
     playUiSound('click');
     const source = kind('source')[0]!;
@@ -131,8 +131,8 @@ describe('配方', () => {
   });
 });
 
-describe('document 监听', () => {
-  it('按钮点一下响一声，禁用的不响，开关走 change 而不是 click', () => {
+describe('document listeners', () => {
+  it('Buttons click once per press, disabled ones stay silent, and switches fire on change rather than click', () => {
     setUiSoundsEnabled(true);
     const root = document.createElement('div');
     document.body.append(root);
@@ -163,7 +163,7 @@ describe('document 监听', () => {
     const sweep = oscillators[0]!.params.frequency!;
     expect(sweep.ramps[0]!.value).toBeGreaterThan(sweep.sets[0]!.value);
   });
-  it('页面在自己那层 stopPropagation 也拦不住这一声', () => {
+  it('Even stopPropagation at the page level cannot stop this event', () => {
     setUiSoundsEnabled(true);
     const root = document.createElement('div');
     document.body.append(root);

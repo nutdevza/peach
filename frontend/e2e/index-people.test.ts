@@ -3,7 +3,7 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser, Page } from 'playwright-core';
 import { launch, requiredEnv, settle, visit, VIEWPORTS } from './harness.ts';
 
-/** 标题行里搜索框、放大镜与版式开关的竖向落位和尺寸，取整到像素；图标连同线宽一起比。 */
+/** Vertical placement and size of the search field, magnifier and layout switch in the title row, rounded to pixels; icons are compared together with their stroke widths. */
 const headControls = (page: Page, selectors: { search: string; icon: string; layout: string }) =>
   page.evaluate((selectors) => {
     const box = (selector: string) => {
@@ -21,12 +21,12 @@ const headControls = (page: Page, selectors: { search: string; icon: string; lay
     };
   }, selectors);
 
-describe('本地与在线艺人共用名册布局', () => {
+describe('Local and online performers share the roster layout', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const path of ['/tags', '/tags?scope=online', '/performers', '/performers?scope=online', '/creators', '/studios', '/agencies', '/series']) {
-    it(`索引标题和操作同排，搜索框按可用空间收缩（${path}）`, { timeout: 60_000 }, async () => {
+    it(`Index title and actions share a row, and the search box shrinks with available space (${path})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, path, VIEWPORTS[0]);
       try {
         const page = opened.page;
@@ -50,8 +50,8 @@ describe('本地与在线艺人共用名册布局', () => {
             if (managing) await page.locator('[data-tag-mode]').click();
             await settle(page);
             const shown = await read();
-            assert.ok(shown.centers.every(delta => Math.abs(delta) < 1), `${width}px 操作或搜索框没有和标题同排：${JSON.stringify(shown)}`);
-            assert.ok(shown.searchWidth >= 64 && shown.searchWidth <= 320, `${width}px 搜索框没有保持可输入宽度：${shown.searchWidth}`);
+            assert.ok(shown.centers.every(delta => Math.abs(delta) < 1), `The ${width}px action or search box is not on the same row as the title: ${JSON.stringify(shown)}`);
+            assert.ok(shown.searchWidth >= 64 && shown.searchWidth <= 320, `The ${width}px search box did not keep a usable input width: ${shown.searchWidth}`);
             assert.equal(shown.contained, true);assert.equal(shown.overflow, false);
             if (managing) await page.locator('[data-tag-mode]').click();
           }
@@ -61,16 +61,16 @@ describe('本地与在线艺人共用名册布局', () => {
     });
   }
   for (const viewport of VIEWPORTS) {
-    it(`订阅标记在两种名册版式中可见（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The subscription mark is visible in both roster layouts (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/performers', viewport);
       try {
         const page = opened.page;
         let following = true;
         await page.route('**/api/index?**', route => route.fulfill({ json: {
           items: [
-            { k: '已订阅人物', n: 3, entity_id: 901, following, has_image: true },
-            { k: '停用订阅人物', n: 2, entity_id: 902, following: false },
-            { k: '没有订阅人物', n: 1, entity_id: 903 },
+            { k: 'Followed people', n: 3, entity_id: 901, following, has_image: true },
+            { k: 'Disable subscribed people', n: 2, entity_id: 902, following: false },
+            { k: 'No subscribed people', n: 1, entity_id: 903 },
           ], has_more: false,
         } }));
         await page.route('**/entity-image?**', route => route.fulfill({
@@ -78,12 +78,12 @@ describe('本地与在线艺人共用名册布局', () => {
           body: '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="190"><rect width="180" height="190" fill="#888"/></svg>',
         }));
         await page.reload({ waitUntil: 'load' });
-        for (const label of ['紧凑 · 圆形头像', '大图 · 竖幅头像']) {
+        for (const label of ['Compact · Round avatar', 'Large · Portrait avatar']) {
           await page.getByRole('radio', { name: label, exact: true }).press('Space');
-          const marker = page.locator('#index [data-k="已订阅人物"]').getByRole('img', { name: '已订阅新作', exact: true });
+          const marker = page.locator('#index [data-k="Followed people"]').getByRole('img', { name: 'Subscribed new releases', exact: true });
           await marker.waitFor({ timeout: 5_000 });
           await page.waitForFunction(() => {
-            const image = document.querySelector<HTMLImageElement>('#index [data-k="已订阅人物"] img');
+            const image = document.querySelector<HTMLImageElement>('#index [data-k="Followed people"] img');
             return image?.complete && image.naturalWidth > 0;
           });
           assert.equal(await page.locator('#index [data-index-feed]').count(), 1);
@@ -112,24 +112,24 @@ describe('本地与在线艺人共用名册布局', () => {
               const hit = document.elementFromPoint((box.left + box.right) / 2, y);
               return hit === node || (hit !== null && node.contains(hit));
             });
-          }), true, 'RSS 标记应完整显示在头像上方');
+          }), true, 'The RSS mark should display fully above the avatar');
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
           await page.locator('#index [data-index-grid]').screenshot({
-            path: `../build/continuation-rss/rss-${viewport.name}-${label.startsWith('紧凑') ? 'compact' : 'big'}.png`,
+            path: `../build/continuation-rss/rss-${viewport.name}-${label.startsWith('Compact') ? 'compact' : 'big'}.png`,
           });
         }
         following = false;
         await page.reload({ waitUntil: 'load' });
-        await page.locator('#index [data-k="已订阅人物"]').waitFor({ timeout: 15_000 });
+        await page.locator('#index [data-k="Followed people"]').waitFor({ timeout: 15_000 });
         assert.equal(await page.locator('#index [data-index-feed]').count(), 0);
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
   }
   for (const viewport of VIEWPORTS) {
-    for (const [path, selected] of [['/performers', '艺人'], ['/creators', '卖家'],
-      ['/performers?scope=online', '在线']] as const) {
-      it(`加载占位页使用同级名册入口（${selected} · ${viewport.name}）`, { timeout: 60_000 }, async () => {
+    for (const [path, selected] of [['/performers', 'Artists'], ['/creators', 'Sellers'],
+      ['/performers?scope=online', 'Online']] as const) {
+      it(`The loading placeholder page uses the sibling roster entry (${selected} · ${viewport.name})`, { timeout: 60_000 }, async () => {
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height }, isMobile: viewport.mobile,
         });
@@ -141,32 +141,32 @@ describe('本地与在线艺人共用名册布局', () => {
           await route.continue();
         });
         try {
-          // 主模块先铺索引骨架，首屏数据暂缓；标题行与名册入口在等待时已经完整可见。
+          // The main module lays the index skeleton first and defers first-screen data; the title row and roster entry are fully visible while waiting.
           await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + path, { waitUntil: 'commit' });
           await page.locator('#index [data-skeleton]').first().waitFor();
           assert.equal(await page.locator('#index [role="tablist"]').count(), 1);
-          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['艺人', '卖家', '在线']);
+          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['Artists', 'Sellers', 'Online']);
           assert.deepEqual(await page.locator('#index [role="tab"][aria-selected="true"]').allTextContents(), [selected]);
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
           const waiting = await headControls(page, {
             search: '#index [data-index-search] [data-rac]', icon: '#index [data-index-search] svg', layout: '#index .ihead .iconswitch' });
           release();
           await page.locator('#index [data-index-page]').waitFor();
-          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['艺人', '卖家', '在线']);
+          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['Artists', 'Sellers', 'Online']);
           const ready = await headControls(page, {
             search: '#index [data-index-search] [role="presentation"]', icon: '#index [data-index-search] svg',
             layout: '#index [data-index-layout]' });
-          // 标题行的搜索框与版式开关接管时原地换下：框高、竖向落位、图标与开关宽度都不跳。
-          // 横向位置跟着计数读数的字宽走，骨架那条占位条量不出真数字，不比。
-          assert.deepEqual(waiting, ready, '骨架与接管后的标题行控件几何不同');
+          // The title row's search box and layout toggle hand over in place: box height, vertical alignment, icon and toggle width never jump.
+          // The horizontal position follows the width of the count text; the skeleton placeholder bar has no real number to measure, so it is not compared.
+          assert.deepEqual(waiting, ready, 'The skeleton and post-takeover title row control geometry differ');
         } finally { release(); await context.close() }
       });
     }
-    it(`两种版式的卡片尺寸一致，长名字留在卡片内（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Both layouts use the same card size, and long names stay inside the card (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/performers', viewport);
       try {
         const page = opened.page;
-        const names = ['Jul3D', 'LazyProcrastinator', 'Suzutaru 3D (鈴太郎3D)', '很长的艺人名称'.repeat(6)];
+        const names = ['Jul3D', 'LazyProcrastinator', 'Suzutaru 3D (鈴太郎3D)', 'A very long artist name'.repeat(6)];
         await page.route('**/api/index?**', route => route.fulfill({ json: {
           items: names.map(k => ({ k, n: 3 })), has_more: false,
         } }));
@@ -185,34 +185,34 @@ describe('本地与在线艺人共用名册布局', () => {
             contained: name.left >= rect.left && name.right <= rect.right,
           };
         }));
-        for (const label of ['紧凑 · 圆形头像', '大图 · 竖幅头像']) {
-          await page.getByRole('tab', { name: '艺人', exact: true }).click();
+        for (const label of ['Compact · Round avatar', 'Large · Portrait avatar']) {
+          await page.getByRole('tab', { name: 'Artists', exact: true }).click();
           await page.getByRole('radio', { name: label, exact: true }).press('Space');
-          const layout = label.startsWith('紧凑') ? 'compact' : 'big';
+          const layout = label.startsWith('Compact') ? 'compact' : 'big';
           await page.locator(`#index [data-index-grid][data-layout="${layout}"]`).waitFor();
           await settle(page);
           const local = await measure();
-          await page.getByRole('tab', { name: '在线', exact: true }).click();
+          await page.getByRole('tab', { name: 'Online', exact: true }).click();
           await page.locator('#index [data-follow-author][data-index-cell]').first().waitFor();
           await settle(page);
           const online = await measure();
-          assert.deepEqual(online, local, '在线卡片与本地卡片的布局不同');
+          assert.deepEqual(online, local, 'Online and local card layouts differ');
           assert.ok(online.every(item => item.width >= 150 && item.contained && item.whiteSpace === 'normal'));
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
           assert.equal(await page.locator('#index [role="tablist"]').count(), 1);
-          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['艺人', '卖家', '在线']);
-          await page.getByRole('tab', { name: '卖家', exact: true }).click();
+          assert.deepEqual(await page.locator('#index [role="tab"]').allTextContents(), ['Artists', 'Sellers', 'Online']);
+          await page.getByRole('tab', { name: 'Sellers', exact: true }).click();
           await page.locator('#index [data-index-cell]').first().waitFor();
           await settle(page);
           assert.equal(await page.locator('#index [role="tablist"]').count(), 1);
-          assert.equal(await page.locator('#index [aria-label="身份分类"]').count(), 0);
+          assert.equal(await page.locator('#index [aria-label="Identity groups"]').count(), 0);
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         }
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
   }
-  it('卖家动画作者的旧链接就地落到艺人分类，地址、标题和历史只留一条', { timeout: 60_000 }, async () => {
+  it('Old seller-animation author links land in the artist category in place, keeping a single address, title, and history entry', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/performers', VIEWPORTS[0]);
     try {
       const page = opened.page;
@@ -228,17 +228,17 @@ describe('本地与在线艺人共用名册布局', () => {
       await page.locator('#index [data-index-page]').waitFor({ timeout: 15_000 });
       await settle(page);
       assert.equal(new URL(page.url()).searchParams.get('category'), 'animation');
-      assert.equal(await page.evaluate(() => history.length), before + 1, '规范化不该多压一条历史');
+      assert.equal(await page.evaluate(() => history.length), before + 1, 'Normalization must never push an extra history entry');
       assert.equal(await page.evaluate(() => document.body.dataset.surface), '/performers');
       assert.match(await page.title(), /^艺人/);
-      assert.deepEqual(await page.locator('#index [role="tab"][aria-selected="true"]').allTextContents(), ['艺人']);
-      assert.equal(requests.length, 1, `名册只取一次：${requests.join(' | ')}`);
+      assert.deepEqual(await page.locator('#index [role="tab"][aria-selected="true"]').allTextContents(), ['Artists']);
+      assert.equal(requests.length, 1, `The roster is fetched only once: ${requests.join(' | ')}`);
       assert.match(requests[0], /kind=performers/);
       assert.match(requests[0], /category=animation/);
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close() }
   });
-  it('名册过滤框在手机上弹出的软键盘回车键标成「搜索」', { timeout: 60_000 }, async () => {
+  it('The roster filter\'s mobile soft keyboard labels Enter as "Search"', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/performers', VIEWPORTS[1]);
     let release = () => {};
     try {

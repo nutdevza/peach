@@ -1,4 +1,4 @@
-/* 配置与设置入口的语义样式：图标、状态对齐、主次动作与单行入口。 */
+/* Semantic styles for config and settings entries: icons, status alignment, primary versus secondary actions, and single-line entries. */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
@@ -6,12 +6,12 @@ import { configurationBody, expectBody, layout, settle, visit, VIEWPORTS } from 
 import { followCredential, installDesignBrowser, openActivity, openFollowManage, settledRun } from './design-fixture.ts';
 import { openHome, openPanel, PANEL } from './settings-fixture.ts';
 
-describe('设计决定：配置控件', () => {
+describe('Design decision: config controls', () => {
   let browser: Browser;
   installDesignBrowser((next) => { browser = next; });
 
   for (const viewport of VIEWPORTS) {
-    it(`来源菜单适应长选项并受视口宽度约束（${viewport.name}）`, async () => {
+    it(`The source menu adapts to long options and is constrained by viewport width (${viewport.name})`, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
         const { page } = opened;
@@ -21,8 +21,8 @@ describe('设计决定：配置控件', () => {
             root: '', providers: [followCredential(name, 'none', false, [])],
           } }));
           await page.goto(new URL('/subscriptions?tab=add', page.url()).href, { waitUntil: 'load' });
-          await page.getByRole('button', { name: '全部来源', exact: true }).click();
-          const menu = page.getByRole('dialog', { name: '来源筛选', exact: true });
+          await page.getByRole('button', { name: 'All sources', exact: true }).click();
+          const menu = page.getByRole('dialog', { name: 'Source filter', exact: true });
           assert.equal(await menu.getByRole('checkbox', { name, exact: true }).count(), 1);
           const fit = await menu.evaluate(element => {
             const label = element.querySelector('label')!;
@@ -32,7 +32,7 @@ describe('设计决定：配置控件', () => {
           });
           assert.ok(fit.left >= 0 && fit.right <= fit.viewport, JSON.stringify(fit));
           assert.ok(fit.scroll <= fit.client + 1 && fit.content <= fit.frame + 1, JSON.stringify(fit));
-          if (viewport.width > 1000) assert.ok(fit.width > 203, '长选项应撑开菜单');
+          if (viewport.width > 1000) assert.ok(fit.width > 203, 'Long options should widen the menu');
           await page.keyboard.press('Escape');
         }
         assert.deepEqual((await layout(page)).offenders, []);
@@ -40,13 +40,13 @@ describe('设计决定：配置控件', () => {
       } finally { await opened.close(); }
     });
 
-    it(`来源筛选短操作紧邻排列，选项靠近触发器（${viewport.name}）`, async () => {
+    it(`Source filter quick actions sit adjacent, with options near the trigger (${viewport.name})`, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
         const { page } = opened;
-        await page.getByRole('tab', { name: '添加关注', exact: true }).click();
-        await page.getByRole('button', { name: '全部来源', exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: '来源筛选', exact: true });
+        await page.getByRole('tab', { name: 'Add follow', exact: true }).click();
+        await page.getByRole('button', { name: 'All sources', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: 'Source filter', exact: true });
         const geometry = await dialog.evaluate(element => {
           const actions = element.querySelector('[data-selection-actions]')!;
           const buttons = [...actions.querySelectorAll('button,a')].map(node => {
@@ -65,38 +65,38 @@ describe('设计决定：配置控件', () => {
             right: element.getBoundingClientRect().right, viewport: innerWidth };
         });
         assert.equal(geometry.actions.length, 3);
-        assert.ok(Math.abs(geometry.contentWidth - geometry.naturalWidth) <= 1, '菜单跟随选项和操作行中较宽的一组');
+        assert.ok(Math.abs(geometry.contentWidth - geometry.naturalWidth) <= 1, 'The menu follows the wider of the options and action rows');
         assert.ok(geometry.actions.every(action => Math.abs(action.center - geometry.actions[0]!.center) <= 1));
         assert.ok(geometry.actions.every(action => (geometry.placement === 'top'
           ? action.bottom <= geometry.optionTop : action.top >= geometry.optionBottom) && action.width < geometry.width));
-        assert.ok(geometry.actions[2]!.left - geometry.actions[1]!.right <= 9, '凭据链接紧邻全不选');
+        assert.ok(geometry.actions[2]!.left - geometry.actions[1]!.right <= 9, 'Credentials link sits right next to Select none');
         assert.ok(geometry.actions.every(action => action.scrollWidth <= action.clientWidth + 1));
         assert.ok(geometry.right <= geometry.viewport);
-        assert.equal(await dialog.getByRole('link', { name: '凭据设置', exact: true }).count(), 1);
-        assert.equal(await dialog.getByRole('link', { name: '凭据设置', exact: true }).getAttribute('href'), '/settings/subscriptions');
-        assert.equal(await dialog.getByRole('link', { name: '凭据设置', exact: true }).locator('svg').count(), 1);
-        await dialog.getByRole('button', { name: '全不选', exact: true }).click();
+        assert.equal(await dialog.getByRole('link', { name: 'Credential setup', exact: true }).count(), 1);
+        assert.equal(await dialog.getByRole('link', { name: 'Credential setup', exact: true }).getAttribute('href'), '/settings/subscriptions');
+        assert.equal(await dialog.getByRole('link', { name: 'Credential setup', exact: true }).locator('svg').count(), 1);
+        await dialog.getByRole('button', { name: 'Deselect all', exact: true }).click();
         assert.equal(await dialog.getByRole('checkbox', { checked: true }).count(), 0);
-        await dialog.getByRole('button', { name: '全选', exact: true }).click();
+        await dialog.getByRole('button', { name: 'Select all', exact: true }).click();
         assert.equal(await dialog.getByRole('checkbox', { checked: false }).count(), 0);
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
     });
 
-    it(`多选菜单随视口空间翻转，键盘顺序与选项位置一致（${viewport.name}）`, async () => {
+    it(`Multiselect menu flips with viewport space; keyboard order matches option position (${viewport.name})`, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
         const { page } = opened;
         await page.setViewportSize({ width: viewport.width, height: 1200 });
-        await page.getByRole('tab', { name: '添加关注', exact: true }).click();
-        const trigger = page.getByRole('button', { name: '全部来源', exact: true });
+        await page.getByRole('tab', { name: 'Add follow', exact: true }).click();
+        const trigger = page.getByRole('button', { name: 'All sources', exact: true });
         await trigger.click();
-        const dialog = page.getByRole('dialog', { name: '来源筛选', exact: true });
+        const dialog = page.getByRole('dialog', { name: 'Source filter', exact: true });
         await page.waitForFunction(() => document.querySelector('[data-selection-placement]')?.getAttribute('data-selection-placement') === 'bottom');
         assert.equal(await dialog.locator('button,a,input').first().getAttribute('type'), 'checkbox');
         await page.setViewportSize({ width: viewport.width, height: 480 });
         await page.waitForFunction(() => document.querySelector('[data-selection-placement]')?.getAttribute('data-selection-placement') === 'top');
-        assert.equal(await dialog.locator('button,a,input').first().innerText(), '全选');
+        assert.equal(await dialog.locator('button,a,input').first().innerText(), 'Select all');
         const ordered = await dialog.evaluate(element => {
           const actions = element.querySelector('[data-selection-actions]')!.getBoundingClientRect();
           const options = element.querySelector('[data-selection-options]')!.getBoundingClientRect();
@@ -107,53 +107,53 @@ describe('设计决定：配置控件', () => {
       } finally { await opened.close(); }
     });
 
-    it(`关注管理集合和跨页管理导航保留滑动层与减少动态效果（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Follow management collections and cross-page management navigation keep the sliding layer and reduced motion (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
         const { page } = opened;
         await page.emulateMedia({ reducedMotion: 'no-preference' });
-        const tabs = page.getByRole('tablist', { name: '关注管理区域' });
+        const tabs = page.getByRole('tablist', { name: 'Follows management area' });
         const surface = tabs.locator(':scope > [data-pill-thumb]');
         await surface.waitFor();
         const original = await surface.elementHandle();
         assert.ok(original);
-        await tabs.getByRole('tab', { name: '添加关注', exact: true }).click();
+        await tabs.getByRole('tab', { name: 'Add follow', exact: true }).click();
         await page.waitForFunction(() => {
-          const host = document.querySelector('[role="tablist"][aria-label="关注管理区域"]')!;
+          const host = document.querySelector('[role="tablist"][aria-label="Follows management area"]')!;
           const selected = host.querySelector('[data-pill-selected]')!.getBoundingClientRect();
           const pane = host.querySelector('[data-pill-thumb]')!.getBoundingClientRect();
           return Math.abs(selected.left - pane.left) < 1 && Math.abs(selected.width - pane.width) < 1;
         });
         assert.equal(await original.evaluate((node) => node.isConnected), true);
         assert.match(await surface.evaluate((node) => getComputedStyle(node).transitionDuration), /0.3s/);
-        await tabs.getByRole('tab', { name: '添加关注', exact: true }).press('ArrowRight');
-        await tabs.getByRole('tab', { name: '标签管理', selected: true }).waitFor();
-        await tabs.getByRole('tab', { name: '标签管理', exact: true }).press('ArrowRight');
-        await tabs.getByRole('tab', { name: '关注列表', selected: true }).waitFor();
+        await tabs.getByRole('tab', { name: 'Add follow', exact: true }).press('ArrowRight');
+        await tabs.getByRole('tab', { name: 'Manage tags', selected: true }).waitFor();
+        await tabs.getByRole('tab', { name: 'Manage tags', exact: true }).press('ArrowRight');
+        await tabs.getByRole('tab', { name: 'Follows list', selected: true }).waitFor();
         assert.equal(await tabs.getByRole('tab').count(), 3);
         assert.equal(await surface.count(), 1);
         await page.emulateMedia({ reducedMotion: 'reduce' });
         assert.equal(await surface.evaluate((node) => getComputedStyle(node).transitionDuration), '0s');
-        const navigation = page.getByRole('navigation', { name: '管理', exact: true });
+        const navigation = page.getByRole('navigation', { name: 'Manage', exact: true });
         const managementSurface = navigation.locator('[data-pill-thumb]');
         const managementOriginal = await managementSurface.elementHandle();
         assert.ok(managementOriginal);
-        await navigation.getByRole('button', { name: '任务中心', exact: true }).click();
+        await navigation.getByRole('button', { name: 'Task center', exact: true }).click();
         await page.waitForURL((url) => url.pathname === '/tasks');
-        await page.getByRole('heading', { name: '任务中心', exact: true }).waitFor();
+        await page.getByRole('heading', { name: 'Task center', exact: true }).waitFor();
         assert.equal(await managementOriginal.evaluate((node) => node.isConnected), true);
-        assert.equal(await navigation.locator('[data-pill-selected]').textContent(), '任务中心');
+        assert.equal(await navigation.locator('[data-pill-selected]').textContent(), 'Task center');
         assert.deepEqual((await layout(page)).offenders, []);
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
     });
 
-    it(`页面页签复用 PillTabList 选中层并保留方向键导航（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Page tabs reuse the PillTabList selected layer and keep arrow key navigation (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/studios', viewport);
       try {
         const page = opened.page;
         await page.emulateMedia({ reducedMotion: 'no-preference' });
-        const tabs = page.getByRole('tablist', { name: '资料类型' });
+        const tabs = page.getByRole('tablist', { name: 'Detail kinds' });
         const surface = tabs.locator(':scope > span[aria-hidden="true"]');
         await surface.waitFor();
         const original = await surface.elementHandle();
@@ -162,10 +162,10 @@ describe('设计决定：配置控件', () => {
           properties: getComputedStyle(node).transitionProperty }));
         assert.match(style.properties, /transform/);
         assert.ok(style.duration.split(',').every((value) => value.trim() === '0.3s'));
-        await tabs.getByRole('tab', { name: '事务所', exact: true }).click();
+        await tabs.getByRole('tab', { name: 'Agency', exact: true }).click();
         await page.waitForURL((url) => url.pathname === '/agencies');
-        await tabs.getByRole('tab', { name: '事务所', selected: true }).waitFor();
-        // 等的就是开头取到的那一块选中层滑到位并停下：读它自己的父元素，不按标签名另找一排。
+        await tabs.getByRole('tab', { name: 'Agency', selected: true }).waitFor();
+        // What is awaited is the selection layer fetched at the start sliding into place and stopping: read its own parent element rather than hunting another row by tag name.
         await page.waitForFunction((thumb) => {
           const selected = thumb.parentElement!.querySelector('[aria-selected="true"]')!.getBoundingClientRect();
           const pane = thumb.getBoundingClientRect();
@@ -178,9 +178,9 @@ describe('设计决定：配置控件', () => {
         assert.ok(selected && pane && Math.abs(selected.x - pane.x) <= 1 && Math.abs(selected.width - pane.width) <= 1);
         await tabs.getByRole('tab', { selected: true }).press('ArrowLeft');
         await page.waitForURL((url) => url.pathname === '/series');
-        await tabs.getByRole('tab', { name: '系列', selected: true }).press('ArrowLeft');
+        await tabs.getByRole('tab', { name: 'Series', selected: true }).press('ArrowLeft');
         await page.waitForURL((url) => url.pathname === '/studios');
-        await tabs.getByRole('tab', { name: '厂牌', selected: true }).waitFor();
+        await tabs.getByRole('tab', { name: 'Labels', selected: true }).waitFor();
         await page.emulateMedia({ reducedMotion: 'reduce' });
         assert.equal(await surface.evaluate((node) => getComputedStyle(node).transitionDuration), '0s');
         assert.deepEqual((await layout(page)).offenders, []);
@@ -188,12 +188,12 @@ describe('设计决定：配置控件', () => {
       } finally { await opened.close(); }
     });
 
-    it(`设置项分隔线左侧内缩、右侧通栏，独立行组之间有一条线（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Setting dividers are inset on the left and full-bleed on the right, with one line between standalone row groups (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/library', viewport);
       try {
         const page = opened.page;
-        const section = page.getByRole('region', { name: '视频预览', exact: true });
-        await section.getByRole('switch', { name: '生成视频预览' }).waitFor();
+        const section = page.getByRole('region', { name: 'Video previews', exact: true });
+        await section.getByRole('switch', { name: 'Generate video previews' }).waitFor();
         await settle(page);
         const measured = await section.evaluate((element) => {
           const card = element.lastElementChild!;
@@ -208,7 +208,7 @@ describe('设计决定：配置控件', () => {
             })),
           }));
         });
-        // 总开关、时间轴档位、抽帧解码方式各占一个行组，组与组之间由下一组的上边线分开。
+        // The master toggle, the timeline tier and the frame-extraction decode method each occupy one row group; groups are separated by the next group's top border.
         assert.equal(measured.length, 3);
         assert.deepEqual(measured.map((group) => group.rows.length), [1, 1, 1]);
         assert.deepEqual(measured.map((group) => group.top), [0, 1, 1]);
@@ -216,8 +216,8 @@ describe('设计决定：配置控件', () => {
         for (const row of measured.flatMap((group) => group.rows)) {
           assert.ok(Math.abs(row.left - 12) <= .5 && Math.abs(row.right) <= .5, JSON.stringify(row));
         }
-        const footer = await page.getByRole('form', { name: '自动发现新文件', exact: true })
-          .getByRole('button', { name: '保存配置', exact: true }).evaluate((button) => {
+        const footer = await page.getByRole('form', { name: 'Auto-discover new files', exact: true })
+          .getByRole('button', { name: 'Save configuration', exact: true }).evaluate((button) => {
             const bar = button.parentElement!;
             const card = bar.parentElement!.getBoundingClientRect();
             const box = bar.getBoundingClientRect();
@@ -239,7 +239,7 @@ describe('设计决定：配置控件', () => {
       } finally { await opened.close(); }
     });
 
-    it(`设置导航字形可见，口味入口呈按钮并进入对应页面（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Settings nav glyph is visible; the taste entry renders as a button and opens its page (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await openHome(browser, viewport);
       try {
         const page = opened.page;
@@ -249,10 +249,10 @@ describe('设计决定：配置控件', () => {
           const symbol = document.querySelector(icon.querySelector('use')!.getAttribute('href')!);
           return { width: shape.width, height: shape.height, text: symbol?.textContent, name: icon.closest('button')!.textContent };
         }));
-        for (const mark of marks) assert.ok(mark.width > 0 && mark.height > 0, `${mark.name} 字形为空`);
-        assert.ok(marks.find((mark) => mark.name === 'JAV 与新作')?.text?.includes('番'));
-        await page.locator(PANEL).getByRole('tab', { name: '搜索与推荐' }).click();
-        const link = page.locator(PANEL).getByRole('link', { name: '打开口味与记录' });
+        for (const mark of marks) assert.ok(mark.width > 0 && mark.height > 0, `${mark.name} glyph is empty`);
+        assert.ok(marks.find((mark) => mark.name === 'JAV & new releases')?.text?.includes('番'));
+        await page.locator(PANEL).getByRole('tab', { name: 'Search & recommendations' }).click();
+        const link = page.locator(PANEL).getByRole('link', { name: 'Open taste & history' });
         const style = await link.evaluate((node) => ({ display: getComputedStyle(node).display,
           height: node.getBoundingClientRect().height, decoration: getComputedStyle(node).textDecorationLine }));
         assert.ok(['flex', 'inline-flex'].includes(style.display));
@@ -265,7 +265,7 @@ describe('设计决定：配置控件', () => {
       } finally { await opened.close(); }
     });
 
-    it(`媒体状态居中，辅助动作与保存有层级，新手教程入口可见（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Media status is centered, secondary actions and save are layered, and the guided-tour entry stays visible (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/library', viewport);
       try {
         const page = opened.page;
@@ -286,15 +286,15 @@ describe('设计决定：配置控件', () => {
           return Math.abs(input.top + input.height / 2 - status.top - status.height / 2);
         }));
         assert.equal(centers.length, 3);
-        for (const delta of centers) assert.ok(delta <= 1, `状态偏离输入框中线 ${delta}px`);
-        const media = page.getByRole('form', { name: '媒体库与目录', exact: true });
-        assert.notEqual(await media.getByRole('button', { name: '添加媒体库', exact: true }).evaluate((node) => getComputedStyle(node).backgroundImage),
-          await media.getByRole('button', { name: '保存配置', exact: true }).evaluate((node) => getComputedStyle(node).backgroundImage));
-        await page.getByRole('tab', { name: '应用与维护', exact: true }).click();
-        const tutorial = page.getByRole('region', { name: '新手教程', exact: true });
+        for (const delta of centers) assert.ok(delta <= 1, `The status is ${delta}px off the input centerline`);
+        const media = page.getByRole('form', { name: 'Library and catalog', exact: true });
+        assert.notEqual(await media.getByRole('button', { name: 'Add library', exact: true }).evaluate((node) => getComputedStyle(node).backgroundImage),
+          await media.getByRole('button', { name: 'Save configuration', exact: true }).evaluate((node) => getComputedStyle(node).backgroundImage));
+        await page.getByRole('tab', { name: 'App and maintenance', exact: true }).click();
+        const tutorial = page.getByRole('region', { name: 'Guided tour', exact: true });
         await tutorial.waitFor();
         const aligned = await tutorial.evaluate((node) => {
-          const label = [...node.querySelectorAll('p')].find((item) => item.textContent === '新手教程')!.parentElement!.getBoundingClientRect();
+          const label = [...node.querySelectorAll('p')].find((item) => item.textContent === 'Guided tour')!.parentElement!.getBoundingClientRect();
           const button = node.querySelector('button')!.getBoundingClientRect();
           return { delta: Math.abs(label.top + label.height / 2 - button.top - button.height / 2), gap: button.left - label.right };
         });
@@ -307,7 +307,7 @@ describe('设计决定：配置控件', () => {
   }
 
   for (const viewport of VIEWPORTS) for (const path of ['/settings/library', '/review']) {
-    it(`分类目录在桌面左侧、手机上方，选中态区别于悬停（${path} · ${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The category catalog sits on the left on desktop and on top on phones, with the selected state distinct from hover (${path} · ${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, path, viewport);
       try {
         const page = opened.page;
@@ -340,21 +340,21 @@ describe('设计决定：配置控件', () => {
     });
   }
 
-  it('大量已完成后继可通过键盘展开和收起', { timeout: 60_000 }, async () => {
-    const parent = settledRun(1000, 'succeeded', '订阅源拉取');
-    const children = Array.from({ length: 20 }, (_, index) => ({ ...settledRun(index + 1, 'succeeded', '资料图片补全'),
+  it('Many completed successors can expand and collapse by keyboard', { timeout: 60_000 }, async () => {
+    const parent = settledRun(1000, 'succeeded', 'Follow source fetching');
+    const children = Array.from({ length: 20 }, (_, index) => ({ ...settledRun(index + 1, 'succeeded', 'Fill in detail images'),
       parent_run_id: parent.id, root_run_id: parent.id, followup_key: `entity-avatar:${index}`, followup_depth: 1 }));
     const opened = await openActivity(browser, [parent, ...children]);
     try {
       const page = opened.page;
-      const summary = page.locator('summary').filter({ hasText: '任务明细 · 20 项' });
+      const summary = page.locator('summary').filter({ hasText: 'Task details · 20 items' });
       assert.equal(await page.locator('[data-followup-key]:visible').count(), 0);
       await summary.focus();
       await page.keyboard.press('Enter');
       await settle(page);
       assert.equal(await page.locator('[data-followup-key]:visible').count(), 20);
       await page.keyboard.press('Enter');
-      await page.waitForFunction(() => ![...document.querySelectorAll('details')].find((node) => node.textContent?.includes('任务明细 · 20 项'))?.open);
+      await page.waitForFunction(() => ![...document.querySelectorAll('details')].find((node) => node.textContent?.includes('Task details · 20 items'))?.open);
       assert.equal(await page.locator('[data-followup-key]:visible').count(), 0);
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close(); }

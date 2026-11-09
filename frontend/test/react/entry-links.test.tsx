@@ -11,21 +11,21 @@ const state: EntryLinksState = {
   ],
 };
 
-it('外部入口：能换镜像的两站各一个地址框，默认留空，保存发出框里的值', async () => {
+it('External entries: one address box each for the two mirrorable sites, empty by default, and saving sends the box value', async () => {
   const fetcher = fetchMock(200, state);
   vi.stubGlobal('fetch', fetcher);
   const receipt = vi.fn();
   const host = await mount(<EntryLinksForm initial={state} receipt={receipt} />);
-  // 入口出不出现由数据库里有没有站点 id 决定，三枚按钮自己就在资料页上，这里没有开关。
+  // Whether the entry appears is decided by whether a site id exists in the database; the three buttons already live on the profile page, and there is no toggle here.
   expect(switches(host)).toEqual([]);
-  // みんなのAV 只此一家，没有域名可换，它不出现在这一页上。
+  // Minna no AV is one of a kind with no alternate domain, so it does not appear on this page.
   expect(host.querySelector('#entry-link-minnano-av')).toBeNull();
   const javdb = host.querySelector<HTMLInputElement>('#entry-link-javdb');
-  // 默认值不要人先抄一遍：框是空的，当前在用的那个域名写在占位符里。
+  // No making the user copy the default first: the field is empty, and the domain currently in use sits in the placeholder.
   expect(javdb?.value).toBe('');
   expect(javdb?.placeholder).toBe('javdb.com');
-  expect(host.textContent).toContain('JavDB 地址');
-  expect(host.textContent).not.toContain('地址模板');
+  expect(host.textContent).toContain('Video detail sitesIf JavDB or MISSAV will not open, enter a mirror domain that does.JavDB addressDomain only; leave blank for the default addressMISSAV addressDomain only; leave blank for the default addressSave configuration');
+  expect(host.textContent).not.toContain('Address template');
   await type(javdb, 'javdb521.com');
   expect(fetcher).not.toHaveBeenCalled();
   await submit(host.querySelector('form'));
@@ -34,22 +34,22 @@ it('外部入口：能换镜像的两站各一个地址框，默认留空，保�
   expect(sentBody(fetcher)).toEqual({
     sites: { javdb: { host: 'javdb521.com' }, missav: { host: 'missav.ai' } },
   });
-  expect(receipt).toHaveBeenCalledWith('已保存配置');
+  expect(receipt).toHaveBeenCalledWith('Configuration saved');
 });
 
-it('外部入口：说明就是卡里的头一块，它上面不画线', async () => {
+it('External entry: the description is the first block in the card, with no line drawn above it', async () => {
   const host = await mount(<EntryLinksForm initial={state} receipt={vi.fn()} />);
   const help = [...host.querySelectorAll('p')]
-    .find((node) => node.textContent?.startsWith('JavDB 或 MISSAV 打不开时'));
+    .find((node) => node.textContent?.startsWith('When JavDB or MISSAV will not open'));
   const block = help?.parentElement;
-  // 那道线是给排在设置行后面的块用的，分隔的是它和上面那组行。这张卡里它自己就是头一块，
-  // 线画出来上面什么也没有，读成分区标题自带一条下边线。
+  // That divider is for blocks placed after the settings rows, separating them from the group above. In this card it is itself the first block,
+  // The line renders with nothing on it, so it reads as a section title's built-in bottom border.
   expect(block?.previousElementSibling).toBeNull();
   expect(block?.className).not.toContain('border-t');
 });
 
-it('服务端没有站点时不补地址字段', async () => {
-  // 站点清单由服务端给。前端自己兜一份默认的话，那份迟早和 `peach.entry_links` 分叉。
+it('Without a site from the server the address field never backfills', async () => {
+  // The site list comes from the server. If the frontend kept its own default copy, it would sooner or later drift from `peach.entry_links`.
   const host = await mount(<EntryLinksForm initial={{ sites: [] }} receipt={vi.fn()} />);
   expect(host.querySelectorAll('input')).toHaveLength(0);
 });

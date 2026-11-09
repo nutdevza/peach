@@ -1,4 +1,4 @@
-/* 合成短片上的播放器皮肤几何与状态。 */
+/* Player skin geometry and state on the synthetic clip. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { join } from 'node:path';
@@ -6,12 +6,12 @@ import type { Browser } from 'playwright-core';
 import { launch, requiredEnv, visit, VIEWPORTS } from './harness.ts';
 import { mockSubtitleMemory } from './subtitle-fixture.ts';
 
-describe('播放器皮肤', () => {
+describe('Player skin', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
-  it('首次加载模块期间保留海报，控制条从完整皮肤开始显示', { timeout: 60_000 }, async () => {
+  it('The poster holds while the module first loads, and the control bar starts from the full skin', { timeout: 60_000 }, async () => {
     let release!: () => void;
     let moduleRequested!: Promise<unknown>;
     const gate = new Promise<void>(resolve => { release = resolve });
@@ -24,7 +24,7 @@ describe('播放器皮肤', () => {
       await moduleRequested;
       const video = opened.page.locator('#stage video.video-js');
       await video.waitFor();
-      assert.equal(await video.evaluate((node: HTMLVideoElement) => node.controls), false, '模块加载期间不显示浏览器控制条');
+      assert.equal(await video.evaluate((node: HTMLVideoElement) => node.controls), false, 'The browser control bar stays hidden while the module loads');
       release();
       await opened.page.locator('#stage .vjs-peach-right-controls').waitFor();
       assert.equal(await opened.page.locator('#stage .vjs-control-bar').evaluate(bar => getComputedStyle(bar).visibility), 'visible');
@@ -34,7 +34,7 @@ describe('播放器皮肤', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：刷新后恢复同一视频的旋转、倍速和字幕外观`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: refresh restores the same video's rotation, speed, and subtitle appearance`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport, async page => {
         await mockSubtitleMemory(page);
         await page.addInitScript(() => localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false })));
@@ -67,7 +67,7 @@ describe('播放器皮肤', () => {
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name}：旋转画面适配播放器并恢复原始方向`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: rotation fits the player and restores the original orientation`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport, async page => {
         await page.addInitScript(() => localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false })));
       });
@@ -98,7 +98,7 @@ describe('播放器皮肤', () => {
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name}：控制组贴右、进度圆点唯一、全屏保留控件`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: control group flush right, a single progress dot, and fullscreen keeps the controls`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport, async page => {
         await page.addInitScript(theme => localStorage.setItem('peach.settings.v1',
           JSON.stringify({ detailAutoplay: false, theme })), viewport.mobile ? 'dark' : 'light');
@@ -115,18 +115,18 @@ describe('播放器皮肤', () => {
           return { rightGap: bar.right - group.right, thumbOpacity: getComputedStyle(thumb).opacity,
             progressDot: getComputedStyle(slider.querySelector('.vjs-play-progress')!, '::before').content };
         });
-        assert.ok(Math.abs(geometry.rightGap) < 1, `右侧控制组离右边缘 ${geometry.rightGap}px`);
-        assert.equal(geometry.thumbOpacity, '1', '进度圆点常驻');
-        assert.equal(geometry.progressDot, 'none', '进度仅由一枚滑块显示圆点');
+        assert.ok(Math.abs(geometry.rightGap) < 1, `The right control group sits ${geometry.rightGap}px from the right edge`);
+        assert.equal(geometry.thumbOpacity, '1', 'Progress dot always visible');
+        assert.equal(geometry.progressDot, 'none', 'Progress is shown by a single dot on the slider');
         if (!viewport.mobile) {
           await page.locator('#stage .vjs-volume-panel').hover();
           const volume = (await page.locator('#stage .vjs-volume-panel').boundingBox())!;
-          assert.equal(volume.width, 111, '音量胶囊展开为 111px');
+          assert.equal(volume.width, 111, 'The volume pill expands to 111px');
           const right = (await page.locator('#stage .vjs-peach-right-controls').boundingBox())!;
           const bar = (await page.locator('#stage .vjs-control-bar').boundingBox())!;
           assert.ok(Math.abs(right.x + right.width - bar.x - bar.width) < 1);
         }
-        // 演示库的进度预览使用合成图片，不依赖后台抽帧完成时间。
+        // The demo library's progress preview uses synthetic images, not dependent on when background frame extraction finishes.
         await page.route('**/poster?**', route => route.fulfill({ contentType: 'image/svg+xml',
           body: '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270"><rect width="480" height="270" fill="#888"/></svg>' }));
         await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')!.readyState >= 2);
@@ -138,8 +138,8 @@ describe('播放器皮肤', () => {
           return { width: box.width, height: box.height, color: getComputedStyle(thumb).backgroundColor,
             fill: getComputedStyle(thumb.parentElement!.querySelector('.vjs-play-progress')!).backgroundColor };
         });
-        assert.ok(Math.abs(dot.width - dot.height) < .1, '进度圆点保持正圆');
-        assert.equal(dot.color, dot.fill, '进度圆点与已播段使用同一颜色');
+        assert.ok(Math.abs(dot.width - dot.height) < .1, 'Progress dot stays perfectly round');
+        assert.equal(dot.color, dot.fill, 'The progress dot and played span share one color');
         if (viewport.mobile) await page.locator('#stage [data-player-expand]').click();
         await page.locator('#stage media-fullscreen-button').click();
         await page.waitForFunction(() => !!document.fullscreenElement);
@@ -153,7 +153,7 @@ describe('播放器皮肤', () => {
         });
         assert.deepEqual(fullscreen.frame, fullscreen.viewport);
         assert.equal(fullscreen.controlsInside, true);
-        assert.equal(fullscreen.fit, 'contain', '全屏保留完整视频画面');
+        assert.equal(fullscreen.fit, 'contain', 'Fullscreen keeps the complete video picture');
         await page.locator('#stage media-fullscreen-button').click();
         await page.waitForFunction(() => !document.fullscreenElement);
         assert.deepEqual(problems, []);

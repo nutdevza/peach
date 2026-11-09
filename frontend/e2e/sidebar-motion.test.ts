@@ -1,6 +1,6 @@
-/* 侧栏开合的运行期约束：过渡中不重画玻璃贴图，停下后按终态尺寸补画，主区落在让出的位置上。
+/* Runtime constraints for sidebar open/close: no glass texture repaint during the transition, a repaint at the final size once it stops, and the main area settling into the freed space.
  *
- * 冒烟默认按减少动态效果打开页面，那时过渡是 0s，这些约束无从观察；这里在页面里切回有动效。 */
+ * Smoke tests open pages with reduced motion by default, where the transition is 0s and these constraints cannot be observed; this page switches back to full motion. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -11,9 +11,9 @@ import { expectBody, launch, settle, visit, VIEWPORTS } from './harness.ts';
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 
 interface Toggle {
-  /** 第一段过渡结束那一刻，已经画过几张位移贴图。 */
+  /** By the end of the first transition segment, several offset sprites have already been drawn. */
   mapsDuring: number;
-  /** 两段过渡都结束、补画之后，抽屉那张位移贴图的宽度（同尺寸的贴图会复用，不一定重画）。 */
+  /** After both transitions finish and the repaint catches up, the width of the drawer's offset texture (same-size textures are reused and not necessarily repainted). */
   mapWidth: number;
   drawerClientWidth: number;
   opticDuring: string;
@@ -25,11 +25,11 @@ interface Toggle {
   mainRight: number;
   railW: number;
   viewport: number;
-  /** 点击后 300ms（过渡的时长）里出了几帧，首帧算点击那一刻。 */
+  /** How many frames render within 300ms of the click (the transition's duration), counting the first frame at the moment of the click. */
   frames: number;
 }
 
-/** 点一下左上角的切换键，等 `body` 的 `padding-left` 与抽屉的 `width` 两段过渡都停下。 */
+/** Click the top-left toggle once, then wait for both the `body` `padding-left` and the drawer `width` transitions to come to rest. */
 async function toggle(page: Page): Promise<Toggle> {
   return page.evaluate(() => new Promise<Toggle>((resolve, reject) => {
     const counter = window as unknown as { __maps: number };
@@ -38,8 +38,8 @@ async function toggle(page: Page): Promise<Toggle> {
     const pending = new Set(['padding-left', 'width']);
     let mapsDuring = -1;
     let opticDuring = '';
-    const timer = setTimeout(() => reject(new Error(`过渡没有结束，还差 ${[...pending].join('、')}`)), 5_000);
-    /* 帧数从点击那一刻数到 300ms：主线程被一次整页重排占住多久，这段里就少出多少帧。 */
+    const timer = setTimeout(() => reject(new Error(`A transition has not finished: missing ${[...pending].join(', ')}`)), 5_000);
+    /* Frames are counted from the click to 300 ms: however long the main thread is held by one full-page reflow, that many frames go missing from this window. */
     let clicked = 0;
     let frames = 1;
     let counting = true;
@@ -82,7 +82,7 @@ async function toggle(page: Page): Promise<Toggle> {
         });
       })));
     };
-    // 挂在 window 的捕获阶段：比页面挂在 document 上的补画先拿到这一次结束。
+    // Attached at the window capture phase: it receives this end before the page's repaint handler attached to document does.
     window.addEventListener('transitionend', onEnd, true);
     clicked = performance.now();
     requestAnimationFrame(tick);
@@ -90,7 +90,7 @@ async function toggle(page: Page): Promise<Toggle> {
   }));
 }
 
-describe('侧栏开合', () => {
+describe('Sidebar drawer', () => {
   let browser: Browser;
 
   before(async () => {
@@ -101,7 +101,7 @@ describe('侧栏开合', () => {
     await browser.close();
   });
 
-  it('过渡中玻璃退成纯模糊不重画贴图，停下后按终态补画，主区左缘落在让出的位置', { timeout: 60_000 }, async () => {
+  it('During the transition the glass degrades to pure blur without repainting textures; after stopping it paints the final state, and the main area\'s left edge lands at the yielded position', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     try {
       const { page } = opened;
@@ -121,23 +121,23 @@ describe('侧栏开合', () => {
 
       const collapsed = await toggle(page);
       const expanded = await toggle(page);
-      for (const [name, state] of [['收起', collapsed], ['展开', expanded]] as const) {
-        assert.equal(state.mapsDuring, 0, `${name}过渡中重画了 ${state.mapsDuring} 张玻璃贴图`);
-        assert.equal(state.opticDuring, 'blur(14px)', `${name}过渡中抽屉仍挂着旧尺寸的位移贴图`);
-        assert.equal(state.mapWidth, state.drawerClientWidth, `${name}停下后贴图宽 ${state.mapWidth}，没有按终态尺寸 ${state.drawerClientWidth} 补上`);
-        assert.match(state.opticAfter, /url\("#peach-optic-\d+"\)/, `${name}停下后抽屉没有恢复位移滤镜`);
-        assert.ok(Math.abs(state.mainLeft - state.railW) <= .5, `${name}后主区左缘 ${state.mainLeft}，应落在 --railW ${state.railW}`);
-        assert.ok(Math.abs(state.mainRight - state.viewport) <= 1, `${name}后主区右缘 ${state.mainRight} 没有贴到视口右缘 ${state.viewport}`);
-        assert.ok(state.drawerRight <= state.mainLeft, `${name}后抽屉右缘 ${state.drawerRight} 压进了主区`);
-        /* 下限只拦「整段过渡被一次长任务吞掉、直接跳到终态」：除了点击那一帧，300ms 里至少
-           还要出一帧中间帧。本机无头 Chrome 收起 10～15 帧、展开 30～38 帧；CPU 降速 6 倍后
-           收起 2 帧、展开 4 帧，CI 的慢机落在这两档之间。 */
-        assert.ok(state.frames >= 2, `${name}过渡的 300ms 里只出了 ${state.frames} 帧，主线程整段被占住`);
+      for (const [name, state] of [['Collapse', collapsed], ['Expand', expanded]] as const) {
+        assert.equal(state.mapsDuring, 0, `${name} repainted ${state.mapsDuring} glass textures during the transition`);
+        assert.equal(state.opticDuring, 'blur(14px)', `During ${name}'s transition the drawer still holds the old-size displacement texture`);
+        assert.equal(state.mapWidth, state.drawerClientWidth, `${name} is ${state.mapWidth} wide after stopping, not patched up to the final size ${state.drawerClientWidth}`);
+        assert.match(state.opticAfter, /url\("#peach-optic-\d+"\)/, `${name} did not restore the transform filter on the drawer after stopping`);
+        assert.ok(Math.abs(state.mainLeft - state.railW) <= .5, `After ${name} the main area's left edge ${state.mainLeft} should sit at --railW ${state.railW}`);
+        assert.ok(Math.abs(state.mainRight - state.viewport) <= 1, `After ${name} the main area's right edge ${state.mainRight} does not reach the viewport's right edge ${state.viewport}`);
+        assert.ok(state.drawerRight <= state.mainLeft, `After ${name} the drawer's right edge ${state.drawerRight} pressed into the main area`);
+        /* The lower bound only catches "the whole transition swallowed by one long task, jumping straight to the final state": besides the click frame, at least
+           one intermediate frame must appear within 300ms. Local headless Chrome: 10-15 frames collapsing, 30-38 expanding; with CPU slowed 6x,
+           2 frames collapsing, 4 expanding; CI's slow machines fall between these two tiers. */
+        assert.ok(state.frames >= 2, `${name} transition produced only ${state.frames} frames in its 300ms, with the main thread blocked throughout`);
       }
       assert.equal(collapsed.open, false);
       assert.equal(expanded.open, true);
-      assert.ok(collapsed.drawerWidth < expanded.drawerWidth, `收起 ${collapsed.drawerWidth}px 不比展开 ${expanded.drawerWidth}px 窄`);
-      assert.ok(collapsed.railW < expanded.railW, '收起后主区没有往左让回来');
+      assert.ok(collapsed.drawerWidth < expanded.drawerWidth, `Collapsed ${collapsed.drawerWidth}px is not narrower than expanded ${expanded.drawerWidth}px`);
+      assert.ok(collapsed.railW < expanded.railW, 'After collapse the main area does not expand back left');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();

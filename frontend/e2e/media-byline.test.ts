@@ -5,10 +5,10 @@ import type { Browser } from 'playwright-core';
 import { layout, settle, VIEWPORTS } from './harness.ts';
 import { installDesignBrowser, openCatalogFixture } from './design-fixture.ts';
 
-describe('作品卡片署名信息行', () => {
+describe('Video card byline row', () => {
   let browser: Browser;
   installDesignBrowser(next => { browser = next });
-  it('密集卡片放大文字后日期和体积仍完整，元信息不裁切', { timeout:60_000 }, async () => {
+  it('Dense cards keep date and size complete after text enlarges, with no meta clipping', { timeout:60_000 }, async () => {
     const opened = await openCatalogFixture(browser, payload => {
       Object.assign(payload.items[0], {is_jav:true,code:'MIAA-155',performers:['篠田优'],
         performer_total:1,release_date:'2019-09-13',size:6549825126});
@@ -33,10 +33,10 @@ describe('作品卡片署名信息行', () => {
       }
     } finally { await opened.close() }
   });
-  it('密集窄卡的署名保持一行：放不下的让出去，不压标签、不越出行框', { timeout: 60_000 }, async () => {
+  it('Dense narrow-card credits stay on one line: what does not fit steps aside, without pressing tags or crossing the row box', { timeout: 60_000 }, async () => {
     const opened = await openCatalogFixture(browser, payload => {
       Object.assign(payload.items[0], { is_jav: true, code: 'MIAA-155', performers: ['篠田优', '水野葵', '森田优'], performer_total: 12,
-        release_date: '2019-09-13', size: 6549825126, tags: ['巨乳', '中出'] });
+        release_date: '2019-09-13', size: 6549825126, tags: ['Big breasts', 'Creampie'] });
     });
     try {
       await opened.page.evaluate(() => { document.body.dataset.density = 'dense' });
@@ -52,17 +52,17 @@ describe('作品卡片署名信息行', () => {
             date: card.querySelector('[data-media-release]')!.getClientRects().length > 0,
             tag: card.querySelector('[data-media-tag]')!.getBoundingClientRect().top, bottom: line.bottom };
         });
-        assert.ok(rows.text < 360, `这张卡应当是窄卡：${JSON.stringify(rows)}`);
-        assert.equal(rows.outside, 0, `署名行的内容折行或越界：${JSON.stringify(rows)}`);
-        assert.equal(rows.date, date, `${tile} 宽的卡日期${date ? '应保留' : '应让出'}：${JSON.stringify(rows)}`);
-        assert.ok(rows.tag >= rows.bottom, `标签压在署名上：${JSON.stringify(rows)}`);
+        assert.ok(rows.text < 360, `This card should be a narrow card: ${JSON.stringify(rows)}`);
+        assert.equal(rows.outside, 0, `Byline content wrapped or overflowed: ${JSON.stringify(rows)}`);
+        assert.equal(rows.date, date, `${tile}-wide card date ${date ? 'should keep' : 'should yield'}: ${JSON.stringify(rows)}`);
+        assert.ok(rows.tag >= rows.bottom, `Tags are overlapping the credit: ${JSON.stringify(rows)}`);
       }
     } finally { await opened.close() }
   });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 姓名靠左，日期在窄卡片换行保留`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} names sit left, and dates wrap and stay on narrow cards`, { timeout: 60_000 }, async () => {
       const opened = await openCatalogFixture(browser, payload => {
-        Object.assign(payload.items[0], { is_jav: true, code: 'MIAA-155', name: '演示作品',
+        Object.assign(payload.items[0], { is_jav: true, code: 'MIAA-155', name: 'Demo video',
           performers: ['篠田优'], performer_total: 1, release_date: '2019-09-13', size: 6549825126 });
       });
       try {
@@ -73,11 +73,11 @@ describe('作品卡片署名信息行', () => {
           assert.equal(await card.locator(`[data-media-${field}] svg use`).getAttribute('href'), `#i-${glyph}`);
           const icon = card.locator(`[data-media-${field}] svg`);
           assert.equal(await icon.isVisible(), true);
-          // 与文字同行的图标取 `--icon-inline`（1.2em），按所在文字字号算出应有的边长。
+          // Icons inline with text take `--icon-inline` (1.2em), computing their edge length from the surrounding text's font size.
           {
             const [width, inline] = await icon.evaluate(node => [node.getBoundingClientRect().width,
               parseFloat(getComputedStyle(node).fontSize) * 1.2]);
-            assert.ok(Math.abs(width - inline) < 0.5, `${field} 图标 ${width}px，应为 ${inline}px`);
+            assert.ok(Math.abs(width - inline) < 0.5, `${field} icon is ${width}px, expected ${inline}px`);
           }
         }
         const geometry = await card.evaluate(element => {

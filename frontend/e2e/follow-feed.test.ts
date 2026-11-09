@@ -1,7 +1,7 @@
-/* 关注页岛（`follow-feed`）在真浏览器里的行为：取样、筛选进地址栏、只有列表铺骨架、照片墙、
- * 续页、写操作、检查与往回抓的忙态、Shift 连选，以及进详情再回来。
+/* Follows page island (`follow-feed`) behavior in a real browser: sampling, filters into the address bar, only the list gets a skeleton, photo wall,
+ * continuation pages, write operations, check and back-crawl busy states, Shift multi-select, and entering details and returning.
  *
- * 桩数据与定种子见 `follow-fixture.ts`；关注来源的真实抓取一次都不发。 */
+ * Stub data and seeding in `follow-fixture.ts`; no real fetches to follow sources, ever. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -18,13 +18,13 @@ const authorOrder = (page: Page) => page.locator('button[data-follow-author]').e
   buttons.map((button) => (button as HTMLElement).dataset.followAuthor));
 const cardIds = (page: Page) => page.locator(CARDS).evaluateAll((cards) =>
   cards.map((card) => Number((card as HTMLElement).dataset.followItem)));
-/** 桩里的条目没有正片，详情的播放器拿到空响应会报一条 VIDEOJS 错误；这一条量的是列表，不算它。 */
+/** The stub's entries carry no feature film, so the detail's player gets an empty response and logs a VIDEOJS error; this assertion measures the list and does not count it. */
 const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
-/** 等地址栏换到给定的查询串；岛只交 view，地址由壳写。 */
+/** Wait for the address bar to switch to the given query string; the island only hands over the view, the shell writes the address. */
 const searchIs = (page: Page, search: string) => page.waitForFunction(
   (wanted) => location.pathname === '/follow' && location.search === wanted, search, { timeout: 10_000 });
 
-describe('关注页岛', () => {
+describe('Follows page island', () => {
   let browser: Browser;
 
   before(async () => {
@@ -36,7 +36,7 @@ describe('关注页岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name} 关注任务仍在运行时显示已确认资料`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} shows confirmed details while the follow task is still running`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow', viewport);
       try {
         const page = opened.page;
@@ -49,15 +49,15 @@ describe('关注页岛', () => {
         await page.route((url) => url.pathname === '/api/follow' && !url.searchParams.has('item'), route =>
           route.fulfill({ json: { ...payload, groups: payload.groups.map((group: typeof FIRST[number]) =>
             group.primary.id === 1000 && revision > 1 ? { ...group, primary: { ...group.primary,
-              title: '任务运行中已确认的标题' } } : group) } }));
+              title: 'The title confirmed while the task runs' } } : group) } }));
         const baseline = page.waitForResponse(url => new URL(url.url()).pathname === '/api/result-updates');
         await page.reload({ waitUntil: 'load' });
         await baseline;
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         await page.locator(CARDS).first().waitFor();
-        await page.waitForFunction(() => document.querySelector('[data-follow-list]')?.textContent?.includes('演示更新 1000'));
+        await page.waitForFunction(() => document.querySelector('[data-follow-list]')?.textContent?.includes('Demo update 1000'));
         revision = 2;
-        await page.getByText('任务运行中已确认的标题', { exact: true }).waitFor({ timeout: 15_000 });
+        await page.getByText('The title confirmed while the task runs', { exact: true }).waitFor({ timeout: 15_000 });
         const measured = await layout(page);
         assert.ok(measured.scrollWidth <= measured.viewportWidth + 1, JSON.stringify(measured));
         assert.deepEqual(measured.offenders, []);
@@ -67,7 +67,7 @@ describe('关注页岛', () => {
       }
     });
 
-    it(`${viewport.name} 已建档作者的头像与署名进入作者页，多位作者保持一排`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} avatars and credits of authors with profiles enter the author page, and multiple authors stay in one row`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow', viewport);
       try {
         const page = opened.page;
@@ -92,7 +92,7 @@ describe('关注页岛', () => {
           route.fulfill({ json: { items: [], total: 0, has_more: false } }));
         await page.reload({ waitUntil: 'load' });
         await settle(page);
-        assert.equal(await page.getByRole('searchbox', { name: '搜索创作者' }).count(), 0);
+        assert.equal(await page.getByRole('searchbox', { name: 'Search creators' }).count(), 0);
         const author = page.locator('[data-follow-authors] a[data-follow-author="name:kou"]');
         assert.equal(await author.count(), 1);
         assert.equal(await author.getAttribute('href'), '/creators/90101');
@@ -111,7 +111,7 @@ describe('关注页岛', () => {
       } finally { await opened.close(); }
     });
 
-    it(`${viewport.name} 筛选条件与卡片悬停面保持间距`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} keeps spacing between filter chips and card hover surfaces`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow?tag=loop', viewport);
       try {
         const gap = await opened.page.evaluate(() => {
@@ -119,12 +119,12 @@ describe('关注页岛', () => {
           const card = document.querySelector('[data-follow-list] [data-media-card]')!.getBoundingClientRect();
           return card.top - chip.bottom - 8;
         });
-        assert.ok(gap >= 16, `筛选条件距卡片悬停面只有 ${gap}px`);
+        assert.ok(gap >= 16, `The filter is only ${gap}px from the card hover surface`);
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
     });
 
-    it(`${viewport.name} 筛选浮层恢复可见时两块玻璃自动落位`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} both glass panes snap into place when the filter overlay becomes visible again`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow', viewport);
       try {
         const page = opened.page;
@@ -154,9 +154,9 @@ describe('关注页岛', () => {
             assert.ok(Math.abs(pair.glass[side] - pair.key[side]) <= 1, JSON.stringify(pair));
           }
         }
-        /* 在跑的位移由玻璃自己的滑动发起：指针移到相邻那一枚键上，玻璃滑过去。滑动动画由
-           `moveGlidePane` 自己记着撤，所以要走真的悬停，不在节点上另挂动画。窗口改尺寸后重量，
-           那段位移得被掐掉，不能继续把玻璃从新落点拽走。用例的浏览器默认减少动态，滑动不起，这里放开。 */
+        /* The in-flight glide is started by the glass's own sliding: the pointer moves onto the adjacent key and the glass slides over. The slide animation is
+           tracked for undo by `moveGlidePane` itself, so real hover is exercised and no animation is attached to the node separately. After a window resize re-measures,
+           that glide must be cut off, not allowed to keep dragging the glass away from the new landing point. The test browser defaults to reduced motion, which disables sliding; this test opts back in. */
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         const animations = await page.locator('[data-follow-filter-glass]').evaluate(async (host) => {
           const glass = host.querySelector<HTMLElement>('[data-view-glide=""]')!;
@@ -169,15 +169,15 @@ describe('关注页岛', () => {
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           return { moving, left: glass.getAnimations().length };
         });
-        assert.ok(animations.moving > 0, `悬停相邻的键没有起滑动：${JSON.stringify(animations)}`);
-        assert.equal(animations.left, 0, '重新落位后仍有动画覆盖玻璃位置');
+        assert.ok(animations.moving > 0, `Hovering an adjacent key did not trigger the slide: ${JSON.stringify(animations)}`);
+        assert.equal(animations.left, 0, 'After re-placing, an animation still covers the glass position');
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
     });
   }
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name} 图片卡的键盘焦点环在封面裁切层之外`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} image card keyboard focus rings sit outside the cover crop layer`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow?media=images', viewport,
         { settings: { followImagesOnly: true } });
       try {
@@ -204,7 +204,7 @@ describe('关注页岛', () => {
 
   }
 
-  /** 图片视图里只留 5001 那一组，并把它报成三张图的合集：卡片右上角出合并计数。 */
+  /** The image view keeps only the 5001 group and reports it as a three-image compilation: the merged count appears at the card's top right. */
   const openMixCard = async (viewport: typeof DESKTOP) => {
     const opened = await openFollowFeed(browser, '/follow?media=images', viewport, { settings: { followImagesOnly: false } });
     const page = opened.page;
@@ -224,7 +224,7 @@ describe('关注页岛', () => {
     return opened;
   };
 
-  it(`${MOBILE.name} 多图数量按钮可以打开详情`, { timeout: 60_000 }, async () => {
+  it(`${MOBILE.name} the multi-image count button can open details`, { timeout: 60_000 }, async () => {
     const opened = await openMixCard(MOBILE);
     try {
       const page = opened.page;
@@ -237,7 +237,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it(`${DESKTOP.name} 悬停与键盘聚焦时合并计数淡出，操作键占右上角`, { timeout: 60_000 }, async () => {
+  it(`${DESKTOP.name} merged counts fade out on hover and keyboard focus; the action key takes the top-right corner`, { timeout: 60_000 }, async () => {
     const opened = await openMixCard(DESKTOP);
     try {
       const page = opened.page;
@@ -255,38 +255,38 @@ describe('关注页岛', () => {
           collection: [getComputedStyle(collection).opacity, getComputedStyle(collection).visibility],
           actions: getComputedStyle(actions).opacity,
           hitCollection: hit?.closest('[data-follow-collection]') === collection,
-          /* 计数与操作键都贴封面右上角那一格，上沿与右沿相对封面格的偏移。 */
+          /* The count and action buttons both sit in the cover's top-right cell; the offsets of their top and right edges relative to the cover cell. */
           collectionCorner: [Math.round(box.top - pic.top), Math.round(pic.right - box.right)],
           actionsCorner: [Math.round(keys.top - pic.top), Math.round(pic.right - keys.right)],
         };
       });
       await page.mouse.move(0, 0);
       const rest = await read();
-      assert.deepEqual(rest.collection, ['1', 'visible'], '不悬停时合并计数没有显示');
-      assert.equal(rest.actions, '0', '不悬停时操作键已经露出来');
-      assert.equal(rest.hitCollection, true, '不悬停时合并计数接不到指针');
+      assert.deepEqual(rest.collection, ['1', 'visible'], 'The merged count does not show without hover');
+      assert.equal(rest.actions, '0', 'Action buttons are exposed without hover');
+      assert.equal(rest.hitCollection, true, 'Without hover the merged count receives no pointer events');
 
       await card.locator('[data-follow-open]').hover();
       const hovered = await read();
-      assert.deepEqual(hovered.collection, ['0', 'hidden'], '悬停时合并计数没有淡出');
-      assert.equal(hovered.actions, '1', '悬停时操作键没有出现');
-      assert.equal(hovered.hitCollection, false, '悬停时合并计数仍挡在操作键上面');
+      assert.deepEqual(hovered.collection, ['0', 'hidden'], 'On hover the merged count never fades');
+      assert.equal(hovered.actions, '1', 'The action key never appears on hover');
+      assert.equal(hovered.hitCollection, false, 'On hover the merged count still covers the action key');
       assert.deepEqual(hovered.actionsCorner, rest.collectionCorner,
-        `操作键没有落在合并计数的位置：${JSON.stringify(hovered)}`);
+        `The action key did not land on the merged count position: ${JSON.stringify(hovered)}`);
 
       await page.mouse.move(0, 0);
       await card.locator('[data-follow-open]').focus();
       assert.equal(await card.locator('[data-follow-open]').evaluate((element) => element.matches(':focus-visible')), true);
       const focused = await read();
-      assert.deepEqual(focused.collection, ['0', 'hidden'], '键盘聚焦时合并计数没有淡出');
-      assert.equal(focused.actions, '1', '键盘聚焦时操作键没有出现');
+      assert.deepEqual(focused.collection, ['0', 'hidden'], 'The merged count does not fade out on keyboard focus');
+      assert.equal(focused.actions, '1', 'Action buttons do not appear on keyboard focus');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('首屏：「全部」按下，页头、两排、筛选浮层、列表自上而下', { timeout: 60_000 }, async () => {
+  it('First screen: "All" pressed, with header, two rows, filter overlay, and list top to bottom', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -295,8 +295,8 @@ describe('关注页岛', () => {
       const tops = await page.evaluate(() => ['[data-follow-head]', '[data-follow-authors]', '[data-follow-works]',
         '[data-follow-filter-glass]', '[data-follow-list]']
         .map((selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? null));
-      assert.ok(tops.every((top) => top !== null), `有一块没画出来：${JSON.stringify(tops)}`);
-      assert.deepEqual([...tops].sort((a, b) => a! - b!), tops, `上下次序不对：${JSON.stringify(tops)}`);
+      assert.ok(tops.every((top) => top !== null), `One block did not paint: ${JSON.stringify(tops)}`);
+      assert.deepEqual([...tops].sort((a, b) => a! - b!), tops, `Top-to-bottom order is wrong: ${JSON.stringify(tops)}`);
       assert.deepEqual(await cardIds(page), FIRST.filter((row) => row.primary.media_kind === 'video')
         .map((row) => row.primary.id));
       assert.deepEqual(opened.problems, []);
@@ -305,7 +305,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('封面左上角可打开详情，悬停时隐藏来源角标', { timeout: 60_000 }, async () => {
+  it('The cover\'s top left opens details; the source badge hides on hover', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -316,8 +316,8 @@ describe('关注页岛', () => {
         const target = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
         return { badge: target?.closest('[data-media-badge]') === badge, title: badge.getAttribute('title') };
       });
-      assert.equal(hit.badge, true, '角标中心命中的不是角标本身');
-      assert.ok(hit.title, '角标没有来源名');
+      assert.equal(hit.badge, true, 'The badge center hit target is not the badge itself');
+      assert.ok(hit.title, 'The badge carries no source name');
       const corner = (await card.locator('[data-media-badge]').boundingBox())!;
       await card.hover();
       assert.equal(await card.locator('[data-media-badge]').isVisible(), false);
@@ -330,7 +330,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('两排取样在筛选时保留，换一批以地址种子请求新列表', { timeout: 60_000 }, async () => {
+  it('Both rows keep their samples across filters, and shuffling requests a new list with the address seed', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -339,12 +339,12 @@ describe('关注页岛', () => {
       await page.locator('[data-follow-filter="new"]').click();
       await searchIs(page, '?status=new');
       await page.locator('[data-follow-filter="new"][aria-pressed="true"]').waitFor();
-      assert.deepEqual(await authorOrder(page), first, '换状态之后创作者那一排重新洗了');
+      assert.deepEqual(await authorOrder(page), first, 'After switching states the creators row reshuffled');
       const shuffled = page.waitForResponse(response => {
         const url = new URL(response.url());
         return url.pathname === '/api/follow' && url.searchParams.get('sort') === 'rand';
       });
-      await page.getByRole('button', { name: '换一批', exact: true }).click();
+      await page.getByRole('button', { name: 'Show more', exact: true }).click();
       await page.waitForFunction(() => new URLSearchParams(location.search).get('sort') === 'rand');
       const response = await shuffled;
       assert.equal(response.status(), 200);
@@ -359,7 +359,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('点创作者、题材、标签进组合条并写进地址栏；组合条在读数之后、列表之前', { timeout: 60_000 }, async () => {
+  it('Clicking a creator, genre, or tag adds it to the combination bar and the address bar; the bar sits after the stats and before the list', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -371,15 +371,15 @@ describe('关注页岛', () => {
       await searchIs(page, '?author=name%3Amira&tag=loop&work=zelda');
       const drops = await page.locator('[data-follow-drop]').evaluateAll((buttons) =>
         buttons.map((button) => (button as HTMLElement).dataset.followDropKind));
-      assert.deepEqual(drops, ['创作者', '题材', '标签'], `组合条的条件不对：${JSON.stringify(drops)}`);
+      assert.deepEqual(drops, ['Creators', 'Genres', 'Tags'], `The combination bar's conditions are wrong: ${JSON.stringify(drops)}`);
       const [readout, combo, list] = await page.evaluate(() => ['[data-follow-readout]', '[data-follow-combo]',
         '[data-follow-list-body]'].map((selector) => document.querySelector(selector)!.getBoundingClientRect()));
       assert.ok(readout!.bottom <= combo!.top + 1 && combo!.bottom <= list!.top + 1,
-        `组合条不在读数与列表之间：${JSON.stringify([readout, combo, list])}`);
-      // 撤掉一条，交回去的是撤掉之后的地址。
+        `The combination bar is not between the stats and the list: ${JSON.stringify([readout, combo, list])}`);
+      // Remove one entry and what comes back is the address after removal.
       await page.locator('[data-follow-drop="loop"]').click();
       await searchIs(page, '?author=name%3Amira&work=zelda');
-      // 再点按下的那位创作者就撤掉它。
+      // Clicking the pressed creator again removes it.
       await page.locator('button[data-follow-author="name:mira"]').click();
       await searchIs(page, '?work=zelda');
       assert.deepEqual(opened.problems, []);
@@ -388,7 +388,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('换状态药丸时只有列表铺骨架，页头与两排原样留着', { timeout: 60_000 }, async () => {
+  it('Switching state pills lays the skeleton only over the list, leaving header and both rows as they are', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -413,7 +413,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('视频卡与照片墙互换；照片墙的尺寸档换列数，手机上不横向溢出', { timeout: 90_000 }, async () => {
+  it('Video cards and the photo wall swap; photo wall size tiers change the column count, with no horizontal overflow on mobile', { timeout: 90_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -430,7 +430,7 @@ describe('关注页岛', () => {
       await page.locator('[data-follow-wall][data-size="big"]').waitFor();
       const big = await columns();
       assert.equal(small.size, 'small');
-      assert.ok(Number(big.count) < Number(small.count), `大图档没有少几列：${JSON.stringify([small, big])}`);
+      assert.ok(Number(big.count) < Number(small.count), `The large image tier is not missing a few columns: ${JSON.stringify([small, big])}`);
       await page.locator('[data-media-view="videos"]').click();
       await searchIs(page, '');
       await page.locator('[data-follow-list]:not([data-follow-wall]) > [data-follow-item]').first().waitFor();
@@ -442,14 +442,14 @@ describe('关注页岛', () => {
     try {
       const geometry = await layout(mobile.page);
       assert.ok(geometry.scrollWidth <= geometry.viewportWidth,
-        `手机照片墙横向溢出 ${geometry.scrollWidth}>${geometry.viewportWidth}：${geometry.offenders.join('、')}`);
+        `Mobile photo wall overflows horizontally ${geometry.scrollWidth}>${geometry.viewportWidth}: ${geometry.offenders.join(', ')}`);
       assert.deepEqual(mobile.problems, []);
     } finally {
       await mobile.close();
     }
   });
 
-  it('瀑布流里带尺寸的图在落地前就按自己的比例占位', { timeout: 60_000 }, async () => {
+  it('In the masonry layout, images with dimensions reserve space at their own ratio before landing', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow?media=images', DESKTOP, { settings: { photoLayout: 'masonry' } });
     const held: import('playwright-core').Route[] = [];
     try {
@@ -465,9 +465,9 @@ describe('关注页岛', () => {
             ratio: Number(image.getAttribute('height')) / Number(image.getAttribute('width')) };
         }));
       const pending = boxes.filter((box) => box.pending);
-      assert.ok(pending.length, '缩略图请求挂住了，却没有一张图停在未落地');
+      assert.ok(pending.length, 'The thumbnail request is stuck, yet not a single image is left unlanded');
       const off = pending.filter((box) => Math.abs(box.height - box.width * box.ratio) > 1.5);
-      assert.deepEqual(off, [], '未落地的图没有按 width/height 属性的比例占位');
+      assert.deepEqual(off, [], 'Images that have not landed do not reserve space at the width/height attribute ratio');
     } finally {
       for (const route of held.splice(0)) await route.abort().catch(() => {});
       await opened.close();
@@ -475,7 +475,7 @@ describe('关注页岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name} 无尺寸图片加载后按固有比例铺满瀑布流卡片`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} dimensionless images fill the masonry card at intrinsic ratio once loaded`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow?media=images', viewport,
         { settings: { photoLayout: 'masonry' } });
       try {
@@ -489,7 +489,7 @@ describe('关注页岛', () => {
         payload.has_more = false;
         await page.route((url) => url.pathname === '/api/follow' && !url.searchParams.has('item'),
           (route) => route.fulfill({ json: payload }));
-        // 只读服务拒绝尺寸回写时，当前卡片仍使用浏览器取得的尺寸。
+        // When the read-only service refuses the dimension write-back, the current card keeps the dimensions the browser obtained.
         await page.route('**/api/follow/image-dims', (route) => route.fulfill({ status: 409, json: { ok: false } }));
         await page.reload({ waitUntil: 'load' });
         await settle(page);
@@ -513,7 +513,7 @@ describe('关注页岛', () => {
     });
   }
 
-  it('瀑布流下滚续页时保留已显示卡片的位置和节点', { timeout: 60_000 }, async () => {
+  it('Scrolling down for more pages in masonry keeps the position and nodes of already shown cards', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow?media=images', DESKTOP,
       { settings: { photoLayout: 'masonry', followImagesOnly: true } });
     try {
@@ -559,7 +559,7 @@ describe('关注页岛', () => {
   });
 
   for (const viewport of [DESKTOP, MOBILE]) {
-    it(`${viewport.name} 延迟加载长图只增长所在列，卡片不换列、不重叠`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} lazily loaded tall images grow only their own column; cards do not jump columns or overlap`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow?media=images', viewport,
         { settings: { photoLayout: 'masonry', followImagesOnly: true } });
       const held: import('playwright-core').Route[] = [];
@@ -604,7 +604,7 @@ describe('关注页岛', () => {
         const picture = await image.evaluate((node) => node.parentElement!.getBoundingClientRect().toJSON());
         assert.ok(picture.height <= picture.width * 2.5 + 1.5, JSON.stringify(picture));
         assert.equal(await image.evaluate((node) => getComputedStyle(node).objectFit), 'cover');
-        await page.locator('[data-glass-segment]').filter({ has: page.getByRole('radio', { name: '固定比例' }) }).click();
+        await page.locator('[data-glass-segment]').filter({ has: page.getByRole('radio', { name: 'Fixed ratio' }) }).click();
         await page.locator('[data-follow-wall][data-layout="fixed"]').waitFor();
         assert.equal(await cards.last().evaluate((node) => (node as HTMLElement).style.gridRow), '');
         const geometry = await layout(page);
@@ -617,14 +617,14 @@ describe('关注页岛', () => {
     });
   }
 
-  it('加载更多接在原来那些卡后面', { timeout: 60_000 }, async () => {
+  it('Load more appends after the existing cards', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
       const before = await cardIds(page);
-      const more = page.getByRole('button', { name: '加载更多' });
+      const more = page.getByRole('button', { name: 'Load more' });
       await more.scrollIntoViewIfNeeded();
-      // 滚到底续页会自己接上；没接上再按一下。
+      // Scrolling to the bottom loads the next page on its own; if it did not, press again.
       await page.waitForTimeout(800);
       if (!(await page.locator(`[data-follow-item="${MORE[0]!.primary.id}"]`).count())) await more.click().catch(() => {});
       await page.locator(`[data-follow-item="${MORE.at(-1)!.primary.id}"]`).waitFor({ timeout: 10_000 });
@@ -635,7 +635,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('标记已看与稍后看：请求体只带条目与目标，卡上立刻换状态', { timeout: 60_000 }, async () => {
+  it('Mark watched and watch later: the request body carries only the entry and target, and the card flips state immediately', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -643,11 +643,11 @@ describe('关注页岛', () => {
       await card.hover();
       await card.locator('[data-follow-status="1001"][data-to="seen"]').click();
       await page.locator('[data-follow-item="1001"][data-status="seen"]').waitFor();
-      // 已看的那张多出「恢复未看」。
+      // The watched card gains an extra "Restore unwatched".
       assert.equal(await card.locator('[data-to="new"]').count(), 1);
       await card.hover();
       await card.locator('[data-follow-save="1001"]').click();
-      await card.locator('[data-follow-save="1001"][aria-label="已保存"]').waitFor();
+      await card.locator('[data-follow-save="1001"][aria-label="Saved"]').waitFor();
       assert.deepEqual(opened.stub.writes, [
         { url: '/api/follow/status', body: { item: 1001, to: 'seen' } },
         { url: '/api/follow/save', body: { item: 1001 } },
@@ -658,17 +658,17 @@ describe('关注页岛', () => {
     }
   });
 
-  it('检查更新与往回抓起同一趟任务，任务在跑时两枚键一起忙', { timeout: 60_000 }, async () => {
+  it('Update check and re-fetch share the same task, and both keys go busy while it runs', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
       await page.locator('[data-follow-older]').click();
       await page.locator('[data-follow-older][aria-busy="true"]').waitFor();
-      await page.locator('[data-follow-older]').filter({ hasText: '抓取中' }).waitFor();
+      await page.locator('[data-follow-older]').filter({ hasText: 'Fetching' }).waitFor();
       assert.match(await page.locator('[data-follow-older]').innerText(), /抓取中/);
       await page.locator('[data-follow-recheck][aria-busy="true"]').waitFor();
       assert.deepEqual(opened.stub.writes, [{ url: '/api/follow/check', body: { older: true, background: true } }]);
-      // 忙态包含请求中的阶段；任务编号在响应返回后写入。
+      // The busy state includes the requesting phase; the task id is written once the response returns.
       await page.waitForFunction(() => sessionStorage.getItem('peach-follow-job') === 'job-1',
         undefined, { timeout: 10_000 });
       assert.equal(await page.evaluate(() => sessionStorage.getItem('peach-follow-job')), 'job-1');
@@ -682,8 +682,8 @@ describe('关注页岛', () => {
       await page.locator('[data-follow-recheck]').click();
       await page.locator('[data-follow-recheck][aria-busy="true"]').waitFor();
       await page.locator('[data-follow-older][aria-busy="true"]').waitFor();
-      // 检查那一趟只让往回抓那枚忙、不换字。
-      assert.equal(await page.locator('[data-follow-older]').innerText(), '抓更早的一页');
+      // The check pass only flips that busy chip back; it does not change the text.
+      assert.equal(await page.locator('[data-follow-older]').innerText(), 'Fetch an earlier page');
       assert.deepEqual(again.stub.writes, [{ url: '/api/follow/check', body: { background: true } }]);
       assert.deepEqual(again.problems, []);
     } finally {
@@ -691,7 +691,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('多选里 Shift 连选按屏幕上的次序框进一段', { timeout: 60_000 }, async () => {
+  it('In multi-select, Shift range selection frames a span by on-screen order', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     try {
       const page = opened.page;
@@ -705,7 +705,7 @@ describe('关注页岛', () => {
       const picked = await page.locator(`${CARDS}[data-selected]`).evaluateAll((cards) =>
         cards.map((card) => Number((card as HTMLElement).dataset.followItem)));
       assert.deepEqual(picked, ids.slice(1, 5));
-      assert.equal(new URL(page.url()).pathname, '/follow', '多选里点卡不该进详情');
+      assert.equal(new URL(page.url()).pathname, '/follow', 'Clicking a card in multi-select must never enter details');
       await page.locator('#selectMode').click();
       await page.locator('[data-follow-actions]').first().waitFor();
       assert.deepEqual(opened.problems, []);
@@ -714,7 +714,7 @@ describe('关注页岛', () => {
     }
   });
 
-  it('点卡进详情，关掉回到同一个岛、同一批卡；深链进详情关掉时才挂岛', { timeout: 90_000 }, async () => {
+  it('Clicking a card opens details, closing returns to the same island and the same cards; a deep link into details mounts the island only when closing', { timeout: 90_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow?status=new', DESKTOP);
     try {
       const page = opened.page;
@@ -727,7 +727,7 @@ describe('关注页岛', () => {
       await searchIs(page, '?status=new');
       await page.locator(CARDS).first().waitFor();
       assert.equal(await page.evaluate(() => (document.querySelector('[data-follow-feed]') as HTMLElement & { mark?: number }).mark),
-        7, '回到列表时岛重挂了');
+        7, 'Island remounted when returning to the list');
       assert.deepEqual(await cardIds(page), before);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -736,7 +736,7 @@ describe('关注页岛', () => {
     const deep = await openFollowFeed(browser, '/posts/1003', DESKTOP, { ready: '#stage[open]' });
     try {
       const page = deep.page;
-      assert.equal(await page.locator('[data-follow-feed]').count(), 0, '深链进详情时不该挂岛');
+      assert.equal(await page.locator('[data-follow-feed]').count(), 0, 'A deep link into details must never mount the island');
       await page.locator('#closeStage').click();
       await page.locator(CARDS).first().waitFor({ timeout: 15_000 });
       assert.equal(new URL(page.url()).pathname, '/follow');

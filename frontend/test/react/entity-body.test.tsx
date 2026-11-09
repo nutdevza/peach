@@ -1,7 +1,7 @@
-/* 实体页正文岛：三个视图里各画什么、点下去交给壳的是什么，以及换筛选时骨架与卡片的交接。
+/* Entity page body island: what each of the three views draws, what clicks hand to the shell, and the handoff between skeleton and cards when filters change.
  *
- * 名册与卡片本身各有自己的用例（`index-page.test.tsx`、`catalog-grid.test.tsx`），这里只看正文
- * 这一层把谁接到了哪儿。骨架淡出的几何、续页与 Shift 连选由 e2e 在真浏览器里量。 */
+ * The roster and the cards themselves have their own test files (`index-page.test.tsx`, `catalog-grid.test.tsx`); this only checks which layer of the body
+ * wired what where. Skeleton fade-out geometry, continuation pages, and Shift multi-select are measured by e2e in a real browser. */
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,13 +15,13 @@ import { openPhotoLightbox } from '../../src/react/photo-lightbox/photo-lightbox
 import { queryClient } from '../../src/react/query';
 import { click, mount } from './render';
 
-/* 灯箱自己的开合、翻页与缩放在 `photo-lightbox.test.tsx`；这里只看墙把哪一列、从第几张交给它。 */
+/* The lightbox's own open/close, paging, and zoom live in `photo-lightbox.test.tsx`; here we only check which column and which starting image the wall hands it. */
 vi.mock('../../src/react/photo-lightbox/photo-lightbox-dialog', () => ({ openPhotoLightbox: vi.fn(async () => {}) }));
 
 afterEach(() => { queryClient.clear() });
 notifyManager.setScheduler((notify) => notify());
 
-const item = (id: number): MediaItem => ({ id, name: `作品 ${id}`, has_thumb: true });
+const item = (id: number): MediaItem => ({ id, name: `Video ${id}`, has_thumb: true });
 const page = (ids: number[], total = ids.length): MediaPage => ({ items: ids.map(item), total });
 
 function helpers(): EntityBodyHelpers {
@@ -48,13 +48,13 @@ function props(patch: Partial<EntityBodyProps> = {}): EntityBodyProps {
     helpers: helpers(), actions: actions(),
     layout: { active: false, size: 'small', portrait: false, javImage: 'cover' },
     selectMode: false, selected: new Set(), seekSeconds: 10, wireDrag: vi.fn(),
-    skeletonHtml: () => '<div data-test-skeleton>骨架</div>', groupCollapse: true, canLoadMore: () => false,
+    skeletonHtml: () => '<div data-test-skeleton>skeleton</div>', groupCollapse: true, canLoadMore: () => false,
     ...patch,
   };
 }
 
 let push: (patch: Partial<EntityBodyProps>) => void = () => {};
-/** 壳经 `updateManagedRoute` 推进来的补丁，这里用一层状态代替。 */
+/** The patch the shell pushes through `updateManagedRoute`, replaced here by a layer of state. */
 function Shell(given: EntityBodyProps) {
   const [current, set] = useState(given);
   push = (patch) => set((value) => ({ ...value, ...patch }));
@@ -67,8 +67,8 @@ const cards = (host: HTMLElement) =>
   [...host.querySelectorAll<HTMLElement>('[data-entity-grid] [data-media-grid] > [data-media-card]')]
     .map((card) => card.dataset.id);
 
-describe('名册', () => {
-  it('事务所页摆索引页那一格艺人，竖幅按检出的脸取景，点一格回壳打开这个人', async () => {
+describe('Roster', () => {
+  it('The agency page lays out the same artist tiles as the index page, portraits framed on the detected face, and clicking one asks the shell to open that person', async () => {
     const given = props({
       kind: 'agency', view: 'people',
       roster: { kind: 'performers', people: [{ k: '河北彩花', n: 12 }, { k: '小湊よつ葉', n: 3 }], layout: 'big' },
@@ -82,13 +82,13 @@ describe('名册', () => {
     expect(ring?.dataset.fitNative).toBe('portrait');
     expect(ring?.style.getPropertyValue('--face')).toBe('40% 20%');
     expect([...host.querySelectorAll('[data-index-cell]')].map((cell) => cell.querySelector('[data-index-readout]')?.textContent))
-      .toEqual(['12 个视频', '3 个视频']);
+      .toEqual(['12 videos', '3 videos']);
     await click(host.querySelector('[data-index-cell][data-k="小湊よつ葉"]'));
     expect(given.actions.openEntity).toHaveBeenCalledWith('performer', '小湊よつ葉');
     expect(host.querySelector('[data-entity-grid]')).toBeNull();
   });
 
-  it('片商页的名册是旗下厂牌，一格是公司的方标', async () => {
+  it('The studio page\'s roster is its labels, each cell a company\'s square mark', async () => {
     const given = props({
       kind: 'studio', view: 'people', roster: { kind: 'studios', people: [{ k: 'S1 NO.1 STYLE', n: 40 }], layout: 'compact' },
     });
@@ -100,8 +100,8 @@ describe('名册', () => {
     expect(given.actions.openEntity).toHaveBeenCalledWith('studio', 'S1 NO.1 STYLE');
   });
 
-  it('上千人的名册先摆 120 格，「载入更多」一次再接 120 格，摆完就收起', async () => {
-    const people = Array.from({ length: 250 }, (_, at) => ({ k: `艺人${at}`, n: 1 }));
+  it('Rosters of thousands start with 120 cells; "Load more" appends 120 more each time and collapses once done', async () => {
+    const people = Array.from({ length: 250 }, (_, at) => ({ k: `Performer${at}`, n: 1 }));
     const host = await open(props({ kind: 'agency', view: 'people', roster: { kind: 'performers', people, layout: 'big' } }));
     const count = () => host.querySelectorAll('[data-index-cell]').length;
     expect(count()).toBe(120);
@@ -113,8 +113,8 @@ describe('名册', () => {
   });
 });
 
-describe('作品网格', () => {
-  it('第一页由壳给，挂上就是卡片，不再取一遍', async () => {
+describe('Video grid', () => {
+  it('Page one comes from the shell and mounts straight as cards without fetching again', async () => {
     const given = props();
     const host = await open(given);
     expect(cards(host)).toEqual(['1', '2', '3']);
@@ -123,7 +123,7 @@ describe('作品网格', () => {
     expect(given.fetchPage).not.toHaveBeenCalled();
   });
 
-  it('等待期间旧内容隐藏并禁用，新列表到达后解除忙态并换成新卡片', async () => {
+  it('While waiting, the old content hides and disables; when the new list lands the busy state lifts and the new cards take over', async () => {
     const host = await open(props());
     await act(async () => push({ items: null, revision: 2 }));
     expect(cards(host)).toEqual(['1', '2', '3']);
@@ -135,7 +135,7 @@ describe('作品网格', () => {
     expect(host.querySelector('[data-content-current]')?.hasAttribute('inert')).toBe(false);
   });
 
-  it('选择状态与版式原样转给卡片', async () => {
+  it('Selection state and layout are forwarded to the cards as is', async () => {
     const host = await open(props());
     await act(async () => push({ selectMode: true, selected: new Set([2]) }));
     expect(host.querySelector('[data-media-sections]')?.hasAttribute('data-select-mode')).toBe(true);
@@ -146,7 +146,7 @@ describe('作品网格', () => {
 
 const SETS = [
   { code: 'SSIS-057', name: '雨の日', n: 3, release_date: '2021-05-18', site_label: 'DMM' },
-  { code: 'SSIS-001', name: '初夏', n: 2, release_date: '2021-02-19', site_label: 'DMM' },
+  { code: 'SSIS-001', name: 'Early summer', n: 2, release_date: '2021-02-19', site_label: 'DMM' },
 ];
 const photos = (patch: Partial<EntityPhotos> = {}): EntityPhotos => ({
   revision: 1, codeSets: SETS, items: [{ id: 101, name: '101.jpg' }, { id: 102, name: '102.jpg' }],
@@ -156,27 +156,27 @@ const openPhotos = (patch: Partial<EntityBodyProps> = {}) => {
   const given = props({ view: 'photos', photos: photos(), ...patch });
   return open(given).then((host) => ({ host, given }));
 };
-/** 每一段的段头标签和它下面那面墙的格数，按页面顺序。 */
+/** Each section's header label and the cell count of the wall beneath it, in page order. */
 const groups = (host: HTMLElement) => [...host.querySelectorAll('[data-photo-group]')].map((head) => [
   head.querySelector('b')?.textContent, head.nextElementSibling?.querySelectorAll('[data-photo-cell]').length,
 ]);
 const indexes = (host: HTMLElement) =>
   [...host.querySelectorAll<HTMLElement>('[data-photo-cell]')].map((cell) => Number(cell.dataset.photoIndex));
 
-describe('照片墙', () => {
-  it('各部样张一部一段排在本地图片前面，段头写番号、标题与「来源 样张 · 发行日 · 张数」', async () => {
+describe('Photo wall', () => {
+  it('Samples for each video come in one section per video ahead of local images, with section headers giving the code, title and "Source samples · release date · image count"', async () => {
     const { host } = await openPhotos();
-    expect(groups(host)).toEqual([['SSIS-057', 3], ['SSIS-001', 2], ['本地图片', 2]]);
+    expect(groups(host)).toEqual([['SSIS-057', 3], ['SSIS-001', 2], ['Local images', 2]]);
     const head = host.querySelector('[data-photo-group]')!;
     expect(head.querySelector('[data-photo-group-title]')?.getAttribute('title')).toBe('雨の日');
-    expect(head.querySelector('[data-photo-group-meta]')?.textContent).toBe('DMM 样张 · 2021-05-18 · 3 张');
+    expect(head.querySelector('[data-photo-group-meta]')?.textContent).toBe('DMM samples · 2021-05-18 · 3 images');
     expect(host.querySelectorAll('[data-photo-group]')[2].querySelector('[data-photo-group-meta]')?.textContent)
-      .toBe('2 张');
+      .toBe('2 images');
     expect(indexes(host)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(host.querySelectorAll('[data-local-wall] [data-photo-cell]').length).toBe(2);
   });
 
-  it('缩略图走服务端缓存的那一口，原图只归灯箱；图还没到时 alt 是文件名', async () => {
+  it('Thumbnails go through the server cache; the full image belongs to the lightbox only, and the alt text is the file name until it arrives', async () => {
     const { host } = await openPhotos();
     const imgs = [...host.querySelectorAll('img')];
     expect(imgs[0].getAttribute('src')).toBe('/sample-thumb?code=SSIS-057&n=1');
@@ -185,20 +185,20 @@ describe('照片墙', () => {
     expect(imgs.every((img) => img.getAttribute('loading') === 'lazy' && !img.hasAttribute('data-drop'))).toBe(true);
   });
 
-  it('只有本地图片时不出段头，目录图集那一屏也是', async () => {
+  it('No section header when there are only local images; the directory gallery screen is the same', async () => {
     const { host } = await openPhotos({ photos: photos({ codeSets: [] }) });
     expect(host.querySelector('[data-photo-group]')).toBeNull();
     expect(indexes(host)).toEqual([0, 1]);
   });
 
-  it('点一格把整面墙交给灯箱，序号跨段连续；样张走番号与序号，本地图带着定位', async () => {
+  it('Clicking a cell hands the whole wall to the lightbox with a continuous index across segments; samples go by code and index, local images carry their locator', async () => {
     const { host, given } = await openPhotos();
     await click(host.querySelector('[data-photo-index="3"]'));
     const [index, slides, reveal] = vi.mocked(openPhotoLightbox).mock.calls.at(-1)!;
     expect(index).toBe(3);
     expect(slides).toHaveLength(7);
     expect(slides[3]).toEqual({
-      src: '/sample-image?code=SSIS-001&n=1', thumb: '/sample-thumb?code=SSIS-001&n=1', name: 'SSIS-001 样张 1',
+      src: '/sample-image?code=SSIS-001&n=1', thumb: '/sample-thumb?code=SSIS-001&n=1', name: 'SSIS-001 sample image 1',
       asset: null, source: 'DMM',
     });
     expect(slides[5]).toEqual({
@@ -208,7 +208,7 @@ describe('照片墙', () => {
     expect(given.actions.revealSource).toHaveBeenCalledWith(101);
   });
 
-  it('本地图取不到整格走，样张取不到只摘图留格；别的格子序号不变', async () => {
+  it('When the local image fails the whole cell goes; when the sample fails only the image drops and the cell stays; other cells keep their numbering', async () => {
     const { host } = await openPhotos();
     await act(async () => {
       host.querySelector('[data-photo-index="5"] img')!.dispatchEvent(new Event('error'));
@@ -218,7 +218,7 @@ describe('照片墙', () => {
     expect(host.querySelector('[data-photo-index="1"] img')).toBeNull();
   });
 
-  it('大小档与版式只改墙上的属性，不重画已经取回的缩略图', async () => {
+  it('Size tiers and layout only change wall attributes and never repaint thumbnails already fetched', async () => {
     const { host } = await openPhotos();
     const first = host.querySelector('[data-photo-cell] img');
     await act(async () => push({ photoSize: 'big', photoLayout: 'fixed' }));
@@ -227,7 +227,7 @@ describe('照片墙', () => {
     expect(host.querySelector('[data-photo-cell] img')).toBe(first);
   });
 
-  it('还有下一页时出「载入更多」，点下去回壳取；接上的一页排在本地图片末尾', async () => {
+  it('When another page exists, "Load more" appears and clicking it asks the shell to fetch; the appended page goes after the local images', async () => {
     const { host, given } = await openPhotos({ photos: photos({ hasMore: true }), canLoadMore: () => true });
     await click(host.querySelector('[data-entity-more]'));
     expect(given.actions.loadMorePhotos).toHaveBeenCalled();

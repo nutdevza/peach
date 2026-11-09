@@ -12,13 +12,13 @@ function stage(): HTMLDialogElement {
   return dialog;
 }
 
-it('真实模态弹层末尾有焦点哨兵时仍取得对话框，卸载后没有弹层', async () => {
+it('A real modal popover with a trailing focus sentinel still yields the dialog, and after unmount there is no popover', async () => {
   const dialog = stage();
   const host = overlayHost(dialog);
   const root = await mountRoot(
     <UNSAFE_PortalProvider getContainer={() => host}>
-      <ModalFrame isOpen onOpenChange={vi.fn()} width="form" label="资源">
-        <button type="button">关闭</button>
+      <ModalFrame isOpen onOpenChange={vi.fn()} width="form" label="Resources">
+        <button type="button">Off</button>
       </ModalFrame>
     </UNSAFE_PortalProvider>,
   );
@@ -30,7 +30,7 @@ it('真实模态弹层末尾有焦点哨兵时仍取得对话框，卸载后没�
   expect(topOverlay(dialog)).toBeNull();
 });
 
-it('多层弹层按实际角色节点取末层，忽略两侧的焦点哨兵', () => {
+it('Stacked popovers take the last layer by actual role nodes, ignoring the focus sentinels on either side', () => {
   const dialog = stage();
   const host = overlayHost(dialog);
   host.innerHTML = '<span hidden data-focus-scope-start></span><div role="dialog"></div><span hidden data-focus-scope-end></span><span hidden data-focus-scope-start></span><div role="listbox"></div><span hidden data-focus-scope-end></span>';
@@ -40,7 +40,7 @@ it('多层弹层按实际角色节点取末层，忽略两侧的焦点哨兵', (
   expect(topOverlay(dialog)).toBe(host.querySelector('[role="dialog"]'));
 });
 
-it('只查当前详情的弹层宿主，不接管页面其他对话框', () => {
+it('Only queries the current details popover host and does not take over other dialogs on the page', () => {
   const dialog = stage();
   const other = document.createElement('div');
   other.setAttribute('role', 'dialog');

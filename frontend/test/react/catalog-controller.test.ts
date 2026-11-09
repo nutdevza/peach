@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { CatalogController } from '../../src/react/catalog-grid/catalog-controller';
 
-describe('网格代次与落地等待', () => {
-  it('首屏提供取消信号，落地后同页筛选只更新 props', async () => {
+describe('Grid generation and landing wait', () => {
+  it('The first screen provides an abort signal, and after landing same-page filters only update props', async () => {
     const controller = new CatalogController();
     const first = controller.begin('/', false);
     expect(first.mount).toBe(true); expect(first.signal?.aborted).toBe(false);
@@ -15,7 +15,7 @@ describe('网格代次与落地等待', () => {
     controller.settle(second.revision); await second.settled;
   });
 
-  it('连续首屏筛选取消旧预取，旧回调不能放行新代次', async () => {
+  it('Consecutive first-screen filters cancel the old prefetch; old callbacks must not let a new generation through', async () => {
     const controller = new CatalogController();
     const old = controller.begin('/', false), latest = controller.begin('/', false);
     let latestSettled = false; void latest.settled.then(() => { latestSettled = true; });
@@ -27,7 +27,7 @@ describe('网格代次与落地等待', () => {
     expect(latestSettled).toBe(true); expect(controller.pending).toBe(false);
   });
 
-  it('切到垃圾队列取消目录代次，即使旧容器已挂载也必须重开', async () => {
+  it('Switching to the junk queue cancels the catalog epoch, and a reopen is required even when the old container is mounted', async () => {
     const controller = new CatalogController(), catalog = controller.begin('/', false);
     const junk = controller.begin('/junk-files', true);
     expect(junk.mount).toBe(true); expect(controller.page).toBe('/junk-files');
@@ -37,7 +37,7 @@ describe('网格代次与落地等待', () => {
     controller.settle(junk.revision); await junk.settled;
   });
 
-  it('离开页面释放等待并取消预取，代次在重新进入后继续增长', async () => {
+  it('Leaving the page releases the wait and cancels prefetches, and the epoch keeps growing after re-entry', async () => {
     const controller = new CatalogController(), first = controller.begin('/', false);
     controller.clear(); await first.settled;
     expect(first.signal?.aborted).toBe(true); expect(first.isCurrent()).toBe(false);
@@ -47,7 +47,7 @@ describe('网格代次与落地等待', () => {
     controller.clear(); await next.settled;
   });
 
-  it('失败首屏释放自己的等待，旧失败不影响当前预取', async () => {
+  it('A failed first screen releases its own wait; an old failure does not affect the current prefetch', async () => {
     const controller = new CatalogController(), first = controller.begin('/', false);
     first.finish(false); await first.settled;
     expect(controller.pending).toBe(false);
@@ -58,7 +58,7 @@ describe('网格代次与落地等待', () => {
     expect(controller.pending).toBe(false);
   });
 
-  it('快速筛选的每个过期等待都有终点，未知未来代次不能放行当前屏', async () => {
+  it('Every stale wait in quick filters has an endpoint; an unknown future generation must not let the current screen through', async () => {
     const controller = new CatalogController(), obsolete: Promise<void>[] = [];
     for (let i = 0; i < 50; i++) obsolete.push(controller.begin('/', false).settled);
     let settled = false; const latest = controller.begin('/', false);

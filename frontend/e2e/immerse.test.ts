@@ -1,8 +1,9 @@
-/* 沉浸模式的取流与舞台形状、地址栏与流会话、手机上的手势。
+/* Immersive mode's streaming, stage shape, address bar and stream session, and gestures on the phone.
  *
- * 队列固定成演示库里的一条横屏加一条竖屏：`/api/items` 的随机抽样换成这两条，谁先谁后由
- * 起播 id 定。第一条用例里两条的 `/stream` 由用例在采样结束后放行，确保采到等待状态。
- * 手机那一条用 CDP 发真触摸：浏览器自己合成的 click 也会跟着来，700ms 忽略窗要在这里才验得到。 */
+ * The queue is pinned to one landscape and one portrait from the demo library: `/api/items`' random sample is swapped for
+ * these two, ordered by the starting id. In the first case both `/stream` entries are released by the case after sampling, to
+ * make sure the waiting state is sampled. The phone case sends real touches via CDP: the browser's synthetic click follows
+ * too, and only here can the 700ms ignore window be verified. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -18,7 +19,7 @@ const HOLD_MS = 1500;
 type Item = { id: number; width: number; height: number };
 type Sample = { wide: boolean; shown: boolean; slides: string[] };
 
-/** 当前的舞台：形状、框与动作列、作者标题看不看得见，以及每一格的位移。 */
+/** The current stage: shape, frame and action column, whether the author title is visible, and each cell's offset. */
 const sample = (page: Page) => page.evaluate((): Sample => ({
   wide: document.querySelector('[data-immerse-stage]')!.hasAttribute('data-wide'),
   shown: ['[data-immerse-stage]', '[data-immerse-actions]', '[data-immerse-ui]'].every((selector) =>
@@ -26,7 +27,7 @@ const sample = (page: Page) => page.evaluate((): Sample => ({
   slides: [...document.querySelectorAll<HTMLElement>('[data-immerse-track] [data-immerse-slide]')].map((slide) => slide.style.transform),
 }));
 
-/** 每 60ms 采一次，直到 `until` 成立或到点。 */
+/** Sample every 60ms until `until` holds or the deadline hits. */
 async function watch(page: Page, until: () => Promise<boolean>, ms: number) {
   const moments: Sample[] = [];
   const deadline = Date.now() + ms;
@@ -37,19 +38,19 @@ async function watch(page: Page, until: () => Promise<boolean>, ms: number) {
   return moments;
 }
 
-/** 只剩一格、加载提示收起、这一格的 video 有画面可出。 */
+/** One cell left, the loading notice collapsed, and this cell's video has a frame to show. */
 const settled = (page: Page) => page.waitForFunction(() =>
   document.querySelectorAll('[data-immerse-track] [data-immerse-slide]').length === 1
   && Boolean(document.querySelector<HTMLElement>('[data-immerse-loader]')?.hidden)
   && (document.querySelector<HTMLVideoElement>('[data-immerse-track] [data-immerse-slide] video')?.readyState ?? 0) >= 2,
 undefined, { timeout: 20_000 });
 
-describe('沉浸模式', () => {
+describe('Immersive mode', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('片源先问 stream-plan；首条出画前不露舞台，切片预加载时保持旧形状，出画那一刻才换', async () => {
+  it('The stream asks stream-plan first; the stage stays hidden until the first segment appears, keeps the old shape while segments preload, and swaps only at the moment the first frame lands', async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     const releases: (() => void)[] = [];
@@ -58,7 +59,7 @@ describe('沉浸模式', () => {
         (await (await fetch('/api/items?limit=60&offset=0&thumb=')).json()).items);
       const wide = items.find((item) => item.width > item.height);
       const tall = items.find((item) => item.height > item.width);
-      assert.ok(wide && tall, '演示库里横屏、竖屏各要有一条');
+      assert.ok(wide && tall, 'The demo library needs one landscape and one portrait video');
       await page.route(/\/api\/items\?.*sort=rand/, (route) => route.fulfill({ json: { items: [wide, tall]
         .map((item) => items.find((full) => full.id === item.id)) } }));
       const planned: number[] = [];
@@ -77,7 +78,7 @@ describe('沉浸模式', () => {
         await holds.get(Number(new URL(route.request().url()).searchParams.get('id')))!.wait;
         await route.continue().catch(() => {});
       });
-      // 这台机器旁边有人：新插进来的每条 video 一律静音。
+      // Someone is next to this machine: every video inserted from now on starts muted.
       await page.addInitScript(() => {
         new MutationObserver(() => document.querySelectorAll('video').forEach((video) => { video.muted = true; }))
           .observe(document, { childList: true, subtree: true });
@@ -85,10 +86,10 @@ describe('沉浸模式', () => {
       await page.goto(new URL(`/immerse?id=${wide.id}`, page.url()).href, { waitUntil: 'domcontentloaded' });
       await page.locator('[data-immerse-track] [data-immerse-slide] video.vjs-tech').waitFor({ state: 'attached' });
 
-      // 首条出画前：框、动作列、作者标题一样都不露，出画时一次摆成横屏。
+      // While the first item is still off screen: the box, the action column and the author title all stay hidden; once it is on screen it snaps to landscape in one step.
       const loaderHidden = () => page.evaluate(() => document.querySelector<HTMLElement>('[data-immerse-loader]')!.hidden);
       const loading = await watch(page, loaderHidden, HOLD_MS);
-      assert.ok(loading.length > 3, `首条加载窗口里只采到 ${loading.length} 次`);
+      assert.ok(loading.length > 3, `Only ${loading.length} samples captured in the first-item load window`);
       for (const moment of loading) assert.equal(moment.shown, false, JSON.stringify(moment));
       holds.get(wide.id)!.release();
       await settled(page);
@@ -98,7 +99,7 @@ describe('沉浸模式', () => {
       await page.dispatchEvent('[data-immerse]', 'wheel', { deltaY: 100 });
       await page.waitForFunction(() => document.querySelectorAll('[data-immerse-track] [data-immerse-slide]').length === 2);
       const preloading = await watch(page, async () => false, HOLD_MS - 300);
-      assert.ok(preloading.length > 3, `预加载窗口里只采到 ${preloading.length} 次`);
+      assert.ok(preloading.length > 3, `Only ${preloading.length} samples fell inside the preload window`);
       for (const moment of preloading) {
         assert.deepEqual(moment, { wide: true, shown: true, slides: ['', 'translateY(100%)'] });
       }
@@ -113,7 +114,7 @@ describe('沉浸模式', () => {
     }
   });
 
-  it('深链与刷新落回同一条；换条用 replace 写地址、每条只取一次详情；关闭时按会话取消读取', async () => {
+  it('Deep links and refresh land back on the same entry; switching entries writes the address with replace and fetches details once per entry; closing cancels reads by session', async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
@@ -141,12 +142,12 @@ describe('沉浸模式', () => {
       await page.keyboard.press('ArrowUp');
       await landed(tall.id);
       await settledClip(page);
-      assert.equal(await page.evaluate(() => history.length), depth, '每划一下都进历史的话，后退键就废了');
+      assert.equal(await page.evaluate(() => history.length), depth, 'If every swipe entered history the back key would be useless');
       assert.deepEqual(Object.fromEntries(details), { [tall.id]: 1, [wide.id]: 1 });
-      // 换走的那一格按自己的会话取消。
+      // The cell that got swapped away is canceled under its own session.
       assert.ok(cancels.includes(plans[0]!.session), JSON.stringify({ plans, cancels }));
 
-      // 划到后面那一条再刷新：落回的是它，不是抽样里排第一的那条。
+      // Swipe to a later entry and refresh: what you land back on is that entry, not the first one in the sample.
       await page.keyboard.press('ArrowDown');
       await landed(wide.id);
       await settledClip(page);
@@ -170,7 +171,7 @@ describe('沉浸模式', () => {
     }
   });
 
-  it('手机 390 宽：竖划换条，横划拖进度（拖动中进度条变粗），同一半区双击快进且不切播放', async () => {
+  it('Mobile at 390 wide: vertical swipe switches items, horizontal swipe scrubs progress (the bar thickens while dragging), and double taps in the same half seek without switching playback', async () => {
     const opened = await visit(browser, '/', MOBILE);
     const { page } = opened;
     try {
@@ -204,8 +205,8 @@ describe('沉浸模式', () => {
       }, currentVideo);
       const start = await media();
       await drag([100, 400], [100 + MOBILE.width / 4, 404], false);
-      assert.equal(await page.locator('[data-immerse-bar][data-scrubbing]').count(), 1, '拖动中进度条没有变粗');
-      assert.ok((await media()).time < 0.5, '拖动中不该 seek');
+      assert.equal(await page.locator('[data-immerse-bar][data-scrubbing]').count(), 1, 'The progress bar never thickens while dragging');
+      assert.ok((await media()).time < 0.5, 'Dragging must never seek');
       await touch('touchEnd');
       const scrubbed = await media();
       assert.ok(Math.abs(scrubbed.time - start.duration / 4) < 0.5, JSON.stringify({ start, scrubbed }));
@@ -217,14 +218,14 @@ describe('沉浸模式', () => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       const seeked = await media();
       assert.ok(Math.abs(seeked.time - Math.min(seeked.duration, scrubbed.time + 10)) < 0.5, JSON.stringify({ scrubbed, seeked }));
-      assert.equal(seeked.paused, true, '双击与随后合成的 click 都不该切播放');
+      assert.equal(seeked.paused, true, 'Neither the double click nor the synthesized click that follows should toggle playback');
       assert.deepEqual(opened.problems, [], JSON.stringify(opened.problems));
     } finally {
       await opened.close();
     }
   });
 
-  /** 进度条上方那块预览：显没显、相对视口的左右余量、报的时间、取的哪一格。 */
+  /** That preview above the progress bar: whether it's shown, the left/right margins relative to the viewport, the reported time, and which cell was taken. */
   const seekPreview = (page: Page) => page.evaluate(() => {
     const preview = document.querySelector<HTMLElement>('[data-immerse-bar] [data-player-seek-preview]');
     if (!preview) return null;
@@ -234,14 +235,14 @@ describe('沉浸模式', () => {
       cell: image ? [image.style.left, image.style.top] : [] };
   });
 
-  it('进度条画面预览：桌面悬停按时刻取格、两端整块留在视口里，离开收起；拼图只取一次', async () => {
+  it('Progress bar frame preview: on desktop hover, take a cell by time, both ends stay whole within the viewport, and it collapses on leave; the mosaic is fetched only once', async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
       const { wide } = await pickClips(page);
       await pinQueue(page, [wide]);
       await muteVideos(page);
-      // 演示短片 2 秒：0.1 秒一帧共 20 帧，一张拼图。
+      // The demo clip is 2 seconds: one frame every 0.1 second for 20 frames total, a single sprite.
       const requested = await stubTimelineSheets(page, { frames: 20, interval: .1 });
       await openImmerse(page, wide.id);
       await page.evaluate((selector) => document.querySelector<HTMLVideoElement>(selector)!.pause(), currentVideo);
@@ -254,17 +255,17 @@ describe('沉浸模式', () => {
       assert.equal(middle.src, `/timeline?id=${wide.id}&s=0&source=peach`);
       const duration = await page.evaluate((selector) => document.querySelector<HTMLVideoElement>(selector)!.duration, currentVideo);
       const frame = Math.min(19, Math.floor(duration * ratio / .1));
-      assert.deepEqual(middle.cell, [`${-(frame % 10) * 100}%`, `${-Math.floor(frame / 10) * 100}%`], `第 ${frame} 帧`);
-      assert.ok(middle.bottom > 9, `预览要压在悬停加粗到 9px 的进度条上方：${middle.bottom}`);
+      assert.deepEqual(middle.cell, [`${-(frame % 10) * 100}%`, `${-Math.floor(frame / 10) * 100}%`], `Frame ${frame}`);
+      assert.ok(middle.bottom > 9, `The preview must sit above the progress bar that thickens to 9px on hover: ${middle.bottom}`);
       assert.equal(await page.locator('[data-immerse-ui]').evaluate((node) => getComputedStyle(node).visibility), 'hidden',
-        '预览出来时作者与标题要让开');
+        'When the preview shows, the author and title should step aside');
       for (const x of [1, DESKTOP.width - 1]) {
         await page.mouse.move(x, y);
         const edge = (await seekPreview(page))!;
-        assert.ok(edge.left >= 11.5 && edge.right >= 11.5, `两端要各让出 12px：${JSON.stringify(edge)}`);
+        assert.ok(edge.left >= 11.5 && edge.right >= 11.5, `Both ends must leave 12px each: ${JSON.stringify(edge)}`);
       }
       await page.mouse.move(DESKTOP.width / 2, DESKTOP.height / 2);
-      assert.equal((await seekPreview(page))?.hidden, true, '离开进度条预览没收起');
+      assert.equal((await seekPreview(page))?.hidden, true, 'Leaving the progress bar did not dismiss the preview');
       assert.deepEqual([...requested.entries()], [[0, 1]]);
       assert.deepEqual(opened.problems, [], JSON.stringify(opened.problems));
     } finally {
@@ -272,7 +273,7 @@ describe('沉浸模式', () => {
     }
   });
 
-  it('手机 390 宽：没有预览图时横划仍可定位，不显示空预览或取拼图', async () => {
+  it('Phone at 390 wide: swiping still seeks without preview images, no empty preview or contact sheet is fetched', async () => {
     const opened = await visit(browser, '/', MOBILE);
     const { page } = opened;
     try {
@@ -290,12 +291,12 @@ describe('沉浸模式', () => {
       await touch('touchStart', 100, 400);
       for (let step = 1; step <= 8; step += 1) await touch('touchMove', 100 + MOBILE.width / 2 * step / 8, 402);
       const dragging = (await seekPreview(page))!;
-      assert.equal(dragging.hidden, true, '无图时不显示空预览');
+      assert.equal(dragging.hidden, true, 'Without an image no empty preview shows');
       assert.match(dragging.time, /^0:0[0-2]$/);
       await touch('touchEnd');
       const time = await page.evaluate((selector) => document.querySelector<HTMLVideoElement>(selector)!.currentTime, currentVideo);
-      assert.ok(time > 0 && time <= Number(tall.duration), `横划仍然定位：${time}`);
-      assert.equal((await seekPreview(page))?.hidden, true, '抬手预览没收起');
+      assert.ok(time > 0 && time <= Number(tall.duration), `Swipe still seeks: ${time}`);
+      assert.equal((await seekPreview(page))?.hidden, true, 'Preview not dismissed on release');
       assert.deepEqual(sheets, []);
       assert.deepEqual(opened.problems, [], JSON.stringify(opened.problems));
     } finally {

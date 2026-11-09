@@ -5,33 +5,33 @@ import type { Browser } from 'playwright-core';
 import { launch, VIEWPORTS } from './harness.ts';
 import { openItemPage } from './item-fixture.ts';
 
-describe('共享提示的文字与锚点', () => {
+describe('The shared note\'s text and anchor', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 保存的筛选名称悬停时直接可读`, async () => {
+    it(`${viewport.name} saved filter names read directly on hover`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.route('**/api/library-shortcuts', route => route.fulfill({ json: {
-          favorites: [], filters: [{ id: 'clear', name: '高清馆藏', href: '/?quality=hd' }],
+          favorites: [], filters: [{ id: 'clear', name: 'HD library', href: '/?quality=hd' }],
         } }));
         await opened.page.locator('[data-shortcuts-trigger]').click();
-        await opened.page.getByRole('tab', { name: '保存的筛选', exact: true }).click();
-        const saved = opened.page.getByRole('link', { name: '高清馆藏', exact: true });
+        await opened.page.getByRole('tab', { name: 'Saved filters', exact: true }).click();
+        const saved = opened.page.getByRole('link', { name: 'HD library', exact: true });
         await saved.hover();
         await opened.page.waitForTimeout(500);
         assert.equal(await saved.getAttribute('title'), null);
         assert.equal(await opened.page.locator('#board-control-tooltip:visible').count(), 0);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 完整文字无需提示，截断文字提供原文`, async () => {
+    it(`${viewport.name} full text needs no tooltip and truncated text offers the original`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.evaluate(() => {
           const probe = document.createElement('div');
           probe.style.cssText = 'position:fixed;left:30px;top:200px;z-index:9999;background:white;display:grid;gap:20px;width:280px';
-          probe.innerHTML = '<a id="tip-readable" href="#" title="高清馆藏">高清馆藏</a><a id="tip-clipped" href="#" title="这是需要查看完整名称的收藏筛选" style="display:block;width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">这是需要查看完整名称的收藏筛选</a>';
+          probe.innerHTML = '<a id="tip-readable" href="#" title="HD library">HD library</a><a id="tip-clipped" href="#" title="This library filter needs the full name to be readable" style="display:block;width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">This library filter needs the full name to be readable</a>';
           document.body.append(probe);
         });
         await opened.page.locator('#tip-readable').focus();
@@ -41,35 +41,35 @@ describe('共享提示的文字与锚点', () => {
         assert.equal(await opened.page.locator('#tip-readable').getAttribute('aria-describedby'), null);
         await opened.page.locator('#tip-clipped').focus();
         await opened.page.locator('#board-control-tooltip').waitFor({ state: 'visible' });
-        assert.equal(await opened.page.locator('#board-control-tooltip').textContent(), '这是需要查看完整名称的收藏筛选');
-        assert.equal(await opened.page.locator('#tip-readable').getAttribute('title'), '高清馆藏');
+        assert.equal(await opened.page.locator('#board-control-tooltip').textContent(), 'This is a favorite filter that needs the full name visible');
+        assert.equal(await opened.page.locator('#tip-readable').getAttribute('title'), 'HD library');
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 嵌套控件的补充提示按鼠标目标切换`, async () => {
+    it(`${viewport.name} nested-control tooltips follow the mouse target`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.evaluate(() => {
           const probe = document.createElement('div');
-          probe.title = '父级说明';
+          probe.title = 'Parent note';
           probe.style.cssText = 'position:fixed;left:30px;top:200px;z-index:9999;background:white;display:flex;gap:20px';
-          probe.innerHTML = '<button id="tip-parent">外层</button><button id="tip-child" title="子级说明">内层</button>';
+          probe.innerHTML = '<button id="tip-parent">Outer</button><button id="tip-child" title="Child description">Inner</button>';
           document.body.append(probe);
         });
         await opened.page.locator('#tip-parent').focus();
         await opened.page.locator('#board-control-tooltip').waitFor({ state: 'visible' });
         await opened.page.locator('#tip-child').hover();
-        await opened.page.waitForFunction(() => document.querySelector('#board-control-tooltip')?.textContent === '子级说明');
+        await opened.page.waitForFunction(() => document.querySelector('#board-control-tooltip')?.textContent === 'Child note');
         assert.equal(await opened.page.locator('#tip-parent').getAttribute('aria-label'), null);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 弹窗中的图标提示跟随可见锚点`, async () => {
+    it(`${viewport.name} dialog icon tooltips follow the visible anchor`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.evaluate(() => {
           const modal = document.createElement('dialog');
           modal.id = 'tip-modal';
           modal.style.cssText = 'width:300px;height:200px;padding:40px;transform:translateY(20px)';
-          modal.innerHTML = '<span id="tip-contents" title="筛选作品来源" style="display:contents"><button id="tip-icon" aria-label="来源" style="width:40px;height:40px"><svg width="20" height="20"><circle cx="10" cy="10" r="8"/></svg></button></span>';
+          modal.innerHTML = '<span id="tip-contents" title="Filter video sources" style="display:contents"><button id="tip-icon" aria-label="Sources" style="width:40px;height:40px"><svg width="20" height="20"><circle cx="10" cy="10" r="8"/></svg></button></span>';
           document.body.append(modal); modal.showModal();
         });
         await opened.page.locator('#tip-icon').focus();
@@ -84,19 +84,19 @@ describe('共享提示的文字与锚点', () => {
         assert(Math.abs(geometry.tip.y + geometry.tip.h + 8 - geometry.icon.y) <= 1, JSON.stringify(geometry));
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 任务图标的可见提示保留独立编辑键，关闭后不串给其他控件`, async () => {
+    it(`${viewport.name}: the task icon's visible tooltip keeps its own edit key and does not leak to other controls when closed`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.evaluate(() => {
           const probe = document.createElement('div');
           probe.style.cssText = 'position:fixed;left:30px;top:200px;z-index:9999;display:flex;gap:20px';
-          probe.innerHTML = '<div data-copy-bar hidden></div><button id="tip-task-control" aria-label="暂停后续任务" title="暂停后续任务" data-tooltip-copy-key="tasks.control.action.followups.pause" style="width:32px;height:32px"><svg width="16" height="16"><path d="M4 2v12M12 2v12"/></svg></button><button id="tip-other-control" aria-label="其他操作" title="其他操作" style="width:32px;height:32px">…</button>';
+          probe.innerHTML = '<div data-copy-bar hidden></div><button id="tip-task-control" aria-label="Pause follow-up tasks" title="Pause follow-up tasks" data-tooltip-copy-key="tasks.control.action.followups.pause" style="width:32px;height:32px"><svg width="16" height="16"><path d="M4 2v12M12 2v12"/></svg></button><button id="tip-other-control" aria-label="Other actions" title="Other actions" style="width:32px;height:32px">…</button>';
           document.body.append(probe);
         });
         await opened.page.locator('#tip-task-control').focus();
         const tip = opened.page.locator('#board-control-tooltip');
         await tip.waitFor({ state: 'visible' });
-        assert.equal(await tip.textContent(), '暂停后续任务');
+        assert.equal(await tip.textContent(), 'Pause follow-up tasks');
         assert.equal(await tip.getAttribute('data-copy-key'), 'tasks.control.action.followups.pause');
         assert.equal(await opened.page.locator('#tip-task-control').getAttribute('data-copy-key'), null);
         assert.equal(await tip.evaluate(node => getComputedStyle(node).pointerEvents), 'auto');
@@ -115,7 +115,7 @@ describe('共享提示的文字与锚点', () => {
         assert.deepEqual(closed, { hidden: true, key: null });
         await opened.page.waitForFunction(() => (window as any).__restingBoundary === true);
         await tip.waitFor({ state: 'visible' });
-        assert.equal(await tip.textContent(), '其他操作');
+        assert.equal(await tip.textContent(), 'Other actions');
         assert.equal(await tip.getAttribute('data-copy-key'), null);
         await opened.page.keyboard.press('Escape');
         await opened.page.locator('#tip-task-control').hover();
@@ -123,13 +123,13 @@ describe('共享提示的文字与锚点', () => {
         assert.equal(await tip.getAttribute('data-copy-key'), 'tasks.control.action.followups.pause');
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 提示在选择文案来源和编辑子节点期间保持可见，Esc先取消编辑`, async () => {
+    it(`${viewport.name}: the tooltip stays visible while picking a copy source and editing child nodes; Esc cancels editing first`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         await opened.page.addScriptTag({ content: await readFile(new URL('../src/copy-editor-core.js', import.meta.url), 'utf8') });
         await opened.page.evaluate(() => {
           const button = document.createElement('button');
-          button.id = 'tip-edit-action'; button.title = '继续'; button.setAttribute('aria-label', '继续');
+          button.id = 'tip-edit-action'; button.title = 'Continue'; button.setAttribute('aria-label', 'Continue');
           button.dataset.tooltipCopyKey = 'tasks.control.action.resume';
           button.style.cssText = 'position:fixed;left:120px;top:240px;z-index:9999;width:32px;height:32px';
           button.innerHTML = '<svg width="16" height="16"><path d="M4 2v12l10-6Z"/></svg>';
@@ -146,7 +146,7 @@ describe('共享提示的文字与锚点', () => {
               const candidate = await tools.choose([
                 { label: 'task-controls.tsx', value: { source: 'task-controls.tsx' } },
                 { label: 'other.tsx', value: { source: 'other.tsx' } },
-              ], range.getBoundingClientRect(), { label: '文案来源' });
+              ], range.getBoundingClientRect(), { label: 'Copy source' });
               return candidate ? { candidate } : null;
             },
             async save(_edit: any, replacement: string) { return { text: replacement }; },
@@ -161,13 +161,13 @@ describe('共享提示的文字与锚点', () => {
         assert.equal(await tip.isVisible(), true);
         assert.equal(await tip.getAttribute('data-copy-key'), 'tasks.control.action.resume');
         await choice.selectOption('0');
-        const input = tip.locator('[data-copy-inline][aria-label="修改文字"]');
+        const input = tip.locator('[data-copy-inline][aria-label="Edit text"]');
         await input.waitFor({ state: 'visible' });
-        await input.fill('临时继续');
+        await input.fill('Temporary continue');
         await input.press('Escape');
         assert.equal(await tip.locator('[data-copy-inline]').count(), 0);
         assert.equal(await tip.isVisible(), true);
-        assert.equal(await tip.textContent(), '继续');
+        assert.equal(await tip.textContent(), 'Continue');
         assert.equal(await tip.getAttribute('data-copy-key'), 'tasks.control.action.resume');
         await opened.page.keyboard.press('Escape');
         await tip.waitFor({ state: 'hidden' });

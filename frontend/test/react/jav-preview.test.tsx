@@ -11,9 +11,9 @@ vi.mock('../../src/player', () => ({ mountPreviewPlayer: player }));
 notifyManager.setScheduler(notify => notify());
 afterEach(() => { queryClient.clear(); player.mockClear() });
 
-it('官方MP4预告进入现有播放器并在关闭时销毁', async () => {
+it('The official MP4 trailer enters the existing player and is destroyed on close', async () => {
   const src = '/jav-preview/EXM-001/0123456789abcdef';
-  const item: JavDetail = { code: 'EXM-001', title: '示例作品', state: 'ready', summary: '', director: '', publisher: '',
+  const item: JavDetail = { code: 'EXM-001', title: 'Example video', state: 'ready', summary: '', director: '', publisher: '',
     performers: '', performer_refs: [], studio_refs: [], series_refs: [], tags: [], has_cover: false,
     source_image: false, preview_count: 0, comments_count: 0, source_url: '', wanted: false, want_id: null,
     preview_video_url: src };
@@ -25,17 +25,17 @@ it('官方MP4预告进入现有播放器并在关闭时销毁', async () => {
   await settle();
   expect(player).toHaveBeenCalledOnce();
   expect(player.mock.calls[0]?.[1]).toEqual({ src, type: 'video/mp4' });
-  expect(mounted.host.querySelector('video')?.getAttribute('aria-label')).toBe('视频预览');
+  expect(mounted.host.querySelector('video')?.getAttribute('aria-label')).toBe('Video previews');
   const dispose = player.mock.results[0]!.value;
   await mounted.unmount();
   expect(dispose).toHaveBeenCalledOnce();
 });
 
-const missingCover: JavDetail = { code: 'EXM-002', title: '示例作品', state: 'ready', summary: '', director: '', publisher: '',
+const missingCover: JavDetail = { code: 'EXM-002', title: 'Example video', state: 'ready', summary: '', director: '', publisher: '',
   performers: '', performer_refs: [], studio_refs: [], series_refs: [], tags: [], has_cover: false,
   source_image: false, preview_count: 0, comments_count: 0, source_url: '', wanted: false, want_id: null };
 
-it('预告失败时销毁播放器，重试重新挂载，切回图片清理实例', async () => {
+it('On trailer failure the player is destroyed, retry remounts it, and switching back to images cleans up the instance', async () => {
   const item = { ...missingCover, preview_video_url: '/jav-preview/EXM-002/unavailable.mp4' };
   queryClient.setQueryData(javDetailKey(item.code), item);
   vi.stubGlobal('fetch', fetchMock(200, { ok: true, image: '' }));
@@ -50,8 +50,8 @@ it('预告失败时销毁播放器，重试重新挂载，切回图片清理实�
     expect(first).toHaveBeenCalledOnce();
     expect(mounted.host.querySelector('[data-jav-video] video')).toBeNull();
     const failure = mounted.host.querySelector('[data-jav-video] [role="note"]')!;
-    expect(failure.textContent).toContain('视频预览未取得');
-    await click(buttonNamed('立即重试', failure));
+    expect(failure.textContent).toContain('Video preview not fetchedRetry now');
+    await click(buttonNamed('Retry now', failure));
     expect(player).toHaveBeenCalledTimes(2);
     expect(mounted.host.querySelector('[data-jav-video] [role="note"]')).toBeNull();
     const second = player.mock.results[1]!.value;
@@ -69,12 +69,12 @@ async function mountMissingCover(reply: unknown) {
   return { fetcher, host: mounted.host };
 }
 
-it('没有封面时画廊给空态与立即重试，取到后换成本机封面', async () => {
+it('With no cover, the gallery shows an empty state with retry now, then swaps to the local cover once fetched', async () => {
   const { fetcher, host } = await mountMissingCover({ ok: true, has_cover: true, cover_version: 'v7', message: '' });
   try {
     const empty = host.querySelector('[data-jav-picture-wait] [data-empty-state]');
-    expect(empty?.querySelector('h3')?.textContent).toBe('封面未取得');
-    await click(buttonNamed('立即重试', empty!));
+    expect(empty?.querySelector('h3')?.textContent).toBe('Cover unavailable');
+    await click(buttonNamed('Retry now', empty!));
     await settle();
     expect(fetcher.mock.calls[0]?.[0]).toBe('/api/jav/cover');
     expect(sentBody(fetcher)).toEqual({ code: 'EXM-002' });
@@ -83,11 +83,11 @@ it('没有封面时画廊给空态与立即重试，取到后换成本机封面'
   } finally { vi.unstubAllGlobals() }
 });
 
-it('重试没取到时空态写出服务端给的原因', async () => {
-  const { host } = await mountMissingCover({ ok: true, has_cover: false, cover_version: '', message: '来源连接失败' });
+it('On a failed retry, the empty state shows the server\'s reason', async () => {
+  const { host } = await mountMissingCover({ ok: true, has_cover: false, cover_version: '', message: 'Source connection failed' });
   try {
-    await click(buttonNamed('立即重试', host));
+    await click(buttonNamed('Retry now', host));
     await settle();
-    expect(host.querySelector('[data-empty-state] p')?.textContent).toBe('来源连接失败');
+    expect(host.querySelector('[data-empty-state] p')?.textContent).toBe('Source connection failed');
   } finally { vi.unstubAllGlobals() }
 });

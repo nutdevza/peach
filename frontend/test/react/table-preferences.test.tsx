@@ -3,12 +3,12 @@ import { beforeEach, expect, it } from 'vitest';
 import { useTablePreferences } from '../../src/react/components/table-column-preferences';
 import { mountRoot } from './render';
 
-const columns = [{ id: 'name', label: '名称', width: 280, required: true }, { id: 'extra', label: '补充', width: 160 }];
+const columns = [{ id: 'name', label: 'Name', width: 280, required: true }, { id: 'extra', label: 'Backfill', width: 160 }];
 let first!: ReturnType<typeof useTablePreferences>, second!: ReturnType<typeof useTablePreferences>;
 function Probe() { first = useTablePreferences('first', columns); second = useTablePreferences('second', columns); return null }
 beforeEach(() => localStorage.clear());
 
-it('各表独立保存列显示和列宽，隐藏列保留宽度，身份列保持可见', async () => {
+it('Each table saves column visibility and widths independently, hidden columns keep their widths, and the identity column stays visible', async () => {
   const root = await mountRoot(<Probe />);
   await act(() => first.save(new Map([['extra', 360]])));
   await act(() => first.change({ name: false, extra: false }));
@@ -25,7 +25,7 @@ it('各表独立保存列显示和列宽，隐藏列保留宽度，身份列保�
   expect(first.visibility.extra).toBe(false);
 });
 
-it('名称默认使用剩余宽度，手动宽度可恢复，重置后保持自适应', async () => {
+it('Name defaults to the remaining width, manual widths can be restored, and after reset it stays adaptive', async () => {
   let preferences!: ReturnType<typeof useTablePreferences>;
   function Flexible() {
     preferences = useTablePreferences('flexible', [{ ...columns[0]!, flex: true }, columns[1]!]);

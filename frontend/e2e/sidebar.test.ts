@@ -1,9 +1,12 @@
-/* 侧栏岛（`frontend/src/react/sidebar/`，ADR-0031 第 11f 步）在真浏览器里的行为：拖动排序写回、五处语境的
- * 筛选分组与计数、切页时那块玻璃一路滑过去、手机宽度下抽屉的开合，以及覆盖式滚动条仍挂在滚动层上。
+/* The sidebar island's (`frontend/src/react/sidebar/`, ADR-0031 step 11f) behavior in a real browser: drag-reorder write-back,
+ * filter groups and counts for five contexts, the glass sliding along when switching pages, drawer open/close at phone width,
+ * and the overlay scrollbar still hanging on the scrolling layer.
  *
- * 写接口一律落在桩里（`settings-fixture`、`follow-fixture`、`item-fixture`）。聚合接口 `/api/facets` 照演示库
- * 真取一份，只把内容标签换成按语境可区分的几枚：首页与实体页数字不同，才看得出侧栏是按语境取的。演示库没有
- * 人物实体，实体页的资料与作品照接口的形状在这里给（同 `entity-filter.test.ts`）。 */
+ * Write endpoints all land in stubs (`settings-fixture`, `follow-fixture`, `item-fixture`). The aggregate endpoint
+ * `/api/facets` fetches a real copy per the demo library, with only content tags swapped for context-distinguishable ones:
+ * home and entity pages showing different numbers is what proves the sidebar fetches per context. The demo library has no
+ * person entities, so the entity page's profile and videos are provided here in the endpoint's shape (same as
+ * `entity-filter.test.ts`). */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -16,13 +19,13 @@ import { openHome, ORDER } from './settings-fixture.ts';
 
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 const PHONE = VIEWPORTS.find((viewport) => viewport.mobile)!;
-const HOME_TAGS = [['演示侧栏甲', 41], ['演示侧栏乙', 7]] as const;
-const ENTITY_TAGS = [['演示侧栏甲', 23], ['演示侧栏乙', 5]] as const;
+const HOME_TAGS = [['Demo sidebar Alpha', 41], ['Demo sidebar Beta', 7]] as const;
+const ENTITY_TAGS = [['Demo sidebar Alpha', 23], ['Demo sidebar Beta', 5]] as const;
 const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
 const PERFORMER = '篠田ゆう';
 const THUMB = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#456"/></svg>';
 
-/** 女优资料页要的资料、作品、照片与图。 */
+/** The profile data, videos, photos, and images a performer profile page needs. */
 async function serveEntity(page: Page): Promise<void> {
   const entity = {
     id: 90_101, kind: 'performer', canonical_name: PERFORMER, aliases: [], display_aliases: [], user_aliases: [],
@@ -30,7 +33,7 @@ async function serveEntity(page: Page): Promise<void> {
     avatar_focus: null, representative_asset_id: null, entry_links: [], feed: null,
   };
   const items = Array.from({ length: 6 }, (_, at) => ({
-    id: 91_000 + at, name: `SSIS-${100 + at} 演示作品 ${at + 1}`, code: `SSIS-${100 + at}`, is_jav: true, has_thumb: true,
+    id: 91_000 + at, name: `SSIS-${100 + at} Demo video ${at + 1}`, code: `SSIS-${100 + at}`, is_jav: true, has_thumb: true,
     duration: 7200, studio: 'S1 NO.1 STYLE', tags: [],
   }));
   await page.route(/\/api\/entity\?/, (route) => route.fulfill({ json: entity }));
@@ -45,7 +48,7 @@ async function serveEntity(page: Page): Promise<void> {
     route.fulfill({ contentType: 'image/svg+xml', body: THUMB }));
 }
 
-/** 把 `/api/facets` 的内容标签换成按语境给的那一份；交回收到的查询串，好看实体页是不是按实体口径取的。 */
+/** Swap `/api/facets`'s content tags for the context-provided one; return the query string received, to see whether the entity page's fetch used entity terms. */
 async function scopeFacets(page: Page): Promise<string[]> {
   const seen: string[] = [];
   await page.route((url) => url.pathname === '/api/facets', async (route) => {
@@ -58,7 +61,7 @@ async function scopeFacets(page: Page): Promise<string[]> {
   return seen;
 }
 
-/** 抽屉里某一组的 chip：值与计数徽标的数字，按画出来的先后。 */
+/** A group's chips in the drawer: values and count badge numbers, in the order they render. */
 const chips = (page: Page, group: string) =>
   page.locator(`#drawer [data-sidebar-group="${group}"] [data-sidebar-chip]`).evaluateAll((nodes) =>
     nodes.map((node) => [node.getAttribute('data-val') ?? node.getAttribute('data-follow-drawer-tag'),
@@ -67,14 +70,14 @@ const chips = (page: Page, group: string) =>
 const navKeys = (page: Page) =>
   page.locator('#drawer [data-sidebar-nav] [data-nav]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-nav')));
 
-/** 点开一组（初始只有正在生效的组展开，收着的组 `inert`，点不到里面的 chip）。 */
+/** Open a group (initially only the active group is expanded; collapsed groups are `inert`, and their chips cannot be clicked). */
 async function openGroup(page: Page, group: string): Promise<void> {
   const toggle = page.locator(`#drawer [data-sidebar-group="${group}"] > [data-sidebar-toggle]`);
   if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
   await page.locator(`#drawer [data-sidebar-group="${group}"] [data-sidebar-collapse]:not([inert])`).waitFor({ timeout: 5_000 });
 }
 
-describe('侧栏岛', () => {
+describe('Sidebar island', () => {
   let browser: Browser;
 
   before(async () => {
@@ -85,11 +88,11 @@ describe('侧栏岛', () => {
     await browser.close();
   });
 
-  it('拖动一项改导航顺序：当场重排、写进设置，刷新之后照新顺序', { timeout: 60_000 }, async () => {
+  it('Dragging an item reorders navigation: it re-sorts in place, writes to settings, and survives a refresh in the new order', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page, server } = opened;
     try {
-      assert.deepEqual(await navKeys(page), ORDER, '侧栏没有按设置里的顺序画');
+      assert.deepEqual(await navKeys(page), ORDER, 'The sidebar does not draw in the settings order');
       const from = (await page.locator('#drawer [data-nav="tags"]').boundingBox())!;
       const to = (await page.locator('#drawer [data-nav="follow"]').boundingBox())!;
       await page.mouse.move(from.x + 40, from.y + from.height / 2);
@@ -97,9 +100,9 @@ describe('侧栏岛', () => {
       await page.mouse.move(from.x + 44, from.y + from.height / 2 - 6, { steps: 4 });
       await page.mouse.move(to.x + 40, to.y + 6, { steps: 8 });
       await page.mouse.move(to.x + 42, to.y + 7, { steps: 2 });
-      assert.equal(await page.locator('#drawer [data-nav="tags"]').getAttribute('data-dragging'), '', '被拖的那一项没有标出来');
+      assert.equal(await page.locator('#drawer [data-nav="tags"]').getAttribute('data-dragging'), '', 'The dragged item was never marked');
       const line = await page.locator('#drawer [data-sidebar-drop-line]').boundingBox();
-      assert.ok(line && line.width > 0, '插入线没有显示');
+      assert.ok(line && line.width > 0, 'The insertion line never showed');
       assert.equal(await page.locator('#drawer [data-nav="follow"]').evaluate(node => node.style.getPropertyValue('--sidebar-nudge')), '10px');
       assert.equal(await page.locator('#drawer [data-nav="jav"]').evaluate(node => node.style.getPropertyValue('--sidebar-delay')), '24ms');
       await page.mouse.up();
@@ -107,20 +110,20 @@ describe('侧栏岛', () => {
       await page.waitForFunction((want) => JSON.stringify([...document.querySelectorAll('#drawer [data-sidebar-nav] [data-nav]')]
         .map((node) => node.getAttribute('data-nav'))) === want, JSON.stringify(moved), { timeout: 5_000 });
       const posts = server.posts.filter((post) => post.path === '/api/settings' && 'sidebarOrder' in post.body);
-      assert.deepEqual(posts.at(-1)?.body.sidebarOrder, moved, '新顺序没有写进设置');
-      assert.equal(await page.locator('#drawer [data-dragging], #drawer [data-sidebar-drop-line]').count(), 0, '松手后拖动标记没有清掉');
+      assert.deepEqual(posts.at(-1)?.body.sidebarOrder, moved, 'New order not written to settings');
+      assert.equal(await page.locator('#drawer [data-dragging], #drawer [data-sidebar-drop-line]').count(), 0, 'After release the drag mark never cleared');
 
       await page.reload({ waitUntil: 'load' });
       await page.locator('#drawer [data-sidebar-nav] [data-nav]').first().waitFor({ timeout: 15_000 });
       await settle(page);
-      assert.deepEqual(await navKeys(page), moved, '刷新之后侧栏回到了旧顺序');
+      assert.deepEqual(await navKeys(page), moved, 'After refresh the sidebar falls back to the old order');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('Esc 和拖出导航区域取消排序，不保存也不触发导航', { timeout: 60_000 }, async () => {
+  it('Esc and dragging out of the navigation area cancel reordering — nothing is saved and no navigation fires', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page, server } = opened;
     try {
@@ -142,7 +145,7 @@ describe('侧栏岛', () => {
     } finally { await opened.close() }
   });
 
-  it('关注页往返复用已加载内容，不重新取列表或铺首屏骨架', { timeout: 60_000 }, async () => {
+  it('The follows page reuses loaded content on both ways in and never refetches the list or lays the first-screen skeleton', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     const { page } = opened;
     let requests = 0;
@@ -174,62 +177,62 @@ describe('侧栏岛', () => {
     } finally { await opened.close() }
   });
 
-  it('首页与实体页各按自己的口径列内容标签与计数；点一枚 chip 就按下并进地址', { timeout: 60_000 }, async () => {
+  it('Home and entity pages list content tags and counts by their own criteria; clicking a chip presses it and writes the URL', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
       const seen = await scopeFacets(page);
       await page.reload({ waitUntil: 'load' });
-      await page.locator('#drawer [data-sidebar-group="内容标签"]').waitFor({ state: 'attached', timeout: 15_000 });
+      await page.locator('#drawer [data-sidebar-group="Content tags"]').waitFor({ state: 'attached', timeout: 15_000 });
       await settle(page);
-      assert.deepEqual(await chips(page, '内容标签'), HOME_TAGS.map(([k, n]) => [k, String(n)]), '首页的内容标签不是全库那一份');
-      assert.ok((await chips(page, '来源')).some(([value, count]) => value === 'local' && Number(count) > 0), '来源那一组没有本机的计数');
+      assert.deepEqual(await chips(page, 'Content tags'), HOME_TAGS.map(([k, n]) => [k, String(n)]), 'Home\'s content tags are not the whole-library copy');
+      assert.ok((await chips(page, 'Source')).some(([value, count]) => value === 'local' && Number(count) > 0), 'The sources group lacks local counts');
 
-      await openGroup(page, '内容标签');
+      await openGroup(page, 'Content tags');
       const chip = page.locator(`#drawer [data-sidebar-chip][data-key="tag"][data-val="${HOME_TAGS[0][0]}"]`);
       await chip.click();
       await page.waitForFunction((tag) => new URL(location.href).searchParams.get('tag') === tag, HOME_TAGS[0][0], { timeout: 5_000 });
       await page.locator(`#drawer [data-sidebar-chip][data-val="${HOME_TAGS[0][0]}"][aria-pressed="true"]`).waitFor({ timeout: 5_000 });
-      assert.ok(seen.some((query) => new URLSearchParams(query).get('tag') === HOME_TAGS[0][0]), '按下 chip 之后聚合没有按这条筛选重取');
+      assert.ok(seen.some((query) => new URLSearchParams(query).get('tag') === HOME_TAGS[0][0]), 'After pressing the chip, the aggregation did not refetch with this filter');
 
       await serveEntity(page);
       await page.goto(new URL(`/performers/${encodeURIComponent(PERFORMER)}`, page.url()).toString(), { waitUntil: 'load' });
-      await page.locator('#drawer [data-sidebar-group="内容标签"]').waitFor({ state: 'attached', timeout: 15_000 });
+      await page.locator('#drawer [data-sidebar-group="Content tags"]').waitFor({ state: 'attached', timeout: 15_000 });
       await settle(page);
       assert.ok(seen.some((query) => {
         const params = new URLSearchParams(query);
         return params.get('scope_kind') === 'performer' && params.get('scope_name') === PERFORMER;
-      }), `实体页没有按实体口径取聚合：${seen.join(' | ')}`);
-      assert.deepEqual(await chips(page, '内容标签'), ENTITY_TAGS.map(([k, n]) => [k, String(n)]), '实体页列的不是这个实体的计数');
+      }), `The entity page did not fetch aggregations by entity scope: ${seen.join(' | ')}`);
+      assert.deepEqual(await chips(page, 'Content tags'), ENTITY_TAGS.map(([k, n]) => [k, String(n)]), 'The entity page does not list this entity\'s counts');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('关注页按这一版条目数标签，关注详情只列这一条的标签、每枚计 1', { timeout: 60_000 }, async () => {
+  it('The follow page counts tags by this revision\'s entries, and follow details list only this item\'s tags at one each', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     const { page } = opened;
     try {
-      await page.locator('#drawer [data-sidebar-group="内容标签"] [data-follow-drawer-tag]').first().waitFor({ state: 'attached', timeout: 10_000 });
-      const listed = await chips(page, '内容标签');
+      await page.locator('#drawer [data-sidebar-group="Content tags"] [data-follow-drawer-tag]').first().waitFor({ state: 'attached', timeout: 10_000 });
+      const listed = await chips(page, 'Content tags');
       const shown = await page.locator('[data-follow-list] > [data-follow-item]').count();
-      assert.ok(listed.length > 1, '关注页的标签组是空的');
-      assert.ok(listed.every(([, count]) => Number(count) >= 1), `关注页有标签没带计数：${JSON.stringify(listed)}`);
+      assert.ok(listed.length > 1, 'The follows page\'s tag group is empty');
+      assert.ok(listed.every(([, count]) => Number(count) >= 1), `Follows page tags are missing counts: ${JSON.stringify(listed)}`);
       assert.equal(listed.reduce((sum, [, count]) => sum + Number(count), 0), shown * 2,
-        '每条更新两枚标签，计数之和应是条目数的两倍');
+        'Each entry updates two tags; the sum of counts should be twice the entry count');
 
       await page.locator('[data-follow-item="1002"] [data-follow-open]').click();
       await page.locator('#stage[open] [data-follow-detail-side]').waitFor({ timeout: 10_000 });
       await page.waitForFunction(() => document.querySelectorAll('#drawer [data-follow-drawer-tag]').length === 2, undefined, { timeout: 5_000 });
-      assert.deepEqual((await chips(page, '内容标签')).sort(), [['3d', '1'], ['outdoor', '1']], '关注详情列的不是这一条的标签');
+      assert.deepEqual((await chips(page, 'Content tags')).sort(), [['3d', '1'], ['outdoor', '1']], 'Follow details do not list this entry\'s tags');
       await page.locator('#closeStage').click();
       await page.waitForFunction((count) => document.querySelectorAll('#drawer [data-follow-drawer-tag]').length === count,
         listed.length, { timeout: 5_000 });
-      assert.deepEqual(await chips(page, '内容标签'), listed, '关掉详情之后关注页的标签计数变了');
+      assert.deepEqual(await chips(page, 'Content tags'), listed, 'Closing details changed the follows page\'s tag counts');
 
-      /* 抽屉里的关注标签是单选：点一枚就只按这一枚筛，抽屉随之收起，让出来的是筛过的列表。 */
-      await openGroup(page, '内容标签');
+      /* Follow tags in the drawer are single-select: tapping one filters by it alone, the drawer collapses, and what remains is the filtered list. */
+      await openGroup(page, 'Content tags');
       const [tag] = listed[0]!;
       await page.locator(`#drawer [data-follow-drawer-tag="${tag}"]`).click();
       await page.waitForFunction((want) => new URL(location.href).searchParams.get('tag') === want
@@ -237,14 +240,14 @@ describe('侧栏岛', () => {
       await page.locator('#filterBtn').click();
       await page.locator(`#drawer.open [data-follow-drawer-tag="${tag}"][aria-pressed="true"]`).waitFor({ timeout: 5_000 });
       const pressed = await page.locator('#drawer [data-follow-drawer-tag][aria-pressed="true"]').count();
-      assert.equal(pressed, 1, '关注标签按下了不止一枚');
+      assert.equal(pressed, 1, 'More than one follow tag is pressed');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('关注页侧栏有来源、时长、内容标签三组；来源与时长进地址、按它向服务端取数，抽屉不收；刷新照地址按下', { timeout: 60_000 }, async () => {
+  it('The follows page sidebar has Source, Duration and Content tags groups; source and duration go into the address and drive the server fetch, the drawer does not collapse, and a refresh presses them by the address', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow', DESKTOP);
     const { page } = opened;
     const lists: URLSearchParams[] = [];
@@ -255,86 +258,86 @@ describe('侧栏岛', () => {
     const groups = () => page.locator('#drawer [data-sidebar-group]').evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute('data-sidebar-group')));
     try {
-      await page.locator('#drawer [data-sidebar-group="来源"] [data-sidebar-chip]').first().waitFor({ state: 'attached', timeout: 10_000 });
-      assert.deepEqual(await groups(), ['来源', '时长', '内容标签'], '关注页侧栏的分组不对');
-      assert.deepEqual((await chips(page, '来源')).map(([value]) => value), ['kemono', 'rule34xxx', 'fanbox'],
-        '来源组不是全库那几个站');
+      await page.locator('#drawer [data-sidebar-group="Source"] [data-sidebar-chip]').first().waitFor({ state: 'attached', timeout: 10_000 });
+      assert.deepEqual(await groups(), ['Source', 'Duration', 'Content tags'], 'The follows page sidebar\'s grouping is wrong');
+      assert.deepEqual((await chips(page, 'Source')).map(([value]) => value), ['kemono', 'rule34xxx', 'fanbox'],
+        'The source group is not the whole library\'s set of sites');
 
-      await openGroup(page, '来源');
+      await openGroup(page, 'Source');
       await page.locator('#drawer [data-sidebar-chip][data-key="provider"][data-val="rule34xxx"]').click();
       await page.waitForFunction(() => new URL(location.href).searchParams.get('provider') === 'rule34xxx', undefined, { timeout: 5_000 });
       await page.locator('#drawer.open [data-sidebar-chip][data-val="rule34xxx"][aria-pressed="true"]').waitFor({ timeout: 5_000 });
-      await page.waitForFunction(() => document.querySelectorAll('#drawer [data-sidebar-group="来源"] [data-sidebar-chip]').length === 3,
+      await page.waitForFunction(() => document.querySelectorAll('#drawer [data-sidebar-group="Source"] [data-sidebar-chip]').length === 3,
         undefined, { timeout: 5_000 });
-      assert.ok(lists.some((params) => params.get('provider') === 'rule34xxx'), '按下来源之后没有按它向服务端取数');
+      assert.ok(lists.some((params) => params.get('provider') === 'rule34xxx'), 'After pressing a source it did not fetch from the server by it');
 
-      await openGroup(page, '时长');
+      await openGroup(page, 'Duration');
       await page.locator('#durMin').focus();
       await page.keyboard.press('ArrowRight');
       await page.waitForFunction(() => new URL(location.href).searchParams.get('dur_min') === '300', undefined, { timeout: 5_000 });
       await page.waitForFunction(() => document.querySelector('#drawer')?.classList.contains('open'), undefined, { timeout: 5_000 });
       assert.ok(lists.some((params) => params.get('dur_min') === '300' && params.get('provider') === 'rule34xxx'),
-        '拉时长之后没有带着两条筛选向服务端取数');
-      assert.ok(!new URL(page.url()).searchParams.has('dur_max'), '右端没动却写进了上限');
+        'After dragging duration it did not fetch from the server carrying both filters');
+      assert.ok(!new URL(page.url()).searchParams.has('dur_max'), 'The right end never moved yet the upper bound was written');
 
       await page.reload({ waitUntil: 'load' });
       await page.locator('#drawer [data-sidebar-chip][data-val="rule34xxx"][aria-pressed="true"]').waitFor({ state: 'attached', timeout: 10_000 });
-      assert.equal(await page.locator('#durMin').inputValue(), '5', '刷新之后时长左端没有照地址回到 5 分钟');
+      assert.equal(await page.locator('#durMin').inputValue(), '5', 'After refresh, the left end of the duration does not return to 5 min per the URL');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情开着时侧栏只剩导航，关掉之后列表那几组原样回来', { timeout: 60_000 }, async () => {
+  it('With video details open the sidebar keeps only navigation, and closing restores the list groups as they were', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     const { page } = opened;
     try {
       await page.locator('#drawer [data-sidebar-group]').first().waitFor({ state: 'attached', timeout: 10_000 });
       const groups = () => page.locator('#drawer [data-sidebar-group]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-sidebar-group')));
       const before = await groups();
-      const sources = await chips(page, '来源');
-      assert.ok(before.length > 1, `首页的分组不全：${before.join('、')}`);
+      const sources = await chips(page, 'Source');
+      assert.ok(before.length > 1, `Home's groups are incomplete: ${before.join(', ')}`);
       await page.locator(`#grid [data-media-card][data-id="${ITEM.plain}"] [data-media-title]`).first().click();
       await page.locator('#stage[open] [data-item-side]').waitFor({ timeout: 10_000 });
-      assert.deepEqual(await groups(), [], '详情开着时侧栏还挂着列表的筛选分组');
-      assert.ok((await navKeys(page)).includes(''), '详情开着时导航那一列不在了');
+      assert.deepEqual(await groups(), [], 'With details open the sidebar still carries the list\'s filter groups');
+      assert.ok((await navKeys(page)).includes(''), 'The nav column is gone while details are open');
       await page.locator('#closeStage').click();
       await page.waitForFunction((want) => JSON.stringify([...document.querySelectorAll('#drawer [data-sidebar-group]')]
         .map((node) => node.getAttribute('data-sidebar-group'))) === want, JSON.stringify(before), { timeout: 10_000 });
-      assert.deepEqual(await chips(page, '来源'), sources, '关掉详情之后来源那一组的计数变了');
+      assert.deepEqual(await chips(page, 'Source'), sources, 'Closing details changed that source group\'s counts');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('已被浮窗或弹层用掉的 Esc 不再收起侧栏，没人处理的 Esc 照常收起', { timeout: 60_000 }, async () => {
+  it('An Esc already consumed by a popover or dialog no longer collapses the sidebar; an unhandled Esc still does', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
       await settle(page);
       const drawer = () => page.evaluate(() => document.body.classList.contains('drawer-open'));
-      assert.equal(await drawer(), true, '桌面宽度默认展开侧栏');
+      assert.equal(await drawer(), true, 'At desktop width the sidebar is expanded by default');
       // 详情先于全局入口关完时，冒泡上来的就是这样一下已被 preventDefault 的 Esc。
       await page.evaluate(() => document.body.addEventListener('keydown', event => {
         if (event.key === 'Escape') event.preventDefault();
       }, { capture: true, once: true }));
       await page.keyboard.press('Escape');
-      assert.equal(await drawer(), true, '已被用掉的 Esc 收起了侧栏');
+      assert.equal(await drawer(), true, 'An Esc that was already used collapsed the sidebar');
       await page.keyboard.press('Escape');
-      assert.equal(await drawer(), false, '没人处理的 Esc 没有收起侧栏');
+      assert.equal(await drawer(), false, 'An unhandled Esc did not collapse the sidebar');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('切页时当前项玻璃保留节点，完整播放动画并停在选中项', { timeout: 60_000 }, async () => {
+  it('Across page switches the current item\'s glass keeps its node, plays the full animation, and settles on the selected item', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
-      await expectBody(page, '首页', [page.locator('#drawer.open [data-sidebar-nav] [aria-pressed="true"]')]);
+      await expectBody(page, 'Home', [page.locator('#drawer.open [data-sidebar-nav] [aria-pressed="true"]')]);
       await page.locator('#drawer [data-sidebar-group]').first().waitFor({ state: 'attached', timeout: 15_000 });
       await settle(page);
       await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -360,11 +363,11 @@ describe('侧栏岛', () => {
             pressedKey: pressed.dataset.nav, pressedTop: pressed.getBoundingClientRect().top,
           };
         }, key);
-        assert.equal(run.pressedKey, key, `点了 ${key || '首页'} 之后按下的不是它`);
-        assert.ok(run.same, '切页之后那块玻璃换了节点，位移会从头起跑');
-        assert.ok(run.started > 0, `切到 ${key || '首页'} 时玻璃没有起动画`);
-        assert.equal(run.cancelled, 0, `切到 ${key || '首页'} 的途中玻璃的动画被掐断了`);
-        assert.ok(Math.abs(run.to - run.pressedTop) <= 1, `玻璃停在 ${run.to}，当前项在 ${run.pressedTop}`);
+        assert.equal(run.pressedKey, key, `After clicking ${key || 'Home'} a different item is pressed`);
+        assert.ok(run.same, 'After switching pages the glass changes nodes, so the transform restarts from the beginning');
+        assert.ok(run.started > 0, `Switching to ${key || 'Home'} started no glass animation`);
+        assert.equal(run.cancelled, 0, `The glass animation got cut off while switching to ${key || 'Home'}`);
+        assert.ok(Math.abs(run.to - run.pressedTop) <= 1, `Glass stopped at ${run.to}, current item at ${run.pressedTop}`);
       }
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -372,7 +375,7 @@ describe('侧栏岛', () => {
     }
   });
 
-  it('手机宽度下抽屉收着、点开盖在页面上，点遮罩或点导航都收回去；滚动层仍挂着覆盖式滚动条', { timeout: 60_000 }, async () => {
+  it('At mobile width the drawer starts collapsed and opens over the page; tapping the scrim or the navigation closes it; the scroll layer still carries the overlay scrollbar', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', PHONE);
     const { page } = opened;
     try {
@@ -388,20 +391,20 @@ describe('侧栏岛', () => {
         };
       });
       const closed = await state();
-      assert.equal(closed.open, false, '手机上一进来抽屉就开着');
-      assert.equal(closed.inert, true, '收着的抽屉没有 inert，Tab 会走进屏幕外面');
-      assert.equal(closed.scrim, 'none', '抽屉收着时遮罩还在渲染树里');
-      assert.ok(closed.left < 0, '收着的抽屉没有移出屏幕');
+      assert.equal(closed.open, false, 'On phones the drawer starts open on entry');
+      assert.equal(closed.inert, true, 'The collapsed drawer lacks inert, so Tab walks off screen');
+      assert.equal(closed.scrim, 'none', 'The drawer mask is still in the render tree while collapsed');
+      assert.ok(closed.left < 0, 'The collapsed drawer never moved off screen');
 
       await page.locator('#filterBtn').tap();
       await page.waitForFunction(() => document.querySelector('#drawer')?.classList.contains('open'));
       const shown = await state();
-      assert.deepEqual([shown.inert, shown.expanded, shown.scrim, shown.left], [false, 'true', 'block', 12], '点开之后抽屉没有盖进来');
+      assert.deepEqual([shown.inert, shown.expanded, shown.scrim, shown.left], [false, 'true', 'block', 12], 'After opening the drawer never slides over');
 
-      assert.equal(await page.evaluate(() => document.elementFromPoint(370, 420)?.id), 'scrim', '抽屉右边那一截点到的不是遮罩');
+      assert.equal(await page.evaluate(() => document.elementFromPoint(370, 420)?.id), 'scrim', 'The strip right of the drawer does not hit the scrim');
       await page.mouse.click(370, 420);
       await page.waitForFunction(() => !document.querySelector('#drawer')?.classList.contains('open'));
-      assert.deepEqual((await state()).scrim, 'none', '点遮罩收起之后遮罩没退出渲染树');
+      assert.deepEqual((await state()).scrim, 'none', 'After collapsing via scrim tap the scrim never left the render tree');
 
       await page.locator('#filterBtn').tap();
       await page.waitForFunction(() => document.querySelector('#drawer')?.classList.contains('open'));
@@ -420,7 +423,7 @@ describe('侧栏岛', () => {
         };
       });
       assert.deepEqual(scroller, { parent: 'drawer', overflow: 'auto', drawerOverflow: 'hidden', nav: true, tracks: 2 },
-        '滚的不是抽屉里那一层，或覆盖式滚动条没有接在它上面');
+        'The scroll does not land on the drawer\'s layer, or the overlay scrollbar is not attached to it');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();

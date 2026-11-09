@@ -7,7 +7,7 @@ import { TunnelSettings } from '../../src/react/settings/tunnel-settings';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-/** 夹具里的令牌是假值；真实令牌不进仓库，页面上也不会出现任何一份。 */
+/** Tokens in the fixture are fakes; a real token never enters the repo and none ever appears on the page. */
 const FAKE_TOKEN = 'fake-tunnel-token-for-tests';
 
 const STOPPED: TunnelState = {
@@ -50,7 +50,7 @@ const sentBody = (fetcher: ReturnType<typeof vi.fn>) =>
 const radio = (host: HTMLElement, value: string) =>
   host.querySelector<HTMLInputElement>(`input[type="radio"][value="${value}"]`)!;
 
-it('切到命名隧道才出现主机名与令牌，保存键是主按钮', async () => {
+it('Hostname and token appear only after switching to named tunnel, and the save button is the primary one', async () => {
   const saved = {
     ...STOPPED, mode: 'named', hostname: 'peach.example.com',
     token_set: true, revision: 'next',
@@ -68,16 +68,16 @@ it('切到命名隧道才出现主机名与令牌，保存键是主按钮', asyn
   expect(token.type).toBe('password');
   await type(hostname, 'peach.example.com');
   await type(token, FAKE_TOKEN);
-  expect(host.querySelector('button[type="submit"]')?.textContent).toBe('保存配置');
+  expect(host.querySelector('button[type="submit"]')?.textContent).toBe('Save configuration');
 
   await submit(host);
   expect(sentBody(fetcher)).toMatchObject({
     enabled: false, mode: 'named', hostname: 'peach.example.com', token: FAKE_TOKEN,
   });
-  expect(receipt).toHaveBeenCalledWith('已保存配置');
+  expect(receipt).toHaveBeenCalledWith('Configuration saved');
 });
 
-it('保存后令牌不回显，只说已保存', async () => {
+it('After saving the token never echoes back, only confirming saved', async () => {
   const saved = {
     ...STOPPED, mode: 'named', hostname: 'peach.example.com',
     token_set: true, revision: 'next',
@@ -90,21 +90,21 @@ it('保存后令牌不回显，只说已保存', async () => {
   const token = host.querySelector<HTMLInputElement>('#tunnel-token')!;
   expect(token.value).toBe('');
   expect(host.textContent).not.toContain(FAKE_TOKEN);
-  expect(host.textContent).toContain('已保存');
+  expect(host.textContent).toContain('Saved');
 });
 
-it('独立包不渲染模式切换，只剩开关', async () => {
+it('The standalone package renders no mode switch, leaving only the switch', async () => {
   const host = await mount({ ...STOPPED, named_available: false });
   expect(host.querySelector('[role="radiogroup"]')).toBeNull();
   expect(host.querySelector('button[type="submit"]')).toBeNull();
-  expect(host.textContent).toContain('启动公网入口');
+  expect(host.textContent).toContain('Start the public entry point');
 });
 
-it('主机名的字段错误落在输入框上，不写成一行红字', async () => {
+it('Hostname field errors land on the input itself, not as a line of red text', async () => {
   const fetcher = vi.fn(async () => ({
     ok: false,
     status: 400,
-    json: async () => ({ error: '公开主机名不是有效的域名', errors: { hostname: '公开主机名不是有效的域名' } }),
+    json: async () => ({ error: 'The public host name is not a valid domain', errors: { hostname: 'The public host name is not a valid domain' } }),
   }));
   vi.stubGlobal('fetch', fetcher);
   const host = await mount({ ...STOPPED, mode: 'named' });

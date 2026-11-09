@@ -5,13 +5,13 @@ import { launch, settle, visit, VIEWPORTS } from './harness.ts';
 
 type ObservedWindow = Window & { libraryScopeRequests: string[] };
 
-describe('媒体库目录范围', () => {
+describe('Library folder range', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：切换媒体库和返回全部时目录与筛选使用同一范围`, async () => {
+    it(`${viewport.name}: switching libraries and returning to all keep catalog and filters in the same scope`, async () => {
       const opened = await visit(browser, '/', viewport, async page => {
         await page.addInitScript(() => {
           // 每个 Document 独立观测；上一页延迟发出的请求留在上一页的数组中。
@@ -25,12 +25,12 @@ describe('媒体库目录范围', () => {
           };
         });
         await page.route('**/api/libraries', route => route.fulfill({ json: {
-          libraries: [{ id: 'first', name: '媒体库甲' }, { id: 'second', name: '媒体库乙' }],
+          libraries: [{ id: 'first', name: 'Library Alpha' }, { id: 'second', name: 'Library Beta' }],
         } }));
       });
       const { page } = opened;
       try {
-        for (const [library, label] of [['first', '媒体库甲'], ['second', '媒体库乙'], ['', '全部媒体库']]) {
+        for (const [library, label] of [['first', 'Library Alpha'], ['second', 'Library Beta'], ['', 'All libraries']]) {
           if (viewport.mobile && !await page.locator('#drawer').evaluate(node => node.classList.contains('open'))) {
             await page.locator('#filterBtn').click();
           }

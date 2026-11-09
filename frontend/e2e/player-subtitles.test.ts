@@ -1,4 +1,4 @@
-/* 字幕文件、中文结果选择与 YouTube 层级选项，使用合成字幕和演示视频。 */
+/* Subtitle files, Chinese result selection and YouTube level options, using synthetic subtitles and demo videos. */
 import assert from 'node:assert/strict';
 import { before, after, describe, it } from 'node:test';
 import { join } from 'node:path';
@@ -6,8 +6,8 @@ import type { Browser, Page } from 'playwright-core';
 import { launch, requiredEnv, visit as visitPage, VIEWPORTS } from './harness.ts';
 import { mockSubtitleMemory } from './subtitle-fixture.ts';
 
-const SRT = '1\n00:00:00,000 --> 00:00:02,000\n测试字幕 <b>粗体</b>\n';
-// 每个浏览器用例独立持有服务端字幕夹具，页面刷新沿用同一份记忆。
+const SRT = '1\n00:00:00,000 --> 00:00:02,000\nTest subtitle <b>bold</b>\n';
+// Each browser case holds its own server subtitle fixture, and a page refresh keeps the same memory.
 async function visit(...[browser, path, viewport, prepare]: Parameters<typeof visitPage>) {
   return visitPage(browser, path, viewport, async page => {
     await mockSubtitleMemory(page);
@@ -49,12 +49,12 @@ async function nativeCaptionDisplay(page: Page) {
   } finally { await cdp.detach() }
 }
 
-describe('播放器字幕', () => {
+describe('Player subtitles', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：面板切换中显示搜索动画，空结果提示保持可见`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: the search animation shows during panel switch, and the empty results hint stays visible`, { timeout: 60_000 }, async () => {
       let release!: () => void;
       const response = new Promise<void>(resolve => { release = resolve });
       let searches = 0;
@@ -83,20 +83,20 @@ describe('播放器字幕', () => {
         await page.waitForFunction(() => !document.querySelector('.vjs-peach-popup-animating'));
         await page.screenshot({ path: join(process.cwd(), `../build/subtitles-search-loading-${viewport.name}.png`) });
         release();
-        await status.filter({ hasText: '没有找到当前作品的中文字幕' }).waitFor();
+        await status.filter({ hasText: 'No Chinese subtitles found for this video' }).waitFor();
         assert.equal(await spinner.count(), 0);
         assert.equal(await panel.getAttribute('aria-busy'), null);
         await page.screenshot({ path: join(process.cwd(), `../build/subtitles-search-empty-${viewport.name}.png`) });
         // 字幕面切到搜索面的动画收尾前，退场的那一面（inert，也有返回键）还在菜单里，只点当前这一面里的键。
         await panel.locator('[data-subtitle-back]').click();
         await panel.locator('[data-subtitle-search]').click();
-        await status.filter({ hasText: '没有找到当前作品的中文字幕' }).waitFor();
+        await status.filter({ hasText: 'No Chinese subtitles found for this video' }).waitFor();
         assert.equal(searches, 1);
         assert.deepEqual(problems, []);
       } finally { release(); await opened.close() }
     });
 
-    it(`${viewport.name}：本地字幕、选项持久化、关闭和重新开启`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: local subtitles, persisted options, closing and reopening`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport);
       const { page, problems } = opened;
       try {
@@ -115,11 +115,11 @@ describe('播放器字幕', () => {
         assert.equal(appearance.stroke, 'rgb(255, 255, 255)');
         assert.ok(appearance.inset >= 48, JSON.stringify(appearance));
         assert.equal(await page.locator('[data-subtitle-options] use').getAttribute('href'), '#i-settings');
-        assert.equal(await page.locator('[data-subtitle-options]').getAttribute('aria-label'), '字幕选项');
+        assert.equal(await page.locator('[data-subtitle-options]').getAttribute('aria-label'), 'Subtitle options');
         const cancelled = page.waitForEvent('filechooser');
         await page.locator('[data-subtitle-file]').click();
         await (await cancelled).setFiles([]);
-        await page.locator('input[type="file"][aria-label="加载字幕文件"]').dispatchEvent('cancel', { bubbles: true });
+        await page.locator('input[type="file"][aria-label="Load subtitles file"]').dispatchEvent('cancel', { bubbles: true });
         assert.equal(await page.locator('#stage').evaluate((dialog: HTMLDialogElement) => dialog.open), true);
         await page.locator('[data-subtitle-file]').focus();
         await page.keyboard.press('Escape');
@@ -131,7 +131,7 @@ describe('播放器字幕', () => {
         const subtitleName = '[PREVIEW-096] A long subtitle filename with several wrapped lines decensored-zh-CN.chs.srt';
         await (await chooser).setFiles({ name: subtitleName, mimeType: 'text/plain', buffer: Buffer.from(SRT) });
         await page.waitForFunction(name => [...document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')!.textTracks].some(track => track.label === name && track.mode === 'showing'), subtitleName);
-        await caption(page, '测试字幕');
+        await caption(page, 'Test subtitle');
         const background = await page.locator('#stage video.vjs-tech').evaluate(() => ({
           window: getComputedStyle(document.querySelector('.vjs-peach-caption-window')!).backgroundColor,
           line: getComputedStyle(document.querySelector('.vjs-peach-caption-line')!).backgroundColor,
@@ -147,7 +147,7 @@ describe('播放器字幕', () => {
         assert.ok(selectedSpacing.top >= 10 && selectedSpacing.bottom >= 10);
         assert.ok(Math.abs(selectedSpacing.top - selectedSpacing.bottom) <= 1);
         assert.equal(await page.locator('#stage .vjs-subtitles-control>button').evaluate(node => getComputedStyle(node, '::after').backgroundColor), await page.locator('#stage .vjs-play-progress').evaluate(node => getComputedStyle(node).backgroundColor));
-        assert.equal(await page.locator('.vjs-peach-caption-line b').textContent(), '粗体');
+        assert.equal(await page.locator('.vjs-peach-caption-line b').textContent(), 'Bold');
         await page.screenshot({ path: join(process.cwd(), `../build/subtitles-tracks-${viewport.name}.png`) });
         await page.locator('[data-subtitle-options]').click();
         await page.locator('[data-subtitle-style="size"]').click();
@@ -163,7 +163,7 @@ describe('播放器字幕', () => {
         assert.ok(bounds.menuTop >= bounds.frameTop && bounds.menuRight <= bounds.frameRight + 1, JSON.stringify(bounds));
         await page.screenshot({ path: join(process.cwd(), `../build/subtitles-${viewport.name}.png`) });
         await page.locator('[data-subtitle-back]').click();
-        await page.getByRole('menuitemradio', { name: '关闭', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: 'Off', exact: true }).click();
         await page.locator('.vjs-peach-captions').waitFor({ state: 'hidden' });
         await page.locator('#stage [data-player-quality]>button').click();
         if (viewport.mobile) await page.locator('#stage [data-player-expand]').click();
@@ -175,7 +175,7 @@ describe('播放器字幕', () => {
           .some(track => track.label === name && track.mode === 'showing'), subtitleName);
         assert.equal(await page.locator('#stage .video-js').evaluate(node => getComputedStyle(node).getPropertyValue('--peach-caption-scale').trim()), '1.5');
         await menu(page);
-        await page.getByRole('menuitemradio', { name: '关闭', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: 'Off', exact: true }).click();
         await page.reload();
         await page.locator('#stage .vjs-peach-bezel').waitFor({ state: 'attached' });
         await page.waitForFunction(name => [...document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')!.textTracks].some(track => track.label === name), subtitleName);
@@ -189,14 +189,14 @@ describe('播放器字幕', () => {
     });
   }
 
-  it('同目录字幕进入选项，选择和关闭按视频恢复', { timeout: 60_000 }, async () => {
+  it('Subtitles in the same directory appear in options; the choice and off state restore per video', { timeout: 60_000 }, async () => {
     const key = 'sidecar:local:stable-file';
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, VIEWPORTS[0]!, async page => {
       await page.route(/\/api\/assets\/\d+\/subtitles$/, route => route.fulfill({ json: {
         subtitles: [{ id: key, name: 'STARS-265.srt', label: 'SRT', language: '', playable: true, src: '/local-sidecar.vtt' }],
       } }));
       await page.route('**/local-sidecar.vtt', route => route.fulfill({ contentType: 'text/vtt',
-        body: 'WEBVTT\n\n00:00:00.000 --> 00:01:00.000\n同目录字幕\n' }));
+        body: 'WEBVTT\n\n00:00:00.000 --> 00:01:00.000\nsubtitle from the same directory\n' }));
     });
     const { page, problems } = opened;
     try {
@@ -206,11 +206,11 @@ describe('播放器字幕', () => {
       await page.locator('#stage video.vjs-tech').evaluate((video: HTMLVideoElement) => { video.currentTime = .25 });
       await menu(page);
       await page.getByRole('menuitemradio', { name: 'SRT', exact: true }).click();
-      await caption(page, '同目录字幕');
+      await caption(page, 'Same-folder subtitle');
       await page.reload();
       await page.waitForFunction(id => [...(document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')?.textTracks || [])].some(track => track.id === id && track.mode === 'showing'), key);
       await menu(page);
-      await page.getByRole('menuitemradio', { name: '关闭', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Off', exact: true }).click();
       await page.reload();
       await page.waitForFunction(id => [...(document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')?.textTracks || [])].some(track => track.id === id), key);
       assert.equal(await page.locator('#stage video.vjs-tech').evaluate((video: HTMLVideoElement) => [...video.textTracks].some(track => track.mode === 'showing')), false);
@@ -219,7 +219,7 @@ describe('播放器字幕', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-  it(`${viewport.name}：自动搜索、返回结果与重复加载复用会话`, { timeout: 60_000 }, async () => {
+  it(`${viewport.name}: auto search, results, and session reuse across repeat loads`, { timeout: 60_000 }, async () => {
     let downloads = 0, searches = 0;
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport, async page => {
       await page.route('**/api/item?**', async route => {
@@ -229,10 +229,10 @@ describe('播放器字幕', () => {
       await page.route('**/api/subtitles/search?**', route => {
         searches++;
         assert.equal(new URL(route.request().url()).searchParams.get('q'), 'ABP-758');
-        return route.fulfill({ json: { results: [{ id: 'test42', title: 'ABP-758 中文字幕', language: '简体中文', format: 'SRT' }], more: false } });
+        return route.fulfill({ json: { results: [{ id: 'test42', title: 'ABP-758 Chinese subtitles', language: 'Simplified Chinese', format: 'SRT' }], more: false } });
       });
-      await page.route('**/api/subtitles/subtitlecat/test42', route => route.fulfill({ json: { files: [{ index: 0, name: 'ABP-758.chs.srt', language: '简体中文', playable: true }] } }));
-      await page.route('**/api/subtitles/subtitlecat/test42/0', route => { downloads++; return route.fulfill({ contentType: 'text/vtt', body: 'WEBVTT\n\n00:00:00.000 --> 00:00:02.000\n在线字幕\n' }) });
+      await page.route('**/api/subtitles/subtitlecat/test42', route => route.fulfill({ json: { files: [{ index: 0, name: 'ABP-758.chs.srt', language: 'Simplified Chinese', playable: true }] } }));
+      await page.route('**/api/subtitles/subtitlecat/test42/0', route => { downloads++; return route.fulfill({ contentType: 'text/vtt', body: 'WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nonline subtitle\n' }) });
     });
     const { page, problems } = opened;
     try {
@@ -246,7 +246,7 @@ describe('播放器字幕', () => {
         await page.locator('[data-subtitle-result]').waitFor();
         const inset = await page.locator('[data-subtitle-result]').evaluate(button =>
           button.querySelector('span')!.getBoundingClientRect().left - button.getBoundingClientRect().left);
-        assert.ok(inset >= 16, `字幕结果左侧内距 ${inset}px`);
+        assert.ok(inset >= 16, `Subtitle results left padding ${inset}px`);
         await page.screenshot({ path: join(process.cwd(), `../build/subtitles-search-${viewport.name}.png`) });
         await page.locator('[data-subtitle-result]').click();
         if (index === 0) {
@@ -257,14 +257,14 @@ describe('播放器字幕', () => {
         await page.locator('[data-subtitle-online]').click();
         await page.getByRole('menuitemradio', { name: 'ABP-758.chs.srt', exact: true }).waitFor();
       }
-      await caption(page, '在线字幕');
+      await caption(page, 'Online subtitle');
       assert.equal(downloads, 1);
       assert.equal(searches, 1);
       assert.equal(await page.locator('#stage video.vjs-tech > track').count(), 1);
       const chooser = page.waitForEvent('filechooser');
       await page.locator('[data-subtitle-file]').click();
-      await (await chooser).setFiles({ name: '本地字幕.srt', mimeType: 'text/plain', buffer: Buffer.from(SRT) });
-      await page.getByRole('menuitemradio', { name: '本地字幕.srt', exact: true }).waitFor();
+      await (await chooser).setFiles({ name: 'Local subtitles.srt', mimeType: 'text/plain', buffer: Buffer.from(SRT) });
+      await page.getByRole('menuitemradio', { name: 'Local subtitles.srt', exact: true }).waitFor();
       await page.getByRole('menuitemradio', { name: 'ABP-758.chs.srt', exact: true }).click();
       await page.reload();
       await page.locator('#stage .vjs-peach-bezel').waitFor({ state: 'attached' });
@@ -273,20 +273,20 @@ describe('播放器字幕', () => {
       assert.equal(downloads, 1);
       assert.equal(searches, 1);
       await menu(page);
-      assert.equal(await page.getByRole('menuitemradio', { name: '本地字幕.srt', exact: true }).count(), 1);
+      assert.equal(await page.getByRole('menuitemradio', { name: 'Local subtitles.srt', exact: true }).count(), 1);
       assert.equal(await page.locator('[data-subtitle-track][aria-checked="true"]').textContent(), 'ABP-758.chs.srt');
       assert.deepEqual(problems, []);
     } finally { await opened.close() }
   });
   }
 
-  it('自动搜索失败可重试，空的中文批次可继续查看更多', { timeout: 60_000 }, async () => {
+  it('Failed auto-search can retry, and empty Chinese batches can still load more', { timeout: 60_000 }, async () => {
     const offsets: string[] = [];
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, VIEWPORTS[0]!, async page => {
       await page.route('**/api/subtitles/search?**', route => {
         offsets.push(new URL(route.request().url()).searchParams.get('offset')!);
         if (offsets.length === 1) return route.fulfill({ contentType: 'application/json', body: '{' });
-        return route.fulfill({ json: { results: offsets.length === 2 ? [] : [{ id: 'next', title: '中文字幕', language: '简体中文', format: 'SRT' }], more: offsets.length === 2 } });
+        return route.fulfill({ json: { results: offsets.length === 2 ? [] : [{ id: 'next', title: 'Chinese subtitle', language: 'Simplified Chinese', format: 'SRT' }], more: offsets.length === 2 } });
       });
     });
     try {

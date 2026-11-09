@@ -14,29 +14,29 @@ async function render(version: string) {
   return mount(<UserscriptStatus enabled release={release} />);
 }
 
-it('兼容但低于最新版的脚本提供更新链接和可更新状态', async () => {
+it('Scripts compatible but below the latest version get an update link and an updatable status', async () => {
   const host = await render('0.7.0');
-  expect(host.textContent).toContain('可更新');
-  expect(host.textContent).toContain('用户脚本 v0.8.0 可更新。');
-  expect(host.textContent).not.toContain('需更新');
-  expect(linkNamed('更新用户脚本', host)?.getAttribute('href')).toBe(release.install_url);
+  expect(host.textContent).toContain('Updatable');
+  expect(host.textContent).toContain('Peach userscriptUpdatableUserscript v0.7.0Add browserEnabledUser script v0.8.0 can be updated.Update the userscriptDetect again');
+  expect(host.textContent).not.toContain('Needs update');
+  expect(linkNamed('Update the userscript', host)?.getAttribute('href')).toBe(release.install_url);
   expect(host.querySelector('[data-copy-key="userscript.available.message"]')).not.toBeNull();
 });
 
-it('低于最低兼容版本的脚本标明需更新和最低版本', async () => {
+it('Scripts below the minimum compatible version are marked as needing an update, with the minimum version shown', async () => {
   const host = await render('0.5.0');
-  expect(host.textContent).toContain('需更新');
-  expect(host.textContent).toContain('请更新至 v0.6.0 或更高版本。');
-  expect(linkNamed('更新用户脚本', host)).not.toBeNull();
+  expect(host.textContent).toContain('Needs update');
+  expect(host.textContent).toContain('Please update to v0.6.0 or later.');
+  expect(linkNamed('Update the userscript', host)).not.toBeNull();
 });
 
-it.each(['0.8.0', '0.9.0'])('版本 %s 满足当前发行版时保持连接状态', async (version) => {
+it.each(['0.8.0', '0.9.0'])('Version %s keeps the connection state while satisfying the current release', async (version) => {
   const host = await render(version);
-  expect(host.textContent).toContain('已连接');
-  expect(linkNamed('更新用户脚本', host)).toBeNull();
+  expect(host.textContent).toContain('Connected');
+  expect(linkNamed('Update the userscript', host)).toBeNull();
 });
 
-it('按版本分段比较兼容范围', () => {
+it('Compatibility ranges compare per version segment', () => {
   expect(userscriptVersionSupported('0.10.0', '0.9.0')).toBe(true);
   expect(userscriptVersionSupported('0.8.0', '0.8.1')).toBe(false);
 });

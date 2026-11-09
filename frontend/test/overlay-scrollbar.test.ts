@@ -4,7 +4,7 @@ import { observeScrollRegions, wireOverlayScrollbars } from '../src/ui-kit/scrol
 
 afterEach(() => { document.body.replaceChildren(); pruneOverlayScrollbars(); vi.restoreAllMocks(); });
 
-it('连续滚动按帧更新位置，内容尺寸变化后刷新滑块比例', async () => {
+it('Continuous scrolling updates position per frame, refreshing the thumb ratio after content size changes', async () => {
   const host=document.createElement('div'),container=document.createElement('div');
   host.append(container);document.body.append(host);
   const clock=document.createElement('span');clock.textContent='0:00';container.append(clock);
@@ -20,7 +20,7 @@ it('连续滚动按帧更新位置，内容尺寸变化后刷新滑块比例', a
     return this.classList.contains('ov-y')?84:0;
   });
   const sync=attachOverlayScrollbar(container)!;
-  // 挂上时不量，第一次尺寸观察回调才量；这里直接走同一个函数。
+  // No measurement on mount; the first resize observer callback measures. This goes straight through the same function.
   expect(host.querySelector<HTMLElement>('.ov-y')!.hidden).toBe(true);
   expect(measure).not.toHaveBeenCalled();expect(measureContent).not.toHaveBeenCalled();
   sync();
@@ -46,7 +46,7 @@ it('连续滚动按帧更新位置，内容尺寸变化后刷新滑块比例', a
   expect(container.hasAttribute('data-scroll-edges')).toBe(false);
 });
 
-it('短轨道的滑块保持在可见范围内', () => {
+it('Short tracks keep their thumb within the visible range', () => {
   const host=document.createElement('div'),container=document.createElement('div');
   host.append(container);document.body.append(host);
   Object.defineProperties(container,{
@@ -69,7 +69,7 @@ it('短轨道的滑块保持在可见范围内', () => {
   expect(horizontal.style.transform).toBe('translateX(0px)');
 });
 
-it('浮层轨道留在同一层级并补偿滚动位移，卸载后可以重新绑定', () => {
+it('The overlay\'s track stays in one layer, compensates scroll offsets, and can rebind after unmount', () => {
   const floating=document.createElement('div');
   floating.style.position='fixed';document.body.append(floating);
   Object.defineProperties(floating,{
@@ -92,7 +92,7 @@ it('浮层轨道留在同一层级并补偿滚动位移，卸载后可以重新�
   expect(attachOverlayScrollbar(floating)).not.toBeNull();
 });
 
-it('动态出现及样式启用的滚动区自动接管，销毁后不留下轨道', async () => {
+it('Scroll areas that appear dynamically or become style-enabled are adopted automatically, leaving no track behind after teardown', async () => {
   const host=document.createElement('div');document.body.append(host);
   const stop=observeScrollRegions(host);
   try{
@@ -109,7 +109,7 @@ it('动态出现及样式启用的滚动区自动接管，销毁后不留下轨�
   expect(host.querySelector('.ovtrack')).toBeNull();
 });
 
-it('横向手势与纵向滑块各自保留对应方向的操作', () => {
+it('Horizontal gestures and the vertical slider each keep their own direction\'s handling', () => {
   const host=document.createElement('div'),region=document.createElement('div');
   host.append(region);document.body.append(host);
   region.style.overflowX='auto';region.style.overflowY='auto';
@@ -125,7 +125,7 @@ it('横向手势与纵向滑块各自保留对应方向的操作', () => {
   expect(host.querySelectorAll('.ovtrack')).toHaveLength(2);
 });
 
-it('影院模式改变 overflow 后自动接管已有容器', async () => {
+it('Theater mode adopts existing containers automatically after changing overflow', async () => {
   const host=document.createElement('div');
   host.innerHTML='<style>[data-theater] .cinema-scroll-region{overflow-y:auto}</style><div class="cinema-scroll-region"></div>';
   document.body.append(host);
@@ -140,7 +140,7 @@ it('影院模式改变 overflow 后自动接管已有容器', async () => {
   }finally{stop()}
 });
 
-for(const marker of ['data-skeleton','data-skeleton-tier'])it(`${marker} 移除旧轨道，内容恢复后重新接管`, async () => {
+for(const marker of ['data-skeleton','data-skeleton-tier'])it(`${marker} removes the old track and re-adopts once content recovers`, async () => {
   const host=document.createElement('div'),region=document.createElement('div');
   region.style.overflowY='auto';host.append(region);document.body.append(host);
   const stop=observeScrollRegions(host);
@@ -155,7 +155,7 @@ for(const marker of ['data-skeleton','data-skeleton-tier'])it(`${marker} 移除�
   }finally{stop()}
 });
 
-it('影院模式只改变内容长度时刷新已绑定轨道', async () => {
+it('When theater mode only changes content length it refreshes the bound track', async () => {
   const host=document.createElement('div'),region=document.createElement('div');
   region.style.overflowY='auto';host.append(region);document.body.append(host);
   let content=100;

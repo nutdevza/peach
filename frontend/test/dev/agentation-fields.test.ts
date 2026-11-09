@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { identifyAgentationFields } from '../../src/dev/agentation-fields';
 
-describe('标注工具字段身份', () => {
-  it('已有身份保留，动态加入的字段获得各自的名称', async () => {
+describe('Annotation tool field identity', () => {
+  it('Existing identities are kept; dynamically added fields get their own names', async () => {
     const host = document.createElement('div');
     host.innerHTML = '<input id="existing"><textarea name="comment"></textarea><textarea aria-label="Webhook URL"></textarea>';
     const stop = identifyAgentationFields(host);

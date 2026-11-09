@@ -5,23 +5,23 @@ import type { Browser } from 'playwright-core';
 import { launch, layout, settle, VIEWPORTS } from './harness.ts';
 import { ITEM, openItemPage } from './item-fixture.ts';
 
-describe('FC2 合集与封面取景', () => {
+describe('FC2 compilations and cover framing', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}: 本篇与特典的标题和队列标签一致`, async () => {
+    it(`${viewport.name}: the feature and extras titles match the queue labels`, async () => {
       const opened = await openItemPage(browser, `/assets/22?parts=${ITEM.part}`, viewport);
       try {
         const parts = await opened.page.evaluate(async (id) =>
           (await fetch(`/api/parts?id=${id}`)).json(), ITEM.part);
-        const labels = ['本篇', '特典 1', '特典 3'];
+        const labels = ['Feature', 'Extra 1', 'Extra 3'];
         parts.items = parts.items.map((item, index) => ({ ...item, part_label: labels[index] }));
         await opened.page.route('**/api/parts?*', (route) => route.fulfill({ json: parts }));
         await opened.page.reload({ waitUntil: 'load' });
         await opened.page.locator('#stage .partlabel').waitFor();
-        assert.equal(await opened.page.locator('#stage .partlabel').innerText(), '特典 1');
+        assert.equal(await opened.page.locator('#stage .partlabel').innerText(), 'Extra 1');
         for (const [index, id] of [21, 22, 23].entries()) {
           assert.ok((await opened.page.locator(`#stage [data-queue-item="${id}"]`).innerText()).includes(labels[index]));
         }
@@ -30,7 +30,7 @@ describe('FC2 合集与封面取景', () => {
       } finally { await opened.close(); }
     });
 
-    it(`${viewport.name}: 正封完整居中，卡片边缘使用封面模糊补底`, async () => {
+    it(`${viewport.name}: front cover fully centered, card edges backed by cover blur`, async () => {
       const opened = await openItemPage(browser, '/', viewport, {
         ready: '[data-media-card]', settings: { javLayout: 'big', homeLayout: 'big', javImage: 'cover' },
       });
@@ -70,7 +70,7 @@ describe('FC2 合集与封面取景', () => {
       { code: 'FC2-PPV-3312576', cx: .22, width: 1548, height: 948, layout: undefined },
       { code: 'SPONE-001', cx: .555, width: 2184, height: 1638, layout: 'still' },
     ]) {
-    it(`${viewport.name}: ${art.code} 缺集归为一张卡，横图人脸 ${art.cx} 尽量居中`, async () => {
+    it(`${viewport.name}: ${art.code} missing sets merge into one card, and landscape face ${art.cx} is centered as much as possible`, async () => {
       const opened = await openItemPage(browser, '/', viewport, {
         ready: '[data-media-card]', settings: { javLayout: 'big', homeLayout: 'big', javImage: 'cover' },
       });
@@ -106,7 +106,7 @@ describe('FC2 合集与封面取景', () => {
           const sourceFaceX = faceCenter * img.naturalWidth * scale;
           const croppedWidth = img.naturalWidth * scale - rect.width;
           const faceX = sourceFaceX - croppedWidth * x;
-          // 无空白的可达范围为 [sourceFaceX - croppedWidth, sourceFaceX]。
+          // With no blank margin available, the reachable range is [sourceFaceX - croppedWidth, sourceFaceX].
           const closestCenter = Math.min(sourceFaceX, Math.max(sourceFaceX - croppedWidth, rect.width / 2));
           return { kind: img.dataset.frame, faceX, closestCenter, croppedWidth, x };
         }, cx);

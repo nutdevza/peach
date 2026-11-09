@@ -1,16 +1,18 @@
-/* 索引页与资料页的路由元素（`src/react/router/pages/index-entity.tsx`）：页面组匹配到这两组时挂上，从地址读出
- * 这一页，按页面打开序号、壳的重开次数（`@peach/shell` 的 `pageOpens`）与覆盖层决定什么时候整页打开；资料页同一位
- * 领了新代次时只就地推新筛选。打开先报换面。
+/* The index and profile pages' route elements (`src/react/router/pages/index-entity.tsx`): mount when the page group matches
+ * these two groups, read the page from the address, and decide by page-open epoch, the shell's reopen count (`pageOpens` in
+ * `@peach/shell`) and the overlay when to open the whole page; when the profile page's same person takes a new generation,
+ * only the new filters are pushed in place. Opening first reports the surface change.
  *
- * 页面自己怎么取数、怎么画由 `managed-routes.test.tsx`、`entity-routes.test.tsx` 与各页的用例管；这里看的是
- * 元素什么时候开、开几次、交给壳什么。历史对象与壳状态都是模块级的，每条用例重新装载。 */
+ * How the pages fetch and render is governed by `managed-routes.test.tsx`, `entity-routes.test.tsx` and each page's cases;
+ * this file covers when the element opens, how many times, and what it hands the shell. The history object and shell state
+ * are module-level; every case reloads them. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 
 import type { ShellActions } from '../../../src/react/router/shell-actions';
 
-// 完整路由树的冷加载单独计时，交互用例使用 Vitest 默认超时。
+// The cold load of the full route tree is timed separately; interaction cases use the Vitest default timeout.
 const REACT_IMPORT_TIMEOUT_MS = 60_000;
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,7 +45,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-/** 壳交进来的那一组，外加一份按先后记下的打开过程。`refresh` 回什么由用例定。 */
+/** The group handed in by the shell, plus a log of the open sequence in order. What `refresh` returns is up to the test. */
 function shellActions(refreshed = { ok: true }) {
   const log: string[] = [];
   const actions: ShellActions = {
@@ -89,7 +91,7 @@ async function settle() {
   }
 }
 
-/** 挂上路由根，再像壳那样开始路由：启动那一次把 `pageOpens` 写成 1。 */
+/** Mounts the route root and starts routing like the shell does: the startup pass writes `pageOpens` as 1. */
 async function boot(r: Loaded, actions: ShellActions) {
   const root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<r.RouterRoot actions={actions} />) });
@@ -104,28 +106,28 @@ async function boot(r: Loaded, actions: ShellActions) {
 const reopen = (r: Loaded) => r.shell.writeShell({ pageOpens: r.shell.pageOpens + 1 });
 const opens = (actions: ShellActions) => vi.mocked(actions.surfaceChanged).mock.calls.length;
 
-it('地址上的这一位：先整段解码再按段切，名字吃掉剩下全部段，认不出的种类与空名字不算', async () => {
+it('This person from the URL: decode the whole thing first, then split by segment; the name consumes all remaining segments; unrecognized kinds and empty names do not count', async () => {
   const r = await load();
   expect(r.entityTarget('/performers/A%2FB')).toEqual({ segment: 'performers', kind: 'performer', name: 'A/B' });
   expect(r.entityTarget('/series/x/y')).toEqual({ segment: 'series', kind: 'series', name: 'x/y' });
-  expect(r.entityTarget('/agencies/%E6%9F%90%20Co')).toEqual({ segment: 'agencies', kind: 'agency', name: '某 Co' });
+  expect(r.entityTarget('/agencies/%E6%9F%90%20Co')).toEqual({ segment: 'agencies', kind: 'agency', name: 'Some Co' });
   expect(r.entityTarget('/performers/')).toBeNull();
   expect(r.entityTarget('/tags/x')).toEqual({ segment: 'tags', kind: 'tag', name: 'x' });
   expect(r.entityTarget('/performers/%E0')).toBeNull();
 });
 
-it('索引元素：壳开始路由之前只挂着；启动那一下按地址打开一次，先报换面、再铺骨架', async () => {
+it('Index element: only mounted before the shell starts routing; on launch it opens once from the URL, reporting the view swap first, then laying the skeleton', async () => {
   const r = await load('/performers?q=ab');
   const index = indexSurface();
   const { actions, log } = shellActions();
   const before = await boot(r, actions);
-  expect(before, '壳开始路由之前不打开').toBe(0);
+  expect(before, 'Not opened before the shell starts routing').toBe(0);
   expect(log).toEqual(['surface index /performers']);
-  expect(index.querySelector('[data-skeleton]'), '打开时铺这一页的骨架').not.toBeNull();
-  expect(index.querySelector<HTMLInputElement>('input[type="search"]')?.value, '骨架里的过滤框带着地址上的过滤词').toBe('ab');
+  expect(index.querySelector('[data-skeleton]'), 'Show this page\'s skeleton on open').not.toBeNull();
+  expect(index.querySelector<HTMLInputElement>('input[type="search"]')?.value, 'The skeleton\'s filter box carries the address\'s filter text').toBe('ab');
 });
 
-it('索引元素：认领的写地址不重开；不认领的跳转、后退前进与壳要求重开各开一次', async () => {
+it('Index element: claimed changes write the URL without reopening; unclaimed navigation, back and forward, and shell-requested reopens each open once', async () => {
   const r = await load('/performers');
   indexSurface();
   const { actions } = shellActions();
@@ -133,22 +135,22 @@ it('索引元素：认领的写地址不重开；不认领的跳转、后退前�
   expect(opens(actions)).toBe(1);
   await act(async () => { r.shellNavigate('/performers?q=abc', { replace: true }) });
   await settle();
-  expect(opens(actions), '页内写过滤词由壳认领').toBe(1);
+  expect(opens(actions), 'In-page filter input is claimed by the shell').toBe(1);
   await act(async () => { r.peachHistory.push('/performers?scope=online') });
   await settle();
-  expect(opens(actions), '不认领的跳转领新代次').toBe(2);
+  expect(opens(actions), 'Unclaimed navigations take a new generation').toBe(2);
   await act(async () => {
     window.history.replaceState(window.history.state, '', '/performers?q=x');
     window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
   });
   await settle();
-  expect(opens(actions), '后退前进领新代次').toBe(3);
+  expect(opens(actions), 'Back/forward claims a new epoch').toBe(3);
   await act(async () => { reopen(r) });
   await settle();
-  expect(opens(actions), '壳要求重开').toBe(4);
+  expect(opens(actions), 'Shell asks to reopen').toBe(4);
 });
 
-it('索引元素：壳认领写地址换到另一页、紧接着要求重开，两件事合成一次打开', async () => {
+it('Index element: the shell claims an address write that moves to another page and immediately asks for a reopen; the two merge into one open', async () => {
   const r = await load('/performers');
   indexSurface();
   const { actions, log } = shellActions();
@@ -161,7 +163,7 @@ it('索引元素：壳认领写地址换到另一页、紧接着要求重开，�
   expect(log.filter((line) => line.startsWith('surface'))).toEqual(['surface index /performers', 'surface index /tags']);
 });
 
-it('索引元素：被详情压着时领了新代次也不重开，下面那一页早就画着', async () => {
+it('Index element: while covered by details it takes a new generation without reopening; the page underneath is already painted', async () => {
   const r = await load('/performers');
   indexSurface();
   const { actions } = shellActions();
@@ -173,7 +175,7 @@ it('索引元素：被详情压着时领了新代次也不重开，下面那一�
   expect(opens(actions)).toBe(1);
 });
 
-it('索引元素：后退落到压在索引上的详情才挂上（中间去过别的页）时不开；关掉回来这一页没露着就整页打开一次', async () => {
+it('Index element: when back lands on details covering the index (having visited other pages in between) it stays closed on attach; closing back with this page not showing opens the full page once', async () => {
   const r = await load('/performers');
   const index = indexSurface();
   const { actions } = shellActions();
@@ -189,13 +191,13 @@ it('索引元素：后退落到压在索引上的详情才挂上（中间去过�
     window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
   });
   await settle();
-  expect(opens(actions), '被详情压着挂上不开').toBe(1);
+  expect(opens(actions), 'Mounted under details without opening').toBe(1);
   await act(async () => { r.shellNavigate('/performers') });
   await settle();
-  expect(opens(actions), '关掉回来整页打开').toBe(2);
+  expect(opens(actions), 'Closing and returning opens the full page').toBe(2);
 });
 
-it('资料尚未提交时先显示目标骨架，同一位可由壳接手刷新，换一位或要求重开才重新构造属性', async () => {
+it('The target skeleton shows before details are submitted; the same person lets the shell take over refreshing, and only a different person or an explicit reopen rebuilds the props', async () => {
   const refreshed = { ok: true };
   const r = await load('/performers/1');
   indexSurface();
@@ -205,28 +207,28 @@ it('资料尚未提交时先显示目标骨架，同一位可由壳接手刷新�
   log.length = 0;
   await act(async () => { r.peachHistory.push('/performers/1?tag=x') });
   await settle();
-  expect(log, '目标骨架就位后由壳接手刷新').toEqual(['surface entity /performers/1', 'loading performer 1', 'refresh performer A ?tag=x']);
+  expect(log, 'Once the target skeleton is in place the shell takes over refreshing').toEqual(['surface entity /performers/1', 'loading performer 1', 'refresh performer A ?tag=x']);
   log.length = 0;
   refreshed.ok = false;
   await act(async () => { r.peachHistory.push('/performers/1?tag=y') });
   await settle();
-  expect(log, '壳无法接手时构造整页属性').toEqual(['surface entity /performers/1', 'loading performer 1',
+  expect(log, 'When the shell cannot take over, full-page props are built').toEqual(['surface entity /performers/1', 'loading performer 1',
     'refresh performer A ?tag=y', 'props performer A ?tag=y']);
   log.length = 0;
   refreshed.ok = true;
   await act(async () => { r.shellNavigate('/performers/2', { replace: true }) });
   await settle();
-  expect(log, '换一位先按地址显示骨架，资料取回后使用规范名字').toEqual(['surface entity /performers/2', 'loading performer 2',
+  expect(log, 'Switching people shows a skeleton by address first, then the canonical name once details arrive').toEqual(['surface entity /performers/2', 'loading performer 2',
     'props performer B ']);
   log.length = 0;
   await act(async () => { reopen(r) });
   await settle();
-  expect(log, '壳要求重开时不就地推').toEqual(['surface entity /performers/2', 'loading performer 2',
+  expect(log, 'No in-place push when the shell requests a reopen').toEqual(['surface entity /performers/2', 'loading performer 2',
     'props performer B ']);
-  expect(r.shell.entityJavLayout, '每次整页打开都从非 JAV 语境起').toBe(false);
+  expect(r.shell.entityJavLayout, 'Every full-page open starts from the non-JAV context').toBe(false);
 });
 
-it('资料元素：认领的就地写地址不重开', async () => {
+it('Details element: claimed in-place address writes never reopen', async () => {
   const r = await load('/studios/3');
   indexSurface();
   const { actions, log } = shellActions();
@@ -237,7 +239,7 @@ it('资料元素：认领的就地写地址不重开', async () => {
   expect(log).toEqual([]);
 });
 
-it('重新打开实体时读取当前规范 ID，合并地址保留筛选与锚点', async () => {
+it('Reopening an entity reads the current canonical id, and merged URLs keep filters and the hash', async () => {
   const r = await load('/performers/2?tag=x#photos');
   indexSurface();
   const { actions } = shellActions();
@@ -252,9 +254,9 @@ it('重新打开实体时读取当前规范 ID，合并地址保留筛选与锚�
   expect(actions.entity?.props).toHaveBeenLastCalledWith('performer', 'A', '?tag=x');
 });
 
-const TAGS = { items: [{ k: '痴女', n: 1, cat: 'role' }], has_more: false };
+const TAGS = { items: [{ k: 'Nympho', n: 1, cat: 'role' }], has_more: false };
 
-it('标签页：打开时带上选择键、版式与配置权限，画上后报给壳；选择键一变就推给画着的那一页', async () => {
+it('Tabs: open with the selection key, layout and configuration permissions, and report to the shell once painted; any change to the selection key is pushed to the painted page', async () => {
   const r = await load('/tags');
   const index = indexSurface();
   const { actions, log } = shellActions();
@@ -269,5 +271,5 @@ it('标签页：打开时带上选择键、版式与配置权限，画上后报�
   await act(async () => { r.shell.writeShell({ selectMode: true }) });
   await settle();
   expect(r.managedEntry(index)?.props).toMatchObject({ selectMode: true });
-  expect(opens(actions), '推选择键不重开').toBe(1);
+  expect(opens(actions), 'Pushing the selection key does not reopen').toBe(1);
 });

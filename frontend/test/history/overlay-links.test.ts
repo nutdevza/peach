@@ -20,13 +20,13 @@ function clickPath(href: string, init: MouseEventInit = {}, attributes: Record<s
 
 it.each(['/assets/11', '/assets/21?parts=21&t=30', '/assets/31?editions=31', '/assets/11?mix=11',
   '/assets/11?playlist=2', '/posts/3?t=20', '/works/ABP-968#comments'])(
-  '站内详情链接进入覆盖导航：%s', path => {
+  'In-site detail links enter overlay navigation: %s', path => {
     expect(clickPath(path)).toBe(path);
     expect(clickPath(new URL(path, window.location.href).href, {}, { target: '_self' })).toBe(path);
   },
 );
 
-it('浏览器修饰键、其它按钮、已处理的链接与其它窗口不进入覆盖导航', () => {
+it('Browser modifier keys, other buttons, already-handled links, and other windows never enter overlay navigation', () => {
   for (const init of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
     expect(clickPath('/assets/11', init)).toBeNull();
   }
@@ -41,24 +41,24 @@ it('浏览器修饰键、其它按钮、已处理的链接与其它窗口不进�
 
 it.each(['/', '/subscriptions?tab=add', '/settings/library', '/follow?status=new', '/tags?scope=online&view=alphabet',
   '/data-cleanup', '/junk-files?phase=pending', '/taste', '/jav?tab=discover'])(
-  '已登记页面由客户端导航接管：%s', path => { expect(clickPath(path)).toBe(path) },
+  'Registered pages are taken over by client navigation: %s', path => { expect(clickPath(path)).toBe(path) },
 );
 
 it.each(['https://other.invalid/assets/11', '/api/export', '/unregistered', '/assets/0', '/assets/no-id', '/works/!', '/posts/0'])(
-  '外站、未登记页面与无效详情地址保留原行为：%s', path => { expect(clickPath(path)).toBeNull() },
+  'External sites, unregistered pages, and invalid detail addresses keep their original behavior: %s', path => { expect(clickPath(path)).toBeNull() },
 );
 
-it('详情页内的锚点、空地址与无效 URL 保留原行为', () => {
+it('In-page anchors, empty addresses, and invalid URLs on details pages keep their original behavior', () => {
   window.history.replaceState(null, '', '/assets/11');
   for (const href of ['#comments', '', 'http://[']) expect(clickPath(href)).toBeNull();
 });
 
-it('目录页内的锚点保留浏览器原生滚动', () => {
+it('In-page anchors on the catalog keep the browser\'s native scrolling', () => {
   window.history.replaceState(null, '', '/');
   expect(clickPath('#main')).toBeNull();
 });
 
-it('管理区锚点通过站内导航，页内锚点也保留当前页面', () => {
+it('Manage-area anchors go through in-site navigation, and in-page anchors keep the current page too', () => {
   expect(clickPath('/data-cleanup#resource-sync')).toBe('/data-cleanup#resource-sync');
   expect(clickPath('/settings/library#peachProxy')).toBe('/settings/library#peachProxy');
   window.history.replaceState(null, '', '/data-cleanup');

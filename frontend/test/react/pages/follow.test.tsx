@@ -1,10 +1,12 @@
-/* 关注页与播放列表页的路由元素（`src/react/router/pages/follow.tsx`）：页面组匹配到这两条时挂上，按页面打开序号、
- * 壳的重开次数（`@peach/shell` 的 `pageOpens`）与覆盖层决定什么时候按地址打开那一页，画进 `#stats`。
+/* The follows and playlists route elements (`src/react/router/pages/follow.tsx`): mount when the page group matches these
+ * two, and decide by page-open epoch, the shell's reopen count (`pageOpens` in `@peach/shell`) and the overlay when to open
+ * that page by address, rendering into `#stats`.
  *
- * 关注页不按代次挂 key：每次打开先交壳按地址读筛选（`follow.refresh`），列表还画着就由壳就地推，
- * 没画着才整页打开。这里的壳替身照真壳的判据推：`#stats` 里画着关注页就把地址上的种子与一个新代次推过去。
- * 页面自己怎么取数、怎么画由 `browse-routes.test.tsx` 与各页的用例管。历史对象与壳状态都是模块级的，
- * 每条用例重新装载。 */
+ * The follows page does not key by generation: on every open it first has the shell read filters from the address
+ * (`follow.refresh`); if the list is still rendered the shell pushes in place, and only otherwise does the whole page open.
+ * The shell double here pushes per the real shell's criteria: when the follows page is rendered in `#stats`, it pushes the
+ * address's seed and a new generation. How the pages fetch and render is governed by `browse-routes.test.tsx` and each
+ * page's cases. The history object and shell state are module-level; every case reloads them. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
@@ -25,7 +27,7 @@ async function load(path = '/') {
     import('../../../src/history'), import('../../../src/react/router/router'),
     import('../../../src/react/router/managed-routes'), import('../../../src/shell'),
   ]);
-  // 壳的内存状态是活绑定：整份模块留着读。
+  // The shell's in-memory state is a live binding: keep the whole module around for reading.
   return { ...history, ...router, ...routes, shell };
 }
 type Loaded = Awaited<ReturnType<typeof load>>;
@@ -38,18 +40,18 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-const FOLLOW_SKELETON = '<div class="follow" data-skeleton="follow"><h2 class="pagetitle">关注</h2></div>';
+const FOLLOW_SKELETON = '<div class="follow" data-skeleton="follow"><h2 class="pagetitle">Follows</h2></div>';
 
 const helpers: FollowFeedHelpers = {
   workMark: () => '', tagLabel: (tag) => tag, wireDrag: () => {}, wireScroller: () => {},
-  listSkeletonHtml: () => '<div data-test-skeleton>骨架</div>', jobProgress: () => {},
+  listSkeletonHtml: () => '<div data-test-skeleton>skeleton</div>', jobProgress: () => {},
 };
 const feedActions: FollowFeedActions = {
   route: () => {}, shuffle: () => {}, loaded: () => {}, openDetail: () => {}, openAuthor: () => {}, toggleSelection: () => {},
   setImagesOnly: () => {}, setPhotoLayout: () => {}, canFlip: () => false, toast: () => {}, failure: () => {}, checkReport: () => {},
 };
 
-/** 壳交进来的那一组，外加一份按先后记下的打开过程。关注页那几步照真壳的判据做。 */
+/** The group handed in by the shell, plus a log of the open sequence in order. The follows page's steps follow the real shell's criteria. */
 function shellActions(r: Loaded) {
   const log: string[] = [];
   const stats = () => document.getElementById('stats')!;
@@ -92,7 +94,7 @@ const reply = (body: unknown): Reply => ({ ok: true, status: 200, json: async ()
 
 const followPage = {
   groups: [1, 2].map((id) => ({
-    primary: { id, title: `更新 ${id}`, status: 'new', provider: 'kemono', provider_label: 'Kemono', source_id: 1,
+    primary: { id, title: `Update ${id}`, status: 'new', provider: 'kemono', provider_label: 'Kemono', source_id: 1,
       published_at: '2026-09-10T08:00:00Z', media_kind: 'video', playable: true, thumb_url: `/thumb/${id}`, tags: [] },
     variants: [], duplicates: [], stack: null,
   })),
@@ -102,13 +104,13 @@ const followPage = {
 };
 const playlists = {
   items: [{
-    id: 1, name: '周末连看', source_kind: 'manual', source_seed_asset_id: null, current_asset_id: null,
+    id: 1, name: 'Weekend binge', source_kind: 'manual', source_seed_asset_id: null, current_asset_id: null,
     created_at: '2026-09-01 10:00:00', updated_at: '2026-09-01 10:00:00', item_count: 2,
     preview_asset_id: 11, preview_ids: [11, 12], faces: [],
   }],
 };
 
-/** 本地取数替身：关注列表、凭据与播放列表各回一份，记下每一次请求。 */
+/** A local data stand-in: the follows list, credentials, and playlist each return a copy, and every request is recorded. */
 function serve() {
   const fetched = vi.fn((input: string) => {
     const path = new URL(String(input), 'http://peach.test').pathname;
@@ -132,7 +134,7 @@ async function until(ok: () => boolean, what: string): Promise<void> {
     if (ok()) return;
     await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
   }
-  throw new Error(`一直没等到：${what}`);
+  throw new Error(`Timed out waiting for: ${what}`);
 }
 async function settle() {
   for (let step = 0; step < 3; step += 1) {
@@ -140,7 +142,7 @@ async function settle() {
   }
 }
 
-/** 挂上路由根、接上页面包，再像壳那样开始路由：启动那一次把 `pageOpens` 写成 1。 */
+/** Mount the route root, wire up the page bundle, then start routing like the shell: the initial start writes `pageOpens` to 1. */
 async function boot(r: Loaded, actions: ShellActions) {
   const root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<r.RouterRoot actions={actions} />) });
@@ -150,7 +152,7 @@ async function boot(r: Loaded, actions: ShellActions) {
   await settle();
 }
 
-/** 壳认领写地址、再要求按地址重开（`openRoutedPage`）。 */
+/** The shell claims the address write, then asks for a reopen by address (`openRoutedPage`). */
 async function openRouted(r: Loaded, path: string) {
   await act(async () => {
     r.shellNavigate(path);
@@ -171,37 +173,37 @@ const page = (stats: Element) => stats.querySelector(':scope > .peach-react > *'
 const opens = (actions: ShellActions) => vi.mocked(actions.surfaceChanged).mock.calls.length;
 const FOLLOW_ITEM_STATE = { backgroundLocation: { pathname: '/follow', search: '' }, overlay: 'follow' };
 
-it('关注元素：壳开始路由那一下按地址整页打开，先交壳读筛选，再报换面、铺骨架、取齐首屏', async () => {
+it('Follows element: when the shell starts routing it opens full page from the URL; the shell reads the filters first, then reports the view swap, lays the skeleton, and completes the first screen', async () => {
   const r = await load('/follow');
   const stats = statsSurface();
   const calls = serve();
   const { actions, log } = shellActions(r);
   await boot(r, actions);
-  await until(() => page(stats) !== null, '整页画上');
+  await until(() => page(stats) !== null, 'The full page painted');
   expect(log).toEqual(['refresh', 'surface follow /follow']);
   expect(actions.follow!.skeleton).toHaveBeenCalledTimes(1);
   expect([calls('/api/follow'), calls('/api/follow/credentials')]).toEqual([1, 1]);
   expect(r.managedEntry(stats)).toMatchObject({ path: '/follow', props: { revision: 0 } });
 });
 
-it('关注元素：侧栏再进（壳重掷种子、要求重开）时列表还画着就就地推新种子与新代次，按新代次重取、不重挂', async () => {
+it('Follow element: re-entering from the sidebar (the shell rerolls the seed and asks to reopen) with the list still painted pushes a new seed and new generation in place, refetching by the new generation without remounting', async () => {
   const r = await load('/follow');
   const stats = statsSurface();
   const calls = serve();
   const { actions } = shellActions(r);
   await boot(r, actions);
-  await until(() => page(stats) !== null, '整页画上');
+  await until(() => page(stats) !== null, 'The full page painted');
   const painted = page(stats);
   r.shell.writeShell({ followDiscoverySeed: 99, followScrollY: 0 });
   await openRouted(r, '/follow');
-  await until(() => calls('/api/follow') === 2, '按新代次重取列表');
+  await until(() => calls('/api/follow') === 2, 'Refetch the list under the new epoch');
   expect(r.managedEntry(stats)?.props).toMatchObject({ seed: 99, revision: 1 });
-  expect(page(stats), '就地推，不重挂').toBe(painted);
-  expect(opens(actions), '不重新报换面').toBe(1);
-  expect(calls('/api/follow/credentials'), '凭据不重取').toBe(1);
+  expect(page(stats), 'Push in place, no remount').toBe(painted);
+  expect(opens(actions), 'Never re-reports the face swap').toBe(1);
+  expect(calls('/api/follow/credentials'), 'Credentials not refetched').toBe(1);
 });
 
-it('关注元素：后退回到关注页时列表已被收掉就整页打开，代次没变、首屏命中缓存不重取列表，照记下的位置滚回去', async () => {
+it('Follow element: when back lands on the follows page and the list has been collapsed it opens the full page; with the epoch unchanged and the first screen hitting cache the list is not refetched, and it scrolls back to the remembered position', async () => {
   const r = await load('/follow');
   const stats = statsSurface();
   const calls = serve();
@@ -212,87 +214,87 @@ it('关注元素：后退回到关注页时列表已被收掉就整页打开，�
   });
   const { actions } = shellActions(r);
   await boot(r, actions);
-  await until(() => page(stats) !== null, '整页画上');
+  await until(() => page(stats) !== null, 'The full page painted');
   scrollTop = 640;
-  // 去别的页面：那一页认领表面时收掉关注页。
+  // Navigating to another page: when that page claims the surface, it dismisses the follows page.
   await act(async () => { r.shellNavigate('/immerse') });
   await settle();
-  expect(r.managedEntry(stats)?.path, '元素卸下时不收页面').toBe('/follow');
+  expect(r.managedEntry(stats)?.path, 'Page not collapsed on element unmount').toBe('/follow');
   await act(async () => { r.releaseManagedRoute(stats) });
   scrolled.mockClear();
   await pop(r, '/follow');
-  await until(() => page(stats) !== null, '整页重新画上');
-  expect(opens(actions), '整页打开一次').toBe(2);
-  expect(calls('/api/follow'), '代次没变，列表不重取').toBe(1);
+  await until(() => page(stats) !== null, 'The full page repaints');
+  expect(opens(actions), 'The full page opens once').toBe(2);
+  expect(calls('/api/follow'), 'Generation unchanged, list not refetched').toBe(1);
   expect(r.managedEntry(stats)?.props).toMatchObject({ revision: 0 });
-  await until(() => scrollTop === 640, '恢复历史阅读位置');
+  await until(() => scrollTop === 640, 'Restores the historical reading position');
   expect(scrolled).toHaveBeenLastCalledWith({ left: 0, top: 640, behavior: 'smooth' });
 });
 
-it('关注元素：进详情、关掉回列表都由壳认领写地址，列表不重挂、不重取', async () => {
+it('Follow element: entering details and closing back to the list are both shell-claimed address writes; the list neither remounts nor refetches', async () => {
   const r = await load('/follow');
   const stats = statsSurface();
   const calls = serve();
   const { actions, log } = shellActions(r);
   await boot(r, actions);
-  await until(() => page(stats) !== null, '整页画上');
+  await until(() => page(stats) !== null, 'The full page painted');
   const painted = page(stats);
   const before = log.length;
   await act(async () => { r.shellNavigate('/posts/2', { state: FOLLOW_ITEM_STATE }) });
   await settle();
   await act(async () => { r.shellNavigate('/follow', { replace: true }) });
   await settle();
-  expect(log.slice(before), '元素什么都不做').toEqual([]);
+  expect(log.slice(before), 'The element does nothing').toEqual([]);
   expect(page(stats)).toBe(painted);
   expect(calls('/api/follow')).toBe(1);
 });
 
-it('关注元素：深链直接进关注详情不挂列表，只交壳让出 `#stats`；关掉详情（壳认领写地址、要求重开）时才整页打开', async () => {
+it('Follow element: a deep link straight into follow details mounts no list and only asks the shell to yield `#stats`; closing the details (a shell-claimed write that asks to reopen) is what opens the full page', async () => {
   const r = await load('/posts/2');
   const stats = statsSurface('');
   const calls = serve();
   const { actions, log } = shellActions(r);
   await boot(r, actions);
-  expect(log, '深链详情下面不挂列表').toEqual(['ground']);
+  expect(log, 'No list mounted under deep-linked details').toEqual(['ground']);
   expect(calls('/api/follow')).toBe(0);
   await openRouted(r, '/follow');
-  await until(() => page(stats) !== null, '关掉详情后整页画上');
+  await until(() => page(stats) !== null, 'Full page renders after the details close');
   expect(log).toEqual(['ground', 'refresh', 'surface follow /follow']);
 });
 
-it('关注元素：后退前进落在压着列表的详情上、列表没画着时交壳让出 `#stats`；关掉回列表（认领写地址）整页打开一次', async () => {
+it('Follow element: when back/forward lands on details covering a list that is not painted, the shell yields `#stats`; closing back to the list (a claimed address write) opens the full page once', async () => {
   const r = await load('/immerse');
   const stats = statsSurface('');
   serve();
   const { actions, log } = shellActions(r);
   await boot(r, actions);
   await pop(r, '/posts/2', { usr: FOLLOW_ITEM_STATE, key: 'x', idx: 1 });
-  expect(log, '被详情压着挂上不打开').toEqual(['ground']);
+  expect(log, 'Mounted under details without opening').toEqual(['ground']);
   await act(async () => {
     r.shellNavigate('/follow');
     r.shell.writeShell({ pageOpens: r.shell.pageOpens + 1 });
   });
-  await until(() => page(stats) !== null, '关掉详情后整页画上');
-  expect(log, '认领写地址与要求重开合成一次').toEqual(['ground', 'refresh', 'surface follow /follow']);
+  await until(() => page(stats) !== null, 'Full page renders after the details close');
+  expect(log, 'A claimed address write and a reopen request merge into one').toEqual(['ground', 'refresh', 'surface follow /follow']);
 });
 
-it('播放列表元素：按地址整页打开；停在这一页要求重读时就地推新代次重取，壳要求重开时整页重开', async () => {
+it('Playlist element: opens full page by address; staying on this page and asking to refetch pushes a new generation in place and refetches, and when the shell asks to reopen, the full page reopens', async () => {
   const r = await load('/playlists');
   const stats = statsSurface('');
   const calls = serve();
   const { actions, log } = shellActions(r);
   await boot(r, actions);
-  await until(() => page(stats) !== null, '整页画上');
+  await until(() => page(stats) !== null, 'The full page painted');
   expect(log).toEqual(['surface playlists /playlists']);
-  expect(stats.querySelector('[data-skeleton]'), '骨架取齐之后撤下').toBeNull();
+  expect(stats.querySelector('[data-skeleton]'), 'The skeleton withdraws once the first screen completes').toBeNull();
   const painted = page(stats);
   await act(async () => { r.shell.writeShell({ playlistsRevision: r.shell.playlistsRevision + 1 }) });
-  await until(() => calls('/api/playlists') === 2, '按新代次重取');
-  expect(page(stats), '就地推，不重挂').toBe(painted);
+  await until(() => calls('/api/playlists') === 2, 'Refetch under the new epoch');
+  expect(page(stats), 'Push in place, no remount').toBe(painted);
   expect(r.managedEntry(stats)?.props).toEqual({ revision: 1 });
   expect(opens(actions)).toBe(1);
   await openRouted(r, '/playlists');
-  await until(() => page(stats) !== null && page(stats) !== painted, '整页重开');
-  expect(calls('/api/playlists'), '重回同一份列表复用缓存').toBe(2);
-  expect(opens(actions), '再点一次侧栏整页重开').toBe(2);
+  await until(() => page(stats) !== null && page(stats) !== painted, 'The full page reopened');
+  expect(calls('/api/playlists'), 'Returning to the same list reuses the cache').toBe(2);
+  expect(opens(actions), 'Clicking the sidebar again reopens the full page').toBe(2);
 });

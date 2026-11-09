@@ -15,7 +15,7 @@ async function hoverClearance(page: Page, longHover: boolean) {
     const row = node.closest('[data-related-row]')!.getBoundingClientRect();
     return [card.left - row.left, card.top - row.top, row.bottom - card.bottom];
   });
-  assert.ok(edges.every(edge => edge >= 8 - .5), `8px 悬停面被滚动框裁切：${JSON.stringify(edges)}`);
+  assert.ok(edges.every(edge => edge >= 8 - .5), `The 8px hover surface is clipped by the scroll box: ${JSON.stringify(edges)}`);
   if (longHover) {
     const expanded = await card.evaluate(node => {
       node.setAttribute('data-longhover', '');
@@ -24,7 +24,7 @@ async function hoverClearance(page: Page, longHover: boolean) {
       const card = node.getBoundingClientRect(), row = node.closest('[data-related-row]')!.getBoundingClientRect();
       return [card.left - row.left, card.top - row.top, row.bottom - card.bottom];
     });
-    assert.ok(expanded.every(edge => edge >= 8.52 - .5), `放大悬停面被裁切：${JSON.stringify(expanded)}`);
+    assert.ok(expanded.every(edge => edge >= 8.52 - .5), `The enlarged hover surface is clipped: ${JSON.stringify(expanded)}`);
     await card.evaluate(node => {
       node.removeAttribute('data-longhover');
       node.getBoundingClientRect();
@@ -34,7 +34,7 @@ async function hoverClearance(page: Page, longHover: boolean) {
   await row.evaluate(node => { node.scrollLeft = node.scrollWidth - node.clientWidth });
   const right = await row.locator('[data-media-card]').last().evaluate(node =>
     node.closest('[data-related-row]')!.getBoundingClientRect().right - node.getBoundingClientRect().right);
-  assert.ok(right >= 8 - .5, `末张卡的悬停面被裁切：${right}px`);
+  assert.ok(right >= 8 - .5, `The last card's hover surface is clipped: ${right}px`);
   if (longHover) {
     const last = row.locator('[data-media-card]').last();
     await last.hover();
@@ -44,7 +44,7 @@ async function hoverClearance(page: Page, longHover: boolean) {
       node.getAnimations().forEach(animation => animation.finish());
       return node.closest('[data-related-row]')!.getBoundingClientRect().right - node.getBoundingClientRect().right;
     });
-    assert.ok(expandedRight >= 8.52 - .5, `末张放大卡片被裁切：${expandedRight}px`);
+    assert.ok(expandedRight >= 8.52 - .5, `The last expanded card is clipped: ${expandedRight}px`);
     await last.evaluate(node => {
       node.removeAttribute('data-longhover');
       node.getBoundingClientRect();
@@ -53,12 +53,12 @@ async function hoverClearance(page: Page, longHover: boolean) {
   }
 }
 
-describe('详情底部的队列与推荐', () => {
+describe('The details footer\'s queue and recommendations', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
 
-  it('分卷队列使用详情实体头像', async () => {
+  it('The volumes queue uses the details entity avatar', async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.part}?parts=${ITEM.part}`, VIEWPORTS[0]!);
     try {
       const images = opened.page.locator('#stage [data-queue-item="21"] .mav img');
@@ -70,7 +70,7 @@ describe('详情底部的队列与推荐', () => {
   });
 
   for (const viewport of VIEWPORTS) for (const kind of ['local', 'follow'] as const) {
-    it(`${viewport.name} ${kind}：接着看空结果显示完整说明`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} ${kind}: the Continue watching empty state shows the full description`, { timeout: 60_000 }, async () => {
       const opened = kind === 'local'
         ? await openItemPage(browser, `/assets/${ITEM.plain}`, viewport)
         : await openFollowFeed(browser, `/posts/${DETAIL.collection}`, viewport,
@@ -85,8 +85,8 @@ describe('详情底部的队列与推荐', () => {
         await page.reload({ waitUntil: 'load' });
         const empty = page.locator('#stage [data-item-related] [data-empty-state]');
         await empty.waitFor({ state: 'visible' });
-        assert.equal(await empty.locator('h3').textContent(), '暂无接着看的内容');
-        assert.equal(await empty.locator('p').textContent(), '可以回到列表挑选其他作品。');
+        assert.equal(await empty.locator('h3').textContent(), 'Nothing to continue watching yet');
+        assert.equal(await empty.locator('p').textContent(), 'You can go back to the list to pick another video.');
         const box = await empty.boundingBox();
         assert.ok(box && box.width > 0 && box.x >= 0 && box.x + box.width <= viewport.width + 1);
         assert.equal(await page.locator('#stage [data-item-related] [aria-busy="true"]').count(), 0);
@@ -96,7 +96,7 @@ describe('详情底部的队列与推荐', () => {
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name} ${kind}：分集与推荐共用布局，悬停面完整`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} ${kind}: episodes and recommendations share the layout, hover surface intact`, { timeout: 60_000 }, async () => {
       const opened = kind === 'local'
         ? await openItemPage(browser, `/assets/${ITEM.part}?parts=${ITEM.part}`, viewport)
         : await openFollowFeed(browser, `/posts/${DETAIL.collection}`, viewport,
@@ -117,11 +117,11 @@ describe('详情底部的队列与推荐', () => {
         if (viewport.mobile) assert.ok(boxes.r.top >= boxes.q.bottom - .5, JSON.stringify(boxes));
         else {
           assert.ok(Math.abs(boxes.q.top - boxes.r.top) <= .5 && boxes.q.right <= boxes.r.left + .5, JSON.stringify(boxes));
-          assert.ok(boxes.sameSurface, '队列与推荐应使用同一底色');
+          assert.ok(boxes.sameSurface, 'Queue and recommendations should share a background');
           assert.ok(Math.abs(boxes.covers.queue.top - boxes.covers.related.top) <= .5,
-            `封面上沿需对齐：${JSON.stringify(boxes.covers)}`);
+            `Cover top edges must align: ${JSON.stringify(boxes.covers)}`);
           assert.ok(Math.abs(boxes.covers.queue.height - boxes.covers.related.height) <= .5,
-            `封面高度需相同：${JSON.stringify(boxes.covers)}`);
+            `Cover heights must match: ${JSON.stringify(boxes.covers)}`);
           const bigCover = await page.locator('#stage [data-related-row] [data-media-pic]').first().evaluate(node => {
             const picture = node as HTMLElement;
             const ratio = picture.style.getPropertyValue('--card-ratio');
@@ -130,7 +130,7 @@ describe('详情底部的队列与推荐', () => {
             picture.style.setProperty('--card-ratio', ratio);
             return height;
           });
-          assert.ok(Math.abs(bigCover - boxes.covers.queue.height) <= .5, `大图比例的推荐封面高度需相同：${bigCover}`);
+          assert.ok(Math.abs(bigCover - boxes.covers.queue.height) <= .5, `Large-ratio recommendation covers must share one height: ${bigCover}`);
         }
         await hoverClearance(page, kind === 'local' && !viewport.mobile);
         await page.locator('#stage [data-related-row]').evaluate(node => { node.scrollLeft = 0 });

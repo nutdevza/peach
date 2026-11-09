@@ -1,8 +1,10 @@
-/* 管理区的页面元素（`src/react/router/pages/managed.tsx`）：页面组按匹配挂上它就打开那一页。先报换页，
- * 再铺骨架（与壳冷启动铺的同键就不重画）、取首屏；没人认领的历史变化一次就是打开一次，认领的写地址与详情压上来都不重开；
- * 卸载时这一页还露在 `#stats` 上才收；`/resource-sync` 与配置页的 `#libraryProcessing` 改写地址、不加历史条目。
+/* The management area's page elements (`src/react/router/pages/managed.tsx`): the page group mounts them on match and they
+ * open that page. First report the page change, then lay the skeleton (the same key as the shell's cold-start skeleton means
+ * no re-render) and fetch the first screen; each unclaimed history change is one open, claimed address writes and details
+ * stacking do not reopen; on unmount the page is torn down only if it is still exposed on `#stats`; `/resource-sync` and the
+ * configuration page's `#libraryProcessing` rewrite the address without adding history entries.
  *
- * 历史对象与壳的内存状态都是模块级的，每条用例重新装载。 */
+ * The history object and the shell's memory state are module-level; every case reloads them. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
@@ -23,7 +25,7 @@ async function load(path = '/') {
     import('../../../src/react/router/managed-routes'), import('../../../src/shell'),
     import('../../../src/management-placeholder'),
   ]);
-  // 壳的内存状态是活绑定：整份模块留着读，展开出来的只是装载那一刻的值。
+  // The shell's in-memory state is a live binding: the whole module stays around to read, and what is expanded is only the value at mount time.
   return { ...history, ...router, ...routes, ...placeholder, shell };
 }
 type Loaded = Awaited<ReturnType<typeof load>>;
@@ -50,7 +52,7 @@ function shellActions(): ShellActions {
   };
 }
 
-/** 挂上路由树、接上页面包，再像壳那样开始路由：`pageOpens` 写成 1。 */
+/** Mounts the route tree, wires the page bundle, then starts routing like the shell: `pageOpens` written as 1. */
 async function boot(r: Loaded, actions = shellActions()) {
   const root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<r.RouterRoot actions={actions} />) });
@@ -60,7 +62,7 @@ async function boot(r: Loaded, actions = shellActions()) {
   return { actions };
 }
 
-/** 管理区正文的容器，铺着壳冷启动时那一张骨架。 */
+/** The admin area body container, holding the skeleton from the shell's cold start. */
 function surface(r: Loaded, path: string) {
   const stats = document.createElement('section');
   stats.id = 'stats';
@@ -69,7 +71,7 @@ function surface(r: Loaded, path: string) {
   return { stats, skeleton: stats.firstElementChild! };
 }
 
-const tasks = (label = '追更检查') => ({
+const tasks = (label = 'Update check') => ({
   available: true, running: [], skipped: [],
   finished: [{
     id: 1, task_key: 'follow-check', task_label: label, trigger: 'manual', status: 'succeeded', host: 'desk',
@@ -86,7 +88,7 @@ const configuration = {
 type Reply = { ok: boolean; status: number; json(): Promise<unknown> };
 const reply = (body: unknown): Reply => ({ ok: true, status: 200, json: async () => body });
 
-/** 按路径回的取数替身：`deferred` 里的路径等手动兑现，表里没有的一直不回（中止时拒绝）。 */
+/** A fetch stand-in that answers by path: paths in `deferred` wait for manual resolution, and anything not in the table never answers (rejects on abort). */
 function serve(bodies: Record<string, unknown>, deferred: string[] = []) {
   const pending: Array<() => void> = [];
   const signals = new Map<string, AbortSignal>();
@@ -94,7 +96,7 @@ function serve(bodies: Record<string, unknown>, deferred: string[] = []) {
     const path = input.split('?')[0]!;
     if (init?.signal) signals.set(path, init.signal);
     return new Promise<Reply>((resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => { reject(new DOMException('已中止', 'AbortError')) });
+      init?.signal?.addEventListener('abort', () => { reject(new DOMException('Aborted', 'AbortError')) });
       if (!Object.hasOwn(bodies, path)) return;
       if (deferred.includes(path)) pending.push(() => resolve(reply(bodies[path])));
       else resolve(reply(bodies[path]));
@@ -110,14 +112,14 @@ async function until(ok: () => boolean, what: string): Promise<void> {
     if (ok()) return;
     await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
   }
-  throw new Error(`一直没等到：${what}`);
+  throw new Error(`Timed out waiting for: ${what}`);
 }
 const settle = () => act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
 
-/** 页面画出来的那一块（宿主里的第一个元素）：重挂之后就换成另一个。 */
+/** The block the page renders (the host's first element): after a remount it is a different one. */
 const painted = (stats: Element) => stats.querySelector(':scope > .peach-react > *');
 
-it('挂上就打开：先报换页，骨架与冷启动那张同键不重画，首屏取齐才换成整页', async () => {
+it('Opens on attach: it reports the page change first, the skeleton shares the cold-start key so it does not repaint, and the full page swaps in only when the first screen is complete', async () => {
   const r = await load('/tasks');
   const { stats, skeleton } = surface(r, '/tasks');
   const order: string[] = [];
@@ -129,21 +131,21 @@ it('挂上就打开：先报换页，骨架与冷启动那张同键不重画，�
     return original(input, init);
   })(api.fetched.getMockImplementation()!));
   await boot(r, actions);
-  await until(() => api.calls('/api/tasks') > 0, '首屏取数发出去');
+  await until(() => api.calls('/api/tasks') > 0, 'First-screen fetch sent out');
   expect(order).toEqual(['management /tasks', 'fetch /api/tasks']);
-  expect(stats.firstElementChild, '同一张骨架原样留着').toBe(skeleton);
+  expect(stats.firstElementChild, 'The same skeleton kept as-is').toBe(skeleton);
   api.resolve();
-  await until(() => painted(stats) !== null, '整页画上');
+  await until(() => painted(stats) !== null, 'The full page painted');
   expect(stats.firstElementChild).not.toBe(skeleton);
-  expect(stats.textContent).toContain('追更检查');
+  expect(stats.textContent).toContain('Update check');
 });
 
-it('认领的写地址不重开，返回已访问地址重挂时使用缓存', async () => {
+it('A claimed write address never reopens, and remounting a previously visited address uses the cache', async () => {
   const r = await load('/tasks');
   const { stats } = surface(r, '/tasks');
   const api = serve({ '/api/tasks': tasks(), '/api/downloads': { available: true, providers: [], tasks: [] } });
   await boot(r);
-  await until(() => painted(stats) !== null, '第一次画上');
+  await until(() => painted(stats) !== null, 'Drawn for the first time');
   const page = painted(stats);
   const revision = r.managedEntry(stats)?.revision;
   await act(async () => { r.shellNavigate('/tasks?from=menu', { replace: true }) });
@@ -151,34 +153,34 @@ it('认领的写地址不重开，返回已访问地址重挂时使用缓存', a
   expect([api.calls('/api/tasks'), painted(stats)]).toEqual([1, page]);
   const length = window.history.length;
   await act(async () => { r.peachHistory.push('/tasks') });
-  await until(() => painted(stats) !== null && painted(stats) !== page, '重挂之后再画上');
+  await until(() => painted(stats) !== null && painted(stats) !== page, 'Drawn after remount');
   expect(api.calls('/api/tasks')).toBe(1);
   expect(r.managedEntry(stats)?.revision).not.toBe(revision);
   expect(window.history.length - length).toBe(1);
 });
 
-it('详情压在上面时页面不拆也不重开，关掉详情回到这一页照旧', async () => {
+it('With details on top the page neither tears down nor reopens, and closing returns to it as it was', async () => {
   const r = await load('/tasks');
   const { stats } = surface(r, '/tasks');
   const api = serve({ '/api/tasks': tasks(), '/api/downloads': { available: true, providers: [], tasks: [] } });
   await boot(r);
-  await until(() => painted(stats) !== null, '画上');
+  await until(() => painted(stats) !== null, 'Painted');
   const page = painted(stats);
   const overlay = { backgroundLocation: { pathname: '/tasks', search: '' }, overlay: 'item' };
   await act(async () => { r.shellNavigate('/assets/7', { state: overlay }) });
   await settle();
-  expect(painted(stats), '舞台下面那一页留着').toBe(page);
+  expect(painted(stats), 'The page under the stage stays mounted').toBe(page);
   await act(async () => { r.shellNavigate('/tasks') });
   await settle();
   expect([painted(stats), api.calls('/api/tasks')]).toEqual([page, 1]);
 });
 
-it('后退落到压在这一页上的详情才挂上（中间去过别的页）时不开；关掉详情回来按地址打开一次', async () => {
+it('On back landing on a detail overlaying this page, when it was mounted (other pages visited in between) it does not open; closing the details and returning opens by address once', async () => {
   const r = await load('/tasks');
   const { stats } = surface(r, '/tasks');
   const api = serve({ '/api/tasks': tasks(), '/api/downloads': { available: true, providers: [], tasks: [] } });
   await boot(r);
-  await until(() => painted(stats) !== null, '画上');
+  await until(() => painted(stats) !== null, 'Painted');
   const overlay = { backgroundLocation: { pathname: '/tasks', search: '' }, overlay: 'item' };
   await act(async () => { r.shellNavigate('/assets/7', { state: overlay }) });
   await settle();
@@ -189,19 +191,19 @@ it('后退落到压在这一页上的详情才挂上（中间去过别的页）�
     window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
   });
   await settle();
-  expect([painted(stats), api.calls('/api/tasks')], '被详情压着挂上不开').toEqual([null, 1]);
+  expect([painted(stats), api.calls('/api/tasks')], 'Mounted under details without opening').toEqual([null, 1]);
   await act(async () => { r.shellNavigate('/tasks') });
-  await until(() => painted(stats) !== null, '关掉详情后画上');
+  await until(() => painted(stats) !== null, 'Drawn after closing details');
   expect(api.calls('/api/tasks')).toBe(1);
 });
 
-it('走开时保留管理区宿主供目标页面切换，提交阶段没有同步提交告警', async () => {
+it('Walking away keeps the manage-area host alive for the target page to switch into; the submit stage raises no synchronous submit alert', async () => {
   const errors = vi.spyOn(console, 'error');
   const r = await load('/tasks');
   const { stats } = surface(r, '/tasks');
   serve({ '/api/tasks': tasks(), '/api/downloads': { available: true, providers: [], tasks: [] } });
   await boot(r);
-  await until(() => painted(stats) !== null, '画上');
+  await until(() => painted(stats) !== null, 'Painted');
   await act(async () => { r.shellNavigate('/') });
   await settle();
   expect(stats.querySelector('.peach-react')).not.toBeNull();
@@ -209,21 +211,21 @@ it('走开时保留管理区宿主供目标页面切换，提交阶段没有同�
   expect(errors).not.toHaveBeenCalled();
 
   await act(async () => { r.peachHistory.push('/tasks') });
-  await until(() => painted(stats) !== null, '再开一次画上');
+  await until(() => painted(stats) !== null, 'Reopening paints it');
   const page = painted(stats);
-  // 资料页压过来：壳在同一个任务里藏起 `#stats`，页面藏着照常活，等下一次认领表面才收。
+  // The profile page comes on top: the shell hides `#stats` in the same task, the page stays hidden but alive, and only tears down at the next claim of the surface.
   await act(async () => { r.shellNavigate('/performers/someone'); stats.hidden = true });
   await settle();
   expect(painted(stats)).toBe(page);
   expect(errors).not.toHaveBeenCalled();
 });
 
-it('等 `/healthz` 期间走开：读请求中止，这一页不再打开', async () => {
+it('Walking away while waiting for `/healthz`: the read request aborts and this page never opens', async () => {
   const r = await load('/review?category=creator_tags');
   surface(r, '/review');
   const api = serve({ '/healthz': {} }, ['/healthz']);
   await boot(r);
-  await until(() => api.calls('/healthz') > 0, '问只读态');
+  await until(() => api.calls('/healthz') > 0, 'Ask the read-only state');
   await act(async () => { r.shellNavigate('/') });
   await settle();
   expect(api.signal('/healthz')?.aborted).toBe(true);
@@ -232,7 +234,7 @@ it('等 `/healthz` 期间走开：读请求中止，这一页不再打开', asyn
   expect(api.fetched.mock.calls.map(([input]) => input.split('?')[0])).toEqual(['/healthz']);
 });
 
-it('口味页打开时清掉目录筛选与搜索框，引导标记交出一次就清', async () => {
+it('Opening the taste page clears catalog filters and the search box, and the onboarding marker clears after being handed over once', async () => {
   const r = await load('/taste');
   r.shell.writeShell({
     state: { creator: 'a', studio: 'b', tag: 'c', tag_match: 'any', q: 'd', jav: '1', sort: 'seed' } as never,
@@ -241,7 +243,7 @@ it('口味页打开时清掉目录筛选与搜索框，引导标记交出一次�
   surface(r, '/taste');
   serve({});
   const { actions } = await boot(r);
-  await until(() => vi.mocked(actions.clearSearch).mock.calls.length > 0, '清搜索框');
+  await until(() => vi.mocked(actions.clearSearch).mock.calls.length > 0, 'Clear the search box');
   expect(r.shell.state).toMatchObject({
     creator: '', studio: '', tag: '', tag_match: 'all', len: '', dur_min: '', dur_max: '', orient: '', region: '',
     state: '', q: '', jav: '', sort: 'seed',
@@ -249,46 +251,46 @@ it('口味页打开时清掉目录筛选与搜索框，引导标记交出一次�
   expect(r.shell.cameFromSetup).toBe(false);
 });
 
-it('旧直达地址 `/resource-sync` 改写成资源同步工具页，不加历史条目', async () => {
+it('The old `/resource-sync` deep link rewrites to the resource sync tool page without a history entry', async () => {
   const r = await load('/resource-sync');
   surface(r, '/resource-sync');
   serve({});
   const length = window.history.length;
   const { actions } = await boot(r);
-  await until(() => location.pathname === '/data-cleanup/resource-sync', '改写到资源同步');
-  await until(() => vi.mocked(actions.surfaceChanged).mock.calls.length > 0, '数据管理页打开');
+  await until(() => location.pathname === '/data-cleanup/resource-sync', 'Rewrites to resource sync');
+  await until(() => vi.mocked(actions.surfaceChanged).mock.calls.length > 0, 'Data management page opens');
   expect([location.hash, window.history.length - length]).toEqual(['', 0]);
   expect(r.peachHistory.navigation.claimed).toBe(false);
   expect(vi.mocked(actions.surfaceChanged).mock.calls).toEqual([['management', '/data-cleanup/resource-sync']]);
 });
 
-it('配置页带 `#libraryProcessing` 进来：画上之后改写到数据管理页的那一块，不加历史条目', async () => {
+it('The configuration page enters with `#libraryProcessing`: once painted it rewrites to the data management block with no history entry', async () => {
   const r = await load('/settings/library#libraryProcessing');
   const { stats } = surface(r, '/settings/library');
   serve({ '/api/configuration': configuration });
   const length = window.history.length;
   const { actions } = await boot(r);
-  await until(() => vi.mocked(actions.surfaceChanged).mock.calls.length > 1, '数据管理页打开');
+  await until(() => vi.mocked(actions.surfaceChanged).mock.calls.length > 1, 'Data management page opens');
   expect([location.pathname, location.hash, window.history.length - length]).toEqual(['/data-cleanup', '#libraryProcessing', 0]);
   expect(vi.mocked(actions.surfaceChanged).mock.calls.map(([, path]) => path)).toEqual(['/settings/library', '/data-cleanup']);
   expect(stats.hidden).toBe(false);
 });
 
 for (const [tab, target] of [['wants', '/jav'], ['source', '/settings/subscriptions']] as const) {
-  it(`关注管理的旧 ${tab} 入口打开目标页面并替换历史条目`, async () => {
+  it(`The old ${tab} entrance of follow management opens the target page and replaces the history entry`, async () => {
     const r = await load(`/subscriptions?tab=${tab}`);
     surface(r, '/subscriptions');
     serve({ '/healthz': {}, '/api/configuration': configuration });
     const length = window.history.length;
     const { actions } = await boot(r);
-    await until(() => vi.mocked(actions.surfaceChanged).mock.calls.some(([, path]) => path === target), '目标正文打开');
+    await until(() => vi.mocked(actions.surfaceChanged).mock.calls.some(([, path]) => path === target), 'The target body opens');
     expect(location.pathname).toBe(target);
     expect(window.history.length).toBe(length);
     expect(r.peachHistory.navigation.claimed).toBe(false);
   });
 }
 
-it('诊断页的标题、管理区身份与换一批由路由元数据登记', async () => {
+it('The diagnostics page\'s title, manage identity, and shuffle behavior are registered in route metadata', async () => {
   const r = await load();
-  expect(r.routeMetaOf('/settings/diagnostics')).toEqual({ section: 'configuration', title: '系统诊断', refresh: 'reopen' });
+  expect(r.routeMetaOf('/settings/diagnostics')).toEqual({ section: 'configuration', title: 'System diagnostics', refresh: 'reopen' });
 });

@@ -1,4 +1,4 @@
-/* 使用演示库的两秒合成视频，条目与写接口全部由桩接住。 */
+/* Uses the demo library's two-second synthetic video, with entries and write endpoints all caught by stubs. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -17,7 +17,7 @@ async function metadata(page: Page): Promise<void> {
   }, undefined, { timeout: 15_000 });
 }
 
-describe('视频退出续播', () => {
+describe('Video resumes on exit', () => {
   let browser: Browser;
   let clip: string;
 
@@ -30,13 +30,13 @@ describe('视频退出续播', () => {
   after(async () => { await browser.close() });
 
   for (const viewport of VIEWPORTS) for (const kind of ['item', 'follow'] as const) {
-    it(`${viewport.name} ${kind}：关闭、重开和刷新恢复秒数，时间深链优先`, { timeout: 90_000 }, async () => {
+    it(`${viewport.name} ${kind}: closing, reopening and refreshing restore the position, and time deep links win`, { timeout: 90_000 }, async () => {
       const path = kind === 'item' ? `/assets/${ITEM.plain}` : `/posts/${DETAIL.collection}`;
       const opened = kind === 'item' ? await openItemPage(browser, path, viewport)
         : await openFollowFeed(browser, path, viewport, { ready: '#stage [data-follow-detail-side]' });
       try {
         const page = opened.page;
-        // 用例里的刷新与跳转会取消还在转发的片源请求，那一趟落空不算失败；其余错误照常抛出。
+        // Refreshes and navigations in the tests cancel stream requests still being forwarded; that miss does not count as failure, and other errors throw as usual.
         const settled = (error: unknown) => {
           if (!/already handled|disposed|closed/i.test(String(error))) throw error;
         };
@@ -59,20 +59,20 @@ describe('视频退出续播', () => {
         const diagnostic = () => page.evaluate(() => ({ storage: Object.entries(localStorage),
           time: document.querySelector<HTMLVideoElement>('#stage video')?.currentTime,
           ready: document.querySelector<HTMLVideoElement>('#stage video')?.readyState }));
-        assert.ok(Math.abs(Number(await saved()) - .7) < .1, `定位后未保存：${JSON.stringify(await diagnostic())}`);
+        assert.ok(Math.abs(Number(await saved()) - .7) < .1, `Not saved after locating: ${JSON.stringify(await diagnostic())}`);
         await page.locator('#closeStage').click();
         await page.locator('#stage[open]').waitFor({ state: 'detached' });
-        assert.ok(Math.abs(Number(await saved()) - .7) < .1, `关闭后位置异常：${await saved()}`);
+        assert.ok(Math.abs(Number(await saved()) - .7) < .1, `Position wrong after closing: ${await saved()}`);
         await page.goto(new URL(path, page.url()).toString(), { waitUntil: 'load' });
         await metadata(page);
         const current = () => page.locator(VIDEO).evaluate((video: HTMLVideoElement) => video.currentTime);
-        assert.ok(Math.abs(await current() - .7) < .1, `重新进入秒数 ${await current()}，存储 ${await saved()}`);
+        assert.ok(Math.abs(await current() - .7) < .1, `On re-entry the position is ${await current()} sec and the stored value is ${await saved()}`);
         await page.reload({ waitUntil: 'load' });
         await metadata(page);
-        assert.ok(Math.abs(await current() - .7) < .1, '刷新没有恢复秒数');
+        assert.ok(Math.abs(await current() - .7) < .1, 'Refresh did not restore the seconds');
         await page.goto(new URL(`${path}?t=1`, page.url()).toString(), { waitUntil: 'load' });
         await metadata(page);
-        assert.ok(await current() >= .9, '指定时间深链没有覆盖保存位置');
+        assert.ok(await current() >= .9, 'A time deep link never overwrites the saved position');
         assert.deepEqual(opened.problems.filter((line) => !line.includes('VIDEOJS')), []);
       } finally {
         if (await opened.page.locator('#stage[open]').count()) await opened.page.locator('#closeStage').click();

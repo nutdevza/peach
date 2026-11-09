@@ -3,7 +3,7 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser, Page } from 'playwright-core';
 import { configurationBody, expectBody, launch, layout, settle, visit, VIEWPORTS } from './harness.ts';
 
-const measure = (page: Page, names = ['媒体库与目录']) => page.locator('.ui-configpage').evaluate((root, names) => {
+const measure = (page: Page, names = ['Library and catalog']) => page.locator('.ui-configpage').evaluate((root, names) => {
   const rect = (el: Element) => {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -15,7 +15,7 @@ const measure = (page: Page, names = ['媒体库与目录']) => page.locator('.u
     sections: sections.map(section => ({
       label: rect(section.firstElementChild!),
       card: rect(section.lastElementChild!),
-      // 保存键在卡片页脚，取分区里最后一个按钮：Select 的触发器也是 button。
+      // The save key sits in the card footer, taken as the section's last button: the Select trigger is a button too.
       save: rect([...section.querySelectorAll('button')].at(-1)!),
     })),
   };
@@ -24,7 +24,7 @@ const measure = (page: Page, names = ['媒体库与目录']) => page.locator('.u
 async function openEditableConfiguration(browser: Browser, viewport: (typeof VIEWPORTS)[number]) {
   const opened = await visit(browser, '/', viewport);
   try {
-    // 每例在导航前读取真实配置快照，页面等待与接管由响应门闩控制。
+    // Each case reads a real config snapshot before navigating; page waits and takeover are controlled by a response latch.
     const response = await opened.page.request.get(new URL('/api/configuration', opened.page.url()).href);
     assert.equal(response.status(), 200);
     const configuration = await response.json();
@@ -40,47 +40,47 @@ async function openEditableConfiguration(browser: Browser, viewport: (typeof VIE
   }
 }
 
-describe('配置页等待态', () => {
+describe('Configuration page pending state', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 的分类导航适配方向并保留未保存输入`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} category navigation adapts to direction and keeps unsaved input`, { timeout: 60_000 }, async () => {
       const opened = await openEditableConfiguration(browser, viewport);
       try {
         const { page } = opened;
         await expectBody(page, '/settings/library', configurationBody(page));
         await settle(page);
-        const nav = page.getByRole('tablist', { name: '配置分区' });
+        const nav = page.getByRole('tablist', { name: 'Configuration section' });
         assert.equal(await nav.getAttribute('aria-orientation'), viewport.mobile ? 'horizontal' : 'vertical');
         const geometry = await measure(page);
         assert.ok(viewport.mobile
           ? geometry.nav.y + geometry.nav.height <= geometry.sections[0].label.y
           : geometry.nav.x + geometry.nav.width <= geometry.sections[0].label.x);
-        await nav.getByRole('tab', { name: '来源与订阅', exact: true }).click();
-        // 切到别的页签后这一栏所在的面板隐藏，值仍要留在原处。
-        const input = page.getByRole('textbox', { name: 'JavDB 地址', exact: true, includeHidden: true });
+        await nav.getByRole('tab', { name: 'Sources and subscriptions', exact: true }).click();
+        // After switching to another tab, the panel holding this field is hidden but the value stays in place.
+        const input = page.getByRole('textbox', { name: 'JavDB URL', exact: true, includeHidden: true });
         await input.fill('example.invalid');
-        const general = nav.getByRole('tab', { name: '媒体库与入库', exact: true });
+        const general = nav.getByRole('tab', { name: 'Library and imports', exact: true });
         await general.click();
         await page.keyboard.press('ArrowRight');
-        assert.equal(await nav.getByRole('tab', { name: '来源与订阅', exact: true }).getAttribute('aria-selected'), 'true');
+        assert.equal(await nav.getByRole('tab', { name: 'Sources and subscriptions', exact: true }).getAttribute('aria-selected'), 'true');
         await page.keyboard.press('End');
-        assert.equal(await nav.getByRole('tab', { name: '系统诊断' }).getAttribute('aria-selected'), 'true');
+        assert.equal(await nav.getByRole('tab', { name: 'System diagnostics' }).getAttribute('aria-selected'), 'true');
         await page.keyboard.press('Home');
         assert.equal(await input.inputValue(), 'example.invalid');
         const bounds = await layout(page);
         assert.ok(bounds.scrollWidth <= bounds.viewportWidth);
         assert.deepEqual(bounds.offenders, []);
         await page.setViewportSize({ width: viewport.mobile ? 1280 : 390, height: 844 });
-        await page.waitForFunction(expected => document.querySelector('[role="tablist"][aria-label="配置分区"]')?.getAttribute('aria-orientation') === expected,
+        await page.waitForFunction(expected => document.querySelector('[role="tablist"][aria-label="Configuration sections"]')?.getAttribute('aria-orientation') === expected,
           viewport.mobile ? 'vertical' : 'horizontal');
         assert.equal(await general.getAttribute('aria-selected'), 'true');
         assert.equal(await input.inputValue(), 'example.invalid');
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 的分类导航与媒体标题在接管时保持位置`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} category nav and media titles keep their position at takeover`, { timeout: 60_000 }, async () => {
       const opened = await openEditableConfiguration(browser, viewport);
       let release = () => {};
       try {
@@ -117,29 +117,28 @@ describe('配置页等待态', () => {
       }
     });
   }
-  /* 来源与订阅有四块另取数据的分区：整页骨架、分区骨架与读回后的终态画的是同一套结构，来源凭据的
-     站点行取自静态登记，行数与终态一致。各块的位置与高度允许细小出入，不允许超过一行（40px）的位移。
-     本机没有记录（冷启动）与正常再开两种都测：随配置变化的部分在冷启动时按最小结构画。 */
-  for (const cold of [true, false]) it(`来源与订阅的整页骨架、分区骨架与读回的分区结构一致、位移不超过一行（${cold ? '本机没有记录' : '再次打开'}）`, { timeout: 90_000 }, async () => {
+  /* Sources and subscriptions have four sections that fetch data separately: the whole-page skeleton, section skeletons, and the post-read final states draw the same structure, and the source credentials' site rows come from static registration, with row counts matching the final state. Small position and height deviations are allowed, but displacement over one row (40px) is not.
+     Both cases are tested: no local record (cold start) and a normal reopen; config-dependent parts draw at minimal structure on cold start. */
+  for (const cold of [true, false]) it(`The sources and subscriptions full-page skeleton and section skeleton match the read-back section structure within one row of offset (${cold ? 'no local record' : 'reopened'})`, { timeout: 90_000 }, async () => {
     const opened = await visit(browser, '/settings/subscriptions', VIEWPORTS[0]);
     let release = () => {};
     let mount = () => {};
     try {
       const { page } = opened;
-      const names = ['来源凭据', '关注采集', '资源搜索', '作品资料站点'];
-      /* 骨架淡出时新旧两份 `.ui-configpage` 可能同时在：取最后挂上的那一份。 */
+      const names = ['Source credentials', 'Follows scrape', 'Resource search', 'Video profile sites'];
+      /* While the skeleton fades out, an old and a new `.ui-configpage` can coexist: take the one mounted last. */
       const sections = () => page.locator('.ui-configpage').last().evaluate((root, names) => names.map((name) => {
         const section = root.querySelector(`[aria-label="${name}"]`);
         if (!section) return null;
         const r = section.getBoundingClientRect();
         return { name, y: r.y, height: r.height, sites: section.querySelectorAll('b').length };
       }), names);
-      const done = () => page.waitForFunction(() => document.querySelector('.ui-configpage section[aria-label="来源凭据"]')
+      const done = () => page.waitForFunction(() => document.querySelector('.ui-configpage section[aria-label="Source credentials"]')
         && !document.querySelector('.ui-configpage [data-skeleton]'), null, { timeout: 30_000 });
       await done();
       await settle(page);
       if (cold) await page.evaluate(() => localStorage.removeItem('peach.configuration.shape.v1'));
-      /* 两道门：配置读回之前是整页骨架；配置放行、分区自己的数据还压着时是分区骨架。 */
+      /* Two gates: a full-page skeleton before the config is read back, then a section skeleton while the config is through but the section's own data is still pending. */
       const configuration = new Promise<void>((resolve) => { mount = resolve });
       const held = new Promise<void>((resolve) => { release = resolve });
       await page.route('**/api/configuration', async (route) => { await configuration; await route.continue() });
@@ -150,19 +149,19 @@ describe('配置页等待态', () => {
       await page.locator('[data-skeleton="board/settings/subscriptions"]').waitFor();
       const pageSkeleton = await sections();
       mount();
-      await page.getByLabel('正在读取来源凭据', { exact: true }).waitFor();
+      await page.getByLabel('Reading source credentials', { exact: true }).waitFor();
       const sectionSkeleton = await sections();
       release();
       await done();
       await settle(page);
       const live = await sections();
-      for (const [phase, shape] of [['整页骨架', pageSkeleton], ['分区骨架', sectionSkeleton]] as const) {
+      for (const [phase, shape] of [['Full-page skeleton', pageSkeleton], ['Section skeleton', sectionSkeleton]] as const) {
         shape.forEach((section, i) => {
           const end = live[i]!;
           assert.ok(section && Math.abs(section.y - end.y) <= 40 && Math.abs(section.height - end.height) <= 40,
-            `${phase}「${names[i]}」${JSON.stringify(section)}，读回后 ${JSON.stringify(end)}`);
+            `${phase} "${names[i]}" ${JSON.stringify(section)}, after read-back ${JSON.stringify(end)}`);
         });
-        assert.equal(shape[0]!.sites, live[0]!.sites, `${phase}的来源凭据站点行数`);
+        assert.equal(shape[0]!.sites, live[0]!.sites, `${phase} source credential site rows`);
       }
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -172,7 +171,7 @@ describe('配置页等待态', () => {
     }
   });
   for (const path of ['/settings/library', '/review']) {
-    it(`${path} 的明暗主题使用透明容器与灰色 Pills 选中底色`, { timeout: 60_000 }, async () => {
+    it(`The ${path} light/dark theme uses a transparent container and gray Pills selected background`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, path, VIEWPORTS[0]);
       try {
         const { page } = opened;
@@ -180,7 +179,7 @@ describe('配置页等待态', () => {
         await nav.locator('[aria-selected=true]').waitFor();
         await settle(page);
         if (path === '/review') {
-          assert.equal(await nav.getByRole('heading', { name: '复核分类' }).count(), 1);
+          assert.equal(await nav.getByRole('heading', { name: 'Review classification' }).count(), 1);
           assert.equal(await nav.getByRole('tablist').getAttribute('aria-orientation'), 'vertical');
         }
         for (const dark of [false, true]) {

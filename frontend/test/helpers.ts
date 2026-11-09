@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-/** 一个可手动兑现的 fetch：island 的等待窗口本身就是被测行为，不能靠 setTimeout 猜。 */
+/** A fetch that can be resolved manually: the island's waiting window is itself the behavior under test, not something to guess at with setTimeout. */
 export function deferredFetch(body: unknown) {
   let settle = (): void => {};
   let signal: AbortSignal | undefined;
@@ -9,7 +9,7 @@ export function deferredFetch(body: unknown) {
     return new Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>((resolve, reject) => {
       settle = () => resolve({ ok: true, status: 200, json: async () => body });
       signal?.addEventListener('abort', () => {
-        reject(new DOMException('已中止', 'AbortError'));
+        reject(new DOMException('Aborted', 'AbortError'));
       });
     });
   });

@@ -4,7 +4,7 @@ import { configurePlayer } from '../src/player/host';
 
 afterEach(()=>{vi.restoreAllMocks();document.body.innerHTML=''});
 
-it('平均色微小抖动保持稳定，显著变化和关闭再开启更新氛围色',()=>{
+it('The average color stays stable through tiny jitter, and significant changes plus off/on cycles refresh the ambient color',()=>{
   document.body.innerHTML='<dialog id="stage"><canvas data-ambient-canvas></canvas><video></video></dialog>';
   const stage=document.querySelector<HTMLDialogElement>('dialog')!,video=document.querySelector('video')!;
   let enabled=true,pixel=100,frame:VideoFrameRequestCallback;

@@ -5,12 +5,12 @@ import type { Browser } from 'playwright-core';
 import { openFollowFeed } from './follow-fixture.ts';
 import { launch, VIEWPORTS } from './harness.ts';
 
-describe('关注与馆藏共用卡片交互', () => {
+describe('Follows and the library share card interactions', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
 
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：关注标题在等待与内容态采用相同几何`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: the follow title keeps the same geometry while waiting and with content`, async () => {
     const opened = await openFollowFeed(browser, '/follow', viewport);
     try {
       opened.stub.hold = () => true;
@@ -32,10 +32,10 @@ describe('关注与馆藏共用卡片交互', () => {
           const labels = node.querySelector('[data-follow-labels]')!.getBoundingClientRect();
           return { height: card.height, left: title.left, labels: labels.left + 4 };
         }));
-      // 标签和首页卡一样排在文字那一栏：左缘对齐标题，不从头像底下起头。
+      // Tags, like on the home-page card, go in the text column: left edge aligned with the title, not starting under the avatar.
       assert.ok(boxes.every(box => Math.abs(box.labels - box.left) <= 1), JSON.stringify(boxes));
       assert.ok(Math.max(...boxes.map(box => box.height)) - Math.min(...boxes.map(box => box.height)) <= 1, JSON.stringify(boxes));
-      // 署名行和作品卡同一份零件：作者名前是人像字形，日期前是日历字形。
+      // The byline shares the same parts as the work card: a person glyph before the author's name, a calendar glyph before the date.
       const glyphs = await opened.page.locator('[data-follow-list] > [data-follow-item]').first().evaluate(node =>
         ['[data-media-who]', '[data-media-release]'].map(selector =>
           node.querySelector(`[data-media-byline] ${selector} svg use`)?.getAttribute('href')));
@@ -43,7 +43,7 @@ describe('关注与馆藏共用卡片交互', () => {
     } finally { await opened.stub.release(); await opened.close() }
   });
 
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：筛空时空态铺满整行，不缩成一列卡宽`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: when filters empty the results, the empty state spans the full row, not narrowed to a single card's width`, async () => {
     const opened = await openFollowFeed(browser, '/follow', viewport);
     try {
       const page = opened.page;
@@ -61,7 +61,7 @@ describe('关注与馆藏共用卡片交互', () => {
     } finally { await opened.close() }
   });
 
-  it('图片瀑布流的卡片按内容定高，文字区底下不留等高网格的空白', async () => {
+  it('Masonry cards size to their content, leaving no equal-height grid gaps under the text area', async () => {
     const opened = await openFollowFeed(browser, '/follow?media=images', VIEWPORTS[0]!,
       { settings: { photoLayout: 'masonry', followImagesOnly: false }, ready: '[data-follow-wall][data-layout="masonry"] > [data-follow-item]' });
     try {
@@ -71,7 +71,7 @@ describe('关注与馆藏共用卡片交互', () => {
     } finally { await opened.close() }
   });
 
-  it('创作者头像悬停显示描边，键盘焦点可见', async () => {
+  it('Creator avatars show rings on hover with visible keyboard focus', async () => {
     const opened = await openFollowFeed(browser, '/follow', VIEWPORTS[0]!, { bindAuthors: true });
     try {
       const avatar = opened.page.locator('a[data-follow-avatar]').first();
@@ -82,7 +82,7 @@ describe('关注与馆藏共用卡片交互', () => {
     } finally { await opened.close() }
   });
 
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：详情动作与接着看采用共享几何`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: details actions and Continue watching share geometry`, async () => {
     const opened = await openFollowFeed(browser, '/posts/1002', viewport,
       { ready: '#stage[open] [data-follow-detail-side]', bindAuthors: true });
     try {
@@ -113,8 +113,8 @@ describe('关注与馆藏共用卡片交互', () => {
         };
       });
       assert.deepEqual([hovered.inside, hovered.top, hovered.bottom], [true, true, true],
-        '接着看的卡片内容与悬停面不越过横排的裁切边');
-      assert.notEqual(hovered.fill, hovered.ground, '悬停面和接着看底色同色，浅色主题下看不出悬停');
+        'Keep-watching card content and the hover surface do not cross the row\'s clip edge');
+      assert.notEqual(hovered.fill, hovered.ground, 'The hover surface and the keep-watching background share a color, so hover is invisible in the light theme');
       const geometry =await page.locator('[data-follow-detail-actions]').evaluate(node => {
         const styles = [...node.querySelectorAll('button, a')].map(button => {
           const style = getComputedStyle(button);
@@ -141,8 +141,8 @@ describe('关注与馆藏共用卡片交互', () => {
       });
       await next.locator('[data-follow-open]').click();
       await page.waitForFunction(id => location.pathname === `/posts/${id}`, id);
-      await page.locator('#stage [data-follow-detail-name]').filter({ hasText: `演示更新 ${id}` }).waitFor();
-      assert.deepEqual(singleRequests, [], '接着看已有条目缓存却再次单条取数');
+      await page.locator('#stage [data-follow-detail-name]').filter({ hasText: `Demo update ${id}` }).waitFor();
+      assert.deepEqual(singleRequests, [], 'Continue watching had the entry cached yet did another single fetch');
       await page.locator('#closeStage').click();
       await page.waitForFunction(() => location.pathname === '/follow');
     } finally { await opened.close() }

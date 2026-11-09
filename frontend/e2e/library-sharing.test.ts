@@ -5,12 +5,12 @@ import type { Browser } from 'playwright-core';
 
 import { launch, layout, settle, visit, VIEWPORTS } from './harness.ts';
 
-describe('馆藏与口味分享', () => {
+describe('Library and taste sharing', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：连接圆点和文字使用对应语义色，浅色和暗色可辨识`, async () => {
+    it(`${viewport.name}: connection dots and text use matching semantic colors, legible in light and dark`, async () => {
       const opened = await visit(browser, '/settings/library', viewport, async page => {
         await page.route('**/api/configuration', async route => {
           const response = await route.fetch();
@@ -56,12 +56,12 @@ describe('馆藏与口味分享', () => {
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name}：预览说明与独立开关可访问`, async () => {
+    it(`${viewport.name}: preview description and standalone toggle are accessible`, async () => {
       const posts: Record<string, unknown>[] = [];
       const state = { enabled: false, available: true, schema: 4,
-        fields: ['作品编号、标签、人物、评分与全部偏好维度'],
-        notice: '匿名处理后上传馆藏与各类偏好明细。' };
-      const opened = await visit(browser, '/settings/library?section=' + encodeURIComponent('应用与维护'), viewport,
+        fields: ['Video code, tags, people, rating, and every preference dimension'],
+        notice: 'Uploads library and preference details after anonymization.' };
+      const opened = await visit(browser, '/settings/library?section=' + encodeURIComponent('App and maintenance'), viewport,
         async page => {
           await page.route('**/api/configuration', async route => {
             const response = await route.fetch();
@@ -69,7 +69,7 @@ describe('馆藏与口味分享', () => {
           });
           await page.route('**/api/configuration/library-sharing/preview', route => route.fulfill({ json: {
             token: 'preview-token', schema: 4, bytes: 128,
-            data: { schema: 4, period: '2026-W42', library: [{ code: 'EXM-001', manual_tags: ['长标签'.repeat(500)] }],
+            data: { schema: 4, period: '2026-W42', library: [{ code: 'EXM-001', manual_tags: ['Long tag'.repeat(500)] }],
               preferences: { performer: [] }, coverage: { uncoded_items: 0 } },
           } }));
           await page.route('**/api/configuration/library-sharing', route => {
@@ -80,30 +80,30 @@ describe('馆藏与口味分享', () => {
         });
       const { page } = opened;
       try {
-        const region = page.getByRole('region', { name: '数据上传', exact: true });
+        const region = page.getByRole('region', { name: 'Data upload', exact: true });
         await region.waitFor();
-        assert.equal(await region.getByRole('switch').count(), 2, '两项上传开关同属一个分区');
-        const initialToggle = region.getByRole('switch', { name: '上传馆藏与口味明细', exact: true });
-        assert.equal(await initialToggle.count(), 1, '关闭状态也应显示上传开关');
+        assert.equal(await region.getByRole('switch').count(), 2, 'Both upload toggles belong to one section');
+        const initialToggle = region.getByRole('switch', { name: 'Upload library and taste details', exact: true });
+        assert.equal(await initialToggle.count(), 1, 'The upload toggle should also render when off');
         const fields = region.getByText(state.fields[0], { exact: true });
-        assert.equal(await fields.isVisible(), false, '字段说明默认折叠');
-        const rules = region.getByText('馆藏统计字段与发送规则', { exact: true });
+        assert.equal(await fields.isVisible(), false, 'The field description is collapsed by default');
+        const rules = region.getByText('Library statistics fields and sending rules', { exact: true });
         await rules.click();
-        assert.equal(await fields.isVisible(), true, '可以展开查看字段');
+        assert.equal(await fields.isVisible(), true, 'Expandable to view the fields');
         await rules.click();
         await fields.waitFor({ state: 'hidden' });
-        await region.getByRole('button', { name: '预览上传内容', exact: true }).click();
-        const preview = region.getByLabel('馆藏与口味上传预览', { exact: true });
+        await region.getByRole('button', { name: 'Preview upload contents', exact: true }).click();
+        const preview = region.getByLabel('Library and taste upload preview', { exact: true });
         await preview.waitFor();
         assert.equal(posts.length, 0);
         assert.equal(await fields.isVisible(), false);
-        assert.equal(await region.getByText('随机标识用于实例去重。状态每日一次；关闭后仅补发一次关闭状态。', { exact: true }).isVisible(), true);
+        assert.equal(await region.getByText('The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent.', { exact: true }).isVisible(), true);
         assert.match(await preview.innerText(), /EXM-001/);
         assert.match(await preview.innerText(), /performer/);
         assert.equal(await region.locator('[data-code-block]').count(), 1);
-        assert.equal(await region.getByRole('button', { name: '复制代码', exact: true }).count(), 1);
+        assert.equal(await region.getByRole('button', { name: 'Copy code', exact: true }).count(), 1);
         await preview.focus();
-        assert.ok(await preview.evaluate(element => element.scrollWidth > element.clientWidth), '长代码在代码块内部横向滚动');
+        assert.ok(await preview.evaluate(element => element.scrollWidth > element.clientWidth), 'Long code scrolls horizontally inside the code block');
         await settle(page);
         const measured = await layout(page);
         assert.ok(measured.scrollWidth <= measured.viewportWidth + 1, JSON.stringify(measured));
@@ -115,18 +115,18 @@ describe('馆藏与口味分享', () => {
         assert.equal(posts.length, 0);
         await region.getByRole('checkbox').focus();
         await region.getByRole('checkbox').press('Space');
-        await region.getByRole('button', { name: '同意并开启上传', exact: true }).click();
+        await region.getByRole('button', { name: 'Consent and enable uploads', exact: true }).click();
         await preview.waitFor({ state: 'hidden' });
         await settle(page);
         assert.deepEqual(posts[0], { enabled: true, schema: 4, consent: true, preview_token: 'preview-token' });
-        assert.equal(await preview.count(), 0, '同意后收起数据预览');
-        assert.equal(await region.getByRole('checkbox').count(), 0, '同意后收起同意框');
-        assert.equal(await fields.isVisible(), false, '同意后字段说明仍保持折叠');
+        assert.equal(await preview.count(), 0, 'Collapse data preview after consent');
+        assert.equal(await region.getByRole('checkbox').count(), 0, 'Collapse the consent box after agreeing');
+        assert.equal(await fields.isVisible(), false, 'After agreeing the field description stays collapsed');
         assert.equal(await toggle.isChecked(), true);
-        await region.getByRole('button', { name: '预览上传内容', exact: true }).click();
+        await region.getByRole('button', { name: 'Preview upload contents', exact: true }).click();
         await preview.waitFor();
-        assert.equal(posts.length, 1, '查看预览不重复保存同意');
-        assert.equal(await region.getByRole('checkbox').count(), 0, '已开启时查看预览不重复要求同意');
+        assert.equal(posts.length, 1, 'Viewing the preview never saves consent twice');
+        assert.equal(await region.getByRole('checkbox').count(), 0, 'Once enabled, viewing the preview never asks for consent again');
         await toggle.focus();
         const disabled = page.waitForResponse(response => response.url().endsWith('/api/configuration/library-sharing')
           && response.request().method() === 'POST');

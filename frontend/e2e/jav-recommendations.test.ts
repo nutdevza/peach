@@ -4,11 +4,11 @@ import type { Browser } from 'playwright-core';
 import { launch, layout, settle, visit, VIEWPORTS } from './harness.ts';
 import { ITEM, openItemPage } from './item-fixture.ts';
 
-describe('JAV 推荐与加载结构', () => {
+describe('JAV recommendations and loading structure', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：关闭馆藏详情保留探索页与筛选位置`, { timeout: 60_000 }, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: closing library details keeps the explore page and filter position`, { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', viewport, { ready: '[data-media-grid]' });
     const { page } = opened;
     const reads: string[] = [];
@@ -18,18 +18,18 @@ describe('JAV 推荐与加载结构', () => {
       await page.route('**/api/jav/discoveries?*', route => {
         reads.push(route.request().url());
         return route.fulfill({ json: { items: Array.from({ length: 24 }, (_, index) => ({
-          id: index + 100, asset_id: ITEM.plain, code: `PCH-${index + 100}`, title: '探索作品',
-          performers: '来源原名', performer_refs: [{ id: 42, name: '规范姓名', has_image: false }],
-          has_cover: false, wanted: false, tags: ['恋足'], taste_score: 0.8, release_date: '2024-06-03',
+          id: index + 100, asset_id: ITEM.plain, code: `PCH-${index + 100}`, title: 'Explore videos',
+          performers: 'Source original name', performer_refs: [{ id: 42, name: 'Canonical name', has_image: false }],
+          has_cover: false, wanted: false, tags: ['Foot fetish'], taste_score: 0.8, release_date: '2024-06-03',
         })) } });
       });
       await page.goto(new URL('/jav?tab=discover', page.url()).href);
-      const section = page.getByRole('region', { name: '为你推荐', exact: true });
-      const search = page.getByRole('searchbox', { name: '筛选推荐', exact: true });
+      const section = page.getByRole('region', { name: 'Recommended for you', exact: true });
+      const search = page.getByRole('searchbox', { name: 'Filter recommendations', exact: true });
       await section.locator('[data-jav-card]').first().waitFor();
-      await page.getByRole('button', { name: '馆藏探索', exact: true }).click();
-      await page.getByRole('button', { name: '按发行日期排序', exact: true }).click();
-      await section.locator('[data-catalog-tag="恋足"]').click();
+      await page.getByRole('button', { name: 'Library explore', exact: true }).click();
+      await page.getByRole('button', { name: 'Sort by release date', exact: true }).click();
+      await section.locator('[data-catalog-tag="Foot fetish"]').click();
       await search.fill('PCH');
       await section.evaluate(node => { (node as HTMLElement).dataset.returnProbe = 'kept' });
       const count = reads.length;
@@ -46,10 +46,10 @@ describe('JAV 推荐与加载结构', () => {
         else if (exit === 'escape') await page.keyboard.press('Escape');
         else await page.goBack();
         await page.waitForFunction(() => location.pathname === '/jav' && !document.querySelector('#stage[open]'));
-        assert.equal(await drawer(), drawerOpen, `${exit} 关闭详情时侧栏不能跟着收起`);
+        assert.equal(await drawer(), drawerOpen, `${exit} closing the details must not collapse the sidebar along with it`);
         assert.equal(await search.inputValue(), 'PCH');
         assert.equal(await section.locator('[data-entity-tag="library"]').getAttribute('aria-pressed'), 'true');
-        assert.equal(await section.locator('[data-catalog-tag="恋足"]').getAttribute('aria-pressed'), 'true');
+        assert.equal(await section.locator('[data-catalog-tag="Foot fetish"]').getAttribute('aria-pressed'), 'true');
         assert.equal(await section.locator('[data-entity-sort="release_date"]').getAttribute('aria-pressed'), 'true');
         assert.equal(await section.getAttribute('data-return-probe'), 'kept');
         assert.equal(reads.length, count, JSON.stringify(reads));
@@ -58,7 +58,7 @@ describe('JAV 推荐与加载结构', () => {
       assert.deepEqual(opened.problems.filter(line => !line.includes('VIDEOJS')), []);
     } finally { await opened.close() }
   });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：按实体身份推荐，封面骨架占据卡片尺寸`, { timeout: 60_000 }, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: recommendations follow entity identity, with cover skeletons at card size`, { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/?jav=1', viewport);
     const { page } = opened;
     let release!: () => void;
@@ -69,18 +69,18 @@ describe('JAV 推荐与加载结构', () => {
       await page.route('**/api/taste?*', async route => {
         await responseReady;
         await route.fulfill({ json: { summary: { history_visits: 20 }, rankings: {
-          peach_performers: [{ entity_id: 42, name: '规范姓名', score: 8 }],
+          peach_performers: [{ entity_id: 42, name: 'Canonical name', score: 8 }],
         } } });
       });
       await page.route('**/api/jav/discoveries?*', async route => {
         await responseReady;
         await route.fulfill({ json: { items: [
-          { id: 777, code: 'DEMO-777', title: '演示新作', performers: '來源姓名' },
-          { id: 778, code: 'DEMO-778', title: '很长的作品标题用于检查截断与卡片等高'.repeat(8), performers: '來源姓名' },
-          { id: 779, code: 'DEMO-779', title: '短标题', performers: '來源姓名' },
-        ].map((item, index) => ({ ...item, performer_refs: [{ id: 42, name: '规范姓名', has_image: false }],
+          { id: 777, code: 'DEMO-777', title: 'Demo new release', performers: 'Source name' },
+          { id: 778, code: 'DEMO-778', title: 'A very long video title for checking truncation and equal card heights'.repeat(8), performers: 'Source name' },
+          { id: 779, code: 'DEMO-779', title: 'Short title', performers: 'Source name' },
+        ].map((item, index) => ({ ...item, performer_refs: [{ id: 42, name: 'Canonical name', has_image: false }],
           link: 'https://example.com/work', release_date: '2010-10-01', has_cover: false, wanted: false,
-          score: 1, tags: ['恋足'], reasons: ['常看的女优：规范姓名'],
+          score: 1, tags: ['Foot fetish'], reasons: ['Frequently watched performer: canonical name'],
           ...(index === 0 ? { has_cover: true } : index === 1 ? { cover_url: 'https://example.com/sleeve.svg' } : {}),
           poster_box: { x0: 800, y0: 50, x1: 1460, y1: 950, px: [1480, 1000], method: 'manual' },
         })) } });
@@ -92,7 +92,7 @@ describe('JAV 推荐与加载结构', () => {
       await page.locator('[data-jav-skeleton-cover]').first().waitFor();
       const cover = await page.locator('[data-jav-skeleton-cover]').first().boundingBox();
       assert.ok(cover && cover.width >= 100 && cover.height >= 60, JSON.stringify(cover));
-      assert.ok(cover && Math.abs(cover.width / cover.height - 0.75) < 0.02, '大图封面占位应与馆藏正封同一比例');
+      assert.ok(cover && Math.abs(cover.width / cover.height - 0.75) < 0.02, 'The large-image cover placeholder should share the library front cover\'s ratio');
       const skeletonWidth = await page.locator('[data-skeleton="jav-discover"]').first().boundingBox();
       const skeletonCard = await page.locator('[data-jav-skeleton-card]').first().boundingBox();
       const searchBox = await page.locator('[data-index-search]').boundingBox();
@@ -110,7 +110,7 @@ describe('JAV 推荐与加载结构', () => {
         return { height: box.height, y: box.y, pointer: style.pointerEvents, position: style.position, overflow: style.overflow };
       }));
       assert.ok(pendingTags.every(chip => chip.height === 32 && chip.y === pendingTags[0].y && chip.pointer === 'none'), JSON.stringify(pendingTags));
-      assert.ok(pendingTags.every(chip => chip.position === 'relative' && chip.overflow === 'hidden'), '标签光效在各自占位内定位和裁切');
+      assert.ok(pendingTags.every(chip => chip.position === 'relative' && chip.overflow === 'hidden'), 'Tag glows position and clip inside their own placeholders');
       const avatarShape = await page.locator('[data-jav-skeleton-avatar]').first().evaluate(node => {
         const style = getComputedStyle(node); return { width: style.width, height: style.height, radius: style.borderRadius };
       });
@@ -121,15 +121,15 @@ describe('JAV 推荐与加载结构', () => {
         await page.locator('#main').evaluate(node => getComputedStyle(node).getPropertyValue('--surface-radius').trim()));
       assert.equal(await page.locator('[data-jav-filter] [data-entity-sep]').count(), 1);
       assert.equal(await page.locator('[data-jav-filter] [data-entity-sort]').count(), 5);
-      assert.equal(await page.locator('[data-jav-filter]').getByText('正在读取', { exact: true }).count(), 0);
+      assert.equal(await page.locator('[data-jav-filter]').getByText('Loading', { exact: true }).count(), 0);
       await page.screenshot({ path: `../build/jav-discover-pending-${viewport.name}.png` });
       release();
-      await page.getByRole('heading', { name: 'DEMO-777 演示新作', exact: true }).waitFor();
-      const search = page.getByRole('searchbox', { name: '筛选推荐', exact: true });
-      const cards = page.getByRole('region', { name: '为你推荐', exact: true }).locator('article');
+      await page.getByRole('heading', { name: 'DEMO-777 demo new release', exact: true }).waitFor();
+      const search = page.getByRole('searchbox', { name: 'Filter recommendations', exact: true });
+      const cards = page.getByRole('region', { name: 'Recommended for you', exact: true }).locator('article');
       assert.equal(await cards.count(), 3);
-      assert.equal(await cards.first().locator('[data-media-who]').textContent(), '规范姓名');
-      assert.equal(await cards.first().locator('[data-media-who]').getAttribute('title'), '规范姓名');
+      assert.equal(await cards.first().locator('[data-media-who]').textContent(), 'Canonical name');
+      assert.equal(await cards.first().locator('[data-media-who]').getAttribute('title'), 'Canonical name');
       assert.equal(await cards.first().locator('[data-media-release]').textContent(), '2010-10-01');
       const metadata = await cards.first().locator('[data-media-meta]').boundingBox();
       const title = await cards.first().locator('h3').boundingBox();
@@ -140,15 +140,15 @@ describe('JAV 推荐与加载结构', () => {
       const refresh = page.locator('[data-jav-filter] [data-jav-metadata-update]');
       assert.equal(await refresh.count(), 1);
       assert.equal(await refresh.textContent(), '');
-      assert.equal(await cards.first().locator('[data-jav-taste-score]').textContent(), '强烈推荐');
+      assert.equal(await cards.first().locator('[data-jav-taste-score]').textContent(), 'Strongly recommended');
       const tierBox = await cards.first().locator('[data-jav-taste-score]').boundingBox();
       const tagsBox = await cards.first().locator('[data-jav-tags]').boundingBox();
       const contentTag = await cards.first().locator('[data-media-tag]').first().boundingBox();
       assert.ok(tierBox && tagsBox && contentTag && Math.abs(tierBox.y - contentTag.y) <= 4
-        && tierBox.x + tierBox.width <= contentTag.x, '推荐档位与内容标签同行，排在内容标签前');
-      const recommendation = cards.first().getByRole('button', { name: '推荐分 100，强烈推荐', exact: true });
+        && tierBox.x + tierBox.width <= contentTag.x, 'Recommendation tiers share the content tags\' line, placed before them');
+      const recommendation = cards.first().getByRole('button', { name: 'Recommendation score 100, strongly recommended', exact: true });
       await recommendation.focus();
-      await page.getByRole('tooltip').filter({ hasText: '常看的女优：规范姓名' }).waitFor({ state: 'visible' });
+      await page.getByRole('tooltip').filter({ hasText: 'Frequently watched performer: canonical name' }).waitFor({ state: 'visible' });
       await recommendation.evaluate(node => (node as HTMLButtonElement).blur());
       for (const cover of await cards.locator('img.poster').all()) await cover.scrollIntoViewIfNeeded();
       await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[data-jav-card] img.poster')].every(img => img.complete && img.naturalWidth > 0));
@@ -189,12 +189,12 @@ describe('JAV 推荐与加载结构', () => {
       } else {
         assert.ok(skeletonCard && Math.abs(skeletonCard.height - heights[0]!) <= 2, JSON.stringify({ skeletonCard, heights }));
       }
-      assert.deepEqual(await page.locator('[data-index-search]').boundingBox(), searchBox, '页头筛选框骨架与接管后同一位置');
+      assert.deepEqual(await page.locator('[data-index-search]').boundingBox(), searchBox, 'Header filter skeleton sits in the same place as after takeover');
       assert.equal(await cards.nth(1).locator('h3').evaluate(node => getComputedStyle(node).webkitLineClamp), '2');
-      const lookup = page.getByRole('button', { name: '查找资源', exact: true }).first();
+      const lookup = page.getByRole('button', { name: 'Find resources', exact: true }).first();
       assert.notEqual(await lookup.evaluate(node => getComputedStyle(node).backgroundColor),
-        await cards.first().getByRole('button', { name: '查找资源', exact: true }).evaluate(node => getComputedStyle(node).backgroundColor));
-      const avatar = cards.first().getByRole('link', { name: '打开女优页：规范姓名', exact: true });
+        await cards.first().getByRole('button', { name: 'Find resources', exact: true }).evaluate(node => getComputedStyle(node).backgroundColor));
+      const avatar = cards.first().getByRole('link', { name: 'Open performer page: canonical name', exact: true });
       assert.equal(await avatar.getAttribute('href'), '/performers/42');
       assert.equal(await avatar.locator('.ini').textContent(), '规');
       const avatarBox = await avatar.boundingBox();
@@ -210,37 +210,37 @@ describe('JAV 推荐与加载结构', () => {
         await cards.first().hover();
         assert.notEqual(await cards.first().evaluate(node => getComputedStyle(node).boxShadow), 'none');
       }
-      const source = cards.first().getByRole('link', { name: '作品来源', exact: true });
+      const source = cards.first().getByRole('link', { name: 'Video sources', exact: true });
       const buttonShape = (node: Element) => {
         const style = getComputedStyle(node);
         return { height: style.height, border: style.borderWidth, radius: style.borderRadius,
           background: style.backgroundColor };
       };
       assert.deepEqual(await source.evaluate(buttonShape),
-        await cards.first().getByRole('button', { name: '查找资源', exact: true }).evaluate(buttonShape));
+        await cards.first().getByRole('button', { name: 'Find resources', exact: true }).evaluate(buttonShape));
       assert.equal(await source.getAttribute('target'), '_blank');
       assert.equal(await source.locator('svg').count(), 1);
       await search.fill('DEMO-777');
       await search.press('Enter');
       assert.equal(await cards.count(), 1);
       await search.fill('');
-      await page.waitForFunction(() => document.querySelectorAll('[aria-label="为你推荐"] article').length === 3);
-      await page.locator('label:has(input[aria-label="小图"])').click();
+      await page.waitForFunction(() => document.querySelectorAll('[aria-label="Recommended for you"] article').length === 3);
+      await page.locator('label:has(input[aria-label="Small images"])').click();
       const smallCover = await cards.first().locator('[data-jav-cover-box]').boundingBox();
       assert.ok(smallCover && Math.abs(smallCover.width / smallCover.height - 16 / 9) < 0.02);
       assert.equal(await cards.first().locator('img.poster').evaluate(node => getComputedStyle(node).objectFit), 'contain');
-      await page.locator('label:has(input[aria-label="大图"])').click();
-      await cards.first().getByRole('button', { name: '恋足', exact: true }).click();
-      await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+      await page.locator('label:has(input[aria-label="Large images"])').click();
+      await cards.first().getByRole('button', { name: 'Foot fetish', exact: true }).click();
+      await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
       assert.equal(await cards.count(), 3);
-      await cards.first().getByRole('button', { name: '查找资源', exact: true }).click();
-      await page.getByRole('dialog').getByRole('button', { name: '关闭资源面板', exact: true }).click();
+      await cards.first().getByRole('button', { name: 'Find resources', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close resource panel', exact: true }).click();
       await page.getByRole('dialog').waitFor({ state: 'hidden' });
       await settle(page);
       assert.equal(await page.locator('[data-jav-skeleton-cover]').count(), 0);
-      await search.fill('规范姓名');
+      await search.fill('Canonical name');
       await search.press('Enter');
-      await page.getByRole('heading', { name: 'DEMO-777 演示新作', exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'DEMO-777 demo new release', exact: true }).waitFor();
       const geometry = await layout(page);
       assert.ok(geometry.scrollWidth <= geometry.viewportWidth + 1);
       assert.deepEqual(geometry.offenders, []);

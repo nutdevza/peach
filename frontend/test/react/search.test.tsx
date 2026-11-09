@@ -1,6 +1,6 @@
-/* 顶栏搜索（`search` 岛）：下拉栏里摆什么（`menuModel`／`shufflePicks`），以及几条只在时序上才看得见
- * 的行为——占位推荐词、空输入回车、作品项开详情、慢回来的旧补全、失焦之后才回来的补全。键盘上下、
- * 组字、Escape 与删记录在真浏览器里验，见 `e2e/search.test.ts`。 */
+/* Top bar search (the `search` island): what goes in the dropdown panel (`menuModel`/`shufflePicks`), plus several behaviors visible only in timing;
+ * placeholder suggestions, Enter on empty input, opening details from a video item, a slow stale completion, a completion that returns after blur. Arrow keys,
+ * composition, Escape, and history removal are verified in a real browser; see `e2e/search.test.ts`. */
 import { act } from 'react';
 import { describe, expect, it, onTestFinished, vi, type Mock } from 'vitest';
 
@@ -11,22 +11,22 @@ import {
 
 import { mount, pending, settle } from './render';
 
-const performer = { kind: 'performer', label: '女优', total: 1, items: [{ value: '七海ひな', n: 12 }] };
-const tag = { kind: 'tag', label: '标签', total: 1, items: [{ value: '七海の夏', n: 3 }] };
-const asset = { kind: 'asset', label: '视频', total: 1, items: [{ value: 'ABW-101', id: 7, code: 'ABW-101', who: '七海ひな' }] };
+const performer = { kind: 'performer', label: 'Performers', total: 1, items: [{ value: '七海ひな', n: 12 }] };
+const tag = { kind: 'tag', label: 'Tags', total: 1, items: [{ value: '七海の夏', n: 3 }] };
+const asset = { kind: 'asset', label: 'Videos', total: 1, items: [{ value: 'ABW-101', id: 7, code: 'ABW-101', who: '七海ひな' }] };
 
-describe('下拉栏里摆什么', () => {
+describe('What goes in the dropdown', () => {
   const base = { history: [], picks: [], suggestFor: '', groups: [], tabs: [], kind: '' };
 
-  it('有输入时搜索记录跟着这个词筛，全半角与大小写折叠后再比', () => {
+  it('With input, search history filters by that word after folding width and case', () => {
     const model = menuModel({ ...base, query: 'studio', history: ['ＳＴＵＤＩＯ Ａ', '七海ひな'] });
     expect(model.recent?.options.map((o) => o.value)).toEqual(['ＳＴＵＤＩＯ Ａ']);
   });
 
-  it('补全只认这个词自己的那一份；选了一类时搜索记录让位', () => {
+  it('Completion honors only this word\'s own copy, and search history steps aside once a category is picked', () => {
     const groups = [performer, tag];
     const tabs = groups.map(({ kind, label, total }) => ({ kind, label, total }));
-    const stale = menuModel({ ...base, query: '七海', history: ['七海'], suggestFor: '七', groups, tabs });
+    const stale = menuModel({ ...base, query: '七海', history: ['七海'], suggestFor: 'seven', groups, tabs });
     expect([stale.left, stale.right, stale.tabs]).toEqual([[], [], null]);
 
     const fresh = menuModel({ ...base, query: '七海', history: ['七海'], suggestFor: '七海', groups, tabs });
@@ -38,42 +38,42 @@ describe('下拉栏里摆什么', () => {
     expect(one.options.map((o) => o.value)).toEqual(['七海の夏']);
   });
 
-  it('这个词的补全回来了却一条没有才算「没有找到」，还在路上的不算', () => {
+  it('Only when the completions for this term have returned empty does it count as "no results"; ones still in flight do not count', () => {
     expect(menuModel({ ...base, query: 'zzz', suggestFor: 'zzz' }).empty).toBe(true);
     expect(menuModel({ ...base, query: 'zzz', suggestFor: 'zz' }).empty).toBe(false);
     expect(menuModel({ ...base, query: '七海', suggestFor: '七海', groups: [performer] }).empty).toBe(false);
     expect(menuModel({ ...base, query: '' }).empty).toBe(false);
   });
 
-  it('作品一类单独排在右栏；只命中一类时没有页签', () => {
+  it('The video category sits alone in the right column; with only one category hit there are no tabs', () => {
     const model = menuModel({ ...base, query: 'ABW', suggestFor: 'ABW', groups: [asset], tabs: [asset] });
     expect([model.left.length, model.right[0]?.kind, model.tabs]).toEqual([0, 'asset', null]);
   });
 
-  it('视频总数超过预览时，完整结果入口排在作品之后并参与键盘选择', () => {
+  it('When the video count exceeds the preview, the full results entry sorts after videos and joins keyboard selection', () => {
     const group = { ...asset, total: 53 };
     const model = menuModel({ ...base, query: 'ABW', suggestFor: 'ABW', groups: [group], tabs: [group] });
     expect(model.right[0]?.more).toEqual({ index: 1, type: 'more', value: 'ABW', total: 53 });
     expect(model.options.map((o) => o.type)).toEqual(['suggest', 'more']);
   });
 
-  it('推荐不再推搜过的词，一次最多几条', () => {
-    const pool = ['剧情', '单体作品', '高画质', '中出', '巨乳', '美少女', '独占'];
-    const picks = shufflePicks(pool, ['高画质'], () => 0.5);
+  it('Recommendations never re-suggest searched words, a few at a time', () => {
+    const pool = ['Drama', 'Single videos', 'High quality', 'Creampie', 'Big breasts', 'Beautiful girl', 'Exclusive'];
+    const picks = shufflePicks(pool, ['High quality'], () => 0.5);
     expect(picks).toHaveLength(PICKS);
-    expect(picks).not.toContain('高画质');
+    expect(picks).not.toContain('High quality');
   });
 
-  it('空输入有推荐时搜索记录排在左栏最下面，键盘先走完左栏再到右栏', () => {
+  it('With empty input and recommendations present, search history sits at the bottom of the left column; the keyboard walks the left column before the right', () => {
     const recommendations = [
-      { kind: 'performer', label: '艺人与新作', items: [{ value: '七海ひな' }] },
-      { kind: 'asset', label: '作品推荐', items: [{ value: 'ABW-101', id: 7 }] },
+      { kind: 'performer', label: 'Performers and new releases', items: [{ value: '七海ひな' }] },
+      { kind: 'asset', label: 'Video recommendations', items: [{ value: 'ABW-101', id: 7 }] },
     ];
-    const model = menuModel({ ...base, query: '', history: ['剧情'], recommendations });
+    const model = menuModel({ ...base, query: '', history: ['Drama'], recommendations });
     expect(model.recent).toBeNull();
-    expect(model.left.map(section => section.label)).toEqual(['艺人与新作', '搜索记录']);
-    expect(model.right.map(section => section.label)).toEqual(['作品推荐']);
-    expect(model.options.map(option => option.value)).toEqual(['七海ひな', '剧情', 'ABW-101']);
+    expect(model.left.map(section => section.label)).toEqual(['Performers and new releases', 'Search history']);
+    expect(model.right.map(section => section.label)).toEqual(['Video recommendations']);
+    expect(model.options.map(option => option.value)).toEqual(['七海ひな', 'Drama', 'ABW-101']);
   });
 });
 
@@ -87,8 +87,8 @@ interface Stage {
   typeInto(value: string): Promise<void>;
 }
 
-/** 壳那一侧：一个静态输入框、一块带 `data-search-menu` 的面，岛挂在面里。 */
-async function stage({ pool = ['剧情'], loadPool = async () => pool,
+/** The shell side: a static input and a panel carrying `data-search-menu`, with the island mounted inside the panel. */
+async function stage({ pool = ['Drama'], loadPool = async () => pool,
   recommendations = undefined as (() => Promise<SuggestGroup[] | Recommendations>) | undefined,
   pendingRecommendations = undefined as (() => SuggestGroup[]) | undefined,
   suggest = async (q: string): Promise<SuggestResponse> => ({ q, groups: [] }) } = {}): Promise<Stage> {
@@ -124,7 +124,7 @@ async function stage({ pool = ['剧情'], loadPool = async () => pool,
     }),
   };
   const helpers: SearchProps['helpers'] = {
-    // 多数用例只关心分组，直接给数组；要测占位推荐词的用例给整份。
+    // Most cases only care about the groups, so just pass an array; cases testing the placeholder recommendation pass the whole thing.
     recommendations: recommendations && (async () => {
       const answer = await recommendations();
       return Array.isArray(answer) ? { groups: answer, words: [] } : answer;
@@ -141,11 +141,11 @@ async function stage({ pool = ['剧情'], loadPool = async () => pool,
 
 const debounce = () => act(async () => { vi.advanceTimersByTime(SUGGEST_DEBOUNCE) });
 
-describe('输入框上的时序', () => {
-  it('空搜索推荐显示封面，键盘选择新作打开作品详情', async () => {
-    const s = await stage({ recommendations: async () => [{ kind: 'release', label: '订阅新作',
+describe('Timing on the input field', () => {
+  it('Empty search suggestions show covers; keyboard-selecting a new release opens video details', async () => {
+    const s = await stage({ recommendations: async () => [{ kind: 'release', label: 'Subscribe to new releases',
       items: [{ value: 'ABW-101', href: '/works/ABW-101', card: { id: 88, code: 'ABW-101' } }],
-      href: '/subscriptions', action: '管理订阅',
+      href: '/subscriptions', action: 'Manage subscriptions',
     }] });
     await act(async () => s.input.focus());
     await settle();
@@ -158,7 +158,7 @@ describe('输入框上的时序', () => {
     expect(s.actions.search).not.toHaveBeenCalled();
   });
 
-  it('推荐没回来先照最终版式占位；开着时取到的下一批留到下次打开再换', async () => {
+  it('If recommendations have not returned, hold the place with the final layout; a batch fetched while open is swapped in on the next open', async () => {
     const answers = [pending<SuggestGroup[]>(), pending<SuggestGroup[]>()];
     const idle: (() => void)[] = [];
     vi.stubGlobal('requestIdleCallback', (task: () => void) => idle.push(task));
@@ -166,9 +166,9 @@ describe('输入框上的时序', () => {
     onTestFinished(() => { vi.unstubAllGlobals() });
     const flushIdle = () => act(async () => { idle.splice(0).forEach(task => task()) });
     let asked = 0;
-    const batch = (value: string): SuggestGroup[] => [{ kind: 'asset', label: '作品推荐', items: [{ value, id: 11 }] }];
+    const batch = (value: string): SuggestGroup[] => [{ kind: 'asset', label: 'Video recommendations', items: [{ value, id: 11 }] }];
     const s = await stage({ recommendations: () => answers[asked++]!.answer,
-      pendingRecommendations: () => [{ kind: 'asset', label: '作品推荐', items: [], pending: true }] });
+      pendingRecommendations: () => [{ kind: 'asset', label: 'Video recommendations', items: [], pending: true }] });
     const shown = () => [...s.menu.querySelectorAll('[data-search-option="work"]:not([data-search-placeholder])')]
       .map(row => row.textContent);
     await act(async () => s.input.focus());
@@ -176,38 +176,38 @@ describe('输入框上的时序', () => {
     expect(s.menu.hidden).toBe(false);
     expect(s.menu.querySelector('[data-search-recommendations]')).not.toBeNull();
     expect(s.menu.querySelectorAll('[data-search-placeholder]')).toHaveLength(5);
-    await answers[0]!.release(batch('作品一'));
+    await answers[0]!.release(batch('Work One'));
     await settle();
     expect(s.menu.querySelector('[data-search-placeholder]')).toBeNull();
-    expect(shown()).toEqual(['作品一']);
+    expect(shown()).toEqual(['Work One']);
 
     expect(asked).toBe(1);
 
-    // 收起后等页面空闲才去备下一批，不跟紧接着的打开详情抢请求；再打开时那批还在路上，栏里照旧，
-    // 到了也不当场换。
+    // After collapsing, wait for the page to idle before preparing the next batch, so it doesn't compete with the immediately-following detail-open for requests; when reopened, that batch is still in transit, the column stays as is,
+    // Even when it arrives, do not swap it in on the spot.
     await act(async () => s.api?.close());
     expect(asked).toBe(1);
     await flushIdle();
     expect(asked).toBe(2);
     await act(async () => { s.input.blur(); s.input.focus() });
     await settle();
-    await answers[1]!.release(batch('作品二'));
+    await answers[1]!.release(batch('Work Two'));
     await settle();
-    expect(shown()).toEqual(['作品一']);
+    expect(shown()).toEqual(['Work One']);
     await act(async () => { s.api?.close(); s.input.blur(); s.input.focus() });
     await settle();
-    expect(shown()).toEqual(['作品二']);
+    expect(shown()).toEqual(['Work Two']);
     expect(asked).toBe(2);
   });
 
-  it('还没聚焦时占位推荐词用推荐栏一起带回的词轮换；按筛选核命中的词池留到聚焦再取', async () => {
+  it('Before focus, placeholder recommendations rotate through the phrases the recommendations column brought back; the pool checked against filters for hits is fetched only once focused', async () => {
     vi.useFakeTimers();
     const idle: (() => void)[] = [];
     vi.stubGlobal('requestIdleCallback', (task: () => void) => idle.push(task));
     vi.stubGlobal('cancelIdleCallback', (id: number) => { idle[id - 1] = () => {} });
     onTestFinished(() => { vi.unstubAllGlobals() });
-    const words = ['甲作品', '乙作品', '丙作品'];
-    const loadPool = vi.fn(async () => ['剧情']);
+    const words = ['Work A', 'Work B', 'Work C'];
+    const loadPool = vi.fn(async () => ['Drama']);
     const s = await stage({ loadPool, recommendations: async () => ({ groups: [], words }) });
     await act(async () => { idle.splice(0).forEach(task => task()) });
     await settle();
@@ -220,18 +220,18 @@ describe('输入框上的时序', () => {
     expect(loadPool).not.toHaveBeenCalled();
   });
 
-  it('框空着、没聚焦时占位推荐词隔几秒换一句；聚焦或框里有字时不换', async () => {
+  it('When the box is empty and unfocused, the placeholder recommendation cycles every few seconds; it stops when focused or when the box has text', async () => {
     vi.useFakeTimers();
-    const s = await stage({ pool: ['剧情', '单体作品', '高画质'] });
+    const s = await stage({ pool: ['Drama', 'Single videos', 'High quality'] });
     await act(async () => s.input.focus());
     await settle();
     const first = s.input.placeholder;
-    expect(['剧情', '单体作品', '高画质']).toContain(first);
+    expect(['Drama', 'Single videos', 'High quality']).toContain(first);
     expect(s.input.dataset.suggestion).toBe(first);
     await act(async () => { vi.advanceTimersByTime(15000) });
     expect(s.input.placeholder).toBe(first);
 
-    // 再聚焦时重取的池里还有这一句，就不换。
+    // On re-focus, if this sentence is still in the re-fetched pool, do not swap.
     await act(async () => { s.input.blur(); s.input.focus() });
     await settle();
     expect(s.input.placeholder).toBe(first);
@@ -241,59 +241,59 @@ describe('输入框上的时序', () => {
     expect(s.input.placeholder).not.toBe(first);
     expect(s.input.dataset.suggestion).toBe(s.input.placeholder);
 
-    s.input.value = '七';
+    s.input.value = 'seven';
     const typed = s.input.placeholder;
     await act(async () => { vi.advanceTimersByTime(15000) });
     expect(s.input.placeholder).toBe(typed);
   });
 
-  it('每组「换一批」在自己取到的池里翻页：当场换、不发请求，翻到头接着从池首取', async () => {
+  it('Each group\'s “New batch” pages within its own fetched pool: swap on the spot, no request; at the end, keep taking from the pool\'s start', async () => {
     let asked = 0;
-    const pool = Array.from({ length: 7 }, (_, index) => ({ value: `作品${index + 1}`, id: index + 1 }));
+    const pool = Array.from({ length: 7 }, (_, index) => ({ value: `Work ${index + 1}`, id: index + 1 }));
     const people = [{ value: '七海ひな' }];
     const s = await stage({ recommendations: async () => { asked++; return [
-      { kind: 'performer', label: '艺人与新作', items: people, pool: people, offset: 0, size: 3 },
-      { kind: 'asset', label: '作品推荐', items: pool.slice(0, 5), pool, offset: 0, size: 5 },
+      { kind: 'performer', label: 'Performers and new releases', items: people, pool: people, offset: 0, size: 3 },
+      { kind: 'asset', label: 'Video recommendations', items: pool.slice(0, 5), pool, offset: 0, size: 5 },
     ] } });
     const shown = () => [...s.menu.querySelectorAll('[data-kind="asset"] [data-search-option="work"]')].map(row => row.textContent);
     await act(async () => s.input.focus());
     await settle();
-    expect(shown()).toEqual(['作品1', '作品2', '作品3', '作品4', '作品5']);
-    // 池里只有一页的那组不摆这枚图标。
+    expect(shown()).toEqual(['Work 1', 'Work 2', 'Work 3', 'Work 4', 'Work 5']);
+    // A group whose pool is a single page does not show this icon.
     expect(s.menu.querySelector('[data-kind="performer"] [data-search-shuffle]')).toBeNull();
     const shuffle = s.menu.querySelector<HTMLButtonElement>('[data-kind="asset"] [data-search-shuffle]')!;
-    expect(shuffle.getAttribute('aria-label')).toBe('作品推荐换一批');
+    expect(shuffle.getAttribute('aria-label')).toBe('Video recommendations Swap in new picks');
     await act(async () => shuffle.click());
-    expect(shown()).toEqual(['作品6', '作品7', '作品1', '作品2', '作品3']);
+    expect(shown()).toEqual(['Work 6', 'Work 7', 'Work 1', 'Work 2', 'Work 3']);
     expect(shuffle.getAttribute('aria-busy')).toBe('true');
     await act(async () => shuffle.click());
-    expect(shown()).toEqual(['作品4', '作品5', '作品6', '作品7', '作品1']);
+    expect(shown()).toEqual(['Work 4', 'Work 5', 'Work 6', 'Work 7', 'Work 1']);
     expect(asked).toBe(1);
     expect(s.menu.hidden).toBe(false);
   });
 
-  it('关闭菜单后到达的图片推荐不会再打开菜单', async () => {
+  it('Image suggestions arriving after the menu closed never reopen it', async () => {
     const answer = pending<SuggestGroup[]>();
     const s = await stage({ recommendations: () => answer.answer });
     await act(async () => s.input.focus());
     await settle();
     await act(async () => s.api?.close());
-    await answer.release([{ kind: 'asset', label: '作品推荐', items: [{ value: '作品', id: 11 }] }]);
+    await answer.release([{ kind: 'asset', label: 'Video recommendations', items: [{ value: 'Videos', id: 11 }] }]);
     await settle();
     expect(s.menu.hidden).toBe(true);
   });
 
-  it('关闭菜单后到达的补全保持收起，继续输入可显示补全', async () => {
+  it('Completions arriving after the menu closed stay collapsed, and further typing can reveal them', async () => {
     vi.useFakeTimers();
     const answer = pending<SuggestResponse>();
-    const s = await stage({ suggest: (q) => q === '七' ? answer.answer
+    const s = await stage({ suggest: (q) => q === 'seven' ? answer.answer
       : Promise.resolve({ q, groups: [performer] }) });
     await act(async () => s.input.focus());
     await settle();
-    await s.typeInto('七');
+    await s.typeInto('seven');
     await debounce();
     await act(async () => s.api?.close());
-    await answer.release({ q: '七', groups: [tag] });
+    await answer.release({ q: 'seven', groups: [tag] });
     await settle();
     expect(s.menu.hidden).toBe(true);
     await s.typeInto('七海');
@@ -302,7 +302,7 @@ describe('输入框上的时序', () => {
     expect(s.menu.hidden).toBe(false);
   });
 
-  it('Escape 关闭后晚到的推荐池保持收起，再次聚焦可显示建议', async () => {
+  it('After Escape closes it, a late-arriving recommendation pool stays collapsed; refocusing shows suggestions again', async () => {
     vi.useFakeTimers();
     const answer = pending<string[]>();
     const s = await stage({ loadPool: () => answer.answer,
@@ -314,7 +314,7 @@ describe('输入框上的时序', () => {
     expect(s.menu.hidden).toBe(false);
     await s.key('Escape');
     expect(s.menu.hidden).toBe(true);
-    await answer.release(['剧情']);
+    await answer.release(['Drama']);
     await settle();
     expect(s.menu.hidden).toBe(true);
     await act(async () => { s.input.blur(); s.input.focus() });
@@ -325,9 +325,9 @@ describe('输入框上的时序', () => {
     await settle();
     expect(s.menu.hidden).toBe(false);
   });
-  it('选择关注图片以指定附件进入图片详情', async () => {
-    const s = await stage({ recommendations: async () => [{ kind: 'photo', label: '关注图片',
-      items: [{ value: '图片作品', id: 88, href: '/posts/88', followMedia: 'images', mediaIndex: 2,
+  it('Picking a follow image enters image details with that attachment', async () => {
+    const s = await stage({ recommendations: async () => [{ kind: 'photo', label: 'Followed images',
+      items: [{ value: 'Image videos', id: 88, href: '/posts/88', followMedia: 'images', mediaIndex: 2,
         card: { id: 88, thumb_url: '/image-thumb' } }],
     }] });
     await act(async () => s.input.focus());
@@ -338,7 +338,7 @@ describe('输入框上的时序', () => {
     expect(s.actions.openPath).not.toHaveBeenCalled();
   });
 
-  it('单类视频预览请求二十条，完整结果入口用当前搜索词', async () => {
+  it('Single-kind video previews request twenty entries, and the full-results entry carries the current search term', async () => {
     vi.useFakeTimers();
     const s = await stage({ suggest: async (q) => ({ q, groups: [{ ...asset, total: 53 }] }) });
     await act(async () => s.input.focus());
@@ -353,21 +353,21 @@ describe('输入框上的时序', () => {
     expect(s.actions.openItem).not.toHaveBeenCalled();
     expect(s.menu.hidden).toBe(true);
   });
-  it('聚焦时占位换成一个真搜得出东西的词；空输入回车就搜它，并记进搜索记录', async () => {
-    const s = await stage({ pool: ['温泉旅行'] });
+  it('On focus the placeholder becomes a word that actually returns results; pressing Enter on empty input searches it and records it in search history', async () => {
+    const s = await stage({ pool: ['Hot spring trip'] });
     await act(async () => s.input.focus());
     await settle();
-    expect([s.input.placeholder, s.input.dataset.suggestion]).toEqual(['温泉旅行', '温泉旅行']);
+    expect([s.input.placeholder, s.input.dataset.suggestion]).toEqual(['Hot spring trip', 'Hot spring trip']);
     expect(s.menu.hidden).toBe(false);
     await s.key('Enter');
     await settle();
-    expect(s.actions.search).toHaveBeenCalledWith('温泉旅行');
-    expect(s.input.value).toBe('温泉旅行');
-    expect(s.posts).toEqual([{ query: '温泉旅行' }]);
+    expect(s.actions.search).toHaveBeenCalledWith('Hot spring trip');
+    expect(s.input.value).toBe('Hot spring trip');
+    expect(s.posts).toEqual([{ query: 'Hot spring trip' }]);
     expect(s.menu.hidden).toBe(true);
   });
 
-  it('选中一部作品回车是打开它，不拿整句标题去搜', async () => {
+  it('With a video selected, Enter opens it instead of searching the whole title', async () => {
     vi.useFakeTimers();
     const s = await stage({ suggest: async (q) => ({ q, groups: [asset] }) });
     await act(async () => s.input.focus());
@@ -382,25 +382,25 @@ describe('输入框上的时序', () => {
     expect(s.input.value).toBe('ABW');
   });
 
-  it('连敲两个字时先发的那次后回来，不盖掉后一次', async () => {
+  it('When typing two characters quickly, the earlier request returning late does not overwrite the later one', async () => {
     vi.useFakeTimers();
     const answers = new Map<string, ReturnType<typeof pending<SuggestResponse>>>();
     const s = await stage({ suggest: (q) => { const p = pending<SuggestResponse>(); answers.set(q, p); return p.answer } });
     await act(async () => s.input.focus());
     await settle();
-    await s.typeInto('七');
+    await s.typeInto('seven');
     await debounce();
     await s.typeInto('七海');
     await debounce();
     await answers.get('七海')!.release({ q: '七海', groups: [performer, tag] });
     await settle();
-    await answers.get('七')!.release({ q: '七', groups: [tag] });
+    await answers.get('seven')!.release({ q: 'seven', groups: [tag] });
     await settle();
     const values = [...s.menu.querySelectorAll('[data-search-option]')].map((row) => row.getAttribute('data-search-value'));
     expect(values).toEqual(['七海ひな', '七海の夏']);
   });
 
-  it('聚焦时的推荐池晚于敲字回来，不再按同一个词补问一次', async () => {
+  it('The focus-time suggestion pool returns later than typing, and never re-asks for the same word again', async () => {
     vi.useFakeTimers();
     const asked: string[] = [];
     const slowPool = pending<string[]>();
@@ -411,14 +411,14 @@ describe('输入框上的时序', () => {
     await debounce();
     await settle();
     expect(asked).toEqual(['七海']);
-    await slowPool.release(['剧情']);
+    await slowPool.release(['Drama']);
     await debounce();
     await settle();
     expect(asked).toEqual(['七海']);
     expect(s.menu.hidden).toBe(false);
   });
 
-  it('组字期间的输入不问补全，组完才问：拿半截拼音去查，查的是一个不存在的词', async () => {
+  it('Input during composition does not query completions; it queries only after composition, since a half-typed pinyin would search a word that does not exist', async () => {
     vi.useFakeTimers();
     const asked: string[] = [];
     const s = await stage({ suggest: async (q) => { asked.push(q); return { q, groups: [] } } });
@@ -432,15 +432,15 @@ describe('输入框上的时序', () => {
     await settle();
     expect(asked).toEqual([]);
     await act(async () => {
-      s.input.value = '中';
-      s.input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '中' }));
+      s.input.value = 'medium';
+      s.input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'medium' }));
     });
     await debounce();
     await settle();
-    expect(asked).toEqual(['中']);
+    expect(asked).toEqual(['medium']);
   });
 
-  it('补全回来时焦点已经走了，下拉栏不再掀开', async () => {
+  it('By the time completion returns focus has moved on, and the dropdown never reopens', async () => {
     vi.useFakeTimers();
     const answer = pending<SuggestResponse>();
     const s = await stage({ suggest: () => answer.answer });

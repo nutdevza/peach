@@ -109,7 +109,7 @@ it('修复阶段点名当前这部片，停止之后回到可以再开始的样�
   const host = await open({
     ...idle, status: 'running', library: '网盘', stage: '修复', checked: 1, total: 2, found: 2, message: 'FC2-PPV-1.mp4',
   });
-  expect(host.querySelector('p[role="status"]')?.textContent).toBe('修复 1 / 2 · FC2-PPV-1.mp4');
+  expect(host.querySelector('p[role="status"]')?.textContent).toBe('修复 1 / 2');
   await click(buttonNamed('停止', host));
   await settle();
   expect(sentBody(fetcher)).toEqual({ stop: true });

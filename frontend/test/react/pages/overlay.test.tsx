@@ -1,9 +1,13 @@
-/* 详情覆盖的路由元素（`src/react/router/pages/overlay.tsx`）：覆盖组按真实地址匹配六条覆盖路径，没人认领的历史变化
- * 落上来就接上条目记的背景、交壳打开那一条（`ShellActions.openOverlay`），认领写地址的打开请求也交元素；去处不是覆盖地址时收起舞台。
- * 页面组那一侧按背景匹配，背景页不重挂；启动那一条不读背景，作品与队列补画目录网格，关注详情只让出 `#stats`。
+/* The details overlay's route element (`src/react/router/pages/overlay.tsx`): the overlay group matches the six overlay paths
+ * on the real address; when an unclaimed history change lands, it adopts the background the entry recorded and has the shell
+ * open that entry (`ShellActions.openOverlay`), and open requests from claimed address writes also go to the element; when the
+ * destination is not an overlay address, the stage is torn down.
+ * The page group side matches on background, and the background page is not remounted; the startup entry reads no background,
+ * videos and queues backfill the catalog grid, and follow details only yield `#stats`.
  *
- * 壳怎么取数、怎么画详情由舞台岛与 e2e 管；这里看的是什么时候开、开哪一条、背景接没接上。历史对象与壳状态都是
- * 模块级的，每条用例重新装载。 */
+ * How the shell fetches and renders details is governed by the stage island and e2e; this file covers when it opens, which
+ * entry opens, and whether the background was adopted. The history object and shell state are module-level; every case
+ * reloads them. */
 import { act, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
@@ -19,7 +23,7 @@ const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 beforeAll(async () => { await import('../../../src/react/router/router') }, REACT_IMPORT_TIMEOUT_MS);
 
-/* `entry` 是装载时那一条历史条目（`{ usr, key, idx }`，刷新后条目照旧带着）。 */
+/* `entry` is the history entry present at mount time (`{ usr, key, idx }`; the entry still carries it after a refresh). */
 async function load(path: string, entry: unknown = null) {
   vi.resetModules();
   window.history.replaceState(entry, '', path);
@@ -37,7 +41,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-/** 壳交进来的那一组：打开记下目标与那一刻取到的来处，其余是空桩。 */
+/** The group the shell passes in: open records the target and the origin fetched at that moment; the rest are empty stubs. */
 function shellActions(r: Loaded) {
   const opened: Array<{ target: OverlayTarget; from: string | null }> = [];
   let bootOpened = false;
@@ -54,7 +58,7 @@ function shellActions(r: Loaded) {
   return { actions, opened };
 }
 
-/** 页面组认不出的地址那一格的探针：记挂载、卸载与它看到的地址。 */
+/** A probe for the slot of addresses the page group cannot recognize: it records mount, unmount, and the address it sees. */
 function probe() {
   const seen = { mounted: 0, unmounted: 0, paths: [] as string[] };
   function Probe() {
@@ -78,13 +82,13 @@ async function mount(r: Loaded, actions: ShellActions, children?: React.ReactNod
   await settle();
 }
 
-/** 像壳那样开始路由：`pageOpens` 写成 1。 */
+/** Start routing the way the shell does: write `pageOpens` as 1. */
 async function start(r: Loaded) {
   await act(async () => { r.shell.writeShell({ pageOpens: 1 }) });
   await settle();
 }
 
-/** 浏览器的后退前进：换好地址与条目再报 `popstate`；不给地址就是同一条目重放。 */
+/** The browser's back and forward: address and entry are swapped before `popstate` fires; without an address it replays the same entry. */
 async function pop(path?: string, entry?: unknown) {
   await act(async () => {
     if (path) window.history.replaceState(entry === undefined ? window.history.state : entry, '', path);
@@ -97,7 +101,7 @@ const over = (pathname: string, overlay: 'item' | 'follow' = 'item', search = ''
   ({ backgroundLocation: { pathname, search }, overlay });
 const entry = (state: unknown, key = 'x') => ({ usr: state, key, idx: 1 });
 
-it('启动覆盖元素在应用动作就绪后打开，离开详情用当前动作关闭舞台', async () => {
+it('The launch overlay element opens once app actions are ready; leaving details closes the stage with the current action', async () => {
   const r = await load('/assets/7');
   const { actions, opened } = shellActions(r);
   const root = createRoot(document.createElement('div'));
@@ -113,7 +117,7 @@ it('启动覆盖元素在应用动作就绪后打开，离开详情用当前动�
   expect(actions.closeStage).toHaveBeenCalledTimes(1);
 });
 
-it('后退前进落到覆盖地址上接上背景并打开；没有请求的认领条目只同步地址；关掉时背景页不重挂', async () => {
+it('Back and forward landing on an overlay address reconnect the background and open; claimed entries without a request only sync the address; closing does not remount the background page', async () => {
   const r = await load('/nowhere');
   const { actions, opened } = shellActions(r);
   const { seen, Probe } = probe();
@@ -121,7 +125,7 @@ it('后退前进落到覆盖地址上接上背景并打开；没有请求的认�
   await start(r);
   await act(async () => { r.shellNavigate('/assets/7', { state: over('/nowhere') }) });
   await settle();
-  expect(opened, '认领条目没有打开请求时不会重开舞台').toEqual([]);
+  expect(opened, 'Claimed entries without an open request never reopen the stage').toEqual([]);
   await pop('/assets/8', entry(over('/nowhere', 'item', '?q=1'), 'a'));
   await pop('/assets/4?mix=3', entry(over('/nowhere'), 'b'));
   await pop('/posts/5', entry(over('/nowhere', 'follow'), 'c'));
@@ -132,15 +136,15 @@ it('后退前进落到覆盖地址上接上背景并打开；没有请求的认�
     { target: { kind: 'follow', id: 5 }, from: '/nowhere' },
     { target: { kind: 'queue', queue: 'playlist', key: 2, item: 9 }, from: '/nowhere' },
   ]);
-  expect(actions.closeStage, '覆盖之间换来换去不收舞台').not.toHaveBeenCalled();
+  expect(actions.closeStage, 'Switching back and forth between overlays never tears down the stage').not.toHaveBeenCalled();
   await act(async () => { r.shellNavigate('/nowhere') });
   await settle();
   expect(actions.closeStage).toHaveBeenCalledTimes(1);
-  expect([seen.mounted, seen.unmounted], '背景页从头到尾是同一个实例').toEqual([1, 0]);
+  expect([seen.mounted, seen.unmounted], 'The background page is one instance throughout').toEqual([1, 0]);
   expect(new Set(seen.paths)).toEqual(new Set(['/nowhere']));
 });
 
-it('`history.state` 为空的同一条目重放：领一个新代次，重开同一条，不接背景', async () => {
+it('Replaying the same entry with empty `history.state`: claim a new generation, reopen the same entry, and do not reconnect the background', async () => {
   const r = await load('/nowhere');
   const { actions, opened } = shellActions(r);
   await mount(r, actions);
@@ -155,7 +159,7 @@ it('`history.state` 为空的同一条目重放：领一个新代次，重开同
   ]);
 });
 
-it('点卡的认领导航交覆盖元素打开：同一路径再开一次也重新交付，背景页保留原节点', async () => {
+it('Card attribution navigation opens through the overlay element: reopening the same path redelivers, and the background page keeps its original nodes', async () => {
   const r = await load('/nowhere');
   const { actions } = shellActions(r);
   const { seen, Probe } = probe();
@@ -171,22 +175,22 @@ it('点卡的认领导航交覆盖元素打开：同一路径再开一次也重�
   expect([seen.mounted, seen.unmounted]).toEqual([1, 0]);
 });
 
-it('深链 `/assets/:id`：壳开始路由之前只挂着，那一刻打开那一条、补画目录网格；启动那一条不读背景', async () => {
+it('Deep link `/assets/:id`: attached only before the shell starts routing, opening that item and backfilling the catalog grid at that moment; the startup entry reads no background', async () => {
   const r = await load('/assets/7', entry(over('/stats')));
   const { actions, opened } = shellActions(r);
   await mount(r, actions);
-  expect(opened, '壳开始路由之前不开').toEqual([]);
+  expect(opened, 'Not opened before the shell starts routing').toEqual([]);
   await start(r);
   expect(opened).toEqual([{ target: { kind: 'item', id: 7 }, from: null }]);
   expect(actions.catalog!.fill).toHaveBeenCalledTimes(1);
   expect(actions.follow!.ground).not.toHaveBeenCalled();
-  expect(actions.surfaceChanged, '条目里记的背景页不打开').not.toHaveBeenCalled();
+  expect(actions.surfaceChanged, 'The entry\'s recorded background page never opens').not.toHaveBeenCalled();
   await act(async () => { r.shellNavigate('/assets/7?t=12', { replace: true }) });
   await settle();
   expect(opened).toHaveLength(1);
 });
 
-it('深链 `/posts/:id`：打开那一条，只让出 `#stats`、不挂列表也不补画目录', async () => {
+it('Deep link `/posts/:id`: opens that entry, yields only `#stats`, mounts no list and paints no catalog', async () => {
   const r = await load('/posts/5');
   const { actions, opened } = shellActions(r);
   await mount(r, actions);
@@ -197,7 +201,7 @@ it('深链 `/posts/:id`：打开那一条，只让出 `#stats`、不挂列表也
   expect(actions.catalog!.fill).not.toHaveBeenCalled();
 });
 
-it('路由根晚于壳开始路由才挂上：挂上就打开启动那一条，只开一次', async () => {
+it('The router root mounts only when it comes up after the shell starts routing; once mounted it opens the launch entry, exactly once', async () => {
   const r = await load('/assets/4?parts=3');
   const { actions, opened } = shellActions(r);
   r.shell.writeShell({ pageOpens: 1 });
@@ -206,7 +210,7 @@ it('路由根晚于壳开始路由才挂上：挂上就打开启动那一条，�
   expect(opened).toEqual([{ target: { kind: 'queue', queue: 'parts', key: 3, item: 4 }, from: null }]);
 });
 
-it('参数只认数字：`/assets/abc` 什么都不开，下面也不补画', async () => {
+it('Parameters accept digits only: `/assets/abc` opens nothing and draws no fallback below', async () => {
   const r = await load('/assets/abc');
   const { actions, opened } = shellActions(r);
   await mount(r, actions);
@@ -219,7 +223,7 @@ it('参数只认数字：`/assets/abc` 什么都不开，下面也不补画', as
   expect(r.overlayTarget('/assets/')).toBeNull();
 });
 
-it('打开跑在提交阶段之外：壳在里面用 flushSync 画别的岛，当场画上、不报告警', async () => {
+it('Open runs outside the commit phase: the shell paints other islands with flushSync inside; it paints on the spot and raises no warning', async () => {
   const errors = vi.spyOn(console, 'error');
   const r = await load('/nowhere');
   const { actions } = shellActions(r);
@@ -238,7 +242,7 @@ it('打开跑在提交阶段之外：壳在里面用 flushSync 画别的岛，�
   expect(errors).not.toHaveBeenCalled();
 });
 
-it('队列意图由路由树接手：壳未就绪时等待，取齐前地址与历史深度保持', async () => {
+it('Queue intent is handed to the router tree: it waits while the shell is not ready, and the URL and history depth hold until fetching completes', async () => {
   const r = await load('/nowhere');
   const { actions } = shellActions(r);
   actions.openQueueRequest = vi.fn();
@@ -255,7 +259,7 @@ it('队列意图由路由树接手：壳未就绪时等待，取齐前地址与�
   expect(actions.openQueueRequest).toHaveBeenCalledTimes(2);
 });
 
-it('沉浸从顶栏的认领导航打开，换条replace不重开，后退离开地址时保留关闭键的行为', async () => {
+it('Immersive opens from the top bar attribution navigation; replacing the item does not reopen it; back leaving the URL keeps the close button behavior', async () => {
   const r = await load('/nowhere');
   const { actions } = shellActions(r);
   await mount(r, actions);

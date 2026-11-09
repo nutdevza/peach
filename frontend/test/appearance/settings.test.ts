@@ -1,4 +1,4 @@
-/* 界面偏好的启动归一化、整页那一份 store 与数据库对账（`src/appearance/settings.ts`）。 */
+/* Startup normalization of UI preferences and reconciliation of the page-level store with the database (`src/appearance/settings.ts`). */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_ACCENT, DEFAULT_HOME_GLOW } from '../../src/appearance/home-glow';
@@ -10,21 +10,21 @@ import { DEFAULT_SIDEBAR_ORDER } from '../../src/sidebar';
 
 beforeEach(() => localStorage.clear());
 
-describe('启动归一化', () => {
-  it('什么都没存时就是出厂那一套，布尔项各有自己的默认', () => {
+describe('Start normalization', () => {
+  it('With nothing stored you get the factory set, and booleans each carry their own default', () => {
     const { settings, migrated } = normalizeAppSettings({});
     expect(migrated).toBe(false);
     expect(settings).toMatchObject({
       ...DEFAULT_SETTINGS, sidebarOrder: [...DEFAULT_SIDEBAR_ORDER], homeGlow: DEFAULT_HOME_GLOW, accent: DEFAULT_ACCENT,
       followInitialDays: 30, detailAutoplay: true, uiSounds: true, feedAutoScroll: true,
       feedHideGroupCompilations: true, feedHideSoloCompilations: false, feedHideExcerpts: true,
-      /* JAV 版式与艺人索引默认大图；照片墙一套几十张，先看全貌所以是小图。 */
+      /* JAV layouts and the performer index default to large images; the photo wall shows dozens per set, so it uses small ones to show the whole picture first. */
       homeLayout: 'small', javLayout: 'big', peopleLayout: 'big', photoSize: 'small',
       ambientMode: true, miniplayer: true, theaterMode: false, theme: 'system', groupCollapse: true,
     });
   });
 
-  it('认不出的一项退回出厂那一档，其余照留', () => {
+  it('An unrecognized entry falls back to the factory tier while the rest stay', () => {
     const { settings } = normalizeAppSettings({
       batchSize: 0, defaultSort: 'nope', hoverDelaySeconds: 61, seekSeconds: 2.5, searchHistoryLimit: 51, relatedLimit: -1,
       feedLimit: 101, theme: 'sepia', followInitialDays: 14, metadataRefreshDays: '7', accent: 'teal', homeLayout: 'big', ambientMode: 0,
@@ -37,37 +37,37 @@ describe('启动归一化', () => {
     });
   });
 
-  it('界面上已经不存在的键不留在对象上', () => {
+  it('Keys the UI no longer has never linger on the object', () => {
     const { settings } = normalizeAppSettings({ rotateMinutes: 5, loginDays: 30, metadataRefreshDays: 7, followImagesOnly: true });
     expect('metadataRefreshDays' in settings).toBe(false);
     expect(['rotateMinutes' in settings, 'loginDays' in settings, settings.followImagesOnly]).toEqual([false, false, true]);
   });
 
-  it('旧版本存的默认排序换成现在的键，并报要落一次盘；用户主动选过的不动', () => {
+  it('A default sort stored by an older version is remapped to the current key and reports one persist; a user-chosen one is untouched', () => {
     expect(normalizeAppSettings({ defaultSort: 'new', sortDefaultsVersion: 1 })).toMatchObject(
       { settings: { defaultSort: 'seed', sortDefaultsVersion: 3 }, migrated: true });
     expect(normalizeAppSettings({ defaultSort: 'long', sortDefaultsVersion: 2 })).toMatchObject(
       { settings: { defaultSort: 'dur' }, migrated: true });
     expect(normalizeAppSettings({ defaultSort: 'new', sortDefaultsVersion: 3 })).toMatchObject(
       { settings: { defaultSort: 'new' }, migrated: false });
-    /* 版本已经是 3 还存着旧键，说明不是迁移能认的来路，按白名单退回随机，不改写成别的列。 */
+    /* The version is already 3 yet an old key survives, meaning the origin is not one migration recognizes: fall back to random per the whitelist, without rewriting it into another column. */
     expect(normalizeAppSettings({ defaultSort: 'long', sortDefaultsVersion: 3 })).toMatchObject(
       { settings: { defaultSort: 'seed' }, migrated: false });
   });
 
-  it('JAV 版式的旧值并进现在的两档，「预览」那一档带着把默认封面换成预览图', () => {
+  it('The JAV layout\'s old value merges into the current two tiers; the "preview" tier brings switching the default cover to the preview image', () => {
     expect(normalizeAppSettings({ javLayout: 'preview' }).settings).toMatchObject({ javLayout: 'small', javImage: 'thumbnail' });
     expect(normalizeAppSettings({ javLayout: 'sleeve', javImage: 'bogus' }).settings).toMatchObject({ javLayout: 'small', javImage: 'cover' });
   });
 
-  it('存的不是合法 JSON 时当作什么都没存', () => {
+  it('Anything that is not valid JSON counts as nothing stored', () => {
     const storage = { getItem: (key: string) => (key === SETTINGS_KEY ? '{broken' : null) };
     expect(readAppSettings(storage).settings).toMatchObject({ batchSize: 60, theme: 'system' });
   });
 });
 
-describe('整页那一份 store', () => {
-  it('第一次取时读回并归一化，之后取到的是同一个对象；改写过旧键当场落一次盘', async () => {
+describe('The whole-page store', () => {
+  it('The first read loads and normalizes, later reads get the same object; rewriting a legacy key persists once, on the spot', async () => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ defaultSort: 'short', sortDefaultsVersion: 2, theme: 'dark' }));
     vi.resetModules();
     const { appSettingsStore } = await import('../../src/appearance/settings');
@@ -78,14 +78,14 @@ describe('整页那一份 store', () => {
   });
 });
 
-describe('数据库那一份落进本地缓存', () => {
+describe('The database copy lands in the local cache', () => {
   const stage = (patch: Partial<AppSettings> = {}) => {
     const store = createSettingsStore(SETTINGS_KEY, { ...normalizeAppSettings({}).settings, ...patch });
     const changed = vi.fn();
     return { store, changed, save: vi.spyOn(store, 'save') };
   };
 
-  it('合法的值落盘，认不出的不碰；搜索记录条数变了才叫壳推给搜索岛', () => {
+  it('Valid values are persisted and unrecognized ones are untouched; only when the search history count changes does the shell push to the search island', () => {
     const { store, changed } = stage();
     applySyncedSettings({
       followInitialDays: 7, feedHideSoloCompilations: true, feedHideExcerpts: 'no',
@@ -101,7 +101,7 @@ describe('数据库那一份落进本地缓存', () => {
     expect([changed.mock.calls.length, store.value.followInitialDays]).toEqual([0, 7]);
   });
 
-  it('数据库里还没定条数时，这台设备改过的那个数送上去一次；没改过不送', async () => {
+  it('While the database has no count yet, the number this device changed is uploaded once; an unchanged one is not sent', async () => {
     const fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }));
     vi.stubGlobal('fetch', fetch);
     applySyncedSettings({ searchHistoryLimit: null }, vi.fn(), stage().store);
@@ -114,7 +114,7 @@ describe('数据库那一份落进本地缓存', () => {
     vi.unstubAllGlobals();
   });
 
-  it('名称偏好以数据库为准，仅在值改变时更新本地缓存和显示效果', () => {
+  it('Name preference defers to the database and only updates the local cache and display when the value changes', () => {
     const { store, changed, save } = stage({ performerNameLanguage: 'ja' });
     applySyncedSettings({ performerNameLanguage: 'zh-CN' }, changed, store);
     expect(store.value.performerNameLanguage).toBe('zh-CN');
@@ -126,7 +126,7 @@ describe('数据库那一份落进本地缓存', () => {
     expect(store.value.performerNameLanguage).toBe('zh-CN');
   });
 
-  it('界面语言以数据库为准，变了才落盘并交给壳重载，不认识的值丢掉', () => {
+  it('The interface language follows the database, is written to disk only when changed and handed to the shell to reload, and unknown values are dropped', () => {
     const { store, changed, save } = stage({ interfaceLanguage: 'zh-CN' });
     applySyncedSettings({ interfaceLanguage: 'en' }, changed, store);
     expect([store.value.interfaceLanguage, save.mock.calls.length, changed.mock.calls]).toEqual(['en', 1, [['interfaceLanguage']]]);
@@ -137,7 +137,7 @@ describe('数据库那一份落进本地缓存', () => {
     expect(normalizeAppSettings({}).settings.interfaceLanguage).toBe('auto');
   });
 
-  it('服务端报的系统语言缓存在本地，变了也交给壳判断要不要重载', () => {
+  it('The system language reported by the server is cached locally; when it changes the shell also decides whether to reload', () => {
     const { store, changed, save } = stage({ interfaceLanguage: 'auto' });
     applySyncedSettings({ interfaceLanguage: 'auto', systemLanguage: 'zh-TW' }, changed, store);
     expect([store.value.systemLanguage, save.mock.calls.length, changed.mock.calls]).toEqual(['zh-CN', 1, [['interfaceLanguage']]]);
@@ -148,7 +148,7 @@ describe('数据库那一份落进本地缓存', () => {
     expect([store.value.systemLanguage, save.mock.calls.length]).toEqual([null, 2]);
   });
 
-  it('侧栏顺序没变就不落盘', () => {
+  it('An unchanged sidebar order never persists', () => {
     const { store, save, changed } = stage();
     applySyncedSettings({ sidebarOrder: [...store.value.sidebarOrder] }, changed, store);
     applySyncedSettings({ sidebarOrder: [] }, changed, store);
@@ -156,7 +156,7 @@ describe('数据库那一份落进本地缓存', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('新客户端与已有缓存都采用实例保存的导航和媒体库顺序', () => {
+  it('New clients and existing caches both adopt the navigation and library order saved by the instance', () => {
     const fresh = stage();
     const cached = stage({ navigationOrders: { tags: ['local', 'online'] }, libraryOrder: ['a', 'b'] });
     const instance = { navigationOrders: { tags: ['online', 'local'] }, libraryOrder: ['b', 'a'] };

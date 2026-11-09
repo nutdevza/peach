@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { advanceImageFallback } from '../../src/card-art/image-fallback';
 import { feedNewCoverHtml } from '../../src/application/feed.js';
 
-// 封面片段只读条目字段，其余域控制器换成空壳，免得装载整套应用。
+// The cover fragment only reads entry fields; the other domain controllers are swapped for empty shells so the whole app never loads.
 vi.mock('../../src/application/catalog.js', () => ({ catalogState: {} }));
 vi.mock('../../src/application/preferences.js', () => ({ preferencesState: {}, wireDrag: () => {} }));
 vi.mock('../../src/application/entity.js', () => ({ pushEntityPage: () => {} }));
@@ -15,7 +15,7 @@ const render = (item: Record<string, unknown>) => {
   return host;
 };
 
-it('未入库新作的官方封面经 Peach 代理取图，页面不出现图床地址', () => {
+it('Official covers of unscanned new releases are fetched through the Peach proxy, and no image-host address appears in the page', () => {
   const host = render({ code: 'ABC-001', has_cover: false,
     cover_url: 'https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/abc00001/abc00001pl.jpg' });
   const image = host.querySelector('img')!;
@@ -23,15 +23,15 @@ it('未入库新作的官方封面经 Peach 代理取图，页面不出现图床
   expect(host.innerHTML).not.toContain('dmm.co.jp');
 });
 
-it('代理取不到封面时换成「封面未取得」占位，不留裂图', () => {
+it('When the proxy cannot fetch a cover it swaps to the "Cover unavailable" placeholder with no broken image', () => {
   const host = render({ code: 'ABC-001', has_cover: false, cover_url: 'https://pics.dmm.co.jp/digital/video/abc00001/abc00001pl.jpg' });
   expect(advanceImageFallback(host.querySelector('img'))).toBe('drop');
   expect(host.querySelector('img')).toBeNull();
-  expect(host.querySelector('span.nopic')?.textContent).toBe('封面未取得');
+  expect(host.querySelector('span.nopic')?.textContent).toBe('No cover available');
 });
 
-it('还没有封面时写出状态与原因，排队的给「优先处理」，取过没取到的给「立即重试」', () => {
-  for (const [state, title, action] of [['queued', '排队中', '优先处理'], ['missing', '无封面', '立即重试']] as const) {
+it('With no cover yet it writes the state and reason; queued ones get "Prioritise", fetched-but-missed ones get "Retry now"', () => {
+  for (const [state, title, action] of [['queued', 'Queued', '优先处理'], ['missing', 'No cover', 'Retry now']] as const) {
     const host = render({ code: 'ABC-001', has_cover: false, cover_url: '', cover_state: state, cover_reason: '等下一轮订阅检查分批取图' });
     const cell = host.querySelector(`[data-feed-cover-state="${state}"]`)!;
     expect(cell.querySelector('.nopic')?.textContent).toBe(title);
@@ -43,10 +43,10 @@ it('还没有封面时写出状态与原因，排队的给「优先处理」，�
   expect(fetching.querySelector('[data-feed-cover-state="fetching"] button')).toBeNull();
 });
 
-it('没有可代理的地址或番号时直接显示无封面，不发请求', () => {
+it('With no proxyable address or code it shows no cover directly and sends no request', () => {
   for (const item of [{ code: 'ABC-001', cover_url: '' }, { code: '', cover_url: 'https://pics.dmm.co.jp/a.jpg' }]) {
     const host = render({ ...item, has_cover: false });
     expect(host.querySelector('img')).toBeNull();
-    expect(host.querySelector('[data-feed-cover-state="missing"]')?.textContent).toBe('无封面');
+    expect(host.querySelector('[data-feed-cover-state="missing"]')?.textContent).toBe('No cover');
   }
 });

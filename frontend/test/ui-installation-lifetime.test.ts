@@ -6,7 +6,7 @@ import { initBoardControls } from '../src/board-controls';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.innerHTML = ''; });
 
-it('同一宿主的声音与图片委托各安装一次', () => {
+it('Audio and image delegation install once each per host', () => {
   const root = document.createElement('div');
   const add = vi.spyOn(root, 'addEventListener');
   wireUiSounds(root); wireUiSounds(root);
@@ -14,7 +14,7 @@ it('同一宿主的声音与图片委托各安装一次', () => {
   expect(add.mock.calls.map(([name]) => name)).toEqual(['click', 'change', 'error']);
 });
 
-it('Board 控件重复安装沿用全站监听与提示框', () => {
+it('Reinstalling the Board control reuses the site-wide listener and tooltip', () => {
   const add = vi.spyOn(document, 'addEventListener');
   initBoardControls();
   const installed = add.mock.calls.length;
@@ -23,7 +23,7 @@ it('Board 控件重复安装沿用全站监听与提示框', () => {
   expect(document.querySelectorAll('#board-control-tooltip')).toHaveLength(1);
 });
 
-it('锚定菜单销毁移除监听，同一按钮重挂只有一份开关', () => {
+it('Destroying the anchored menu removes its listener, and remounting the same button leaves exactly one toggle', () => {
   const mount = document.createElement('div');
   const toggle = document.createElement('button'), menu = document.createElement('div');
   menu.hidden = true; mount.append(toggle, menu); document.body.append(mount);

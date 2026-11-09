@@ -9,7 +9,7 @@ let visibility!: ReturnType<typeof useCatalogTablePreferences>;
 function Probe() { sizing = useCatalogTablePreferences(); visibility = sizing; return null }
 beforeEach(() => localStorage.clear());
 
-it('损坏或超限偏好不会破坏列宽，选择列保持固定', async () => {
+it('Corrupt or out-of-range preferences do not break column widths; the selection column stays fixed', async () => {
   for (const [saved, name] of [['broken', '1fr'], ['null', '1fr'], ['[]', '1fr'],
     ['{"name":99999,"select":200,"dur":-10,"size":"wide"}', 2000]] as const) {
     localStorage.setItem(key, saved);
@@ -22,7 +22,7 @@ it('损坏或超限偏好不会破坏列宽，选择列保持固定', async () =
   }
 });
 
-it('列显示偏好只允许隐藏数据列，保留隐藏列的自定义宽度', async () => {
+it('Column visibility preferences only hide data columns, and hidden columns keep their custom widths', async () => {
   localStorage.setItem('peach.catalog-column-visibility.v1', '{"name":false,"select":false,"rating":false,"unknown":false}');
   await mountRoot(<Probe />);
   expect(visibility.visibility).toEqual({ ...defaultColumnVisibility, rating: false });
@@ -37,7 +37,7 @@ it('列显示偏好只允许隐藏数据列，保留隐藏列的自定义宽度'
   expect(visibility.visibility).toEqual(defaultColumnVisibility);
 });
 
-it('调整结束保存列宽，重置清除偏好，存储被禁用时仍可调整', async () => {
+it('Column widths save when resizing ends, reset clears the preference, and resizing still works when storage is disabled', async () => {
   const root = await mountRoot(<Probe />);
   await act(() => sizing.save(new Map([['name', 512], ['select', 100]])));
   expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({ name: 512, select: 48 });
@@ -47,7 +47,7 @@ it('调整结束保存列宽，重置清除偏好，存储被禁用时仍可调�
   await act(() => sizing.reset());
   expect(sizing.widths.name).toBe('1fr');
   expect(localStorage.getItem(key)).toBeNull();
-  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('存储未允许') });
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage not permitted') });
   try {
     await act(() => sizing.save(new Map([['name', 480]])));
     expect(sizing.widths.name).toBe(480);

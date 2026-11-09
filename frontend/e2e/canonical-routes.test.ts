@@ -7,12 +7,12 @@ import { DETAIL, openFollowFeed } from './follow-fixture.ts';
 import { openPanel } from './settings-fixture.ts';
 import { JAV_DETAIL, mockJavDetail } from './jav-detail-fixture.ts';
 
-describe('规范路由与设置历史', () => {
+describe('Canonical routes and settings history', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 关注添加页签与空状态站内链接保留当前文档`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} follows add tab and empty-state in-app links keep the current document`, { timeout: 60000 }, async () => {
       const opened = await visit(browser, '/subscriptions', viewport, async page => {
         await page.route('**/api/follow?summary=1', route => route.fulfill({ json: {
           sources: [], counts: {}, author_aliases: [], alias_suggestions: [], suggestions: [],
@@ -26,34 +26,34 @@ describe('规范路由与设置历史', () => {
       });
       const { page } = opened;
       try {
-        const add = page.getByRole('button', { name: '添加关注', exact: true });
+        const add = page.getByRole('button', { name: 'Add follow', exact: true });
         await add.waitFor();
         const timeOrigin = await page.evaluate(() => performance.timeOrigin);
         const documents: string[] = [];
         page.on('request', request => { if (request.isNavigationRequest()) documents.push(request.url()) });
-        await page.evaluate(() => Object.assign(window, { followOverview: document.querySelector('[aria-label="关注概览"]') }));
+        await page.evaluate(() => Object.assign(window, { followOverview: document.querySelector('[aria-label="Follow overview"]') }));
         await add.click();
-        await page.getByRole('textbox', { name: '来源链接、名字或 id', exact: true }).waitFor();
+        await page.getByRole('textbox', { name: 'Source link, name or id', exact: true }).waitFor();
         assert.equal(new URL(page.url()).searchParams.get('tab'), 'add');
         assert.equal(await page.evaluate(() => (window as unknown as { followOverview: Element }).followOverview
-          === document.querySelector('[aria-label="关注概览"]')), true, '页签切换保留页面宿主');
-        await page.getByRole('tab', { name: '关注列表', exact: true }).click();
+          === document.querySelector('[aria-label="Follow overview"]')), true, 'Tab switches keep the page host');
+        await page.getByRole('tab', { name: 'Follows list', exact: true }).click();
         await add.waitFor();
-        await page.getByRole('button', { name: '统计', exact: true }).click();
-        await page.getByRole('link', { name: '添加关注', exact: true }).click();
-        await page.getByRole('textbox', { name: '来源链接、名字或 id', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Stats', exact: true }).click();
+        await page.getByRole('link', { name: 'Add follow', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Source link, name or id', exact: true }).waitFor();
         await page.goBack();
-        await page.getByRole('link', { name: '添加关注', exact: true }).waitFor();
+        await page.getByRole('link', { name: 'Add follow', exact: true }).waitFor();
         assert.equal(new URL(page.url()).pathname, '/stats');
         await page.goForward();
-        await page.getByRole('textbox', { name: '来源链接、名字或 id', exact: true }).waitFor();
+        await page.getByRole('textbox', { name: 'Source link, name or id', exact: true }).waitFor();
         assert.equal(await page.evaluate(() => performance.timeOrigin), timeOrigin);
-        assert.deepEqual(documents, [], '页签、站内链接与历史切换均不请求新文档');
+        assert.deepEqual(documents, [], 'Tabs, in-site links, and history switches never request a new document');
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name} SPA 作品导航采用接口规范番号并保留历史上下文`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} SPA video navigation uses spec codes from the API and keeps history context`, { timeout: 60000 }, async () => {
       const opened = await visit(browser, '/', viewport);
       const { page } = opened;
       try {
@@ -76,15 +76,15 @@ describe('规范路由与设置历史', () => {
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 本地标签 ID 深链可展示聚合并刷新`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} local tag ID deep link can show aggregates and refresh`, { timeout: 60000 }, async () => {
       const opened = await visit(browser, '/', viewport);
       const { page } = opened;
       try {
         const seeded = await page.request.post(new URL('/api/item-tag', page.url()).href, { data: {
-          id: Number(requiredEnv('PEACH_E2E_ITEM')), operation: 'add', tag: '巨乳',
+          id: Number(requiredEnv('PEACH_E2E_ITEM')), operation: 'add', tag: 'Big breasts',
         } });
-        assert.equal(seeded.status(), 200, '临时演示库创建标签身份');
-        const response = await page.request.get(new URL('/api/index?kind=tags&q=巨乳&limit=1', page.url()).href);
+        assert.equal(seeded.status(), 200, 'The temp demo library creates tag identities');
+        const response = await page.request.get(new URL('/api/index?kind=tags&q=large-breasts&limit=1', page.url()).href);
         const data = await response.json() as { items: { entity_id: number; k: string }[] };
         const tag = data.items[0]!;
         assert.ok(tag?.entity_id > 0);
@@ -102,7 +102,7 @@ describe('规范路由与设置历史', () => {
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 保存的来源记录使用关注条目的规范地址`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} saved source records use the follow entry's canonical URL`, { timeout: 60000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow', viewport);
       const { page } = opened;
       try {
@@ -122,7 +122,7 @@ describe('规范路由与设置历史', () => {
         await page.locator('[data-follow-list] > [data-follow-item]').first().waitFor();
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 设置分区返回同一份列表`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} settings sections return the same list`, { timeout: 60000 }, async () => {
       const opened = await visit(browser, '/', viewport);
       const { page } = opened;
       try {
@@ -131,19 +131,19 @@ describe('规范路由与设置历史', () => {
         await openPanel(page);
         await page.waitForURL('**/settings/appearance');
         const panel = page.locator('#settingsPanel');
-        await panel.getByRole('tab', { name: '浏览与播放', exact: true }).click();
+        await panel.getByRole('tab', { name: 'Browsing & playback', exact: true }).click();
         await page.waitForURL('**/settings/playback');
-        await panel.getByRole('button', { name: '关闭设置' }).click();
+        await panel.getByRole('button', { name: 'Close settings' }).click();
         await page.waitForURL(url => url.pathname === '/');
         await panel.waitFor({ state: 'hidden' });
         assert.ok(await page.evaluate(() => (window as unknown as { routeGrid: Element }).routeGrid === document.querySelector('#grid .peach-react')));
         await page.goForward();
         await page.waitForURL('**/settings/playback');
-        await panel.getByRole('heading', { name: '浏览与播放', exact: true }).waitFor();
+        await panel.getByRole('heading', { name: 'Browsing & playback', exact: true }).waitFor();
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 设置覆盖播放详情保留播放器实例`, { timeout: 60000 }, async () => {
+    it(`${viewport.name} settings-over-playback details keep the player instance`, { timeout: 60000 }, async () => {
       const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, viewport);
       const { page } = opened;
       try {

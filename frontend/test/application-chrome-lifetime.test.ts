@@ -25,10 +25,10 @@ afterEach(async () => {
   document.body.innerHTML = ''; vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-it('侧栏原生节点复位、自建节点清退，卸载后媒体库响应不写新根', async () => {
+it('Sidebar native nodes reset and self-built nodes tear down; after unmount a media library response writes no new root', async () => {
   probes.api.mockReset(); probes.menus.mockClear(); probes.glowOff.mockClear();
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Firefox');
-  document.body.innerHTML = '<header><a id="brandHome"><span class="mark"></span><h1>原品牌</h1></a><button id="filterBtn"></button><button id="settingsBtn"></button><i id="tail"></i></header><aside id="drawer"><div id="drawerScroll"><div data-sidebar-head></div></div></aside><main id="main"></main>';
+  document.body.innerHTML = '<header><a id="brandHome"><span class="mark"></span><h1>Original brand</h1></a><button id="filterBtn"></button><button id="settingsBtn"></button><i id="tail"></i></header><aside id="drawer"><div id="drawerScroll"><div data-sidebar-head></div></div></aside><main id="main"></main>';
   const nativeNodes = ['brandHome', 'filterBtn', 'settingsBtn'].map(id => document.getElementById(id)!);
   const original = nativeNodes.map(node => ({ parent: node.parentNode, next: node.nextSibling }));
   let finish!: (value: unknown) => void;
@@ -50,7 +50,7 @@ it('侧栏原生节点复位、自建节点清退，卸载后媒体库响应不�
   expect(probes.menus.mock.results.every(result => result.type === 'return' && result.value.dispose.mock.calls.length === 1)).toBe(true);
   effects.renewApplicationEffects();
   finish({ libraries: [] }); await Promise.resolve(); await Promise.resolve();
-  expect(nativeNodes[0]?.querySelector('h1')?.textContent).toBe('原品牌');
+  expect(nativeNodes[0]?.querySelector('h1')?.textContent).toBe('Original brand');
   probes.api.mockReturnValueOnce(new Promise(() => {})); chrome.installChrome25();
   expect(document.querySelectorAll('#boardLibraryMenu')).toHaveLength(1);
   effects.applicationEffects.dispose();

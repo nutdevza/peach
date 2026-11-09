@@ -1,15 +1,18 @@
-/* 目录的路由元素（`src/react/router/pages/catalog.tsx`）：页面组匹配到目录六条路径时挂上，按页面打开序号、壳的重开
- * 次数（`@peach/shell` 的 `pageOpens`）与覆盖层决定整页打开还是只重取；整页打开时照地址重建目录筛选，交壳收尾。
+/* The catalog's route element (`src/react/router/pages/catalog.tsx`): mounts when the page group matches the catalog's six
+ * paths, and decides by page-open epoch, the shell's reopen count (`pageOpens` in `@peach/shell`) and the overlay whether to
+ * open the whole page or only refetch; a full open rebuilds the catalog filters per the address and hands the rest to the
+ * shell.
  *
- * 网格怎么取数、怎么画由 `catalog-routes.test.tsx` 与各页的用例管；这里看的是元素什么时候开、开几次、写进
- * `state` 的是哪一套筛选、交给壳什么。历史对象与壳状态都是模块级的，每条用例重新装载。 */
+ * How the grid fetches and renders is governed by `catalog-routes.test.tsx` and each page's cases; this file covers when the
+ * element opens, how many times, which filter set is written into `state`, and what it hands the shell. The history object
+ * and shell state are module-level; every case reloads them. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 
 import type { ShellActions } from '../../../src/react/router/shell-actions';
 
-// 完整路由树的冷加载单独计时，交互用例使用 Vitest 默认超时。
+// The cold load of the full route tree is timed separately; interaction cases use the Vitest default timeout.
 const REACT_IMPORT_TIMEOUT_MS = 60_000;
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -35,7 +38,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-/** 壳交进来的那一组，外加一份按先后记下的打开过程。 */
+/** The set handed in by the shell, plus a record of the opening sequence in order. */
 function shellActions() {
   const log: string[] = [];
   const actions: ShellActions = {
@@ -70,7 +73,7 @@ async function settle() {
   }
 }
 
-/** 挂上路由根，再像壳那样开始路由：启动那一次把 `pageOpens` 写成 1。 */
+/** Mounts the route root and starts routing like the shell does: the startup pass writes `pageOpens` as 1. */
 async function boot(r: Loaded, actions: ShellActions) {
   const root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<r.RouterRoot actions={actions} />) });
@@ -80,7 +83,7 @@ async function boot(r: Loaded, actions: ShellActions) {
   await settle();
 }
 
-/** 后退前进：浏览器换好地址再报 `popstate`，不经壳。 */
+/** Back and forward: the browser swaps the address and then fires `popstate`, without going through the shell. */
 async function pop(path: string, state: unknown = null) {
   await act(async () => {
     window.history.replaceState(state, '', path);
@@ -91,16 +94,16 @@ async function pop(path: string, state: unknown = null) {
 
 const filters = (r: Loaded) => r.shell.state ?? {};
 
-it('启动：壳开始路由之前只挂着；启动那一下照地址写筛选、整页打开一次', async () => {
+it('Startup: only attached before the shell starts routing; at startup it writes filters from the address and opens the full page once', async () => {
   const r = await load('/unseen?tag=a,%E7%9F%AD%E7%89%87-2%E5%88%86%E5%86%85&owner=none&loc=local');
   const { actions, log } = shellActions();
   await boot(r, actions);
   expect(log).toEqual(['open /unseen']);
   expect(filters(r)).toMatchObject({ state: 'fresh', tag: 'a', owner: 'none', loc: 'local' });
-  expect(filters(r).seed, '地址上没写种子就掷一粒').toMatch(/^\d+$/);
+  expect(filters(r).seed, 'Without a seed in the address it rolls one').toMatch(/^\d+$/);
 });
 
-it('从回收站后退到首页重掷取样种子，并让壳作废顶部三层的缓存', async () => {
+it('Going back from trash to home rerolls the sampling seed and asks the shell to invalidate the top three layers\' caches', async () => {
   const r = await load('/trash');
   r.shell.writeShell({ state: { seed: '111', sort: 'seed', dir: '' } });
   const { actions, log } = shellActions();
@@ -114,7 +117,7 @@ it('从回收站后退到首页重掷取样种子，并让壳作废顶部三层�
   expect(filters(r).seed).not.toBe('111');
 });
 
-it('首页换一枚标签的后退前进沿用这一粒种子', async () => {
+it('Home\'s back/forward across one tag change reuses that same seed', async () => {
   const r = await load('/?tag=a');
   r.shell.writeShell({ state: { seed: '222' } });
   const { actions, log } = shellActions();
@@ -125,7 +128,7 @@ it('首页换一枚标签的后退前进沿用这一粒种子', async () => {
   expect(filters(r)).toMatchObject({ tag: 'b', seed: '222' });
 });
 
-it('地址上写了种子就用它', async () => {
+it('Use the torrent if the URL specifies one', async () => {
   const r = await load('/trash');
   const { actions } = shellActions();
   await boot(r, actions);
@@ -133,7 +136,7 @@ it('地址上写了种子就用它', async () => {
   expect(filters(r).seed).toBe('4321');
 });
 
-it('壳认领写地址只重取，不重建筛选；同一个地址再写一次也重取', async () => {
+it('A shell-claimed address write only refetches and never rebuilds filters; writing the same address again refetches too', async () => {
   const r = await load('/');
   const { actions, log } = shellActions();
   await boot(r, actions);
@@ -146,7 +149,7 @@ it('壳认领写地址只重取，不重建筛选；同一个地址再写一次�
   expect(filters(r).tag).toBe('x');
 });
 
-it('首页、筛选态与回收站之间换页不重挂；壳认领进回收站、紧接着要求重开，两件事合成一次整页打开', async () => {
+it('Paging between the index, filter states and trash does not remount; the shell claims entering trash and immediately asks to reopen, and the two merge into one full page open', async () => {
   const r = await load('/');
   const { actions, log } = shellActions();
   await boot(r, actions);
@@ -159,7 +162,7 @@ it('首页、筛选态与回收站之间换页不重挂；壳认领进回收站�
   expect(actions.catalog?.release).not.toHaveBeenCalled();
 });
 
-it('详情压着时什么都不做；关掉回到压着的那一份地址、筛选没变时不重取，筛选变了才重取', async () => {
+it('While details are overlaid nothing happens; closing returns to the overlaid URL; filters unchanged means no refetch, and only changed filters refetch', async () => {
   const r = await load('/?tag=a');
   const { actions, log } = shellActions();
   await boot(r, actions);
@@ -170,17 +173,17 @@ it('详情压着时什么都不做；关掉回到压着的那一份地址、筛�
   await settle();
   await act(async () => { r.shellNavigate('/?tag=a') });
   await settle();
-  expect(log.slice(1), '关掉回到原处').toEqual([]);
+  expect(log.slice(1), 'Closing returns to where you were').toEqual([]);
   await act(async () => { r.shellNavigate('/assets/7', { state: overlay }) });
   await settle();
   r.shell.writeShell({ state: { ...filters(r), seed: '9' } });
   await act(async () => { r.shellNavigate('/?tag=a') });
   await settle();
-  expect(log.slice(1), '压着的时候筛选换了').toEqual(['load']);
+  expect(log.slice(1), 'Filter changed while covered by details').toEqual(['load']);
   expect(actions.catalog?.release).not.toHaveBeenCalled();
 });
 
-it('没有背景的作品地址（深链）：补画一次目录网格，不整页打开；关掉时壳要求重开才整页打开', async () => {
+it('Video addresses without a background (deep links): paint the catalog grid once without a full page open; only when the shell asks to reopen on close does the full page open', async () => {
   const r = await load('/assets/7');
   const { actions, log } = shellActions();
   await boot(r, actions);
@@ -193,7 +196,7 @@ it('没有背景的作品地址（深链）：补画一次目录网格，不整�
   expect(log).toEqual(['fill', 'open /']);
 });
 
-it('后退落到压在首页上的详情才挂上（中间去过别的页）：压着时不动，关掉回首页整页打开', async () => {
+it('Back only attaches when landing on details overlaid on the home page (other pages visited in between): while overlaid it does nothing, and closing returns to home as a full-page open', async () => {
   const r = await load('/');
   const { actions, log } = shellActions();
   await boot(r, actions);
@@ -202,26 +205,26 @@ it('后退落到压在首页上的详情才挂上（中间去过别的页）：�
   await settle();
   await act(async () => { r.peachHistory.push('/stats') });
   await settle();
-  expect(log.slice(1), '页面交给目标表面切换，目录宿主保留').toEqual([]);
+  expect(log.slice(1), 'The page hands over to the target surface to switch while the catalog host is kept alive').toEqual([]);
   await pop('/assets/7', { usr: overlay, key: 'x', idx: 1 });
-  expect(log.slice(1), '压着的时候不开').toEqual([]);
+  expect(log.slice(1), 'Does not open while pressed').toEqual([]);
   await act(async () => { r.shellNavigate('/') });
   await settle();
   expect(log.slice(1)).toEqual(['open /']);
 });
 
-it('首页上的 `?state=ads` 原地改写成垃圾文件的地址，由垃圾文件那一页整页打开并补标题', async () => {
+it('On the index page, `?state=ads` is rewritten in place to the junk files address, opened full page by the junk files page which also fills in the title', async () => {
   const r = await load('/?state=ads&type=video&view=dismissed');
   const { actions, log } = shellActions();
   const length = window.history.length;
   await boot(r, actions);
   expect(window.location.pathname + window.location.search).toBe('/junk-files?type=video&view=dismissed');
-  expect(window.history.length, '改写不加条目').toBe(length);
+  expect(window.history.length, 'Rewrites without adding a history entry').toBe(length);
   expect(log).toEqual(['open /junk-files retitle']);
   expect(filters(r).state).toBe('ads');
 });
 
-it('地址上的排序：写了列没写方向取那一列的默认方向，两样都没写按浏览偏好，旧键自带方向', async () => {
+it('Sort from the URL: a column without direction takes that column\'s default; with neither given, the browsing preference applies; legacy keys carry their own direction', async () => {
   const r = await load('/?sort=new');
   const { actions } = shellActions();
   await boot(r, actions);
@@ -235,7 +238,7 @@ it('地址上的排序：写了列没写方向取那一列的默认方向，两�
   expect(r.sortFromAddress('nope', null, 'rating', 'desc', 'new')).toEqual({ sort: 'new', dir: 'desc' });
 });
 
-it('后退前进按地址重读未归属；产地沿用', async () => {
+it('Back/forward re-reads unattributed from the address while origin carries over', async () => {
   const r = await load('/?owner=none');
   r.shell.writeShell({ state: { region: 'jp' } });
   const { actions } = shellActions();
@@ -247,7 +250,7 @@ it('后退前进按地址重读未归属；产地沿用', async () => {
   expect(filters(r).owner).toBe('none');
 });
 
-it('离开目录保留网格宿主，由目标页面切换可见表面', async () => {
+it('Leaving the catalog keeps the grid host alive, and the target page switches the visible surface', async () => {
   const r = await load('/');
   const { actions } = shellActions();
   await boot(r, actions);
@@ -265,7 +268,7 @@ it('离开目录保留网格宿主，由目标页面切换可见表面', async (
   expect(actions.catalog?.release).not.toHaveBeenCalled();
 });
 
-it('三个筛选态与垃圾文件的侧栏键与标签就是 `STATE_ROUTES` 与 `STATE_LABELS` 那一份', async () => {
+it('The sidebar keys and labels for the three filter states and junk files are exactly the `STATE_ROUTES` and `STATE_LABELS` entries', async () => {
   const r = await load('/');
   for (const [key, path] of Object.entries(r.core.STATE_ROUTES)) {
     expect(r.routeMetaOf(path)).toEqual({ nav: key, title: r.core.STATE_LABELS[key] });

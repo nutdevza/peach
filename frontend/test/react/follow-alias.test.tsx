@@ -1,6 +1,6 @@
-/* 创作者别名：合并范围由勾选决定，每一次合并都等人点确认，半路断了要说清还剩几组。
+/* Creator aliases: checkboxes decide the merge scope, every merge waits for a confirm click, and an interrupted run must say how many groups remain.
  *
- * 合并是「把两个名字认成同一个人」，改的是归组口径，所以这里只测范围与确认，不测排版。 */
+ * Merging means "treating two names as one person" and changes the grouping, so this tests scope and confirmation only, not layout. */
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import * as legacyUi from '@peach/legacy/ui';
@@ -18,19 +18,19 @@ notifyManager.setScheduler((notify) => notify());
 
 const GROUPS: AliasGroup[] = [
   {
-    canonical_key: 'name:作者 A', canonical_name: '作者 A',
-    aliases: [{ key: 'name:已存别名', name: '已存别名' }],
+    canonical_key: 'name:Author A', canonical_name: 'Author A',
+    aliases: [{ key: 'name:Saved alias', name: 'Saved aliases' }],
   },
 ];
 
 const SUGGESTIONS: AliasSuggestion[] = [
-  { canonical: '作者 A', alias: '别名 A', evidence: '来源 A' },
-  { canonical: '作者 B', alias: '别名 B', evidence: '来源 B' },
+  { canonical: 'Author A', alias: 'Alias A', evidence: 'Source A' },
+  { canonical: 'Author B', alias: 'Alias B', evidence: 'Source B' },
 ];
 
 type Confirmation = { title: string; body: string; items?: readonly string[]; onConfirm(): Promise<unknown> };
 
-/** 确认框只记下参数不自己点：合并由人点这一条是这里要守住的东西。 */
+/** The confirm dialog only records parameters and never clicks itself: a human always clicks the merge, and that is what this must guard. */
 function stubConfirm() {
   const asked: Confirmation[] = [];
   vi.spyOn(legacyUi, 'confirmModal').mockImplementation((async (options: Confirmation) => {
@@ -62,125 +62,125 @@ const aliasWrites = (fetcher: ReturnType<typeof vi.fn>) =>
   fetcher.mock.calls.filter(([input]) => String(input) === FOLLOW_ALIAS_URL)
     .map(([, init]) => JSON.parse(String((init as RequestInit).body)));
 
-it('勾选决定合并范围，表头全选能一并取消', async () => {
+it('Checks define the merge scope, and header select-all can cancel them together', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host } = await open(fetcher);
 
-  expect(buttonNamed('合并所选（0）', host)).toBeNull();
+  expect(buttonNamed('Merge selected (0)', host)).toBeNull();
 
-  await click(box(host, '选择别名 别名 B，归入 作者 B'));
-  expect(box(host, '全选待合并别名')?.indeterminate).toBe(true);
+  await click(box(host, 'Pick alias Alias B, filed under Author B'));
+  expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(true);
 
-  await click(buttonNamed('合并所选（1）', host));
-  // 还没点确认，所以一条都不该发出去。
+  await click(buttonNamed('Merge selected (1)', host));
+  // Confirm was not clicked yet, so nothing should be sent.
   expect(aliasWrites(fetcher)).toHaveLength(0);
-  expect(asked[0]!.body).toContain('「别名 B」归入「作者 B」');
-  expect(asked[0]!.body).not.toContain('别名 A');
+  expect(asked[0]!.body).toContain('"Alias B" files under "Author B"');
+  expect(asked[0]!.body).not.toContain('Alias A');
 
   await asked[0]!.onConfirm();
   await settle();
-  expect(aliasWrites(fetcher).map((sent) => sent.alias)).toEqual(['别名 B']);
+  expect(aliasWrites(fetcher).map((sent) => sent.alias)).toEqual(['Alias B']);
 
-  await click(box(host, '全选待合并别名'));
-  expect(buttonNamed('合并所选（2）', host)).not.toBeNull();
-  expect(box(host, '全选待合并别名')?.checked).toBe(true);
-  expect(box(host, '全选待合并别名')?.indeterminate).toBe(false);
-  await click(box(host, '全选待合并别名'));
-  expect(buttonNamed('合并所选（0）', host)).toBeNull();
+  await click(box(host, 'Select all pending-merge aliases'));
+  expect(buttonNamed('Merge selected (2)', host)).not.toBeNull();
+  expect(box(host, 'Select all pending-merge aliases')?.checked).toBe(true);
+  expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(false);
+  await click(box(host, 'Select all pending-merge aliases'));
+  expect(buttonNamed('Merge selected (0)', host)).toBeNull();
 });
 
-it('待合并清单换序和补充后按别名保留勾选，合并使用当前规范名', async () => {
+it('Reordering and extending the merge list keeps checks by alias; the merge uses the current canonical name', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
-  await click(box(host, '选择别名 别名 B，归入 作者 B'));
+  await click(box(host, 'Pick alias Alias B, filed under Author B'));
   await renderProps({ suggestions: [
-    { ...SUGGESTIONS[1]!, canonical: '作者 B 的规范名' },
-    { canonical: '作者 C', alias: '别名 C', evidence: '来源 C' },
+    { ...SUGGESTIONS[1]!, canonical: 'Canonical name of Author B' },
+    { canonical: 'Author C', alias: 'Alias C', evidence: 'Source C' },
     SUGGESTIONS[0]!,
   ] });
-  expect(box(host, '选择别名 别名 B，归入 作者 B 的规范名')?.checked).toBe(true);
-  expect(box(host, '选择别名 别名 C，归入 作者 C')?.checked).toBe(false);
-  expect(box(host, '全选待合并别名')?.indeterminate).toBe(true);
-  await click(buttonNamed('合并所选（1）', host));
+  expect(box(host, 'Select alias Alias B, merging it into Author B\'s canonical name')?.checked).toBe(true);
+  expect(box(host, 'Pick alias Alias C, filed under Author C')?.checked).toBe(false);
+  expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(true);
+  await click(buttonNamed('Merge selected (1)', host));
   await asked[0]!.onConfirm();
   await settle();
   expect(aliasWrites(fetcher)).toEqual([
-    { action: 'add', canonical: '作者 B 的规范名', alias: '别名 B' },
+    { action: 'add', canonical: 'Canonical name of Author B', alias: 'Alias B' },
   ]);
-  expect(buttonNamed('合并所选（0）', host)).toBeNull();
+  expect(buttonNamed('Merge selected (0)', host)).toBeNull();
 });
 
-it('消失的候选不计入合并范围，重新全选只处理当前清单', async () => {
+it('Vanished candidates never join the merge scope, and reselecting all processes only the current list', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
-  await click(box(host, '选择别名 别名 B，归入 作者 B'));
+  await click(box(host, 'Pick alias Alias B, filed under Author B'));
   await renderProps({ suggestions: [SUGGESTIONS[0]!] });
-  expect(buttonNamed('合并所选（0）', host)).toBeNull();
-  expect(box(host, '全选待合并别名')?.indeterminate).toBe(false);
-  await click(box(host, '全选待合并别名'));
-  expect(box(host, '全选待合并别名')?.checked).toBe(true);
-  await click(buttonNamed('合并所选（1）', host));
+  expect(buttonNamed('Merge selected (0)', host)).toBeNull();
+  expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(false);
+  await click(box(host, 'Select all pending-merge aliases'));
+  expect(box(host, 'Select all pending-merge aliases')?.checked).toBe(true);
+  await click(buttonNamed('Merge selected (1)', host));
   await asked[0]!.onConfirm();
   await settle();
-  expect(aliasWrites(fetcher).map((sent) => sent.alias)).toEqual(['别名 A']);
+  expect(aliasWrites(fetcher).map((sent) => sent.alias)).toEqual(['Alias A']);
 });
 
-it('已保存别名清单刷新和只读状态都更新到单元格操作', async () => {
+it('Saved alias list refreshes and read-only state both update through cell actions', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
-  const groups = [{ ...GROUPS[0]!, canonical_name: '作者 A 的规范名',
-    aliases: [{ key: 'name:新别名', name: '新别名' }] }];
+  const groups = [{ ...GROUPS[0]!, canonical_name: 'Canonical name of Author A',
+    aliases: [{ key: 'name:new alias', name: 'New alias' }] }];
   await renderProps({ groups, readOnly: true });
-  const remove = () => host.querySelector<HTMLButtonElement>('button[aria-label="移除别名 新别名"]');
-  expect(host.querySelector('button[aria-label="移除别名 已存别名"]')).toBeNull();
-  expect(host.textContent).toContain('作者 A 的规范名');
+  const remove = () => host.querySelector<HTMLButtonElement>('button[aria-label="Remove alias New alias"]');
+  expect(host.querySelector('button[aria-label="Remove alias Saved alias"]')).toBeNull();
+  expect(host.textContent).toContain('Canonical name of Author A');
   expect(remove()?.disabled).toBe(true);
   await renderProps({ groups, readOnly: false });
   expect(remove()?.disabled).toBe(false);
   await click(remove());
-  expect(asked[0]!.body).toContain('「新别名」');
+  expect(asked[0]!.body).toContain('"New alias"');
   await asked[0]!.onConfirm();
   await settle();
-  expect(aliasWrites(fetcher)).toEqual([{ action: 'remove', alias: '新别名' }]);
+  expect(aliasWrites(fetcher)).toEqual([{ action: 'remove', alias: 'New alias' }]);
 });
 
-it('手动保存别名提交输入并在成功后清空', async () => {
+it('Manually saving an alias submits the input and clears it on success', async () => {
   const fetcher = okFetch();
   const { host, toast } = await open(fetcher);
-  const canonical = () => host.querySelector<HTMLInputElement>('input[aria-label="统一名称"]');
-  const alias = () => host.querySelector<HTMLInputElement>('input[aria-label="平台别名"]');
-  await type(canonical(), '规范名');
-  await type(alias(), '平台上的名字');
-  await click(buttonNamed('保存别名', host));
+  const canonical = () => host.querySelector<HTMLInputElement>('input[aria-label="Canonical name"]');
+  const alias = () => host.querySelector<HTMLInputElement>('input[aria-label="Platform alias"]');
+  await type(canonical(), 'Canonical name');
+  await type(alias(), 'Names on platforms');
+  await click(buttonNamed('Save alias', host));
   await settle();
-  expect(aliasWrites(fetcher)).toEqual([{ action: 'add', canonical: '规范名', alias: '平台上的名字' }]);
+  expect(aliasWrites(fetcher)).toEqual([{ action: 'add', canonical: 'Canonical name', alias: 'Names on platforms' }]);
   expect(canonical()?.value).toBe('');
   expect(alias()?.value).toBe('');
-  expect(toast).toHaveBeenCalledWith('已保存创作者别名');
+  expect(toast).toHaveBeenCalledWith('Saved creator aliases');
 });
 
-it('全部合并一条一条发，顺序照着待合并列表', async () => {
+it('Merge-all sends one by one, following the pending-merge list order', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { toast } = await open(fetcher);
 
-  await click(buttonNamed('全部合并（2）', document));
-  expect(asked[0]!.title).toBe('合并全部创作者别名');
+  await click(buttonNamed('Merge all (2)', document));
+  expect(asked[0]!.title).toBe('Merge all creator aliases');
   await asked[0]!.onConfirm();
   await settle();
 
   expect(aliasWrites(fetcher)).toEqual([
-    { action: 'add', canonical: '作者 A', alias: '别名 A' },
-    { action: 'add', canonical: '作者 B', alias: '别名 B' },
+    { action: 'add', canonical: 'Author A', alias: 'Alias A' },
+    { action: 'add', canonical: 'Author B', alias: 'Alias B' },
   ]);
-  expect(toast).toHaveBeenCalledWith('已合并 2 组创作者别名');
+  expect(toast).toHaveBeenCalledWith('Merged 2 creator alias groups');
 });
 
-it('合并半路断了，报出还剩几组没有合并', async () => {
+it('The merge broke midway, reporting how many groups remain unmerged', async () => {
   const asked = stubConfirm();
   let call = 0;
   const fetcher = vi.fn(async () => {
@@ -190,78 +190,78 @@ it('合并半路断了，报出还剩几组没有合并', async () => {
   });
   const { host, toast } = await open(fetcher);
 
-  await click(buttonNamed('全部合并（2）', document));
-  await expect(asked[0]!.onConfirm()).rejects.toThrow('还有 1 组没有合并');
+  await click(buttonNamed('Merge all (2)', document));
+  await expect(asked[0]!.onConfirm()).rejects.toThrow('1 group still unmerged');
   await settle();
 
   expect(aliasWrites(fetcher)).toHaveLength(2);
   expect(toast).not.toHaveBeenCalled();
-  expect(host.textContent).toContain('还有 1 组没有合并');
+  expect(host.textContent).toContain('1 group still unmerged');
 });
 
-it('移除已保存的别名也要先问一句', async () => {
+it('Removing a saved alias asks first too', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, toast } = await open(fetcher);
 
-  await click(host.querySelector('button[aria-label="移除别名 已存别名"]'));
+  await click(host.querySelector('button[aria-label="Remove alias Saved alias"]'));
   expect(aliasWrites(fetcher)).toHaveLength(0);
-  expect(asked[0]!.body).toContain('「已存别名」');
+  expect(asked[0]!.body).toContain('"Saved aliases"');
 
   await asked[0]!.onConfirm();
   await settle();
-  expect(aliasWrites(fetcher)).toEqual([{ action: 'remove', alias: '已存别名' }]);
-  expect(toast).toHaveBeenCalledWith('已移除创作者别名');
+  expect(aliasWrites(fetcher)).toEqual([{ action: 'remove', alias: 'Saved aliases' }]);
+  expect(toast).toHaveBeenCalledWith('Removed the creator alias');
 });
 
-it('别名分页保留跨页选择，已保存别名批量移除只处理所选组', async () => {
+it('Alias pagination keeps cross-page selection, and bulk-removing saved aliases processes only the selected groups', async () => {
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
   const groups = Array.from({ length: 22 }, (_, index) => ({
-    canonical_key: `name:${index}`, canonical_name: `创作者 ${index}`,
-    aliases: [{ key: `alias:${index}`, name: `别名 ${index}` }],
+    canonical_key: `name:${index}`, canonical_name: `Creator ${index}`,
+    aliases: [{ key: `alias:${index}`, name: `Alias ${index}` }],
   }));
   await renderProps({ groups });
-  const saved = () => host.querySelector('[aria-label="已保存创作者别名"]')!;
+  const saved = () => host.querySelector('[aria-label="Saved creator aliases"]')!;
   expect(saved().querySelectorAll('tbody tr')).toHaveLength(20);
-  await click(box(host, '选择已保存别名 创作者 0'));
-  await click(buttonNamed('下一页', host));
-  await click(box(host, '选择已保存别名 创作者 20'));
-  await click(buttonNamed('移除所选别名（2）', host));
+  await click(box(host, 'Select saved alias, creator 0'));
+  await click(buttonNamed('Next page', host));
+  await click(box(host, 'Select saved alias Creator 20'));
+  await click(buttonNamed('Remove selected aliases (2)', host));
   expect(aliasWrites(fetcher)).toEqual([]);
-  expect(asked[0]!.items).toEqual(['别名 0', '别名 20']);
+  expect(asked[0]!.items).toEqual(['Alias 0', 'Alias 20']);
   await asked[0]!.onConfirm();
   await settle();
   expect(aliasWrites(fetcher)).toEqual([
-    { action: 'remove', alias: '别名 0' }, { action: 'remove', alias: '别名 20' },
+    { action: 'remove', alias: 'Alias 0' }, { action: 'remove', alias: 'Alias 20' },
   ]);
   await renderProps({ groups: groups.slice(0, 2) });
   expect(saved().querySelectorAll('tbody tr')).toHaveLength(2);
-  expect(host.textContent).toContain('1–2 / 2 组');
+  expect(host.textContent).toContain('1–2 / 2 groups');
 });
 
-it('点击别名行空白选择整组，修改统一名称使用独立写操作且失败留在弹层', async () => {
+it('Clicking blank space in an alias row selects the group, editing the canonical name is its own write operation, and failure keeps the popover open', async () => {
   const fetcher = okFetch();
   const { host, toast } = await open(fetcher);
-  const saved = host.querySelector('[aria-label="已保存创作者别名"]')!;
+  const saved = host.querySelector('[aria-label="Saved creator aliases"]')!;
   await click(saved.querySelector('tbody [data-table-space]'));
-  expect(box(saved, '选择已保存别名 作者 A')?.checked).toBe(true);
+  expect(box(saved, 'Select saved alias, author A')?.checked).toBe(undefined);
   await click(saved.querySelector('tbody [data-table-space]'));
-  await click(saved.querySelector('button[aria-label="修改 作者 A 的统一名称"]'));
-  expect(box(saved, '选择已保存别名 作者 A')?.checked).toBe(false);
-  const dialog = document.querySelector('[role="dialog"][aria-label="修改统一名称"]')!;
-  await click(buttonNamed('已存别名', dialog));
-  fetcher.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ ok: false, error: '名称已占用' }) });
-  await click(buttonNamed('修改统一名称', dialog));
+  await click(saved.querySelector('button[aria-label="Edit canonical name of Author A"]'));
+  expect(box(saved, 'Select saved alias, author A')?.checked).toBe(false);
+  const dialog = document.querySelector('[role="dialog"][aria-label="Edit canonical name"]')!;
+  await click(buttonNamed('Saved aliases', dialog));
+  fetcher.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ ok: false, error: 'Name already taken' }) });
+  await click(buttonNamed('Edit the unified name', dialog));
   await settle();
-  expect(dialog.textContent).toContain('名称已占用');
+  expect(dialog.textContent).toContain('Name already taken');
   expect(document.contains(dialog)).toBe(true);
-  await click(buttonNamed('修改统一名称', dialog));
+  await click(buttonNamed('Edit the unified name', dialog));
   await settle();
   expect(aliasWrites(fetcher)).toEqual([
-    { action: 'rename', canonical_key: 'name:作者 A', canonical: '已存别名' },
-    { action: 'rename', canonical_key: 'name:作者 A', canonical: '已存别名' },
+    { action: 'rename', canonical_key: 'name:Author A', canonical: 'Saved aliases' },
+    { action: 'rename', canonical_key: 'name:Author A', canonical: 'Saved aliases' },
   ]);
-  expect(toast).toHaveBeenCalledWith('已把统一名称改为 已存别名');
+  expect(toast).toHaveBeenCalledWith('The canonical name was changed to the saved alias');
 });

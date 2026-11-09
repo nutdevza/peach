@@ -7,26 +7,26 @@ function content(options: Parameters<typeof wallEmptyHtml>[0]) {
   return host;
 }
 
-describe('播放墙空状态', () => {
-  it('空媒体库提供添加视频入口', () => {
+describe('Video wall empty state', () => {
+  it('An empty library offers an add video entry', () => {
     const host = content({ libraryEmpty: true, matches: 0, hasMore: false,
-      catalogEmpty: '<h2>还没有视频</h2><button>添加内容</button>' });
-    expect(host.querySelector('h2')?.textContent).toBe('还没有视频');
-    expect(host.querySelector('button')?.textContent).toBe('添加内容');
-    expect(host.textContent).not.toContain('封面');
+      catalogEmpty: '<h2>No videos yet</h2><button>Add content</button>' });
+    expect(host.querySelector('h2')?.textContent).toBe('No videos yet');
+    expect(host.querySelector('button')?.textContent).toBe('Add content');
+    expect(host.textContent).not.toContain('Cover');
   });
 
-  it('筛选无结果提供清除条件入口', () => {
+  it('Empty filter results offer a clear filters entry', () => {
     const host = content({ libraryEmpty: false, matches: 0, hasMore: false });
-    expect(host.textContent).toContain('没有符合筛选条件的视频');
-    expect(host.querySelector('a')?.textContent).toBe('清除筛选');
-    expect(host.textContent).not.toContain('封面');
+    expect(host.textContent).toContain('No videos match the filter conditions');
+    expect(host.querySelector('a')?.textContent).toBe('Clear filters');
+    expect(host.textContent).not.toContain('Cover');
   });
 
-  it('已有匹配视频时说明封面缺失', () => {
+  it('Explain the missing cover when a matching video exists', () => {
     const host = content({ libraryEmpty: false, matches: 13, hasMore: false });
-    expect(host.textContent).toContain('这些视频还没有封面');
-    expect(host.textContent).toContain('为作品补充封面');
-    expect(host.textContent).not.toContain('没有符合筛选条件');
+    expect(host.textContent).toContain('These videos have no covers yet');
+    expect(host.textContent).toContain('These videos have no covers yetAfter completing a video\'s cover it can be viewed in the video wall.Complete covers');
+    expect(host.textContent).not.toContain('Nothing matches the filter conditions');
   });
 });

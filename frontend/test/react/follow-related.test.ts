@@ -15,35 +15,35 @@ const page = (groups: FollowGroup[], extra: Partial<FollowPage> = {}): FollowPag
   groups, sources, counts: {}, facets: {}, offset: 0, has_more: false, ...extra,
 });
 
-describe('关注接着看', () => {
-  it('排除整个当前合集、重复组、已看、忽略和不同媒体', () => {
+describe('Follows Continue watching', () => {
+  it('Excludes the entire current compilation, duplicate groups, watched, ignored, and different media', () => {
     const rows = [group(item(2)), group(item(3)), group(item(3)), group(item(4, { status: 'seen' })),
       group(item(5, { status: 'ignored' })), group(item(6, { media_kind: 'image' }))];
     expect(followRelatedGroups([page(rows)], current, 'videos', 20).map(row => row.primary.id)).toEqual([3]);
     expect(followRelatedGroups([page(rows)], current, 'images', 20).map(row => row.primary.id)).toEqual([6]);
   });
-  it('同创作者优先，再按共同标签排序，遵守数量', () => {
+  it('Same creator first, then sorted by shared tags, honoring the count', () => {
     const rows = [group(item(3, { source_id: 2, tags: ['solo'] })), group(item(4)), group(item(5, { tags: ['solo'] }))];
     expect(followRelatedGroups([page(rows)], current, 'videos', 2).map(row => row.primary.id)).toEqual([5, 4]);
   });
-  it('推荐理由写同创作者和共同标签，少见的标签排在前面，作者与元数据标签不算', () => {
+  it('Recommendation reasons cite the same creator and shared tags; rarer tags come first, and author and metadata tags don\'t count', () => {
     const shown: FollowDetailData = { ...current, item: item(1, { tags: ['solo', 'rare', 'pov', 'kou', 'tagme'] }) };
     const rows = [group(item(3, { tags: ['solo', 'pov', 'rare', 'kou', 'tagme'], tag_types: { kou: 'artist', tagme: 'metadata' } })),
       group(item(4, { source_id: 2, tags: ['solo', 'pov'] })),
       group(item(5, { source_id: 2, tags: ['solo'] }))];
     const reason = followRelatedReasons([page(rows)], shown, 'videos');
     expect(rows.map(reason)).toEqual([
-      { reasons: ['同创作者'], tags: ['rare', 'pov', 'solo'] },
+      { reasons: ['Same creator'], tags: ['rare', 'pov', 'solo'] },
       { reasons: [], tags: ['pov', 'solo'] },
       { reasons: [], tags: ['solo'] },
     ]);
   });
-  it('混合媒体按当前视图选择卡面，已看的卡面不进入推荐', () => {
+  it('Mixed media picks its card face by the current view, and watched faces never enter recommendations', () => {
     const mixed = group(item(7, { media_kind: 'image' }), [item(8, { published_at: '2026-10-10', status: 'seen' })]);
     expect(followRelatedGroups([page([mixed])], current, 'videos', 20)).toEqual([]);
     expect(followRelatedGroups([page([mixed])], current, 'images', 20).map(row => row.primary.id)).toEqual([7]);
   });
-  it('同创作者已有足够结果只发一趟读取，带原始取消信号', async () => {
+  it('With enough results for a creator it sends one read carrying the original abort signal', async () => {
     const signal = new AbortController().signal;
     const read = vi.fn(async () => ({ ok: true, json: async () => page([group(item(3))]) }));
     vi.stubGlobal('fetch', read);
@@ -54,7 +54,7 @@ describe('关注接着看', () => {
     expect(new URL(url, 'https://example.invalid').searchParams.get('author')).toBe('name:kou');
     expect(init.signal).toBe(signal);
   });
-  it('翻一页同作者仍不足时补全库，读取有上限', async () => {
+  it('When one page still lacks same-author results it backfills the library with a read cap', async () => {
     const urls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       urls.push(url);

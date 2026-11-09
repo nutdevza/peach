@@ -5,20 +5,20 @@ import { installDesignBrowser } from './design-fixture.ts';
 import { layout, settle, visit, VIEWPORTS } from './harness.ts';
 import { verifyColumnContentWidth } from './table-preferences-fixture.ts';
 
-describe('配置中的系统诊断', () => {
+describe('System diagnostics in configuration', () => {
   let browser: Browser;
   installDesignBrowser(next => { browser = next; });
   for (const viewport of VIEWPORTS) {
-    it(`方形站标、状态标签与可识别的作品表格（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Square site badges, status tags, and a legible video table (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/diagnostics', viewport, async page => {
         await page.route('**/api/diagnostics', async route => {
           const report = await (await route.fetch()).json();
-          report.checks.media_mounts = { label: '媒体挂载', status: 'warning', reason: '媒体目录不存在',
-            action: '检查媒体目录', target: '/settings/library', details: {} };
-          report.library.groups.cover = { label: '缺封面', status: 'ok', count: 31, truncated: false,
+          report.checks.media_mounts = { label: 'Media mounts', status: 'warning', reason: 'The media folder does not exist',
+            action: 'Check media directories', target: '/settings/library', details: {} };
+          report.library.groups.cover = { label: 'Missing cover', status: 'ok', count: 31, truncated: false,
             items: Array.from({ length: 31 }, (_, index) => ({ id: index + 1, code: null,
-              title: `演示条目 ${index + 1}`, name: `演示文件 ${index + 1}.mp4`,
-              path: `R:\\Media\\演示文件 ${index + 1}.mp4`, location: 'local', duration: 123, size: 1048576 })) };
+              title: `Demo entry ${index + 1}`, name: `Demo file ${index + 1}.mp4`,
+              path: `R:\\Media\\Demo file ${index + 1}.mp4`, location: 'local', duration: 123, size: 1048576 })) };
           await route.fulfill({ json: report });
         });
       });
@@ -30,17 +30,17 @@ describe('配置中的系统诊断', () => {
         const badge = page.locator('[data-diagnostic-check="media_mounts"] [data-diagnostic-status="warning"]');
         await badge.waitFor();
         assert.notEqual(await badge.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
-        await page.locator('summary').filter({ hasText: '缺封面 · 31 项' }).click();
-        const table = page.getByRole('grid', { name: '缺封面', exact: true });
+        await page.locator('summary').filter({ hasText: 'Missing covers · 31 items' }).click();
+        const table = page.getByRole('grid', { name: 'Missing cover', exact: true });
         await table.waitFor();
         assert.equal(await table.getByRole('row').count(), 21);
-        assert.ok((await table.innerText()).includes('演示文件 1.mp4'));
-        assert.ok((await table.innerText()).includes('R:\\Media\\演示文件 1.mp4'));
+        assert.ok((await table.innerText()).includes('Demo file 1.mp4'));
+        assert.ok((await table.innerText()).includes('R:\\Media\\Demo file 1.mp4'));
         await verifyColumnContentWidth(table, 'path', '[data-middle-truncate]');
-        const pagination = page.getByRole('navigation', { name: '缺封面分页' });
-        await pagination.getByRole('button', { name: '下一页', exact: true }).click();
+        const pagination = page.getByRole('navigation', { name: 'Missing-cover pagination' });
+        await pagination.getByRole('button', { name: 'Next page', exact: true }).click();
         assert.equal(await table.getByRole('row').count(), 12);
-        assert.ok((await table.innerText()).includes('演示条目 21'));
+        assert.ok((await table.innerText()).includes('Demo entry 21'));
         assert.ok((await layout(page)).scrollWidth <= viewport.width);
         assert.deepEqual(opened.problems, []);
         await page.goto(new URL('/sources', page.url()).href);
@@ -49,19 +49,19 @@ describe('配置中的系统诊断', () => {
         assert.equal(await settingsIcon.evaluate(node => getComputedStyle(node).borderRadius), '0px');
       } finally { await opened.close(); }
     });
-    it(`配置导航停在搜索栏下方，分区切换保持正文可见（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The configuration nav sits below the search bar; section switching keeps the body visible (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/diagnostics', viewport);
       try {
         const { page } = opened;
         await page.locator('article[data-diagnostic-source]').first().waitFor();
         await settle(page);
         await page.evaluate(() => window.scrollTo(0, 650));
-        const nav = page.getByRole('tablist', { name: '配置分区' });
+        const nav = page.getByRole('tablist', { name: 'Configuration section' });
         const pinned = await nav.evaluate(element => ({ nav: element.getBoundingClientRect().top,
           search: document.querySelector('.top')!.getBoundingClientRect().bottom }));
         assert.ok(pinned.nav >= pinned.search + 7, JSON.stringify(pinned));
         assert.ok(pinned.nav <= pinned.search + 9, JSON.stringify(pinned));
-        await nav.getByRole('tab', { name: '网络与访问', exact: true }).click();
+        await nav.getByRole('tab', { name: 'Network & access', exact: true }).click();
         await settle(page);
         const visible = await page.locator('.ui-board-group-active').evaluate(element => ({ panel: element.getBoundingClientRect().top,
           nav: document.querySelector('.ui-board-local-nav')!.getBoundingClientRect().bottom,
@@ -70,7 +70,7 @@ describe('配置中的系统诊断', () => {
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
     });
-    it(`诊断深链等待时保留分区与正文布局（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Sections and body layout hold while a diagnostics deep link waits (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/library', viewport);
       let release!: () => void;
       const gate = new Promise<void>(resolve => { release = resolve; });
@@ -81,17 +81,17 @@ describe('配置中的系统诊断', () => {
         const panel = page.locator('.ui-board-group-active');
         const skeleton = panel.locator('[data-skeleton="diagnostics"]');
         await skeleton.waitFor();
-        await page.getByRole('tab', { name: '系统诊断', selected: true }).waitFor();
-        assert.equal(await panel.locator('section[aria-label="媒体库与目录"]').count(), 0);
+        await page.getByRole('tab', { name: 'System diagnostics', selected: true }).waitFor();
+        assert.equal(await panel.locator('section[aria-label="Media library and catalog"]').count(), 0);
         assert.equal(await skeleton.getAttribute('aria-busy'), 'true');
         assert.equal(await panel.locator('article[data-diagnostic-source]').count(), 0);
         const pending = await panel.evaluate(element => {
           const body = element.getBoundingClientRect();
           return { x: body.x, width: body.width, height: body.height };
         });
-        assert.ok(pending.width > 0 && pending.height > 0, `诊断分区等待态不可见：${JSON.stringify(pending)}`);
+        assert.ok(pending.width > 0 && pending.height > 0, `Diagnostics section waiting states invisible: ${JSON.stringify(pending)}`);
         release();
-        await page.getByRole('tab', { name: '系统诊断', selected: true }).waitFor();
+        await page.getByRole('tab', { name: 'System diagnostics', selected: true }).waitFor();
         await page.locator('article[data-diagnostic-source]').first().waitFor();
         await settle(page);
         await skeleton.waitFor({ state: 'detached' });
@@ -101,18 +101,18 @@ describe('配置中的系统诊断', () => {
         assert.deepEqual(opened.problems, []);
       } finally { release(); await opened.close(); }
     });
-    it(`入口、错误层级与来源卡片（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Entry, error hierarchy, and source cards (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/settings/library', viewport);
       try {
         const { page } = opened;
         await page.route('**/api/diagnostics', async route => {
           const report = await (await route.fetch()).json();
-          report.checks.media_mounts = { label: '媒体挂载', status: 'warning', reason: '本地磁盘：目录不存在',
-            action: '检查媒体目录与挂载状态', target: '/settings/library', details: {} };
+          report.checks.media_mounts = { label: 'Media mounts', status: 'warning', reason: 'Local disk: folder does not exist',
+            action: 'Check media folders and mount state', target: '/settings/library', details: {} };
           await route.fulfill({ json: report });
         });
-        await page.getByRole('tab', { name: '系统诊断', exact: true }).click();
-        await page.locator('section[aria-label="来源会话"]').waitFor();
+        await page.getByRole('tab', { name: 'System diagnostics', exact: true }).click();
+        await page.locator('section[aria-label="Source sessions"]').waitFor();
         await settle(page);
         assert.equal(new URL(page.url()).pathname, '/settings/diagnostics');
         const source = page.locator('article[data-diagnostic-source]').first();
@@ -160,8 +160,8 @@ describe('配置中的系统诊断', () => {
         assert.ok(grouping.gap >= 20);
         assert.deepEqual(opened.problems, []);
         await page.reload();
-        await page.getByRole('tab', { name: '系统诊断', selected: true }).waitFor();
-        await page.locator('section[aria-label="来源会话"]').waitFor();
+        await page.getByRole('tab', { name: 'System diagnostics', selected: true }).waitFor();
+        await page.locator('section[aria-label="Source sessions"]').waitFor();
       } finally { await opened.close(); }
     });
   }

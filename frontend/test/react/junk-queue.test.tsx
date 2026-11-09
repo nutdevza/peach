@@ -161,7 +161,7 @@ describe('计数行', () => {
     const { host } = await open(p);
     expect(p.countRow!.querySelector('[data-skeleton]')).toBeNull();
     expect(p.countRow!.querySelector('[data-collection-summary] strong')?.textContent).toBe('—');
-    expect(host.querySelector('[data-media-error] [data-note-action]')?.textContent).toBe('立即重试');
+    expect(host.querySelector('[data-media-error] [data-note-action]')?.textContent).toBe('Retry now');
     expect(cards(host)).toHaveLength(0);
   });
 });

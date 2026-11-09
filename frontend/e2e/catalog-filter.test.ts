@@ -1,9 +1,10 @@
-/* 首页上方那一整块：两排头像、玻璃浮层的两排（视图与标签、读数与排序）和网格上面那条交集条
- * （`catalog-filter` 岛，ADR-0031）。
+/* The whole block above the home grid: two avatar rows, the glass overlay's two rows (views and tags, readout and sort) and
+ * the intersection bar above the grid (`catalog-filter` island, ADR-0031).
  *
- * 作品、详情与图片沿用 `item-fixture.ts` 的桩；两排头像（`/api/tops`）、标签（`/api/facets` 的 `tags`）
- * 与目录列表在这里另给一份，好数请求、好让「按了什么」和「重取了几次」对得上。验的是行为：
- * 点下去发什么请求、按下态与地址怎么变、详情往返时这几排是不是原来那批节点。外观对照另有截图。 */
+ * Videos, details and images reuse `item-fixture.ts`'s stubs; the two avatar rows (`/api/tops`), tags (`/api/facets`'s
+ * `tags`) and the catalog list get their own copies here, so requests can be counted and "what was clicked" matched against
+ * "how many refetches". What is verified is behavior: which requests a click sends, how pressed states and the address
+ * change, and whether the rows are the same nodes after a details round trip. Looks are covered by screenshots elsewhere. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -18,13 +19,13 @@ const DETAIL_READY = '#stage[open] [data-item-side]';
 const FILTER = '[data-catalog-filter]';
 const READOUT = `${FILTER} [data-count-readout]`;
 
-/** 第一页四十位女优、十个厂牌；女优那排还有一页二十位，再往后就到底了。 */
+/** Page one has forty performers and ten labels; the performer strip has one more page of twenty, and that is the end. */
 const PERFORMERS = Array.from({ length: 60 }, (_, at) => ({
-  id: 95_000 + at, k: `演示女优${String(at + 1).padStart(2, '0')}`, n: 60 - at,
+  id: 95_000 + at, k: `Demo performer${String(at + 1).padStart(2, '0')}`, n: 60 - at,
   has_image: true, has_avatar: false, avatar_focus: null, rep: null,
 }));
-const STUDIOS = Array.from({ length: 10 }, (_, at) => ({ k: `演示厂牌${at + 1}`, n: 20 - at, has_logo: false }));
-const TAGS = Array.from({ length: 40 }, (_, at) => ({ k: `演示标签${String(at + 1).padStart(2, '0')}`, n: 90 - at }));
+const STUDIOS = Array.from({ length: 10 }, (_, at) => ({ k: `Demo label ${at + 1}`, n: 20 - at, has_logo: false }));
+const TAGS = Array.from({ length: 40 }, (_, at) => ({ k: `Demo tag${String(at + 1).padStart(2, '0')}`, n: 90 - at }));
 
 interface Counts {
   /** 目录分页带 offset；竖屏、搜索推荐与库存在性探测各走各的。窄屏首批可以只有一张。 */
@@ -38,7 +39,7 @@ const pathIs = (page: Page, path: string) => page.waitForFunction(
   (want) => decodeURIComponent(location.pathname) === want, path, { timeout: 10_000 });
 const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
 
-/** 等 Node 这一侧记下的请求数到位：桩在 Node 里计数，页面里的 `waitForFunction` 读不到。 */
+/** Wait for the request count recorded on the Node side to land: the stub counts in Node, which the page's `waitForFunction` cannot read. */
 async function until(done: () => boolean, message: string | (() => string), timeout = 10_000) {
   const end = Date.now() + timeout;
   while (!done()) {
@@ -47,7 +48,7 @@ async function until(done: () => boolean, message: string | (() => string), time
   }
 }
 
-/** 打开首页：桩装好之后重新载入，等到读数出现、等待态结束。 */
+/** Open the home page: reload once the stubs are in place, then wait for the numbers to appear and the waiting state to end. */
 async function openHome(browser: Browser, path = '/', viewport = DESKTOP): Promise<ItemVisit & { counts: Counts }> {
   const opened = await openItemPage(browser, '/', viewport, { ready: '#grid [data-media-card]' });
   const { page } = opened;
@@ -64,20 +65,20 @@ async function openHome(browser: Browser, path = '/', viewport = DESKTOP): Promi
     const response = await route.fetch();
     await route.fulfill({ json: { ...await response.json(), tags: TAGS } });
   });
-  /* 加一条标签筛选，列表就只剩一半：读数跟着换，才看得出这一趟真按新口径取了。 */
+  /* Adding one tag filter cuts the list to half: the readouts change with it, which is how you can see this fetch really used the new criteria. */
   await page.route((url) => url.pathname === '/api/items', (route) => {
     const url = new URL(route.request().url());
     if (url.searchParams.get('summary_only') === '1') counts.summaries.push(url);
     else if (!url.searchParams.has('orient') && url.searchParams.has('offset')) counts.items.push(url);
     const ids = url.searchParams.get('tag') || url.searchParams.get('owner') === 'none' ? CATALOG.slice(0, 3) : CATALOG;
     return route.fulfill({ json: {
-      items: ids.map((id) => ({ id, name: `sample_${id}.mp4`, title: `演示作品 ${id}`, is_jav: false, medium: 'video',
+      items: ids.map((id) => ({ id, name: `sample_${id}.mp4`, title: `Demo video ${id}`, is_jav: false, medium: 'video',
         location: 'local', has_thumb: true, duration: 3600, studio: 'Peach Studio', performers: [], tags: [] })),
       total: ids.length, has_more: false,
     } });
   });
   await page.goto(new URL(path, page.url()).toString(), { waitUntil: 'load' });
-  await page.locator(READOUT, { hasText: '个符合' }).waitFor({ timeout: 15_000 });
+  await page.locator(READOUT, { hasText: 'matches' }).waitFor({ timeout: 15_000 });
   await page.locator(`${FILTER} [data-tier-performer]`).first().waitFor({ timeout: 15_000 });
   await settle(page);
   return { ...opened, counts };
@@ -86,12 +87,12 @@ async function openHome(browser: Browser, path = '/', viewport = DESKTOP): Promi
 const tag = (page: Page, key: string) => page.locator(`${FILTER} [data-catalog-tag="${key}"]`);
 const chips = (page: Page) => page.locator('#combo [data-combo-chip]');
 
-describe('首页筛选条', () => {
+describe('Home filter bar', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('JAV 读数尚未返回时保持两行骨架，内容就绪后再决定合行', { timeout: 60_000 }, async () => {
+  it('While the JAV reading has not returned, a two-line skeleton holds; the merge is decided once content is ready', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, '/?jav=1');
     const { page } = opened;
     let release!: () => void;
@@ -109,13 +110,13 @@ describe('首页筛选条', () => {
       assert.equal(await frame.getAttribute('data-single-row'), null);
       assert.equal(await frame.evaluate(node => node.getBoundingClientRect().height), 96);
       release();
-      await page.locator(READOUT, { hasText: '个符合' }).waitFor();
+      await page.locator(READOUT, { hasText: 'matches' }).waitFor();
       await page.locator(`${FILTER} [data-catalog-frame][data-single-row]`).waitFor();
       assert.deepEqual(opened.problems, []);
     } finally { release(); await opened.close() }
   });
 
-  it('少量筛选项与右侧操作按容器宽度同行或分行', { timeout: 60_000 }, async () => {
+  it('With few filters, they and the right-side actions share a row or wrap by container width', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
@@ -141,7 +142,7 @@ describe('首页筛选条', () => {
   });
 
   for (const viewport of [DESKTOP, PHONE]) {
-    it(`${viewport.name} 筛选条件与作品卡片悬停面保持间距`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} keeps spacing between filter chips and video card hover surfaces`, { timeout: 60_000 }, async () => {
       const opened = await openHome(browser, '/?studio=Peach%20Studio', viewport);
       try {
         await opened.page.mouse.move(0, 0);
@@ -158,7 +159,7 @@ describe('首页筛选条', () => {
             height: node.getBoundingClientRect().height })), actions,
             compact: parseFloat(getComputedStyle(frame).getPropertyValue('--control-h-compact')) };
         });
-        // 筛选条整条取紧凑档：页签、药丸、分段与两枚动作键同高。
+        // The whole filter bar takes the compact tier: tabs, pills, segments, and the two action buttons share one height.
         assert.equal(controls.compact, 32);
         for (const control of controls.heights) assert.equal(control.height, controls.compact, JSON.stringify(control));
         assert.deepEqual(controls.actions[0], controls.actions[1]);
@@ -167,24 +168,24 @@ describe('首页筛选条', () => {
         assert.match(controls.actions[0].background, /^linear-gradient\(/);
         const gap = await opened.page.evaluate(() => document.querySelector('#grid [data-media-card]')!.getBoundingClientRect().top
           - document.querySelector('#combo [data-entity-combo]')!.getBoundingClientRect().bottom - 8);
-        assert.ok(gap >= 16, `筛选条件距卡片悬停面只有 ${gap}px`);
+        assert.ok(gap >= 16, `The filter is only ${gap}px from the card hover surface`);
         assert.deepEqual(withoutPlayer(opened.problems), []);
       } finally { await opened.close(); }
     });
   }
 
-  it('点头像条一格打开那一位的资料页；地址里的厂牌筛选出一颗交集条，撤掉它重取一次列表', { timeout: 60_000 }, async () => {
+  it('Clicking a cell in the avatar strip opens that person\'s profile page; the studio filter in the URL shows an intersection chip, and removing it refetches the list once', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, '/?studio=Peach%20Studio');
     try {
       const { page, counts } = opened;
-      await chips(page).filter({ hasText: '厂牌 Peach Studio' }).waitFor();
+      await chips(page).filter({ hasText: 'Label Peach Studio' }).waitFor();
       const before = counts.items.length;
-      await chips(page).filter({ hasText: 'Peach Studio' }).getByRole('button', { name: '撤掉 厂牌 Peach Studio' }).click();
+      await chips(page).filter({ hasText: 'Peach Studio' }).getByRole('button', { name: 'Remove label Peach Studio' }).click();
       await page.waitForFunction(() => !new URLSearchParams(location.search).has('studio'));
-      await page.locator(READOUT, { hasText: `${CATALOG.length} 个符合` }).waitFor();
-      assert.equal(await chips(page).count(), 0, '撤掉之后交集条上还有东西');
+      await page.locator(READOUT, { hasText: `${CATALOG.length} matches` }).waitFor();
+      assert.equal(await chips(page).count(), 0, 'Something remains on the intersection bar after removal');
       const after = counts.items.slice(before);
-      assert.ok(after.length >= 1 && after.every((url) => !url.searchParams.has('studio')), '撤掉之后没有按新口径重取');
+      assert.ok(after.length >= 1 && after.every((url) => !url.searchParams.has('studio')), 'Removal does not refetch with the new criteria');
       await page.locator(`${FILTER} [data-tier-performer]`).first().click();
       await pathIs(page, `/performers/${PERFORMERS[0]!.id}`);
     } finally {
@@ -192,11 +193,11 @@ describe('首页筛选条', () => {
     }
   });
 
-  it('标签条点选：按下态当场变，出一颗交集条，读数和侧栏计数按新口径各取一次；交集条上撤掉它回到原样', { timeout: 60_000 }, async () => {
+  it('Tag strip selection: the pressed state changes immediately, an intersection chip appears, and the readout and sidebar counts each take one pass with the new filter; removing it from the intersection chip restores the original', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page, counts } = opened;
-      /* 首屏那批标签按种子从四十枚里抽，点屏幕上的第一枚，不点清单里的第一枚。 */
+      /* The first screen's tags are drawn by seed from the forty; click the first one on screen, not the first in the list. */
       const key = (await page.locator(`${FILTER} [data-catalog-tag]`).first().getAttribute('data-catalog-tag'))!;
       await page.evaluate((filter) => {
         const first = document.querySelector(`${filter} [data-tier-performer]`) as HTMLElement & { __kept?: boolean };
@@ -206,34 +207,34 @@ describe('首页筛选条', () => {
       const order = () => page.locator(`${FILTER} [data-catalog-tag]`).evaluateAll((pills) =>
         pills.map((pill) => pill.getAttribute('data-catalog-tag')));
       const members = await order();
-      /* 计数是标签的附注：隔开一段、字号降一档、字色退一档，不和标签名读成一个词。 */
+      /* The count is an annotation on the tag: spaced apart, one font size down, one color step dimmer, so it never reads as one word with the tag name. */
       const footnote = await tag(page, key).evaluate((pill) => {
         const badge = pill.querySelector('[data-count-badge]')!;
         const [p, b] = [getComputedStyle(pill), getComputedStyle(badge)];
         return { gap: parseFloat(b.marginLeft), smaller: parseFloat(b.fontSize) < parseFloat(p.fontSize),
           dimmer: b.color !== p.color, spaced: !/\s$/.test(badge.previousSibling?.textContent ?? '') };
       });
-      assert.ok(footnote.gap >= 4, `计数离标签只有 ${footnote.gap}px`);
+      assert.ok(footnote.gap >= 4, `The count sits only ${footnote.gap}px from the label`);
       assert.deepEqual([footnote.smaller, footnote.dimmer, footnote.spaced], [true, true, true],
-        '计数和标签同字号、同色，或者靠空格文本节点隔开');
+        'Count and tag share size and color, or a space text node separates them');
       await tag(page, key).click();
       await page.locator(`${FILTER} [data-catalog-tag="${key}"][aria-pressed="true"]`).waitFor({ timeout: 2_000 });
       await chips(page).filter({ hasText: key }).waitFor();
-      await page.locator(READOUT, { hasText: '3 个符合' }).waitFor();
+      await page.locator(READOUT, { hasText: '3 matches' }).waitFor();
       assert.equal(new URL(page.url()).searchParams.get('tag'), key);
       assert.deepEqual(counts.items.slice(items).map((url) => url.searchParams.get('tag')), [key],
-        '点一枚标签应当只按新口径取一次列表');
+        'Clicking a tag should fetch the list exactly once under the new convention');
       assert.deepEqual(counts.summaries.slice(summaries).map((url) => url.searchParams.get('tag')), [key],
-        '独立读数应当按新口径取一次统计');
+        'The independent reading should fetch statistics once under the new criteria');
       assert.deepEqual(counts.facets.slice(facets).map((url) => url.searchParams.get('tag')), [key],
-        '侧栏计数应当按新口径取一次聚合');
-      /* 口径变了两排头像会按新口径再取一次（`getBarsData`），但同一位的那一格原地换数，不拆了重建。 */
+        'Sidebar counts should fetch one aggregation under the new convention');
+      /* When the metric changes, both avatar rows refetch under the new metric (`getBarsData`), but the same person's cell swaps its numbers in place instead of being torn down and rebuilt. */
       assert.equal(await page.evaluate((filter) => !!(document.querySelector(`${filter} [data-tier-performer]`) as
-        (HTMLElement & { __kept?: boolean }) | null)?.__kept, FILTER), true, '加一条筛选把头像条拆了重建');
-      /* 标签条的成员与次序不动：刚点的那枚还在原位，没被挪到最前面去。 */
-      assert.deepEqual(await order(), members, '加一条筛选把标签条重排了');
+        (HTMLElement & { __kept?: boolean }) | null)?.__kept, FILTER), true, 'Adding a filter tore the avatar strip down and rebuilt it');
+      /* The tag bar's members and order are unchanged: the tag just clicked stays where it was instead of moving to the front. */
+      assert.deepEqual(await order(), members, 'Adding a filter reflows the tag bar');
       await chips(page).filter({ hasText: key }).getByRole('button').click();
-      await page.locator(READOUT, { hasText: `${CATALOG.length} 个符合` }).waitFor();
+      await page.locator(READOUT, { hasText: `${CATALOG.length} matches` }).waitFor();
       await page.locator(`${FILTER} [data-catalog-tag="${key}"][aria-pressed="false"]`).waitFor({ timeout: 2_000 });
       assert.equal(await chips(page).count(), 0);
       assert.deepEqual(withoutPlayer(opened.problems), []);
@@ -242,33 +243,33 @@ describe('首页筛选条', () => {
     }
   });
 
-  it('头像条横滚到右端先把手上这页摆完，再要下一页，要到空页就停', { timeout: 60_000 }, async () => {
+  it('Scrolling the avatar strip to the right lays out the page in hand first, then requests the next, and stops when an empty page arrives', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page, counts } = opened;
       const row = page.locator(`${FILTER} [data-catalog-tier="performers"]`);
       const shown = () => row.locator('[data-tier-performer]').count();
-      assert.equal(await shown(), 24, '首屏应当只摆 24 枚');
+      assert.equal(await shown(), 24, 'The first screen should lay out only 24');
       for (let at = 0; at < 20 && await shown() < PERFORMERS.length; at += 1) {
         await row.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
         await page.waitForTimeout(120);
       }
-      assert.equal(await shown(), PERFORMERS.length, '续页没有把第二页摆出来');
+      assert.equal(await shown(), PERFORMERS.length, 'The next page never lays out page two');
       for (let at = 0; at < 5; at += 1) {
         await row.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
         await page.waitForTimeout(120);
       }
-      /* 请求不带是哪一排：厂牌那排第一页就摆得下，挂上时已在右端，要一次第 1 页（空的）就停。女优那排
-         翻到第 1 页时参数串相同，共用那一次回包，接着自己要第 2 页。 */
+      /* The request does not say which row it is for: the labels row fits its first page right away and is already at the right end when mounted, so requesting page 1 (empty) stops it. When the performers row
+         turns to page 1 the parameter string is identical, so both share that one response; it then requests page 2 on its own. */
       assert.deepEqual(counts.tops.map((url) => url.searchParams.get('page') ?? '').sort(), ['', '1', '2'],
-        '续页的页号不对，或到底之后还在要');
+        'The continuation page number is wrong, or it keeps requesting past the end');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('排序键：按下态当场到位，网格只重取一次；再点一次同一枚翻方向', { timeout: 60_000 }, async () => {
+  it('Sort key: the pressed state lands immediately and the grid refetches once; clicking the same key again flips the direction', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page, counts } = opened;
@@ -276,14 +277,14 @@ describe('首页筛选条', () => {
       const before = counts.items.length;
       await key.click();
       await page.locator(`${FILTER} [data-entity-sort="new"][aria-pressed="true"]`).waitFor({ timeout: 2_000 });
-      await until(() => counts.items.length > before, '换排序之后没有重取列表');
+      await until(() => counts.items.length > before, 'The list is not refetched after a sort change');
       await settle(page);
       assert.deepEqual(counts.items.slice(before).map((url) => url.searchParams.get('sort')), ['new'],
-        '换一次排序应当只重取一次列表');
-      /* 只数第一页：厂牌那排挂上时在右端，续要的那次空页与排序无关。 */
-      assert.equal(counts.tops.filter((url) => !url.searchParams.has('page')).length, 1, '换排序不该重取两排头像');
+        'One sort change should refetch the list exactly once');
+      /* Only the first page counts: the studio row sits at the right end when mounted; the empty page on the follow-up fetch is unrelated to sorting. */
+      assert.equal(counts.tops.filter((url) => !url.searchParams.has('page')).length, 1, 'A sort change should not refetch both avatar rows');
       await key.click();
-      await until(() => counts.items.length > before + 1, '翻方向之后没有重取列表');
+      await until(() => counts.items.length > before + 1, 'The list is not refetched after flipping direction');
       await settle(page);
       assert.deepEqual(counts.items.slice(before).map((url) => url.searchParams.get('dir') || ''), ['desc', 'asc']);
       assert.deepEqual(withoutPlayer(opened.problems), []);
@@ -292,7 +293,7 @@ describe('首页筛选条', () => {
     }
   });
 
-  it('卡片版式：只重画不重取，选择记进设置', { timeout: 60_000 }, async () => {
+  it('Card layout: repaints without refetching, recording the choice in settings', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page, counts } = opened;
@@ -303,7 +304,7 @@ describe('首页筛选条', () => {
       assert.equal(await choice('big').isChecked(), true);
       const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('peach.settings.v1') || '{}'));
       assert.equal(saved.homeLayout, 'big');
-      assert.equal(counts.items.length, before, '换版式不该重取列表');
+      assert.equal(counts.items.length, before, 'Switching layout must not refetch the list');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
@@ -311,7 +312,7 @@ describe('首页筛选条', () => {
   });
 
   for (const viewport of [DESKTOP, PHONE]) {
-  it(`${viewport.name} JAV 馆藏保留目录版式、筛选和顶部搜索，三个分区可往返`, { timeout: 60_000 }, async () => {
+  it(`${viewport.name} JAV library keeps the catalog layout, filters and top search, with all three sections reachable both ways`, { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, '/', viewport);
     try {
       const { page, counts } = opened;
@@ -320,58 +321,58 @@ describe('首页筛选条', () => {
       if (viewport.mobile) await page.locator('#filterBtn').click();
       await page.locator('button[data-nav="jav"]:visible').first().click();
       await page.waitForFunction(() => location.pathname === '/' && new URLSearchParams(location.search).get('jav') === '1');
-      await page.getByRole('tab', { name: '馆藏', exact: true, selected: true }).waitFor();
+      await page.getByRole('tab', { name: 'Library', exact: true, selected: true }).waitFor();
       await page.locator('#grid [data-media-card]').first().waitFor();
       await settle(page);
-      assert.ok(counts.items.slice(before).some((url) => url.searchParams.get('jav') === '1'), 'JAV 口径没有重取列表');
-      assert.equal(await page.evaluate(() => document.querySelector('#javLibraryHeader')!.getBoundingClientRect().bottom <= document.querySelector('#catalogFilter [data-catalog-tier="performers"]')!.getBoundingClientRect().top), true, 'JAV 标题和分区应在可见筛选行之前');
+      assert.ok(counts.items.slice(before).some((url) => url.searchParams.get('jav') === '1'), 'The JAV scope does not refetch the list');
+      assert.equal(await page.evaluate(() => document.querySelector('#javLibraryHeader')!.getBoundingClientRect().bottom <= document.querySelector('#catalogFilter [data-catalog-tier="performers"]')!.getBoundingClientRect().top), true, 'JAV title and sections should come before the visible filter row');
       assert.equal(await page.locator('#catalogPageHeading').isVisible(), false);
       assert.equal(await page.locator(`${FILTER} input[name="home-layout"]`).first().isVisible(), false);
       await page.locator(`${FILTER} input[name="jav-layout"]`).first().waitFor({ state: 'attached' });
-      assert.ok(await page.locator(`${FILTER} [data-tier-performer]`).count() > 0, 'JAV 没有女优筛选');
-      assert.ok(await page.locator(`${FILTER} [data-tier-studio]`).count() > 0, 'JAV 没有厂牌筛选');
-      assert.ok(await page.locator(`${FILTER} [data-catalog-tag]`).count() > 0, 'JAV 没有标签筛选');
-      assert.equal(await page.getByRole('textbox', { name: '搜索作品', exact: true }).count(), 0);
+      assert.ok(await page.locator(`${FILTER} [data-tier-performer]`).count() > 0, 'JAV has no performer filter');
+      assert.ok(await page.locator(`${FILTER} [data-tier-studio]`).count() > 0, 'JAV has no label filter');
+      assert.ok(await page.locator(`${FILTER} [data-catalog-tag]`).count() > 0, 'JAV has no tag filter');
+      assert.equal(await page.getByRole('textbox', { name: 'Search videos', exact: true }).count(), 0);
       const width = await page.evaluate(() => ({
         grid: document.querySelector('#grid')!.getBoundingClientRect().width,
         main: document.querySelector('#main')!.clientWidth,
       }));
-      assert.ok(width.grid >= width.main - 40, 'JAV 网格没有铺满目录宽度');
+      assert.ok(width.grid >= width.main - 40, 'The JAV grid never fills the catalog width');
       await page.locator(`${FILTER} label:has(input[name="jav-layout"][value="big"])`).click();
       assert.equal(await page.locator(`${FILTER} input[name="jav-layout"][value="big"]`).isChecked(), true);
       const beforeSearch = counts.items.length;
       if (viewport.mobile) await page.locator('#searchBtn').click();
-      await page.locator('#q').fill('演示作品');
+      await page.locator('#q').fill('Demo video');
       await page.locator('#q').press('Enter');
-      await withPageDiagnostics(page, '作品搜索没有按搜索词重取 JAV 馆藏', () => until(
-        () => counts.items.slice(beforeSearch).some(url => url.searchParams.get('q') === '演示作品'),
+      await withPageDiagnostics(page, 'Video search did not refetch the JAV library by the search term', () => until(
+        () => counts.items.slice(beforeSearch).some(url => url.searchParams.get('q') === 'Demo video'),
         () => JSON.stringify({ url: page.url(), list: counts.items.slice(beforeSearch).map(url => url.search),
           summaries: counts.summaries.map(url => url.search) })));
       assert.equal(counts.items.at(-1)?.searchParams.get('jav'), '1');
-      assert.equal(counts.items.at(-1)?.searchParams.get('q'), '演示作品');
+      assert.equal(counts.items.at(-1)?.searchParams.get('q'), 'Demo video');
       assert.equal(new URL(page.url()).searchParams.get('jav'), '1');
-      assert.equal(new URL(page.url()).searchParams.get('q'), '演示作品');
+      assert.equal(new URL(page.url()).searchParams.get('q'), 'Demo video');
       if (viewport.mobile) await page.locator('#searchBack').click();
-      await page.getByRole('tab', { name: '发现', exact: true }).click();
-      await page.getByRole('tab', { name: '发现', exact: true, selected: true }).waitFor();
+      await page.getByRole('tab', { name: 'Discover', exact: true }).click();
+      await page.getByRole('tab', { name: 'Discover', exact: true, selected: true }).waitFor();
       assert.equal(await page.locator('#javLibraryHeader').isVisible(), false);
-      await page.getByRole('tab', { name: '想要', exact: true }).click();
-      await page.getByRole('tab', { name: '想要', exact: true, selected: true }).waitFor();
-      await page.getByRole('tab', { name: '馆藏', exact: true }).click();
-      await page.getByRole('tab', { name: '馆藏', exact: true, selected: true }).waitFor();
+      await page.getByRole('tab', { name: 'Want', exact: true }).click();
+      await page.getByRole('tab', { name: 'Want', exact: true, selected: true }).waitFor();
+      await page.getByRole('tab', { name: 'Library', exact: true }).click();
+      await page.getByRole('tab', { name: 'Library', exact: true, selected: true }).waitFor();
       await page.locator('#grid [data-media-card]').first().waitFor();
       assert.equal(await page.locator(`${FILTER} input[name="jav-layout"][value="big"]`).isChecked(), true);
       const box = await layout(page);
-      assert.ok(box.scrollWidth <= box.viewportWidth, 'JAV 页面横向溢出');
+      assert.ok(box.scrollWidth <= box.viewportWidth, 'The JAV page overflows horizontally');
       await settle(page);
       const beforeHome = counts.items.length;
       if (viewport.mobile) await page.locator('#filterBtn').click();
       await page.locator('button[data-nav=""]:visible').first().click();
       await page.waitForFunction(() => location.pathname === '/' && !new URLSearchParams(location.search).has('jav'));
       await page.locator(`${FILTER} input[name="home-layout"]`).first().waitFor({ state: 'attached' });
-      await page.locator(READOUT, { hasText: '个符合' }).waitFor();
+      await page.locator(READOUT, { hasText: 'matches' }).waitFor();
       await settle(page);
-      assert.equal(counts.items.length, beforeHome, '返回首页沿用原来的目录缓存');
+      assert.equal(counts.items.length, beforeHome, 'Returning home reuses the original catalog cache');
       assert.deepEqual(await page.locator('#grid [data-media-card]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-id'))), homeIds);
       assert.equal(await page.locator('#javLibraryHeader').isVisible(), false);
       assert.deepEqual(withoutPlayer(opened.problems), []);
@@ -381,21 +382,21 @@ describe('首页筛选条', () => {
   });
   }
 
-  it('未归属随首页位置保留，撤掉筛选后取全库，后退恢复未归属缓存', { timeout: 60_000 }, async () => {
+  it('Unfiled items keep the home position, dropping the filter falls back to the whole library, and going back restores the unfiled cache', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, '/?owner=none');
     try {
       const { page, counts } = opened;
-      assert.equal(counts.items.at(-1)?.searchParams.get('owner'), 'none', '地址上的未归属没有进列表请求');
+      assert.equal(counts.items.at(-1)?.searchParams.get('owner'), 'none', 'The address\'s unattributed never entered the list request');
       let before = counts.items.length;
       const mainCards = page.locator('#grid [data-media-grid] > [data-media-card]');
       const filteredIds = await mainCards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-id')));
       await page.locator('[data-nav=""]:visible').first().click();
       await settle(page);
       assert.equal(new URL(page.url()).searchParams.get('owner'), 'none');
-      assert.equal(counts.items.length, before, '点击当前栏目保留筛选');
-      await chips(page).filter({ hasText: '未归属' }).getByRole('button').click();
+      assert.equal(counts.items.length, before, 'Clicking the current section keeps the filters');
+      await chips(page).filter({ hasText: 'Unassigned' }).getByRole('button').click();
       await page.waitForFunction(() => !new URLSearchParams(location.search).has('owner'));
-      await until(() => counts.items.length > before, '撤掉未归属之后没有重取列表');
+      await until(() => counts.items.length > before, 'Removing the unfiled filter never refetches the list');
       await settle(page);
       assert.equal(counts.items.at(-1)?.searchParams.has('owner'), false);
       assert.equal(await mainCards.count(), CATALOG.length);
@@ -403,8 +404,8 @@ describe('首页筛选条', () => {
       await page.goBack();
       await page.waitForFunction(() => new URLSearchParams(location.search).get('owner') === 'none');
       await settle(page);
-      assert.equal(counts.items.length, before, '后退恢复已取得的未归属结果');
-      assert.equal(await chips(page).filter({ hasText: '未归属' }).count(), 1);
+      assert.equal(counts.items.length, before, 'Going back restores the already-fetched unfiled results');
+      assert.equal(await chips(page).filter({ hasText: 'Unassigned' }).count(), 1);
       assert.deepEqual(await mainCards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-id'))), filteredIds);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
@@ -412,7 +413,7 @@ describe('首页筛选条', () => {
     }
   });
 
-  it('进详情再关回来：头像条还是原来那批节点，图还是解码过的那一张，也没有多发聚合请求', { timeout: 60_000 }, async () => {
+  it('Enter details and close again: the avatar strip keeps the original nodes, the image is still the decoded one, and no extra aggregate request is sent', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page, counts } = opened;
@@ -438,27 +439,27 @@ describe('首页筛选条', () => {
         const img = first?.querySelector('[data-tier-ring] > img') as (HTMLImageElement & { __kept?: boolean }) | null;
         return { same: !!first?.__kept, img: !!img?.__kept && img.complete && img.naturalWidth > 0 };
       }, FILTER);
-      assert.deepEqual(kept, { same: true, img: true }, '关掉详情时头像条被重建了');
-      assert.equal(counts.facets.length, facets, '详情往返多取了一遍聚合');
-      assert.equal(counts.tops.length, tops, '详情往返多取了一遍头像');
+      assert.deepEqual(kept, { same: true, img: true }, 'Closing details rebuilds the avatar strip');
+      assert.equal(counts.facets.length, facets, 'A details round trip fetches the aggregate twice');
+      assert.equal(counts.tops.length, tops, 'A details round trip fetches the avatars twice');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('去索引页再回首页：收起时不留一套同名的浮层，回来之后玻璃垫在当前视图下面', { timeout: 60_000 }, async () => {
+  it('Go to the index page and back to home: collapsing leaves no duplicate overlay of the same name, and on return the glass sits beneath the current view', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page } = opened;
       await page.locator('[data-nav="tags"]:visible').first().click();
       await pathIs(page, '/tags');
       await settle(page);
-      assert.equal(await page.locator(`${FILTER} [data-catalog-frame]`).count(), 0, '收起的首页浮层还留在页面上');
+      assert.equal(await page.locator(`${FILTER} [data-catalog-frame]`).count(), 0, 'The collapsed home overlay is still on the page');
       assert.equal(await page.locator(`${FILTER} [data-skeleton], ${FILTER} [aria-busy="true"]`).count(), 0);
       await page.locator('[data-nav=""]:visible').first().click();
       await pathIs(page, '/');
-      await page.locator(READOUT, { hasText: '个符合' }).waitFor();
+      await page.locator(READOUT, { hasText: 'matches' }).waitFor();
       await settle(page);
       const back = await page.evaluate((filter) => {
         const rect = (node: Element | null) => {
@@ -472,14 +473,14 @@ describe('首页筛选条', () => {
         };
       }, FILTER);
       assert.ok(back.glide && back.key && Math.abs(back.glide.left - back.key.left) <= 1
-        && Math.abs(back.glide.width - back.key.width) <= 1, `玻璃没有垫在当前视图下面 ${JSON.stringify(back)}`);
+        && Math.abs(back.glide.width - back.key.width) <= 1, `Glass is not layered beneath the current view ${JSON.stringify(back)}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('手机 390 宽：视图和标签整段一起横滚，页面本身不被撑宽', { timeout: 60_000 }, async () => {
+  it('At mobile 390 width: views and tags scroll horizontally as one block, and the page itself never widens', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, '/', PHONE);
     try {
       const { page } = opened;
@@ -488,14 +489,14 @@ describe('首页筛选条', () => {
         overflow: getComputedStyle(element).overflowX, room: element.scrollWidth - element.clientWidth,
         view: element.querySelector('[data-catalog-view]')!.getBoundingClientRect().left,
       }));
-      assert.equal(before.overflow, 'auto', '窄屏下滚的应当是视图与标签外面那一层');
-      assert.ok(before.room > 100, `视图与标签在 390 宽下应当放不下：多出 ${before.room}px`);
+      assert.equal(before.overflow, 'auto', 'On narrow screens the scrolling layer should be the one outside views and tags');
+      assert.ok(before.room > 100, `Views and tags should not fit at 390 wide: overflowing by ${before.room}px`);
       await scroller.evaluate((element) => { element.scrollLeft = 200; });
       const moved = await scroller.evaluate((element) => ({
         left: element.scrollLeft, view: element.querySelector('[data-catalog-view]')!.getBoundingClientRect().left,
       }));
-      assert.ok(moved.left > 0, '外层滚不动');
-      assert.ok(moved.view < before.view - 100, '四枚视图没有跟着标签一起滚走');
+      assert.ok(moved.left > 0, 'The outer layer cannot scroll');
+      assert.ok(moved.view < before.view - 100, 'The four views never scrolled away with the tags');
       const controls = page.locator(`${FILTER} [data-filter-row="bottom"]`);
       const bottom = await controls.evaluate(element => {
         const summary = element.querySelector('[data-catalog-summary]')!.getBoundingClientRect();
@@ -519,19 +520,19 @@ describe('首页筛选条', () => {
         assert.ok(glass.filter.includes('blur(') && glass.width < glass.viewport, JSON.stringify(glass));
       }
       const measured = await layout(page);
-      assert.deepEqual(measured.offenders, [], `筛选条把页面撑宽了：${measured.offenders.join('、')}`);
+      assert.deepEqual(measured.offenders, [], `Filter bar stretched the page wider: ${measured.offenders.join(', ')}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('上次两排都没人：再进首页时取回之前不铺两排占位，浮层不随取回移位', { timeout: 60_000 }, async () => {
+  it('Last time both rows were empty: re-entering home does not lay two row placeholders while refetching, and the overlay does not shift on arrival', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const { page } = opened;
       let delay = 0;
-      // 后注册的先拦：这一组两排都没人，第二次进页拖住三秒，量的就是取回之前那一刻。
+      // Later registrations intercept first: this pair has nothing in either row, so on the second visit the three-second stall measures the moment right before the fetch returns.
       await page.route((url) => url.pathname === '/api/tops', async (route) => {
         await new Promise((resolve) => setTimeout(resolve, delay));
         await route.fulfill({ json: { performers: [], studios: [] } });
@@ -554,7 +555,7 @@ describe('首页筛选条', () => {
       await settle(page);
       const done = await read();
       assert.equal(done.rows, 0);
-      assert.ok(Math.abs(done.top - waiting.top) <= 1, `取回后浮层移位：${waiting.top} → ${done.top}`);
+      assert.ok(Math.abs(done.top - waiting.top) <= 1, `Overlay moved after fetch: ${waiting.top} → ${done.top}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();

@@ -1,9 +1,11 @@
-/* 作品详情岛（`item-detail`）的桩数据：`item-detail.test.ts` 与设计决定用例（`design-*.test.ts`）共用。
+/* Stub data for the video details island (`item-detail`), shared by `item-detail.test.ts` and the design decision cases
+ * (`design-*.test.ts`).
  *
- * 演示库里的作品没有共演、分卷、版本和播放列表，这里按 `q_item`、`q_items`（`src/peach/web_catalog.py`）
- * 与 `w_playlist`（`src/peach/web_playlists.py`）的形状造几种形态：普通、十二位共演、在脱盘来源上、标题很长、
- * 三卷分卷、两个版次，外加一份四条的播放列表。详情读写的接口全部由桩接住，写进来的请求记在
- * `writes` 里；片源不给正片，播放器报的那一条 VIDEOJS 错误由各条自己滤掉。 */
+ * The demo library's videos have no co-performers, volumes, editions or playlists, so this builds several shapes matching
+ * `q_item`, `q_items` (`src/peach/web_catalog.py`) and `w_playlist` (`src/peach/web_playlists.py`): plain, twelve co-stars, on
+ * an offline source, very long title, three volumes, two editions, plus a four-entry playlist. All read and write endpoints
+ * the details touch are caught by stubs, with incoming requests recorded in `writes`; the stream source serves no actual
+ * video, and the one VIDEOJS error the player reports is filtered out by each case. */
 import type { Browser, Page, Request } from 'playwright-core';
 
 import { settle, visit, type Viewport, type Visit } from './harness.ts';
@@ -11,7 +13,7 @@ import { mockSubtitleMemory } from './subtitle-fixture.ts';
 
 export const NAMES = ['七海ひな', '桜井まい', '白石りん', '水瀬ゆい', '藤原あや', '早川なな', '森下えみ', '高橋さき',
   '小野みお', '石原かな', '青木ゆず', '中村はる'];
-const TAGS = ['剧情', '单体作品', '高画质', '中出', '巨乳', '美少女'];
+const TAGS = ['Drama', 'Single videos', 'High quality', 'Creampie', 'Big breasts', 'Beautiful girl'];
 
 type Row = Record<string, unknown> & { id: number; tags: unknown[] };
 const ref = (name: string, id: number, extra: Record<string, unknown> = {}) =>
@@ -20,17 +22,17 @@ const ref = (name: string, id: number, extra: Record<string, unknown> = {}) =>
 const detail = (id: number, extra: Record<string, unknown> = {}): Row => {
   const performers = (extra.performers as string[] | undefined) || [NAMES[0]!];
   return {
-    id, name: `sample_${id}.mp4`, title: `演示作品 ${id}`, is_jav: false, medium: 'video', location: 'local',
+    id, name: `sample_${id}.mp4`, title: `Demo video ${id}`, is_jav: false, medium: 'video', location: 'local',
     cost: 'free', size: 1_234_567_890, duration: 3600, play_seconds: 900, play_count: 2, leave_ratio: 0.4,
     has_cover: false, has_thumb: true, has_local_poster: false, performers, performer_total: performers.length,
     performer_entities: performers.map((_, at) => ({ id: at + 1, has_image: false })), creator: '', studio: 'Peach Studio',
     feedback: null, disposal: null, watch_later: false, width: 1920, height: 1080, release_date: '2026-08-01',
-    region: 'jp', region_label: '日本', region_settled: true, rating: 60, liked: false, like_reason: '', o_count: 1,
+    region: 'jp', region_label: 'Japan', region_settled: true, rating: 60, liked: false, like_reason: '', o_count: 1,
     better_version: false, better_version_reason: '', has_studio_logo: false, poster_box: null,
     tags: TAGS.map((k) => ({ k, cat: 'general', official: false })),
     entity_refs: {
       performer: performers.map((name, at) => ref(name, at + 1)),
-      studio: [ref('Peach Studio', 50, { has_logo: false })], creator: [], series: [ref('夏日系列', 70)],
+      studio: [ref('Peach Studio', 50, { has_logo: false })], creator: [], series: [ref('Summer series', 70)],
     },
     ...extra,
   };
@@ -39,21 +41,21 @@ const detail = (id: number, extra: Record<string, unknown> = {}): Row => {
 const jav = (id: number, code: string, extra: Record<string, unknown> = {}) =>
   detail(id, { is_jav: true, code, has_cover: true, ...extra });
 
-/** 几种形态的条目 id。 */
+/** Entry ids across several shapes. */
 export const ITEM = { plain: 11, cast: 12, offline: 13, long: 17, seller: 18, part: 21, edition: 31 } as const;
 const PART_GROUP = { key: 'p', seed_id: 21, count: 3 };
-const EDITION_GROUP = { key: 'e', seed_id: 31, count: 2, editions: ['中字', '无码'] };
+const EDITION_GROUP = { key: 'e', seed_id: 31, count: 2, editions: ['Chinese subs', 'Uncensored'] };
 const DETAILS = new Map<number, Row>([
   [11, detail(11, { performers: NAMES.slice(0, 2) })],
-  [12, detail(12, { performers: NAMES, title: '演示作品 12 共演十二位' })],
-  [13, detail(13, { location: '115', title: '演示作品 13 在脱盘的来源上' })],
+  [12, detail(12, { performers: NAMES, title: 'Demo video 12 with twelve co-stars' })],
+  [13, detail(13, { location: '115', title: 'Demo video 13 sits on a dead-link source' })],
   [14, detail(14)], [15, detail(15)], [16, detail(16)],
-  // 非番号作品的标题栏印的是文件名。
-  [17, detail(17, { name: `演示作品 17 ${'标题很长，写满了这一条的剧情梗概、出演与拍摄地点。'.repeat(8)}.mp4` })],
-  [18, jav(18, 'FC2-PPV-4075681', { performers: [], creator: '演示卖家', studio: 'FC2-PPV',
-    creator_entity: ref('演示卖家', 80, { rep: 18, has_avatar: true, avatar_stand_in: true, identity_categories: ['seller'] }),
+  // Non-code videos print the file name in the title bar.
+  [17, detail(17, { name: `Demo video 17 ${'A very long title filled with the plot summary, cast and shooting locations of this entry. '.repeat(8)}.mp4` })],
+  [18, jav(18, 'FC2-PPV-4075681', { performers: [], creator: 'Demo seller', studio: 'FC2-PPV',
+    creator_entity: ref('Demo seller', 80, { rep: 18, has_avatar: true, avatar_stand_in: true, identity_categories: ['seller'] }),
     entity_refs: { performer: [], series: [], studio: [ref('FC2-PPV', 50, { has_logo: true })],
-      creator: [ref('演示卖家', 80, { rep: 18, has_avatar: true, avatar_stand_in: true, identity_categories: ['seller'] })] },
+      creator: [ref('Demo seller', 80, { rep: 18, has_avatar: true, avatar_stand_in: true, identity_categories: ['seller'] })] },
   })],
   [21, jav(21, 'PCH-021', { part_group: PART_GROUP })],
   [22, jav(22, 'PCH-021', { part_group: PART_GROUP })],
@@ -62,7 +64,7 @@ const DETAILS = new Map<number, Row>([
   [32, jav(32, 'PCH-031', { edition_group: EDITION_GROUP })],
 ]);
 
-/** 列表与队列里的那一份：没有 `entity_refs`，标签只是字符串，同 `/api/items`。 */
+/** The copy used in lists and the queue: no `entity_refs`, tags are plain strings, same as `/api/items`. */
 export const card = (id: number) => {
   const { entity_refs: _refs, ...rest } = DETAILS.get(id)!;
   return { ...rest, tags: (rest.tags as { k: string }[]).map((tag) => tag.k) };
@@ -74,8 +76,8 @@ export const PARTS = { title: 'PCH-021', items: [21, 22, 23].map((id, at) => ({
   performers: NAMES.slice(0, 2),
   entity_refs: { performer: NAMES.slice(0, 2).map((name, index) => ref(name, index + 1, { has_image: true })) },
 })) };
-export const EDITIONS = { title: 'PCH-031', items: [{ ...card(31), edition_label: '中字' }, { ...card(32), edition_label: '无码' }] };
-export const PLAYLIST = { id: 7, name: '周末片单', items: [11, 14, 15, 16] };
+export const EDITIONS = { title: 'PCH-031', items: [{ ...card(31), edition_label: 'Chinese subs' }, { ...card(32), edition_label: 'Uncensored' }] };
+export const PLAYLIST = { id: 7, name: 'Weekend playlist', items: [11, 14, 15, 16] };
 export const SAMPLE_ITEM = jav(41, 'PCH-041', { sample_images: [{ n: 1 }, { n: 3 }] });
 DETAILS.set(SAMPLE_ITEM.id, SAMPLE_ITEM);
 export const COVER_ONLY_ITEM = jav(42, 'PCH-042');
@@ -89,11 +91,11 @@ const svg = (key: string, width: number, height: number) => {
 };
 
 export interface ItemStub {
-  /** 桩收到的写请求：路径与请求体，按到达顺序。 */
+  /** Write requests the stub received: paths and bodies, in arrival order. */
   writes: { url: string; body: Record<string, unknown> }[];
-  /** 各读接口被请求了几次，按路径计。 */
+  /** How many times each read endpoint was requested, counted by path. */
   reads: Map<string, number>;
-  /** 空片源的预期解码错误，独立于真实诊断服务的限流预算。 */
+  /** The expected decode error for an empty source, independent of the real diagnostics service's rate-limit budget. */
   mediaErrors: Record<string, unknown>[];
 }
 
@@ -117,7 +119,7 @@ async function stub(page: Page, catalogIds: readonly number[] = CATALOG): Promis
       else state.writes.push({ url: path, body: body(request) });
       return route.fulfill({ json: respond(new URL(request.url()), request) });
     });
-  await json('/api/item', (url) => DETAILS.get(Number(url.searchParams.get('id'))) || { error: '这一条已不在数据库里' });
+  await json('/api/item', (url) => DETAILS.get(Number(url.searchParams.get('id'))) || { error: 'This entry is no longer in the database' });
   await json('/api/items', () => ({ items: catalogIds.map(card), total: catalogIds.length, has_more: false }));
   await json('/api/related', () => ({ items: RELATED.map(card) }));
   await json('/api/parts', () => PARTS);
@@ -168,7 +170,7 @@ async function stub(page: Page, catalogIds: readonly number[] = CATALOG): Promis
     (route) => route.fulfill({ json: { subtitles: [] } }));
   await page.route((url) => ['/api/play', '/api/activity', '/api/stream-cancel'].includes(url.pathname),
     (route) => route.fulfill({ json: { ok: true } }));
-  // 设置读真服务，写就地接住：`settings` 里的本地值会被推上去，改掉并发文件读到的同一份设置。
+  // Settings read the real service while writes are caught locally: otherwise the local value in `settings` gets pushed up and changes the same settings a concurrent file read picked up.
   await page.route((url) => url.pathname === '/api/settings',
     (route) => route.request().method() === 'GET' ? route.fallback() : route.fulfill({ json: { ok: true } }));
   await page.route((url) => url.pathname === '/api/stream-plan',(route) => route.fulfill({ json: { protocol: 'direct' } }));
@@ -192,7 +194,7 @@ export interface ItemVisit extends Visit {
   stub: ItemStub;
 }
 
-/** 打开一页：导航前装好桩与设置，等到 `ready` 出现、等待态结束。 */
+/** Opens a page: install stubs and settings before navigating, then wait for `ready` to appear and the pending state to end. */
 export async function openItemPage(browser: Browser, path: string, viewport: Viewport,
   { settings = {}, ready = '#stage[open] [data-item-side]', catalogIds }: {
     settings?: Record<string, unknown>; ready?: string; catalogIds?: readonly number[];

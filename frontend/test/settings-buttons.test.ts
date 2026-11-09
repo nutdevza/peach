@@ -1,4 +1,4 @@
-/* 设置页的保存键统一叫「保存配置」并使用主按钮；主次层级与危险操作由浏览器和组件用例验收。 */
+/* The settings pages' save key is uniformly "save configuration" with the primary button; hierarchy and dangerous actions are accepted by browser and component tests. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -10,13 +10,13 @@ const buttons = readdirSync(dir)
   .flatMap((name) => [...readFileSync(resolve(dir, name), 'utf8').matchAll(/<Button\b([\s\S]*?)<\/Button>/g)]
     .map(([, tag = '']) => ({ name, tag, label: tag.slice(tag.lastIndexOf('>') + 1).trim() })));
 
-it('保存键一律叫「保存配置」', () => {
-  const saves = buttons.filter((button) => button.label.startsWith('保存'));
+it('The save button is always labeled "Save configuration"', () => {
+  const saves = buttons.filter((button) => button.label.startsWith('Save'));
   expect(saves.length).toBeGreaterThan(0);
-  expect(saves.filter((button) => button.label !== '保存配置').map((button) => `${button.name}: ${button.label}`)).toEqual([]);
+  expect(saves.filter((button) => button.label !== 'Save configuration').map((button) => `${button.name}: ${button.label}`)).toEqual([]);
 });
 
-it('保存配置使用主按钮', () => {
-  const saves = buttons.filter((button) => button.label === '保存配置');
+it('The primary button saves the configuration', () => {
+  const saves = buttons.filter((button) => button.label === 'Save configuration');
   expect(saves.filter((button) => /\bvariant=/.test(button.tag)).map((button) => button.name)).toEqual([]);
 });

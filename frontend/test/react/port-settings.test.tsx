@@ -5,7 +5,7 @@ import { click, fetchMock, mount, sentBody, settle, submit, type } from './rende
 const data: ConfigurationData = { editable: true, notice: '', revision: 'rev-1',
   media_dirs: ['D:\\Media'], media_sources: [{ location: 'local', root: 'D:\\Media', path: 'D:\\Media' }],
   library_count: 1, port: 9123, facts: [] };
-it('保存端口保留已保存的媒体目录与来源映射', async () => {
+it('Saving the port keeps saved media folders and source mappings', async () => {
   const fetcher = fetchMock(200, { saved: true, revision: 'rev-2', url: 'http://127.0.0.1:9124/' });
   vi.stubGlobal('fetch', fetcher);
   const receipt = vi.fn();
@@ -15,11 +15,11 @@ it('保存端口保留已保存的媒体目录与来源映射', async () => {
   await settle();
   expect(sentBody(fetcher)).toEqual({ revision: 'rev-1', media_dirs: data.media_dirs,
     media_sources: data.media_sources, port: '9124', scan_now: false });
-  expect(receipt).toHaveBeenCalledWith('已保存配置');
+  expect(receipt).toHaveBeenCalledWith('Configuration saved');
   expect(host.querySelector('a')?.getAttribute('href')).toBe('http://127.0.0.1:9124/settings/network');
 });
 
-it('局域网地址和备用地址分别可复制，复制失败可以选中文本', async () => {
+it('LAN and fallback addresses copy separately, and a failed copy can still select the text', async () => {
   const copy = vi.fn().mockRejectedValue(new Error('clipboard unavailable'));
   vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: copy } });
   const host = await mount(<PortSettings data={{ ...data, network: {
@@ -30,38 +30,38 @@ it('局域网地址和备用地址分别可复制，复制失败可以选中文�
   expect(inputs.map(input => input.value)).toEqual([
     'http://127.0.0.1:9123/', 'http://peach.local:9123/', 'http://192.0.2.10:9123/',
   ]);
-  const copyButtons = [...host.querySelectorAll<HTMLButtonElement>('button')].filter(button => button.textContent === '复制地址');
+  const copyButtons = [...host.querySelectorAll<HTMLButtonElement>('button')].filter(button => button.textContent === 'Copy address');
   await click(copyButtons[1]); await settle();
   expect(copy).toHaveBeenCalledWith('http://peach.local:9123/');
-  expect(host.textContent).toContain('复制失败，请选中地址复制。');
+  expect(host.textContent).toContain('Access addressLocal addressCopy addressPhone connection addressCopy addressCopy failed; select the address and copy it.Fallback IP addressCopy addressPhone and computer on the same Wi-Fi.If the hostname does not open, try the fallback IP address.Who can accessDevices on the same LANThis computer onlyLAN access addresshttp://.localPortlocalhost:Peach will restart after saving and jump to the new address.Save configuration');
 });
 
-it('本机模式隐藏手机地址并保存访问范围', async () => {
+it('Local mode hides the phone address and saves the access range', async () => {
   const fetcher = fetchMock(200, { saved: true, url: 'http://127.0.0.1:9123/' });
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<PortSettings data={{ ...data, network: {
     editable: true, host: '127.0.0.1', mdns_name: 'peach', scope: 'local',
     local_url: 'http://127.0.0.1:9123/', lan_url: '', ip_url: '',
   } }} receipt={vi.fn()} />);
-  expect(host.textContent).toContain('当前只允许这台电脑访问');
+  expect(host.textContent).toContain('Only this computer may access for now');
   expect(host.querySelector('#configMdnsName')).toBeNull();
   await submit(host.querySelector('form')); await settle();
   expect(sentBody(fetcher).host).toBe('127.0.0.1');
   expect(sentBody(fetcher)).not.toHaveProperty('mdns_name');
 });
-it('端口校验失败保留输入，错误显示在字段旁', async () => {
-  vi.stubGlobal('fetch', fetchMock(400, { errors: { port: '端口范围无效' } }));
+it('Failed port validation keeps input, with the error beside the field', async () => {
+  vi.stubGlobal('fetch', fetchMock(400, { errors: { port: 'The port range is invalid' } }));
   const receipt = vi.fn();
   const host = await mount(<PortSettings data={data} receipt={receipt} />);
   await type(host.querySelector<HTMLInputElement>('#configPort'), '1');
   await submit(host.querySelector('form')); await settle();
   expect(host.querySelector('#configPort')?.getAttribute('aria-invalid')).toBe('true');
-  expect(host.textContent).toContain('端口范围无效');
+  expect(host.textContent).toContain('The port range is invalid');
   expect(host.querySelector<HTMLInputElement>('#configPort')?.value).toBe('1');
   expect(receipt).not.toHaveBeenCalled();
 });
 
-it('从本机切换到局域网可以设置名称，保存时提交完整网络配置', async () => {
+it('Switching from this machine to LAN allows naming, and saving submits the full network configuration', async () => {
   const fetcher = fetchMock(200, { saved: true, url: 'http://127.0.0.1:9123/' });
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<PortSettings data={{ ...data, network: {
@@ -72,17 +72,17 @@ it('从本机切换到局域网可以设置名称，保存时提交完整网络�
   await type(host.querySelector<HTMLInputElement>('#configMdnsName'), 'peach-phone');
   expect(host.textContent).toContain('http://');
   expect(host.textContent).toContain('.local');
-  expect(host.textContent).toContain('保存并重启后显示手机连接地址');
+  expect(host.textContent).toContain('Access addressLocal addressCopy addressOnly this computer may access for now, so phones cannot connect.Who can accessDevices on the same LANThis computer onlyLAN access addresshttp://.localPortlocalhost:After saving and restarting, the phone connection address shows. Set an access password below.Peach will restart after saving and jump to the new address.Save configuration');
   await submit(host.querySelector('form')); await settle();
   expect(sentBody(fetcher)).toMatchObject({ host: '0.0.0.0', mdns_name: 'peach-phone', port: '9123' });
 });
 
-it('服务管理的网络设置只显示地址', async () => {
+it('Service-managed network settings show the address only', async () => {
   const host = await mount(<PortSettings data={{ ...data, network: {
     editable: false, host: '0.0.0.0', mdns_name: 'peach', scope: 'lan',
     local_url: 'https://peach.local/', lan_url: 'https://peach.local/', ip_url: '',
   } }} receipt={vi.fn()} />);
   expect(host.querySelector('form')).toBeNull();
   expect(host.querySelector('#configPort')).toBeNull();
-  expect(host.textContent).toContain('访问范围、名称与端口由服务启动配置管理。');
+  expect(host.textContent).toContain('Access range, name, and port are managed by the service startup configuration.');
 });

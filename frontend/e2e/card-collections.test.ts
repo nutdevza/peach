@@ -5,18 +5,18 @@ import { launch, VIEWPORTS } from './harness.ts';
 import { openFollowFeed } from './follow-fixture.ts';
 import { openItemPage } from './item-fixture.ts';
 
-describe('卡片信息与收藏入口', () => {
+describe('Card info and favorite entry', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 标题与署名相邻，标签有间距，${viewport.mobile ? '卡片按内容定高' : '同排卡片等高'}`, async () => {
+    it(`${viewport.name} title next to byline, tags spaced out, ${viewport.mobile ? 'cards sized to content' : 'cards in a row equal height'}`, async () => {
       const opened = await openFollowFeed(browser, '/follow', viewport);
       try {
-        assert.equal(await opened.page.locator('[data-follow-filter-glass]').getByRole('button', { name: '我的收藏', exact: true }).count(), 1);
+        assert.equal(await opened.page.locator('[data-follow-filter-glass]').getByRole('button', { name: 'My favorites', exact: true }).count(), 1);
         const payload = await opened.page.evaluate(async () => (await fetch('/api/follow')).json());
-        payload.groups[0].primary.title = '这是一个很长的作品标题'.repeat(8);
-        payload.groups[1].primary.title = '短标题';
+        payload.groups[0].primary.title = 'This is a very long video title'.repeat(8);
+        payload.groups[1].primary.title = 'Short title';
         await opened.page.route(url => url.pathname === '/api/follow' && !url.searchParams.has('item'), route => route.fulfill({ json: payload }));
         await opened.page.reload();
         await opened.page.locator('[data-follow-list] [data-follow-item]').first().waitFor();
@@ -44,7 +44,7 @@ describe('卡片信息与收藏入口', () => {
         }
       } finally { await opened.close() }
     });
-    it(`${viewport.name} 收藏入口是紧凑图标按钮，播放媒体没有侧箭头`, async () => {
+    it(`${viewport.name} favorite entry is a compact icon button; playing media has no side arrow`, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '[data-catalog-frame]' });
       try {
         const geometry = await opened.page.locator('[data-shortcuts-trigger]').evaluate(node => {

@@ -1,5 +1,5 @@
-/* 全站那一份浏览器历史（`src/history/`）：壳经 `shellNavigate` 写地址，后退前进与 React 子树的写入
- * 都从同一个对象分发。 */
+/* The site-wide browser history (`src/history/`): the shell writes the URL through `shellNavigate`, and back/forward as well as writes from the React subtree
+ *  all dispatch from this one object. */
 import { afterEach, beforeEach, expect, it } from 'vitest';
 
 import * as sharedHistory from '@peach/history';
@@ -14,18 +14,18 @@ beforeEach(() => {
 });
 afterEach(() => stop());
 
-/** 浏览器自己的后退前进：地址先变，再派发 `popstate`。 */
+/** The browser's own back and forward: the address changes first, then `popstate` fires. */
 function pop(path: string) {
   window.history.replaceState(window.history.state, '', path);
   window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
 }
 
-it('共享 history 入口与真实浏览器历史模块使用同一份绑定', () => {
+it('The shared history entry and the real browser history module share one binding', () => {
   expect(sharedHistory.peachHistory).toBe(peachHistory);
   expect(sharedHistory.shellNavigate).toBe(shellNavigate);
 });
 
-it('push 加一条历史，replace 不加', () => {
+it('push adds a history entry, replace does not', () => {
   const length = window.history.length;
   shellNavigate('/stats');
   expect([location.pathname, window.history.length]).toEqual(['/stats', length + 1]);
@@ -34,7 +34,7 @@ it('push 加一条历史，replace 不加', () => {
   expect(seen.map((n) => n.action)).toEqual(['PUSH', 'REPLACE']);
 });
 
-it('路径照 pushState 的规则按当前地址解析：只带查询串或只带锚点时其余部分不丢', () => {
+it('Paths resolve against the current address per pushState rules: query-only or hash-only inputs keep the rest of the address', () => {
   shellNavigate('/performers?q=a');
   shellNavigate('?q=b');
   expect(location.pathname + location.search).toBe('/performers?q=b');
@@ -44,7 +44,7 @@ it('路径照 pushState 的规则按当前地址解析：只带查询串或只�
   expect(location.pathname).toBe('/tags');
 });
 
-it('清理地址时把当前条目的状态原样带过去', () => {
+it('Cleaning the address carries the current entry\'s state over as-is', () => {
   peachHistory.push('/follow', { from: 'router' });
   const state = peachHistory.navigation.location.state;
   shellNavigate('/follow?onboarding=1', { replace: true, state });
@@ -53,7 +53,7 @@ it('清理地址时把当前条目的状态原样带过去', () => {
   expect(peachHistory.navigation.location.state).toBeNull();
 });
 
-it('每一次变化领一个递增序号，后退前进也算', () => {
+it('Every change claims an increasing sequence number, back/forward included', () => {
   shellNavigate('/stats');
   pop('/');
   peachHistory.push('/tags');
@@ -64,7 +64,7 @@ it('每一次变化领一个递增序号，后退前进也算', () => {
   expect(seen[1]!.location.pathname).toBe('/');
 });
 
-it('页面打开序号只在没人认领的变化上递增：壳认领的写地址不领，后退前进、路由树 push 与 replace 各领一个', () => {
+it('The page-open counter increments only on unclaimed changes: shell-claimed address writes do not claim one, while back/forward and router push and replace each claim one', () => {
   const start = peachHistory.navigation.openEpoch;
   shellNavigate('/stats');
   shellNavigate('/stats?tab=1', { replace: true });
@@ -74,7 +74,7 @@ it('页面打开序号只在没人认领的变化上递增：壳认领的写地�
   expect(seen.map((n) => n.openEpoch - start)).toEqual([0, 0, 1, 2, 3]);
 });
 
-it('顶栏换一批的行为登记在路由元数据上：关注页与关注管理页跳过、口味页与播放列表页重开、统计页不登记', () => {
+it('The top bar shuffle behavior is registered in route metadata: follows and follow management pages skip, taste and playlist pages reopen, and the stats page is not registered', () => {
   expect(routeMetaOf('/follow')?.refresh).toBe('skip');
   expect(routeMetaOf('/subscriptions')?.refresh).toBe('skip');
   expect(routeMetaOf('/playlists')?.refresh).toBe('reopen');
@@ -82,7 +82,7 @@ it('顶栏换一批的行为登记在路由元数据上：关注页与关注管�
   expect(routeMetaOf('/stats')?.refresh).toBeUndefined();
 });
 
-it('对象式导航使用规范路径并保留查询片段与状态', () => {
+it('Object-style navigation uses canonical paths and preserves query, hash, and state', () => {
   const state = { from: 'react' };
   peachHistory.push({ pathname: '/item/12', search: '?t=93', hash: '#media' }, state);
   expect(location.pathname + location.search + location.hash).toBe('/assets/12?t=93#media');
@@ -91,7 +91,7 @@ it('对象式导航使用规范路径并保留查询片段与状态', () => {
   expect(location.pathname + location.search).toBe('/settings/library?tab=source');
 });
 
-it('后退前进的兼容地址只通知一次且保留原历史条目', () => {
+it('Back/forward compatibility URLs notify only once and keep the original history entry', () => {
   const state = { ...window.history.state, usr: { backgroundLocation: { pathname: '/jav', search: '?scope=library' }, overlay: 'item' } };
   const epoch = peachHistory.navigation.openEpoch;
   window.history.replaceState(state, '', '/parts/7/12?t=93#media');

@@ -1,4 +1,4 @@
-/* Video.js 10 官方控件与媒体引擎在演示短片上的播放链。 */
+/* The playback chain of Video.js 10's official controls and media engine on the demo clip. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { execFileSync } from 'node:child_process';
@@ -9,7 +9,7 @@ import type { Browser } from 'playwright-core';
 import { launch, layout, requiredEnv, visit, VIEWPORTS } from './harness.ts';
 import { DETAIL, openFollowFeed } from './follow-fixture.ts';
 
-describe('Video.js 10 播放链', () => {
+describe('10 Video.js playback chains', () => {
   let browser: Browser;
   let fixture: string;
   let files: Map<string, Buffer>;
@@ -27,7 +27,7 @@ describe('Video.js 10 播放链', () => {
   });
   after(async () => { await browser?.close(); if (fixture) rmSync(fixture, { recursive: true, force: true }) });
 
-  it('详情自动播放请求读取 MP4 并解码', { timeout: 60_000 }, async () => {
+  it('Details autoplay requests read the MP4 and decode', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, VIEWPORTS[0]!);
     const { page, problems } = opened;
     try {
@@ -47,7 +47,7 @@ describe('Video.js 10 播放链', () => {
     } finally { await opened.close() }
   });
 
-  it('媒体解码失败保存本机浏览器上下文与原生错误', { timeout: 60_000 }, async () => {
+  it('Media decode failure saves the local browser context and the native error', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, VIEWPORTS[0]!);
     const { page } = opened;
     try {
@@ -66,7 +66,7 @@ describe('Video.js 10 播放链', () => {
     } finally { await opened.close() }
   });
 
-  it('关注片源的 DASH MIME 挂载官方引擎并解码', { timeout: 60_000 }, async () => {
+  it('Follow sources\' DASH MIME mounts the official engine and decodes', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, `/posts/${DETAIL.collection}`, VIEWPORTS[0]!, { ready: '#stage [data-follow-detail-side]' });
     const { page, problems } = opened;
     try {
@@ -109,7 +109,7 @@ describe('Video.js 10 播放链', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：播放、暂停、倍速、进度、字幕与卸载`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: play, pause, speed, progress, subtitles, and teardown`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport);
       const { page, problems } = opened;
       try {
@@ -137,14 +137,14 @@ describe('Video.js 10 播放链', () => {
         await page.keyboard.press('Home');
         await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#stage video.vjs-tech')!.currentTime < .1);
         await page.locator('#stage video.vjs-tech').evaluate((node: HTMLVideoElement) => {
-          const track = node.addTextTrack('subtitles', '测试字幕', 'zh'); track.mode = 'disabled';
-          track.addCue(new VTTCue(0, 2, '字幕回归'));
+          const track = node.addTextTrack('subtitles', 'Test subtitle', 'zh'); track.mode = 'disabled';
+          track.addCue(new VTTCue(0, 2, 'Subtitle regression'));
         });
         await page.locator('#stage [data-player-quality] > button').click();
         await page.locator('#stage [data-player-subtitles]').click();
-        await page.getByRole('menuitemradio', { name: '测试字幕', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: 'Test subtitle', exact: true }).click();
         assert.equal(await page.locator('#stage video.vjs-tech').evaluate((node: HTMLVideoElement) =>
-          [...node.textTracks].find(track => track.label === '测试字幕')?.mode), 'showing');
+          [...node.textTracks].find(track => track.label === 'Test subtitle')?.mode), 'showing');
         await page.route('**/v10-hls/**', async route => {
           const name = basename(new URL(route.request().url()).pathname);
           assert.match(name, /^(video\.m3u8|part-\d+\.ts)$/);

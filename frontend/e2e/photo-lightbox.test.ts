@@ -1,8 +1,10 @@
-/* 图片灯箱在真浏览器里走一遍：真 Swiper、真键鼠，从资料页照片墙和关注详情两处打开。
+/* The image lightbox walked through in a real browser: real Swiper, real keys and mouse, opened from the profile page's photo
+ * wall and follow details.
  *
- * 取图口全部由这里回桩图，`/photo` 原图走计费来源，用例绝不碰真的。大图是 4000×3000 的 SVG：
- * 缩放条的百分比相对原图像素，图得真有尺寸，「适应窗口」和 1:1 才分得开。关灯箱走关闭键或
- * 点背景，不按 Escape：Playwright 合成的 Escape 触发不了 dialog 的 CloseWatcher。 */
+ * All image endpoints return stub images from here; `/photo` originals go through metered sources and cases never touch the
+ * real ones. The large image is a 4000×3000 SVG: the zoom slider's percentage is relative to the original's pixels, so the
+ * image must really have dimensions for "Fit window" and 1:1 to differ. Closing uses the close key or clicking the
+ * background, never Escape: Playwright's synthetic Escape cannot trigger the dialog's CloseWatcher. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -23,7 +25,7 @@ async function stubImages(page: Page): Promise<void> {
   await page.route(/\/(?:photo-thumb|sample-thumb)\?|\/follow-thumb-stub\//, (route) => route.fulfill(svg(160, 120)));
 }
 
-/** 资料页照片档：一部作品两张样张加 `locals` 张本地图（默认三张，墙上五格）。 */
+/** The profile page photo fixture: one video's two sample shots plus `locals` local images (three by default, five cells on the wall). */
 async function openWall(browser: Browser, viewport = DESKTOP, locals = 3): Promise<Visit> {
   const opened = await visit(browser, '/', viewport);
   const { page } = opened;
@@ -38,7 +40,7 @@ async function openWall(browser: Browser, viewport = DESKTOP, locals = 3): Promi
     return route.fulfill({ json: {
       kind: 'performer', name: NAME, entity_id: 90_001, total: items.length, items, seed: '', has_more: false,
       sample_total: 2, sets: [{ id: 'code:SSIS-057', kind: 'code', code: 'SSIS-057', name: '雨の日',
-        title: 'SSIS-057 雨の日', n: 2, release_date: '2021-05-18', site: 'dmm', site_label: 'DMM', has_cover: true }],
+        title: 'SSIS-057 Rainy Day', n: 2, release_date: '2021-05-18', site: 'dmm', site_label: 'DMM', has_cover: true }],
     } });
   });
   await stubImages(page);
@@ -48,7 +50,7 @@ async function openWall(browser: Browser, viewport = DESKTOP, locals = 3): Promi
   return opened;
 }
 
-/** 关注详情：一条三张图的帖子，详情大图点开就是这一组。 */
+/** Follows details: a post with three images; opening the details large image shows exactly this set. */
 async function openFollowItem(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/', DESKTOP);
   const { page } = opened;
@@ -58,10 +60,10 @@ async function openFollowItem(browser: Browser): Promise<Visit> {
   await page.route('**/api/follow/credentials', (route) => route.fulfill({ json: { providers: [] } }));
   await page.route('**/api/follow/check', (route) => (route.request().method() === 'GET'
     ? route.fulfill({ json: { status: 'idle' } }) : route.fallback()));
-  const media = [0, 1, 2].map((index) => ({ index, media_kind: 'image', name: `帖子图 ${index + 1}.png`,
+  const media = [0, 1, 2].map((index) => ({ index, media_kind: 'image', name: `Post image ${index + 1}.png`,
     size: 123_456, thumb_url: `/follow-thumb-stub/${index}`, width: ORIGINAL.width, height: ORIGINAL.height }));
   const item = { id: 501, provider: 'fanbox', provider_label: 'pixivFANBOX', resource_provider: 'fanbox', source_id: 1,
-    source_label: '演示 · pixivFANBOX', external_id: '501', title: '演示图集', author: null, summary: null,
+    source_label: 'Demo · pixivFANBOX', external_id: '501', title: 'Demo gallery', author: null, summary: null,
     url: 'https://example.com/501', thumb_url: '/follow-thumb-stub/0', published_at: '2026-09-16T00:20:00Z',
     published_precision: 'exact', version: null, duration: null, variant_kind: null, variant_label: null, status: 'new',
     asset_id: null, media_needs_credential: false, media_error: null, has_media: true, media_kind: 'image',
@@ -81,7 +83,7 @@ async function openFollowItem(browser: Browser): Promise<Visit> {
 const lightbox = (page: Page) => page.locator('dialog[data-photo-lightbox][open]');
 const labelled = (box: Locator, label: string) => box.locator(`[aria-label="${label}"]`).first();
 
-/** 缩略图条里当前那一格的序号，以及它的中线离条的中线多远。 */
+/** The index of the current cell in the thumbnail strip, and how far its centerline sits from the strip's centerline. */
 const stripFocus = (page: Page) => page.evaluate(() => {
   const strip = document.querySelector('[data-photo-strip]')!;
   const slides = [...strip.querySelectorAll('.swiper-slide')];
@@ -97,21 +99,21 @@ async function expectStripOn(page: Page, at: number): Promise<void> {
     if (!active || [...strip.querySelectorAll('.swiper-slide')].indexOf(active) !== want) return false;
     const a = active.getBoundingClientRect(), s = strip.getBoundingClientRect();
     return Math.abs(a.left + a.width / 2 - (s.left + s.width / 2)) <= 1;
-  }, at, { timeout: 5_000 }).catch(async () => assert.fail(`缩略图条没有停到第 ${at + 1} 张的中线：${JSON.stringify(await stripFocus(page))}`));
+  }, at, { timeout: 5_000 }).catch(async () => assert.fail(`The thumbnail strip did not stop on the centerline of image ${at + 1}: ${JSON.stringify(await stripFocus(page))}`));
 }
 
-/** 当前这张大图的显示宽度，与「适应窗口」时它对原图的百分比。 */
+/** The current large image's display width, and its percentage of the original when fitted to the window. */
 const shown = (box: Locator) => box.locator('[data-photo-main] .swiper-slide-active img').evaluate((img: HTMLImageElement) => ({
   width: img.getBoundingClientRect().width,
   fit: Math.round(Math.min(100, img.offsetWidth / img.naturalWidth * 100, img.offsetHeight / img.naturalHeight * 100)),
 }));
 
-describe('图片灯箱', () => {
+describe('Image lightbox', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('资料页照片墙点第 3 格：从这一张开始，页码 3 / 5，翻页时页码与缩略图条一起跟上', { timeout: 60_000 }, async () => {
+  it('Clicking cell 3 on the profile photo wall: starts from that image, the page shows 3 / 5, and paging moves the page number and thumbnail strip together', { timeout: 60_000 }, async () => {
     const opened = await openWall(browser);
     const { page } = opened;
     try {
@@ -125,7 +127,7 @@ describe('图片灯箱', () => {
       assert.equal((await count.innerText()).trim(), '3 / 5');
       assert.equal(await count.getAttribute('aria-live'), 'polite');
       assert.equal(await box.locator('[data-photo-main] .swiper-slide-active img').getAttribute('src'),
-        thumb.replace('/photo-thumb?', '/photo?').replace('/sample-thumb?', '/sample-image?'), '点开的不是那一张');
+        thumb.replace('/photo-thumb?', '/photo?').replace('/sample-thumb?', '/sample-image?'), 'The one that opened is not that image');
       await expectStripOn(page, 2);
 
       await box.locator('[data-photo-nav="fwd"]').click();
@@ -138,7 +140,7 @@ describe('图片灯箱', () => {
       await page.waitForFunction(() => document.querySelector('[data-photo-count]')?.textContent === '5 / 5');
       await expectStripOn(page, 4);
 
-      await labelled(box, '关闭').click();
+      await labelled(box, 'Off').click();
       await box.waitFor({ state: 'detached' });
       assert.equal(await page.evaluate(() => document.body.classList.contains('photolight-open')), false);
       assert.deepEqual(opened.problems, []);
@@ -147,7 +149,7 @@ describe('图片灯箱', () => {
     }
   });
 
-  it('缩放条：百分比相对原图像素，步进十个点，1:1 是原图大小，适应窗口回到起点', { timeout: 60_000 }, async () => {
+  it('Zoom bar: percentages are relative to original pixels and step ten points; 1:1 is original size, and fit-to-window returns to the start', { timeout: 60_000 }, async () => {
     const opened = await openWall(browser);
     const { page } = opened;
     try {
@@ -159,13 +161,13 @@ describe('图片灯箱', () => {
         .naturalWidth > 0, undefined, { timeout: 10_000 });
       const start = await shown(box);
       const { fit } = start;
-      assert.ok(fit < 100, `4000×3000 的图在 1280×800 里应当缩着放，读到 ${fit}%`);
+      assert.ok(fit < 100, `A 4000×3000 image should scale down in 1280×800, read ${fit}%`);
       await page.waitForFunction((want) => document.querySelector('[data-photo-zoom-readout]')?.textContent === want, `${fit}%`);
-      await labelled(box, '放大').click();
+      await labelled(box, 'Zoom in').click();
       assert.equal(await readout.innerText(), `${fit + 10}%`);
-      await labelled(box, '缩小').click();
+      await labelled(box, 'Zoom out').click();
       assert.equal(await readout.innerText(), `${fit}%`);
-      await labelled(box, '原大小').click();
+      await labelled(box, 'Original size').click();
       assert.equal(await readout.innerText(), '100%');
       await page.waitForFunction((want) => Math.abs(document.querySelector('[data-photo-main] .swiper-slide-active img')!
         .getBoundingClientRect().width - want) <= want * .01, ORIGINAL.width, { timeout: 5_000 });
@@ -174,38 +176,38 @@ describe('图片灯箱', () => {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
       assert.equal(await readout.innerText(), '200%');
-      await labelled(box, '适应窗口').click();
+      await labelled(box, 'Fit to window').click();
       assert.equal(await readout.innerText(), `${fit}%`);
       await page.waitForFunction((want) => Math.abs(document.querySelector('[data-photo-main] .swiper-slide-active img')!
         .getBoundingClientRect().width - want) <= 1, start.width, { timeout: 5_000 })
-        .catch(async () => assert.fail(`适应窗口没有收回：${start.width} → ${(await shown(box)).width}`));
+        .catch(async () => assert.fail(`Fit-to-window did not shrink back: ${start.width} -> ${(await shown(box)).width}`));
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('圆圈 i 开合信息面板，点面板外只收面板；点图四周的黑底关掉灯箱', { timeout: 60_000 }, async () => {
+  it('The circled i toggles the info panel, clicking outside collapses only the panel, and clicking the black around the image closes the lightbox', { timeout: 60_000 }, async () => {
     const opened = await openWall(browser);
     const { page } = opened;
     try {
       await page.locator('[data-photo-cell]').nth(4).click();
       const box = lightbox(page);
       await box.waitFor();
-      const toggle = labelled(box, '图片详情');
+      const toggle = labelled(box, 'Image details');
       const panel = box.locator('[data-photo-detail]');
       await toggle.click();
       await panel.waitFor({ state: 'visible' });
       assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
       assert.equal((await panel.locator('h2').innerText()).trim(), '102.jpg');
       assert.match((await panel.locator('[data-photo-detail-meta]').innerText()).trim(), /^本地 · 2(?:\.\d)? MB$/);
-      assert.equal(await panel.locator('[data-photo-reveal]').isVisible(), true, '本地图要有定位键');
+      assert.equal(await panel.locator('[data-photo-reveal]').isVisible(), true, 'Local image must have a locator key');
       await box.locator('[data-photo-zoom-readout]').click();
       await panel.waitFor({ state: 'hidden' });
       assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-      assert.equal(await box.isVisible(), true, '收面板那一下不该连灯箱一起关');
+      assert.equal(await box.isVisible(), true, 'Collapsing the panel must never close the lightbox with it');
 
-      // 主画布铺满视口，图上方那条留白属于 zoom 容器。
+      // The main canvas fills the viewport; the whitespace above the image belongs to the zoom container.
       await page.mouse.click(DESKTOP.width / 2, 10);
       await box.waitFor({ state: 'detached' });
       assert.equal(await page.locator('[data-photo-main]').count(), 0);
@@ -215,7 +217,7 @@ describe('图片灯箱', () => {
     }
   });
 
-  it('关注详情的大图打开同一个灯箱：整组三张，在线图写来源与分辨率，没有定位键', { timeout: 60_000 }, async () => {
+  it('Follows details large images open the same lightbox: the whole set of three, online images record source and resolution, and there is no locate key', { timeout: 60_000 }, async () => {
     const opened = await openFollowItem(browser);
     const { page } = opened;
     try {
@@ -225,15 +227,15 @@ describe('图片灯箱', () => {
       assert.equal((await box.locator('[data-photo-count]').innerText()).trim(), '1 / 3');
       assert.equal(await box.locator('[data-photo-main] .swiper-slide-active img').getAttribute('src'),
         '/follow-stream?id=501&media=0');
-      await labelled(box, '图片详情').click();
+      await labelled(box, 'Image details').click();
       const panel = box.locator('[data-photo-detail]');
       await panel.waitFor({ state: 'visible' });
-      assert.equal((await panel.locator('h2').innerText()).trim(), '帖子图 1.png');
+      assert.equal((await panel.locator('h2').innerText()).trim(), 'Post image 1.png');
       const meta = await panel.locator('[data-photo-detail-meta]').innerText();
       assert.match(meta, /^pixivFANBOX · 4000 × 3000 · 121\sKB$/u);
-      assert.doesNotMatch(meta, /第/, '第几张只看底栏的页码，面板不另编一个号');
-      assert.equal(await panel.locator('[data-photo-reveal]').isVisible(), false, '在线图不该有定位键');
-      await labelled(box, '关闭').click();
+      assert.doesNotMatch(meta, /第/, 'Position reads only from the footer\'s pager, with no separate number in the panel');
+      assert.equal(await panel.locator('[data-photo-reveal]').isVisible(), false, 'Online image should have no locator key');
+      await labelled(box, 'Off').click();
       await box.waitFor({ state: 'detached' });
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -241,7 +243,7 @@ describe('图片灯箱', () => {
     }
   });
 
-  it('320 宽翻到上千张的最后一张：页码一行写完，底栏整条留在屏内', { timeout: 90_000 }, async () => {
+  it('At 320 wide, flipping to the last of over a thousand: the page count fits one line and the whole footer stays on screen', { timeout: 90_000 }, async () => {
     const opened = await openWall(browser, { name: '320', width: 320, height: 720, mobile: true }, 1287);
     const { page } = opened;
     try {
@@ -260,8 +262,8 @@ describe('图片灯箱', () => {
         right: Math.max(...[...node.querySelectorAll('button, [data-photo-count]')].map((el) => el.getBoundingClientRect().right)),
         view: document.documentElement.clientWidth,
       }));
-      assert.ok(bar.count < bar.line * 2 + 16, `页码折行了：${JSON.stringify(bar)}`);
-      assert.ok(bar.right <= bar.view, `底栏越出视口：${JSON.stringify(bar)}`);
+      assert.ok(bar.count < bar.line * 2 + 16, `Page numbers wrapped: ${JSON.stringify(bar)}`);
+      assert.ok(bar.right <= bar.view, `The bottom bar overflows the viewport: ${JSON.stringify(bar)}`);
       assert.equal(await count.isVisible(), true);
     } finally {
       await opened.close();

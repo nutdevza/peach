@@ -1,7 +1,9 @@
-/* 首页那一行新作（`feed-new` 岛）：取哪一份、画进哪儿、卡收完怎么报给壳、换代次重取。
+/* The home new-releases row (`feed-new` island): which copy is fetched, where it renders, how the card reports completion to
+ * the shell, and refetching on generation change.
  *
- * 卡片上那三颗键的去留与资料页那一行同一个组件，在 `entity-hero.test.tsx` 量；骨架交接与离开目录页
- * 收起要真浏览器，在 `frontend/e2e/home-loading.test.ts` 与 `feed-cover.test.ts` 里量。 */
+ * The three keys' presence on the card shares the profile page row's component, measured in `entity-hero.test.tsx`; the
+ * skeleton handover and collapsing on leaving the catalog page need a real browser, measured in
+ * `frontend/e2e/home-loading.test.ts` and `feed-cover.test.ts`. */
 import { act, useState } from 'react';
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,9 +20,9 @@ afterEach(() => { queryClient.clear() });
 notifyManager.setScheduler((notify) => notify());
 
 const rowHtml = (data: FeedDiscoveries | null) => `<div class="feednewrow">${(data?.items || []).map((one) =>
-  `<div data-feed-id="${one.id}"><button data-feed-action="ignore">不想看</button></div>`).join('')}</div>`;
+  `<div data-feed-id="${one.id}"><button data-feed-action="ignore">Not interested</button></div>`).join('')}</div>`;
 
-/** 假服务端：发现列表按轮次回给定的条目，写接口一律成功。 */
+/** Fake server: the discovery list returns the given entries per round; write endpoints always succeed. */
 function serve(...rounds: number[][]) {
   let round = 0;
   const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
@@ -37,15 +39,15 @@ function serve(...rounds: number[][]) {
 const reads = (fetcher: ReturnType<typeof serve>) =>
   fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith('/api/feeds/discoveries'));
 
-it('新作来源共演头像直接按来源图片地址加载并在忽略后可卸载', async () => {
+it('New-release source co-star avatars load straight from source image URLs and can unmount after being ignored', async () => {
   vi.stubGlobal('IntersectionObserver', undefined);
   const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, json: async () => ({ ok: true }) }));
   vi.stubGlobal('fetch', fetcher);
   const host = document.createElement('section');
   document.body.append(host);
   const html = `<div class="feednewrow"><article data-feed-id="1">${feedIdentity({ code: 'EXM-001', performer_refs: [
-    { name: '甲', source_actor_id: 'A', source_avatar: true },
-    { name: '乙', source_actor_id: 'B', source_avatar: true }] })}<button data-feed-action="ignore">忽略</button></article></div>`;
+    { name: 'A', source_actor_id: 'A', source_avatar: true },
+    { name: 'B', source_actor_id: 'B', source_avatar: true }] })}<button data-feed-action="ignore">Ignore</button></article></div>`;
   const mounted = await mountRoot(<QueryClientProvider client={queryClient}><FeedNewRow host={host} feedNew={{ items: [{ id: 1 }], html }}
     wire={() => {}} act={async () => {}} /></QueryClientProvider>);
   await settle();
@@ -73,23 +75,23 @@ async function open(given: FeedNewProps) {
   return root;
 }
 
-describe('取数', () => {
-  it('文字和操作就绪即返回，不在取数阶段预载或解码封面', async () => {
+describe('Fetching', () => {
+  it('It returns as soon as text and actions are ready; covers are neither preloaded nor decoded during fetching', async () => {
     serve([1]);
-    const image = vi.fn(function () { throw new Error('不应预载封面') });
+    const image = vi.fn(function () { throw new Error('The cover must not be preloaded') });
     vi.stubGlobal('Image', image);
-    const data = await fetchFeedNew(null, () => '<article>作品<button>想要</button><img src="/cover-image?code=EXM-001"></article>');
+    const data = await fetchFeedNew(null, () => '<article>Works<button>Want</button><img src="/cover-image?code=EXM-001"></article>');
     expect(data.items).toHaveLength(1);
-    expect(data.html).toContain('想要');
+    expect(data.html).toContain('Want');
     expect(image).not.toHaveBeenCalled();
   });
 
-  it('读取失败保留失败状态，不伪装成没有新作', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ error: '读取未完成' }) })));
-    await expect(fetchFeedNew(null, rowHtml)).rejects.toThrow('读取未完成');
+  it('A read failure keeps the failed state and does not masquerade as no new releases', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ error: 'Reading unfinished' }) })));
+    await expect(fetchFeedNew(null, rowHtml)).rejects.toThrow('Reading unfinished');
   });
 
-  it('首页那一行不分人：只带条数，与资料页那一行各占一个键', async () => {
+  it('Home\'s row does not split by person: it carries only counts and holds its own cache key apart from the profile page\'s row', async () => {
     const fetcher = serve([1, 2]);
     await open(props());
     expect(reads(fetcher)).toEqual(['/api/feeds/discoveries?limit=12']);
@@ -97,7 +99,7 @@ describe('取数', () => {
     expect(feedNewKey(7)).toEqual(['feed-new', 7]);
   });
 
-  it('条数跟着设置弹窗的「新作显示数量」走', async () => {
+  it('The count follows the settings dialog\'s "New release count"', async () => {
     const store = appSettingsStore();
     const before = store.value.feedLimit;
     store.value.feedLimit = 30;
@@ -108,7 +110,7 @@ describe('取数', () => {
     } finally { store.value.feedLimit = before }
   });
 
-  it('每次挂上都是新的一趟，不读上一次留下的缓存', async () => {
+  it('Each mount is a fresh pass and does not read cache left by the last one', async () => {
     const fetcher = serve([1], [1, 2]);
     await prefetchFeedNew(props());
     const given = props();
@@ -118,8 +120,8 @@ describe('取数', () => {
   });
 });
 
-describe('画进宿主', () => {
-  it('卡片落在宿主本身，不在 React 根里；画出来就亮出宿主、撤掉等待态，报给壳「有」', async () => {
+describe('Paints into the host', () => {
+  it('The card lands on the host itself, not in the React root; once painted it reveals the host, drops the waiting state, and reports "present" to the shell', async () => {
     serve([1, 2]);
     const given = props();
     given.host.setAttribute('aria-busy', 'true');
@@ -132,16 +134,16 @@ describe('画进宿主', () => {
     expect(given.actions.settled).toHaveBeenLastCalledWith(true);
   });
 
-  it('首页那一行行尾带「查看全部新作」，指向 JAV 页的新作分区', async () => {
+  it('The home page\'s row ends with “View all new works”, pointing at the JAV page\'s new-works section', async () => {
     serve([1]);
-    const rowWithAll = vi.fn((data: FeedDiscoveries | null, allHref = '') => `${rowHtml(data).slice(0, -6)}<a class="feednewall" href="${allHref}">查看全部新作</a></div>`);
+    const rowWithAll = vi.fn((data: FeedDiscoveries | null, allHref = '') => `${rowHtml(data).slice(0, -6)}<a class="feednewall" href="${allHref}">View all new releases</a></div>`);
     const given = props({ helpers: { feedRowHtml: rowWithAll, wireFeedRow: vi.fn() } });
     await open(given);
     expect(rowWithAll).toHaveBeenLastCalledWith(expect.anything(), '/jav?tab=releases');
     expect(given.host.querySelector('.feednewrow > a.feednewall')?.getAttribute('href')).toBe('/jav?tab=releases');
   });
 
-  it('一条都没有就整块不出，报给壳「没有」', async () => {
+  it('With none at all the whole block never renders, reporting "none" to the shell', async () => {
     serve([]);
     const given = props();
     await open(given);
@@ -150,7 +152,7 @@ describe('画进宿主', () => {
     expect(given.actions.settled).toHaveBeenLastCalledWith(false);
   });
 
-  it('最后一张收起时宿主藏起，壳下次进首页不再铺骨架', async () => {
+  it('When the last card collapses the host hides, and the shell lays no skeleton on the next home entry', async () => {
     const fetcher = serve([5]);
     const given = props();
     await open(given);
@@ -163,7 +165,7 @@ describe('画进宿主', () => {
   });
 });
 
-/* 壳经 `updateManagedRoute` 推补丁，这里用一层状态替它。 */
+/* The shell pushes patches via `updateManagedRoute`; here a layer of state stands in for it. */
 let push: (patch: Partial<FeedNewProps>) => void = () => {};
 function Harness(initial: FeedNewProps) {
   const [value, set] = useState(initial);
@@ -171,8 +173,8 @@ function Harness(initial: FeedNewProps) {
   return <QueryClientProvider client={queryClient}><FeedNewPage {...value} /></QueryClientProvider>;
 }
 
-describe('换代次', () => {
-  it('壳推来新的代次就重取；代次不变的补丁不发请求', async () => {
+describe('Switch generation', () => {
+  it('A new generation pushed by the shell triggers a refetch; a patch with the same generation sends no request', async () => {
     const fetcher = serve([1], [1, 3]);
     const given = props();
     await prefetchFeedNew(given);

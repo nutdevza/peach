@@ -6,11 +6,11 @@ import {ITEM,openItemPage} from './item-fixture.ts';
 
 const FRAMES='#grid [data-media-grid] > [data-media-card] [data-media-pic], #grid [data-mix-cover]';
 
-/** 首页铺 20 张纯白预览图的作品，`size` 是首页版式；`patch` 按序号改其中几张。 */
+/** A video whose home tab lays out 20 blank white preview images; `size` is the home layout, and `patch` changes a few of them by index. */
 async function openHome(page:Page,size:string,patch:(i:number)=>Record<string,unknown>=()=>({})){
  await page.addInitScript(size=>localStorage.setItem('peach.settings.v1',JSON.stringify({detailAutoplay:false,homeLayout:size})),size);
  await page.route('**/api/items?*',route=>route.fulfill({json:{items:Array.from({length:20},(_,i)=>({
-  id:91000+i,name:`示例作品 ${i}`,creator:'示例创作者',is_jav:i%2===0,has_thumb:true,has_cover:false,
+  id:91000+i,name:`Sample video ${i}`,creator:'Example creator',is_jav:i%2===0,has_thumb:true,has_cover:false,
   width:1600,height:900,location:'local',duration:120,...patch(i),
  })),total:20,has_more:false}}));
  await page.route('**/poster?*',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="white"/></svg>'}));
@@ -18,7 +18,7 @@ async function openHome(page:Page,size:string,patch:(i:number)=>Record<string,un
  await page.locator('#grid [data-mix-card]').waitFor();
 }
 
-/** 截图里一块的最暗通道值，用页面自己的 canvas 解码 PNG。 */
+/** The darkest channel value of a block in the screenshot, decoded from the PNG with the page's own canvas. */
 async function darkest(page:Page,clip:{x:number,y:number,width:number,height:number}){
  const png=(await page.screenshot({clip})).toString('base64');
  return page.evaluate(async png=>{
@@ -36,20 +36,20 @@ async function darkest(page:Page,clip:{x:number,y:number,width:number,height:num
  },png);
 }
 
-describe('混排作品的画面框',()=>{
+describe('Media frame for mixed-layout videos',()=>{
  let browser:Browser;
  before(async()=>{browser=await launch()});
  after(async()=>{await browser?.close()});
  for(const viewport of [...VIEWPORTS,{name:'compact',width:320,height:844,mobile:true}]){
-  it(`${viewport.name} 多列等高、单列自然高度，署名与日期不越出行框`,async()=>{
+  it(`${viewport.name} multi-column equal heights, single column natural height; byline and date stay inside the line box`,async()=>{
    const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce'});
    try{
     const page=await context.newPage();
     await openHome(page,'small',i=>({
-     name:i%2?'PCH-021 沿海旅行摄影记录：清晨出发，穿过山间步道到达海边的完整行程':'PCH-001 海边',
+     name:i%2?'PCH-021 coastal travel photo record: departing at dawn, the full route through mountain trails to the sea':'PCH-001 Seaside',
      is_jav:true,creator:'',performers:i%2?['青川遥','夏目明里','竹内里奈','水野葵','森田优'] :['青川遥'],performer_total:i%2?21:1,
      release_date:i%3?'2026-10-20':'',size:i%2?5*1024**4:0,play_count:1284,
-     tags:i%2?['旅行记录','自然风景','清晨的海岸线与沿途的山间步道']:[],
+     tags:i%2?['Travel records','Natural scenery','An early-morning coastline and the mountain trails along it']:[],
     }));
     await settle(page);
     for(const density of ['roomy','dense']){
@@ -72,9 +72,9 @@ describe('混排作品的画面框',()=>{
    }finally{await context.close()}
   });
  }
- // 回收站资源卡、文件夹面包屑等的文件名走共用的中间省略。页面开着 text-autospace，汉字、假名与
- // 拉丁字母、数字相邻处多出间距，量宽时要算上，否则判成「放得下」的结果实际溢出、末尾被裁掉。
- it('中日文夹英文数字的文件名中间省略后首尾完整、不越出盒子',async()=>{
+ // File names for the trash resource card, folder breadcrumb, etc. use the shared middle ellipsis. The page has text-autospace on; kanji, kana and
+ // Latin letters and digits add extra spacing at their junctions; measure that into the width, or the result judged as 'fits' actually overflows and the end gets clipped.
+ it('A file name mixing Chinese/Japanese with letters and digits, when elided in the middle, keeps its ends intact and does not overflow the box',async()=>{
   const context=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'reduce'});
   try{
    const page=await context.newPage();
@@ -88,7 +88,7 @@ describe('混排作品的画面框',()=>{
     const width=(text:string)=>{span.textContent=text;return span.getBoundingClientRect().width};
     const value=width('あa')-width('あ')-width('a');span.remove();return value;
    });
-   assert.ok(gap>0.5,`浏览器没有加 autospace 间距（${gap}px），用例测不到这类溢出`);
+   assert.ok(gap>0.5,`The browser didn't add autospace spacing (${gap}px), so the test case can't catch this kind of overflow`);
    await page.evaluate(name=>{
     const host=document.querySelector('[data-autospace-host]')!;
     for(const width of [168,240,333]){
@@ -112,8 +112,8 @@ describe('混排作品的画面框',()=>{
    }
   }finally{await context.close()}
  });
- // 稍后看由卡上的状态图标表示，卡面底色留给媒体库来源色，不随稍后看变化。
- for(const theme of ['light','dark'])it(`${theme} 稍后看状态图标与按钮及撤销同步`,async()=>{
+ // Watch-later is conveyed by the card's status icon; the card's base color belongs to the media library source color and does not change with watch-later.
+ for(const theme of ['light','dark'])it(`${theme} watch-later state icon, button, and undo stay in sync`,async()=>{
   const context=await browser.newContext({viewport:{width:1280,height:800},colorScheme:theme,reducedMotion:'reduce'});
   try{
    const page=await context.newPage();let later=false;
@@ -127,17 +127,17 @@ describe('混排作品的画面框',()=>{
    await page.waitForFunction(()=>document.querySelector('#grid [data-media-card]')?.hasAttribute('data-watch-later'));
    const status=card.locator('[data-media-status] [data-status="later"]');
    assert.equal(await button.getAttribute('aria-pressed'),'true');assert.equal(await status.count(),1);assert.ok(await status.isVisible());assert.equal(await background(),base);
-   await page.getByRole('button',{name:'撤销',exact:true}).last().click();await page.locator('#filterBtn').focus();await page.mouse.move(0,0);
+   await page.getByRole('button',{name:'Undo',exact:true}).last().click();await page.locator('#filterBtn').focus();await page.mouse.move(0,0);
    await page.waitForFunction(()=>!document.querySelector('#grid [data-media-card]')?.hasAttribute('data-watch-later'));
    assert.equal(await button.getAttribute('aria-pressed'),'false');assert.equal(await status.count(),0);assert.equal(await background(),base);
   }finally{await context.close()}
  });
- for(const viewport of VIEWPORTS)it(`${viewport.name} 接着看理由独占两行并可打开完整文本`,async()=>{
+ for(const viewport of VIEWPORTS)it(`${viewport.name} gives the Continue watching reason two full lines and can open the full text`,async()=>{
   const opened=await openItemPage(browser,`/assets/${ITEM.plain}`,viewport);
   try{
-   const page=opened.page,reason='同出演者 · 标签接近 · 同厂牌 · 同系列';
+   const page=opened.page,reason='Same performer · similar tags · same label · same series';
    await page.route(url=>url.pathname==='/api/related',route=>route.fulfill({json:{items:[14,15].map((id,index)=>({
-    id,name:index?'PCH-015 沿海旅行摄影记录的完整篇章':'PCH-014 海边',creator:'旅行摄影作者',location:'local',has_thumb:true,
+    id,name:index?'PCH-015 Complete chapters of a coastal travel photo journal':'PCH-014 Seaside',creator:'Travel photography creator',location:'local',has_thumb:true,
     size:4096,duration:120,why:reason,tags:[],
    }))}}));
    await page.reload({waitUntil:'load'});await page.locator('[data-media-next-reason]').first().waitFor();await settle(page);
@@ -147,17 +147,17 @@ describe('混排作品的画面框',()=>{
    })));
    assert.ok(rows.every(row=>row.why>=row.byline));assert.ok(Math.abs(rows[0].height-rows[1].height)<1);
    const url=page.url();await page.locator('[data-media-next-reason]').first().click();
-   const popup=page.getByRole('dialog',{name:'推荐理由',exact:true});await popup.waitFor();
+   const popup=page.getByRole('dialog',{name:'Recommendation reason',exact:true});await popup.waitFor();
    assert.equal((await popup.innerText()).trim(),reason);assert.equal(page.url(),url);
    assert.ok(await popup.evaluate(node=>{
     const box=node.getBoundingClientRect(),hit=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
     return !!hit&&(node===hit||node.contains(hit));
-   }),'推荐理由浮层可见且可点击');
+   }),'The recommendation reason overlay is visible and clickable');
    await popup.click();assert.equal(page.url(),url);await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});
   }finally{await opened.close()}
  });
  for(const viewport of VIEWPORTS)for(const size of ['big','small']){
-  it(`${viewport.name} ${size} 作品与 Mix 等高并保留横图`,async()=>{
+  it(`${viewport.name} ${size} videos match the Mix in height and keep landscape images`,async()=>{
    const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height}});
    try{
     const page=await context.newPage();
@@ -196,10 +196,10 @@ describe('混排作品的画面框',()=>{
    }finally{await context.close()}
   });
  }
- /* 白图铺满 16:9 格子、浅色页面：四角的抗锯齿只该在白图和浅色页面之间过渡。格子里垫的黑若被逐层按圆角
-  * 裁，角上会压出 150–190 的灰黑点。每角只量贴角 6px 见方的一块，圆弧中段在里面，角标都离边更远。 */
+ /* A white image filling a 16:9 cell on a light page: the corners' antialiasing should only transition between white image and light page. If the black backing inside the cell
+  * were clipped per layer by radius, the corners would pick up gray-black dots at 150-190. Per corner only a 6px square hugging the corner is measured; the arc's midpoint lies inside it, and badges sit farther from the edge. */
  for(const scale of [1,2]){
-  it(`浅色页面上白封面的四个圆角不透黑（${scale} 倍像素）`,async()=>{
+  it(`On light pages the white cover has four rounded corners that do not leak black (${scale}x pixels)`,async()=>{
    const context=await browser.newContext({viewport:{width:1280,height:800},deviceScaleFactor:scale,colorScheme:'light'});
    try{
     const page=await context.newPage();
@@ -207,7 +207,7 @@ describe('混排作品的画面框',()=>{
     await page.evaluate(()=>{document.documentElement.dataset.theme='light';document.documentElement.classList.remove('dark')});
     const corners=[];
     for(const frame of ['#grid [data-media-grid] > [data-media-card] [data-media-pic]','#grid [data-mix-cover]']){
-     // 这一格滚到吸顶的顶栏与排序条下面，等它的图到货；角内侧那一点打到的得是这张卡自己，没被别的东西压着。
+     // This cell scrolls to just below the sticky top bar and sort bar while waiting for its image; the point just inside the corner must land on this card itself, with nothing else covering it.
      const box=await page.locator(frame).first().evaluate(async node=>{
       scrollBy(0,node.getBoundingClientRect().top-240);
       const img=node.querySelector('img')!;
@@ -216,31 +216,31 @@ describe('混排作品的画面框',()=>{
       const box=node.getBoundingClientRect(),card=node.closest('[data-media-card],[data-mix-card]');
       const covers=[[box.left+8,box.top+8],[box.right-8,box.top+8],[box.left+8,box.bottom-8],[box.right-8,box.bottom-8]]
        .map(([x,y])=>document.elementFromPoint(x,y)).filter(hit=>!hit||!card?.contains(hit))
-       .map(hit=>hit?`${hit.tagName} ${[...hit.attributes].map(a=>a.name).join(' ')}`:'视口外');
+       .map(hit=>hit?`${hit.tagName} ${[...hit.attributes].map(a=>a.name).join(' ')}`:'Outside viewport');
       return {...box.toJSON(),covers};
      });
-     assert.ok(!box.covers.length&&box.bottom<=800,`${frame} 的四角没有露出来：${JSON.stringify(box)}`);
+     assert.ok(!box.covers.length&&box.bottom<=800,`${frame} corners are not exposed: ${JSON.stringify(box)}`);
      await page.mouse.move(0,0);
      for(const [x,y] of [[box.left,box.top],[box.right-6,box.top],[box.left,box.bottom-6],[box.right-6,box.bottom-6]]){
       corners.push({frame,x:Math.round(x),y:Math.round(y),min:await darkest(page,{x,y,width:6,height:6})});
      }
     }
-    // 高分屏的像素对齐和抗锯齿允许浅灰边缘；灰黑渗透的 150–190 区间必须失败。
+    // HiDPI pixel alignment and antialiasing allow light gray edges; the gray-to-black bleed range 150-190 must fail.
     const dark=corners.filter(corner=>corner.min<230);
-    assert.deepEqual(dark,[],`${corners.length} 个角里有 ${dark.length} 个透出了黑`);
+    assert.deepEqual(dark,[],`${corners.length} corners were sampled and ${dark.length} show black bleeding through`);
    }finally{await context.close()}
   });
-  /* 竖屏格一律 9:16，九宫格切出来的海报却是 480×850（略宽）或 480×876（略高）。按 contain 放，
-   * 沿短的那一轴会留下不到一像素到几像素的黑底，随落点的小数时有时无。白图浅色页面上量四条边的中段。
-   * 默认大图密度下 1280 宽排两列，一格 470×836；截图前将目标格居中，留出完整的四边。 */
-  it(`竖屏格的视频海报铺满，四边不留黑线（${scale} 倍像素）`,async()=>{
+  /* Portrait cells are always 9:16, but the nine-grid's cropped posters are 480x850 (slightly wider) or 480x876 (slightly taller). Fit with contain and
+   * the short axis leaves anywhere from under a pixel to a few pixels of black backing, present or not depending on the fractional landing point. Measure the middle of all four edges against the white image on the light page.
+   * At default large-image density, 1280 wide fits two columns, each cell 470x836; center the target cell before the screenshot, leaving all four edges fully visible. */
+  it(`Portrait video posters fill fully with no black edges on any side (${scale}x pixels)`,async()=>{
    const viewport={width:1280,height:1200};
    const context=await browser.newContext({viewport,deviceScaleFactor:scale,colorScheme:'light'});
    try{
     const page=await context.newPage();
     await page.addInitScript(()=>localStorage.setItem('peach.settings.v1',JSON.stringify({detailAutoplay:false})));
     await page.route('**/api/items?*',route=>route.fulfill({json:{items:Array.from({length:6},(_,i)=>({
-     id:92000+i,name:`竖屏示例 ${i}`,creator:'示例创作者',is_jav:false,has_thumb:true,has_cover:false,
+     id:92000+i,name:`Portrait sample ${i}`,creator:'Example creator',is_jav:false,has_thumb:true,has_cover:false,
      width:1080,height:1920,location:'local',duration:120,
     })),total:6,has_more:false}}));
     await page.route('**/poster?*',route=>{
@@ -248,7 +248,7 @@ describe('混排作品的画面框',()=>{
      const [w,h]=tall?[480,876]:[480,850];
      return route.fulfill({contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="white"/></svg>`});
     });
-    await page.goto(requiredEnv('PEACH_E2E_ORIGIN')+'/?orient='+encodeURIComponent('竖屏'),{waitUntil:'load'});
+    await page.goto(requiredEnv('PEACH_E2E_ORIGIN')+'/?orient='+encodeURIComponent('Portrait'),{waitUntil:'load'});
     await page.evaluate(()=>{document.documentElement.dataset.theme='light';document.documentElement.classList.remove('dark')});
     const frames=page.locator('#grid [data-media-pic][data-pic-portrait]');
     await frames.first().waitFor();
@@ -257,13 +257,13 @@ describe('混排作品的画面框',()=>{
      const box=await frames.nth(index).evaluate(async node=>{
       const img=node.querySelector('img')!;
       if(!img.complete)await new Promise(done=>img.addEventListener('load',done,{once:true}));
-      // 整条边都要参与像素检查，先将目标画面框滚入视口再读取截图坐标。
+      // Every pixel along the whole edge takes part in the check, so scroll the target frame into the viewport before reading screenshot coordinates.
       node.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});
       await new Promise(requestAnimationFrame);
       return node.getBoundingClientRect().toJSON();
      });
      await page.mouse.move(0,0);
-     assert.ok(box.width>40&&box.height>80&&box.top>=0&&box.bottom<=viewport.height,`第 ${index+1} 格不在截图范围里：${JSON.stringify(box)}`);
+     assert.ok(box.width>40&&box.height>80&&box.top>=0&&box.bottom<=viewport.height,`Cell ${index+1} is outside the screenshot bounds: ${JSON.stringify(box)}`);
      for(const [side,clip] of Object.entries({
       top:{x:box.left+20,y:box.top,width:box.width-40,height:2},
       bottom:{x:box.left+20,y:box.bottom-2,width:box.width-40,height:2},
@@ -272,13 +272,13 @@ describe('混排作品的画面框',()=>{
      }))edges.push({index,side,min:await darkest(page,clip)});
     }
     const dark=edges.filter(edge=>edge.min<230);
-    assert.deepEqual(dark,[],`竖屏格的边上露出了黑底：${JSON.stringify(edges)}`);
+    assert.deepEqual(dark,[],`Black backing shows around the portrait cell edges: ${JSON.stringify(edges)}`);
    }finally{await context.close()}
   });
  }
- /* 大图档一格的模块宽 336px，比 320 的手机屏还宽：网格的最小列宽要让给视口，整张卡留在屏内。 */
+ /* The large-image tier cell is 336px wide, wider than a 320px phone screen: the grid's minimum column width has to yield to the viewport so the whole card stays on screen. */
  for(const size of ['big','small']){
-  it(`320 宽 ${size} 版式的卡片网格不越出视口`,async()=>{
+  it(`At 320 wide the ${size} layout's card grid never leaves the viewport`,async()=>{
    const context=await browser.newContext({viewport:{width:320,height:640}});
    try{
     const page=await context.newPage();
@@ -298,12 +298,12 @@ describe('混排作品的画面框',()=>{
    }finally{await context.close()}
   });
  }
- it('多选态的勾选圆不压分卷徽标；番号带三枚版本徽标时整组留在标题框内',async()=>{
+ it('In multi-select the check circle does not cover volume badges; with three edition badges on a code the whole group stays inside the title box',async()=>{
   const context=await browser.newContext({viewport:{width:320,height:720}});
   try{
    const page=await context.newPage();
    await openHome(page,'small',i=>i===0?{
-    name:'FC2-PPV-4728193 夏の終わり',code:'FC2-PPV-4728193',display_title:'夏の終わり',edition_badges:['中字','无码','无码破解'],
+    name:'FC2-PPV-4728193 夏の終わり',code:'FC2-PPV-4728193',display_title:'夏の終わり',edition_badges:['Chinese subs','Uncensored','Uncensored'],
     part_group:{key:'p',seed_id:91000,count:128},
    }:{});
    const first=page.locator('#grid [data-media-grid] > [data-media-card]').first();
@@ -318,11 +318,11 @@ describe('混排作品的画面框',()=>{
     };
    });
    assert.equal(box.count,3);
-   assert.ok(box.group<=box.check,`勾选圆压住了分卷徽标：${JSON.stringify(box)}`);
-   assert.ok(box.badges<=box.title+0.5,`版本徽标越出标题框：${JSON.stringify(box)}`);
+   assert.ok(box.group<=box.check,`The selection circle covers the volume badge: ${JSON.stringify(box)}`);
+   assert.ok(box.badges<=box.title+0.5,`Edition badges leave the title box: ${JSON.stringify(box)}`);
   }finally{await context.close()}
  });
- for(const width of [1280,760,390,320])for(const pictures of ['none','all','mixed'])it(`${width} 宽共演头像 ${pictures} 紧叠占位并浮于文字上展开`,async()=>{
+ for(const width of [1280,760,390,320])for(const pictures of ['none','all','mixed'])it(`At ${width} wide, co-star avatars ${pictures} stack tightly in the placeholder and expand above the text`,async()=>{
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
   try{
    const page=await context.newPage();
@@ -333,7 +333,7 @@ describe('混排作品的画面框',()=>{
    }));
    const short=page.locator('[data-media-card][data-variant="short"]').first();
    await short.waitFor();
-   /* 命中测试只认视口里、没被吸顶栏压着的点：先把头像那一排即时滚到视口中间，等滚动落定再量。 */
+   /* Hit testing only accepts points in the viewport and not covered by the sticky bar: scroll the avatar row instantly to the viewport middle first, and measure after the scroll settles. */
    const measure=async(card:Element)=>{
     card.querySelector('[data-media-avatars]')!.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});
     for(let frame=0;frame<2;frame+=1)await new Promise(requestAnimationFrame);
@@ -367,11 +367,11 @@ describe('混排作品的画面框',()=>{
      await new Promise(requestAnimationFrame);
      const box=node.getBoundingClientRect(),hit=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
      return hit?.closest('[data-media-avatar]')===node;
-    }),'聚焦的堆叠头像完整露出并可操作');
+    }),'The focused stacked avatar shows fully and stays operable');
    }
   }finally{await context.close()}
  });
- it('Shift 连选几张卡不把中间的文字刷成选区',async()=>{
+ it('Shift-selecting several cards does not turn the text in between into a selection',async()=>{
   const context=await browser.newContext({viewport:{width:1280,height:900}});
   try{
    const page=await context.newPage();
@@ -379,7 +379,7 @@ describe('混排作品的画面框',()=>{
    const titles=page.locator('#grid [data-media-grid] > [data-media-card] [data-media-title]');
    await titles.nth(0).click({modifiers:['Control']});
    assert.equal(await titles.nth(0).evaluate(node=>getComputedStyle(node.closest('[data-media-card]')!).userSelect),'none');
-   /* 多选态的 `user-select: none` 之外，Shift 按下那一下本身也不起选区：撤掉前者再点，两道各验一次。 */
+   /* Beyond multi-select's `user-select: none`, the Shift keydown itself must not start a selection: remove the former and click again, verifying each separately. */
    await page.addStyleTag({content:'.peach-react [data-media-card]{user-select:text !important}'});
    await titles.nth(3).click({modifiers:['Shift']});
    await page.locator('#grid [data-media-card][data-selected]').nth(3).waitFor();

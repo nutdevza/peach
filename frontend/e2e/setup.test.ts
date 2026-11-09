@@ -1,9 +1,9 @@
-/* 首次运行页的整条流程：加载、填错、原位写回、改对、完成态。
+/* The first-run page's whole flow: load, fill wrong, write back in place, correct it, completion state.
  *
- * 跑在 `peach serve --setup` 上，不是路由冒烟那台已配置的服务：服务与临时 Peach 数据目录由
- * `tests/test_web_e2e.py` 的 `SetupE2ETests` 准备，经 PEACH_E2E_SETUP_ORIGIN、
- * PEACH_E2E_SETUP_DATA（临时 Peach 数据目录）和 PEACH_E2E_SETUP_MEDIA（一个已建好的空媒体目录）传进来。
- * 本文件由首启专用入口执行；单独执行时缺少这些变量则整组跳过。 */
+ * Runs on `peach serve --setup`, not the configured server the routing smoke tests use: the service and temporary Peach data
+ * directory are prepared by `SetupE2ETests` in `tests/test_web_e2e.py` and passed in via PEACH_E2E_SETUP_ORIGIN,
+ * PEACH_E2E_SETUP_DATA (the temporary Peach data directory) and PEACH_E2E_SETUP_MEDIA (a pre-created empty media directory).
+ * This file is run by the first-run-only entry; run standalone without those variables, the whole group skips. */
 import assert from 'node:assert/strict';
 import { readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -17,17 +17,17 @@ const origin = process.env.PEACH_E2E_SETUP_ORIGIN ?? '';
 const media = process.env.PEACH_E2E_SETUP_MEDIA ?? '';
 const dataRoot = process.env.PEACH_E2E_SETUP_DATA ?? '';
 
-/** 填错那一轮的 400 是预期内的：Chrome 会把它同时记成一条控制台错误和一条 4xx 响应。 */
+/** The 400 from the wrong-fill round is expected: Chrome records it as both a console error and a 4xx response. */
 const expectedRejection = (problem: string) =>
   problem === '400 /api/setup' || problem === '400 /api/setup/restore'
   || problem.startsWith('console Failed to load resource: the server responded with a status of 400');
 
-describe('首次运行页', { skip: origin && media && dataRoot ? false : '只在 SetupE2ETests 起的首启服务上跑' }, () => {
+describe('First-run page', { skip: origin && media && dataRoot ? false : 'Runs only against the first-boot service started by SetupE2ETests' }, () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('填错原位写回，改对后进入完成态', { timeout: 120_000 }, async () => {
+  it('Invalid input writes back in place, and correcting it enters the done state', { timeout: 120_000 }, async () => {
     const viewport = VIEWPORTS.find((candidate) => candidate.name === 'desktop')!;
     const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
     const problems: string[] = [];
@@ -41,146 +41,146 @@ describe('首次运行页', { skip: origin && media && dataRoot ? false : '只�
         }
       });
       await page.goto(`${origin}/?edit`, { waitUntil: 'load' });
-      const editor = page.getByRole('group', { name: '文案编辑' });
+      const editor = page.getByRole('group', { name: 'Copy editing' });
       await editor.waitFor({ state: 'visible' });
       for (const size of VIEWPORTS.filter(candidate => ['desktop', 'mobile'].includes(candidate.name))) {
         await page.setViewportSize({ width: size.width, height: size.height });
         assert.equal(await editor.evaluate(element => getComputedStyle(element).position), 'fixed');
-        assert.equal(await editor.getByRole('button', { name: '暂停编辑' }).evaluate(element => getComputedStyle(element).height), '36px');
+        assert.equal(await editor.getByRole('button', { name: 'Pause editing' }).evaluate(element => getComputedStyle(element).height), '36px');
         const bounds = await editor.boundingBox();
         assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= size.width && bounds.y + bounds.height <= size.height);
       }
-      await page.getByRole('button', { name: '退出编辑' }).click();
+      await page.getByRole('button', { name: 'Exit editing' }).click();
       await page.waitForURL(`${origin}/`);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
-      // 加载：题目到齐后表单出现，等待态结束，页面不横向溢出。
-      const heading = page.getByRole('heading', { name: '欢迎使用 Peach' });
+      // Loading: the form appears once all fields arrive, the waiting state ends, and the page does not overflow horizontally.
+      const heading = page.getByRole('heading', { name: 'Welcome to Peach' });
       await heading.waitFor({ state: 'visible', timeout: 15_000 });
-      await page.getByRole('button', { name: '开始设置', exact: true }).click();
-      const folder = page.getByRole('textbox', { name: '媒体目录 1' });
+      await page.getByRole('button', { name: 'Start setup', exact: true }).click();
+      const folder = page.getByRole('textbox', { name: 'Media directory 1' });
       await folder.waitFor({ state: 'visible', timeout: 15_000 });
-      assert.equal(await folder.inputValue(), '', '媒体目录由用户填写');
-      await page.getByRole('button', { name: '我的媒体库 来源色：无颜色', exact: true }).click();
+      assert.equal(await folder.inputValue(), '', 'Media directory filled in by the user');
+      await page.getByRole('button', { name: 'My media library, source color: none', exact: true }).click();
       const paints = await page.locator('[data-library-colors] [data-accent-ball]').evaluateAll(elements =>
         elements.map(element => getComputedStyle(element).backgroundImage));
-      assert.equal(new Set(paints).size, 12, '来源色板显示十二种独立颜色');
+      assert.equal(new Set(paints).size, 12, 'The source palette shows twelve distinct colors');
       await page.keyboard.press('Escape');
-      assert.equal(await page.getByRole('textbox', { name: '数据库中的路径前缀' }).count(), 0,
-        '普通首次设置不需要填写内部路径');
+      assert.equal(await page.getByRole('textbox', { name: 'Path prefix in the database' }).count(), 0,
+        'Ordinary first-time setup never requires the internal path');
       await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), undefined, { timeout: 15_000 });
       const host = page.getByRole('radiogroup');
-      assert.equal(await host.count(), 0, '访问范围在后续步骤中呈现');
-      assert.equal(await page.getByRole('checkbox', { name: '接下来导入浏览器历史记录' }).count(), 0);
-      // 数据目录决定占用哪块磁盘，首屏就露出，并带选择文件夹的键。
-      // 落盘位置跟着服务进程的 PEACH_DATA_ROOT 走；不是临时 Peach 数据目录就不往下提交。
+      assert.equal(await host.count(), 0, 'Access scope is presented in a later step');
+      assert.equal(await page.getByRole('checkbox', { name: 'Next, import browser history' }).count(), 0);
+      // The data directory decides which disk gets used; it shows on the first screen with a button to pick a folder.
+      // Where files land follows the service process's PEACH_DATA_ROOT; anything that is not the temporary Peach data directory is not committed further.
       assert.equal(await page.locator('#f-data_root').inputValue(), dataRoot);
-      await page.getByRole('button', { name: '选择数据目录' }).waitFor({ state: 'visible' });
+      await page.getByRole('button', { name: 'Choose the data directory' }).waitFor({ state: 'visible' });
       assert.deepEqual((await layout(page)).offenders, []);
 
       await folder.fill(join(media, 'missing'));
       const selectedData = join(dataRoot, 'custom-data');
       await page.locator('#f-data_root').fill(selectedData);
-      await page.getByRole('button', { name: '继续', exact: true }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       const proxyMode = page.locator('[aria-labelledby="setup-proxy-title"] button[aria-haspopup="listbox"]');
       await proxyMode.scrollIntoViewIfNeeded();
       await proxyMode.focus();
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await proxyMode.click();
-      await page.getByRole('option', { name: '自定义', exact: true }).waitFor();
-      await page.getByRole('option', { name: '自定义', exact: true }).click();
+      await page.getByRole('option', { name: 'Custom', exact: true }).waitFor();
+      await page.getByRole('option', { name: 'Custom', exact: true }).click();
       await page.locator('[data-trigger="Select"]').waitFor({ state: 'detached' });
-      const proxy = page.getByLabel('代理地址', { exact: true });
+      const proxy = page.getByLabel('Proxy address', { exact: true });
       await proxy.fill('http://proxy.invalid');
       const mobileForm = VIEWPORTS.find((candidate) => candidate.name === 'mobile')!;
       await page.setViewportSize({ width: mobileForm.width, height: mobileForm.height });
       assert.deepEqual((await layout(page)).offenders, []);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
-      // React Aria 的原生 input 是视觉隐藏的，点击落在外面那层画出来的开关上，所以按状态设值。
+      // React Aria's native input is visually hidden and clicks land on the drawn switch outside it, so the value is set from state.
 
-      // 填错：目录不存在、端口越界。
+      // Bad input: directory does not exist, port out of range.
       const missing = join(media, 'missing');
-      await page.getByRole('switch', { name: '访问密码' }).setChecked(false, { force: true });
-      await page.getByText('高级设置', { exact: true }).click();
+      await page.getByRole('switch', { name: 'Access password' }).setChecked(false, { force: true });
+      await page.getByText('Advanced settings', { exact: true }).click();
       const port = page.locator('#f-port');
       await port.waitFor({ state: 'visible' });
       const defaultPort = await port.inputValue();
       await port.fill('70000');
-      // 折叠关上，验证出错时它自己展开。
-      await page.getByText('高级设置', { exact: true }).click();
+      // The collapse starts closed and opens by itself when validation fails.
+      await page.getByText('Advanced settings', { exact: true }).click();
       await port.waitFor({ state: 'hidden' });
-      await page.getByRole('button', { name: '继续', exact: true }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       await page.getByRole('checkbox', { name: /^完成设置后扫描/ }).setChecked(false, { force: true });
 
       const rejected = page.waitForResponse((response) => response.url().endsWith('/api/setup')
         && response.request().method() === 'POST');
-      await page.getByRole('button', { name: '完成设置' }).click();
+      await page.getByRole('button', { name: 'Finish setup' }).click();
       assert.equal((await rejected).status(), 400);
 
-      // 写回：目录行与端口各标各的，高级设置展开，已填的值都在，焦点落在第一个错处。
+      // Write-back: the directory row and the port each flagged separately, advanced settings expanded, entered values intact, focus on the first error.
       await page.waitForFunction(() => document.querySelectorAll('input[aria-invalid="true"]').length >= 2);
       assert.equal(await folder.getAttribute('aria-invalid'), 'true');
       assert.equal(await folder.inputValue(), missing);
       await page.getByText(/目录不存在/).first().waitFor({ state: 'visible' });
-      await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '媒体目录 1');
+      await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Media directory 1');
       await folder.fill(media);
       await page.locator('#f-data_root').fill(selectedData);
-      await page.getByRole('button', { name: '继续', exact: true }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       await port.waitFor({ state: 'visible' });
       assert.equal(await port.getAttribute('aria-invalid'), 'true');
       assert.equal(await port.inputValue(), '70000');
       assert.equal(await proxy.getAttribute('aria-invalid'), 'true');
       assert.equal(await proxy.inputValue(), 'http://proxy.invalid');
-      await page.getByText('请填写带端口的 HTTP 或 SOCKS 代理地址', { exact: true }).waitFor({ state: 'visible' });
-      await page.getByText('端口要是 1 到 65535 之间的整数').waitFor({ state: 'visible' });
+      await page.getByText('Enter an HTTP or SOCKS proxy address with a port', { exact: true }).waitFor({ state: 'visible' });
+      await page.getByText('The port must be an integer between 1 and 65535').waitFor({ state: 'visible' });
 
-      // 改对：已有目录、默认端口，不扫描。
+      // Edited correctly: existing directory, default port, no scanning.
       await port.fill(defaultPort);
       await proxy.fill('socks5h://user:private-proxy@127.0.0.1:17890');
-      await page.getByRole('button', { name: '继续', exact: true }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       const accepted = page.waitForResponse((response) => response.url().endsWith('/api/setup')
         && response.request().method() === 'POST');
-      await page.getByRole('button', { name: '完成设置' }).click();
+      await page.getByRole('button', { name: 'Finish setup' }).click();
       const acceptedResponse = await accepted;
       assert.equal(acceptedResponse.status(), 200, await acceptedResponse.text());
       assert.deepEqual(JSON.parse(await readFile(join(selectedData, 'secrets/follow/peach-proxy.json'), 'utf8')), {
         mode: 'proxy', proxy: 'socks5h://user:private-proxy@127.0.0.1:17890',
       });
 
-      // 完成态：入口链接拿到焦点，扫描没有排队，运行信息收起，口令不在页面上。
-      await page.getByRole('heading', { name: '可以开始使用了' }).waitFor({ state: 'visible' });
+      // Completed state: the entry link has focus, no scan is queued, run info is collapsed, and the passcode is not on the page.
+      await page.getByRole('heading', { name: 'You are ready to go' }).waitFor({ state: 'visible' });
       assert.equal((await page.content()).includes('private-proxy'), false);
-      const entry = page.getByRole('link', { name: '进入 Peach' });
+      const entry = page.getByRole('link', { name: 'Enter Peach' });
       await entry.waitFor({ state: 'visible' });
-      assert.ok(await entry.evaluate((element) => element === document.activeElement), '入口链接拿到焦点');
+      assert.ok(await entry.evaluate((element) => element === document.activeElement), 'The entry link receives focus');
       assert.match((await entry.getAttribute('href')) ?? '', /^https?:\/\//);
-      await page.getByText('稍后在配置页开始扫描媒体库。').waitFor({ state: 'visible' });
-      assert.equal(await page.title(), 'Peach · 设置完成');
+      await page.getByText('Start scanning the library later from the configuration page.').waitFor({ state: 'visible' });
+      assert.equal(await page.title(), 'Peach · Setup complete');
       assert.deepEqual((await layout(page)).offenders, []);
-      await page.getByText('运行信息', { exact: true }).click();
+      await page.getByText('Runtime info', { exact: true }).click();
       await page.getByText(selectedData, { exact: true }).waitFor({ state: 'visible' });
       const mobile = VIEWPORTS.find((candidate) => candidate.name === 'mobile')!;
       await page.setViewportSize({ width: mobile.width, height: mobile.height });
       assert.deepEqual((await layout(page)).offenders, []);
 
-      // 已有数据目录的入口在首启页可操作，找不到配置时保留路径并说明原因。
+      // The existing-data-directory entry stays usable on the first-run page; when the config cannot be found, the path is kept and the reason explained.
       const originalConfig = await readFile(join(selectedData, 'config.toml'));
       await unlink(join(dataRoot, 'state', 'data-root.txt'));
       await page.reload({ waitUntil: 'load' });
-      await page.getByRole('button', { name: '使用已有数据', exact: true }).click();
-      const existing = page.getByRole('textbox', { name: '已有数据目录' });
+      await page.getByRole('button', { name: 'Use existing data', exact: true }).click();
+      const existing = page.getByRole('textbox', { name: 'Existing data directory' });
       await existing.fill(join(dataRoot, 'missing'));
       const restoreRejected = page.waitForResponse((response) => response.url().endsWith('/api/setup/restore'));
-      await page.getByRole('button', { name: '使用此目录', exact: true }).click();
+      await page.getByRole('button', { name: 'Use this folder', exact: true }).click();
       assert.equal((await restoreRejected).status(), 400);
       await page.getByRole('alert').filter({ hasText: 'config.toml' }).waitFor({ state: 'visible' });
       assert.deepEqual((await layout(page)).offenders, []);
       await existing.fill(selectedData);
       const restoreAccepted = page.waitForResponse((response) => response.url().endsWith('/api/setup/restore'));
-      await page.getByRole('button', { name: '使用此目录', exact: true }).click();
+      await page.getByRole('button', { name: 'Use this folder', exact: true }).click();
       assert.equal((await restoreAccepted).status(), 200);
-      await page.getByText('已连接已有数据目录。', { exact: true }).waitFor({ state: 'visible' });
+      await page.getByText('Connected to the existing data directory.', { exact: true }).waitFor({ state: 'visible' });
       assert.equal(await readFile(join(dataRoot, 'state', 'data-root.txt'), 'utf8'), selectedData);
       assert.deepEqual(await readFile(join(selectedData, 'config.toml')), originalConfig);
       assert.deepEqual((await layout(page)).offenders, []);

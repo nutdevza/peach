@@ -1,8 +1,10 @@
-/* 关注里「这一条出自哪个站」一律用站点图标表示，站名只落在图标的 alt／title 上。
+/* "Which site this entry came from" in follows is always shown by site icon, with the site name only in the icon's
+ * alt/title.
  *
- * 守两处：详情下方视频合集的队列卡（出处图标、标记与时间同一行居中），以及卡片上的
- * 「另见」徽章（连同版本字样的状态标记外观）。演示库没有关注来源，这里按 `_group_payload`（`src/peach/web_follow.py`）
- * 造一组跨站的同一条：主条目在 Fanbox，另两条在 Rule34.xxx。 */
+ * Two places are guarded: the video compilation's queue cards under details (source icon, marks and time centered on one
+ * line), and the cards' "see also" badges (together with the edition marks' status-badge look). The demo library has no follow
+ * sources, so per `_group_payload` (`src/peach/web_follow.py`) this builds one cross-site entry: the main entry on Fanbox and
+ * two more on Rule34.xxx. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -12,13 +14,13 @@ import { launch, settle, visit, VIEWPORTS, type Visit } from './harness.ts';
 
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 
-/** 1×1 的透明 PNG：站点图标的请求有图可落，量的是它排出来的几何。 */
+/** A 1x1 transparent PNG: the site icon's request has an image to land on, and what is measured is the geometry it lays out. */
 const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-/** 一条可播的关注视频。字段以 `_item_payload` 为准。 */
+/** One playable follow video. Fields follow `_item_payload`. */
 const followVideo = (id: number, provider: string, label: string, publishedAt: string) => ({
   id, provider, provider_label: label, resource_provider: provider, source_id: 1,
-  source_label: `演示 · ${label}`, external_id: String(id), title: `演示视频 ${id}`,
+  source_label: `Demo · ${label}`, external_id: String(id), title: `Demo video ${id}`,
   author: null, summary: null, url: `https://example.com/${id}`, thumb_url: null,
   published_at: publishedAt, published_precision: 'exact', version: null, duration: 20,
   variant_kind: null, variant_label: null, status: 'new', asset_id: null,
@@ -42,7 +44,7 @@ const GROUP = {
   stack: null,
 };
 
-/** 主条目在 Fanbox 却没有视频：卡面换成组里最新那条 Rule34.xxx，另见就该列 Fanbox 与 Pawchive。 */
+/** The main entry is on Fanbox but has no video: the card face switches to the latest Rule34.xxx entry in the group, and See also should list Fanbox and Pawchive. */
 const FRONTED = {
   ...GROUP,
   release_key: 'demo-fronted',
@@ -63,13 +65,13 @@ async function stubFollow(page: Page): Promise<void> {
     facets: { authors: [], providers: ['fanbox', 'pawchive', 'rule34xxx'] }, has_more: false,
   })));
   await page.route('**/api/follow/credentials', (route) => route.fulfill(json({ providers: [] })));
-  /* 服务端的定时检查可能正在跑，那一趟会让检查键挂着 aria-busy，settle 等不到头。 */
+  /* The server's scheduled check may be running; that pass keeps the check key on aria-busy and settle never finishes. */
   await page.route('**/api/follow/check', (route) => (route.request().method() === 'GET'
     ? route.fulfill(json({ status: 'idle' })) : route.fallback()));
   await page.route('**/source-icon**', (route) => route.fulfill({
     status: 200, contentType: 'image/png', body: Buffer.from(PIXEL, 'base64'),
   }));
-  // 造出来的条目没有正片；这一条量的是队列卡，播放器拿到空响应即可。
+  // The fabricated entry has no feature film; this case measures the queue card, and the player just needs to receive an empty response.
   await page.route('**/follow-stream**', (route) => route.fulfill({ status: 204, body: '' }));
   await page.route('**/follow-qualities**', (route) => route.fulfill(json({})));
 }
@@ -83,7 +85,7 @@ async function openFollow(browser: Browser, path: string, ready: string): Promis
   return opened;
 }
 
-/** 一行里每个子盒的竖直中线与文字；站名文字是否混在行里看的是这一行自己的 textContent。 */
+/** Each child box's vertical midline within the row, plus the text; whether site name text is mixed into the row is judged from the row's own textContent. */
 async function lineGeometry(page: Page, selector: string) {
   return page.locator(selector).evaluateAll((lines) => lines.map((line) => {
     const mid = (node: Element | null) => {
@@ -104,7 +106,7 @@ async function lineGeometry(page: Page, selector: string) {
   }));
 }
 
-describe('关注的出处用站点图标', () => {
+describe('Follow origins use site icons', () => {
   let browser: Browser;
 
   before(async () => {
@@ -115,36 +117,36 @@ describe('关注的出处用站点图标', () => {
     await browser.close();
   });
 
-  it('合集队列卡：出处是带站名的图标，与时间同一条中线', { timeout: 60_000 }, async () => {
+  it('Compilation queue cards: the source is an icon with the site name, sharing one midline with the time', { timeout: 60_000 }, async () => {
     const opened = await openFollow(browser, '/posts/1', '[data-follow-queue-item]');
     try {
       const rows = await lineGeometry(opened.page, '[data-follow-queue-item] [data-follow-queue-meta]');
-      assert.equal(rows.length, 3, `队列卡数不对：${JSON.stringify(rows)}`);
+      assert.equal(rows.length, 3, `Queue card count is wrong: ${JSON.stringify(rows)}`);
       const duplicates = rows.filter((row) => row.alt !== null);
-      assert.equal(duplicates.length, 2, `另一站的两条没有出处图标：${JSON.stringify(rows)}`);
+      assert.equal(duplicates.length, 2, `The two other-site entries have no origin icons: ${JSON.stringify(rows)}`);
       for (const row of duplicates) {
-        assert.equal(row.alt, 'Rule34.xxx', '出处图标没有站名作无障碍名称');
-        assert.equal(row.title, 'Rule34.xxx', '出处图标悬停不报站名');
-        assert.ok(!row.text.includes('Rule34'), `这一行还写着站名文字：${row.text}`);
-        assert.ok(Math.abs(row.icon! - row.time!) <= 1, `图标与时间中线差 ${Math.abs(row.icon! - row.time!)}px`);
+        assert.equal(row.alt, 'Rule34.xxx', 'The source icon carries no site name as its accessible name');
+        assert.equal(row.title, 'Rule34.xxx', 'Source icons never announce the site name on hover');
+        assert.ok(!row.text.includes('Rule34'), `This row still contains site name text: ${row.text}`);
+        assert.ok(Math.abs(row.icon! - row.time!) <= 1, `The icon and time center lines differ by ${Math.abs(row.icon! - row.time!)}px`);
       }
-      // 本站那一条仍是标记加时间，二者同样按盒子居中。
+      // This site's row is still marker plus time, both centered in the box the same way.
       const own = rows.find((row) => row.alt === null)!;
       assert.ok(own.mark !== null && Math.abs(own.mark - own.time!) <= 1,
-        `标记与时间中线差 ${own.mark === null ? '未取得' : Math.abs(own.mark - own.time!)}px`);
+        `Marker differs from the time midline by ${own.mark === null ? 'not captured' : Math.abs(own.mark - own.time!)}px`);
     } finally {
       await opened.close();
     }
   });
 
-  it('卡片的「另见」徽章：另一站按图标列出，站名不写成文字', { timeout: 60_000 }, async () => {
+  it('The card\'s "also on" badge: other sites list as icons without writing the names as text', { timeout: 60_000 }, async () => {
     const opened = await openFollow(browser, '/follow', '[data-follow-item] [data-follow-seealso]');
     try {
       const [badge] = await lineGeometry(opened.page, '[data-follow-item] [data-follow-seealso]');
-      assert.ok(badge, '卡片上没有「另见」徽章');
-      assert.equal(badge.text, '另见');
+      assert.ok(badge, 'The card carries no "also on" badge');
+      assert.equal(badge.text, 'Also on');
       assert.equal(badge.alt, 'Rule34.xxx');
-      assert.ok(Math.abs(badge.icon! - badge.line!) <= 1, `图标偏离徽章中线 ${Math.abs(badge.icon! - badge.line!)}px`);
+      assert.ok(Math.abs(badge.icon! - badge.line!) <= 1, `The icon is off the badge center line by ${Math.abs(badge.icon! - badge.line!)}px`);
       await opened.page.locator('[data-follow-item]:has([data-follow-seealso])').first().hover();
       const source = await opened.page.locator('[data-follow-item]:has([data-follow-seealso]) [data-follow-sources]').first().evaluate(node => {
         const style = getComputedStyle(node);
@@ -156,10 +158,11 @@ describe('关注的出处用站点图标', () => {
     }
   });
 
-  /* 设计决定，与谁挂哪枚字样（`test/react/follow-marks.test.ts`）分开量：另见与版本字样是状态标记，
-     不是标签，圆角走 `--badge-radius`；「含 WIP」说的是同组另一条，比 WIP 本体弱一档；SFW 模式下
-     站点图标和品牌标一样不糊。字样按 `follow-marks.ts` 的形状临时摆进卡片标题里量。 */
-  it('另见与来源图标共用封面角标，含 WIP 弱于 WIP，SFW 模式不糊站点图标', { timeout: 60_000 }, async () => {
+  /* Design decisions, measured separately from which mark hangs where (`test/react/follow-marks.test.ts`): see-also and
+     edition marks are status badges, not tags, with corners on `--badge-radius`; "contains WIP" speaks of another entry in
+ * the group and reads one tier weaker than WIP itself; in SFW mode site icons stay unblurred like brand marks. Marks are
+ * temporarily placed into card titles in `follow-marks.ts`'s shape for measuring. */
+  it('See-also and source icons share the cover corner badge; soft WIP is weaker than WIP, and SFW mode does not blur site icons', { timeout: 60_000 }, async () => {
     const opened = await openFollow(browser, '/follow', '[data-follow-item] [data-follow-seealso]');
     try {
       const look = await opened.page.evaluate(() => {
@@ -172,7 +175,7 @@ describe('关注的出处用站点图标', () => {
         probe.remove();
         const title = badge.closest('[data-follow-item]')!.querySelector('[data-media-title]') ?? badge.parentElement!;
         title.insertAdjacentHTML('afterbegin', '<small class="javedition" data-follow-edition="wip">WIP</small>'
-          + '<small class="javedition" data-follow-edition="has-wip">含 WIP</small>');
+          + '<small class="javedition" data-follow-edition="has-wip">Has WIP</small>');
         const [wip, hasWip] = [...title.querySelectorAll('[data-follow-edition]')].map((node) => getComputedStyle(node));
         const shape = getComputedStyle(badge);
         const source = badge.closest('[data-follow-sources]')!.querySelector('[data-media-badge]')!;
@@ -185,29 +188,29 @@ describe('关注的出处用站点图标', () => {
           background: shape.backgroundColor, shadow: shape.boxShadow,
           editionRadius: wip!.borderTopLeftRadius, wip: wip!.color, hasWip: hasWip!.color, icon };
       });
-      assert.equal(look.radius, look.sameSource.radius, '另见与来源角标同圆角');
+      assert.equal(look.radius, look.sameSource.radius, 'Also-on and source badges share one radius');
       assert.equal(look.background, look.sameSource.background);
       assert.equal(look.shadow, look.sameSource.shadow);
-      assert.equal(look.editionRadius, look.expected.radius, '版本字样同是状态标记');
+      assert.equal(look.editionRadius, look.expected.radius, 'Edition wording is a state mark too');
       assert.equal(look.border, 'none');
-      assert.equal(look.wip, look.expected.meter, 'WIP 本体着 --meter');
-      assert.equal(look.hasWip, look.expected.muted, '「含 WIP」弱化成 --muted');
-      assert.equal(look.icon, 'none', 'SFW 模式下站点图标不糊');
+      assert.equal(look.wip, look.expected.meter, 'WIP itself takes --meter');
+      assert.equal(look.hasWip, look.expected.muted, '"Has WIP" de-emphasizes to --muted');
+      assert.equal(look.icon, 'none', 'Site icons are not blurry in SFW mode');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('卡面换成别的站那条时，另见列主条目的站、不列卡面自己的站', { timeout: 60_000 }, async () => {
+  it('When the card face switches to another site, see-also lists the sites of the main entry and not those of the card face itself', { timeout: 60_000 }, async () => {
     const opened = await openFollow(browser, '/follow', '[data-follow-item="12"] [data-follow-seealso]');
     try {
       const card = opened.page.locator('[data-follow-item="12"]');
       const shown = await card.locator('[data-media-badge]').getAttribute('title');
       const alts = await card.locator('[data-follow-seealso] img').evaluateAll((icons) =>
         icons.map((icon) => icon.getAttribute('alt')));
-      assert.equal(shown, 'Rule34.xxx', '卡面没有换成有视频的那条');
-      assert.deepEqual(alts, ['pixivFANBOX', 'Pawchive'], `另见列的站不对：${JSON.stringify(alts)}`);
+      assert.equal(shown, 'Rule34.xxx', 'The card face does not switch to the video entry');
+      assert.deepEqual(alts, ['pixivFANBOX', 'Pawchive'], `The also-seen column's sites are wrong: ${JSON.stringify(alts)}`);
     } finally {
       await opened.close();
     }

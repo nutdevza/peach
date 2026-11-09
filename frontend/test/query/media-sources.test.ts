@@ -1,4 +1,4 @@
-/* 来源可达性的那一个查询键：壳的 `loadMediaSources` 与 React 页面的 `prefetchMediaSources` 读写同一份缓存。 */
+/* The one query key for source reachability: the shell's `loadMediaSources` and the React page's `prefetchMediaSources` read and write the same cache. */
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { loadMediaSources, MEDIA_SOURCES_KEY, QueryObserver, queryClient, type MediaSourcesData } from '@peach/query';
@@ -8,7 +8,7 @@ import { prefetchMediaSources } from '../../src/react/media-sources';
 const ONLINE: MediaSourcesData = { sources: [{ location: 'local', online: true }, { location: '115', online: false }] };
 const BACK: MediaSourcesData = { sources: [{ location: 'local', online: true }, { location: '115', online: true }] };
 
-/** 每次 `fetch` 挂起，由用例按顺序放行；带进来的 `signal` 中止时以 `AbortError` 收场。 */
+/** Every `fetch` suspends and is released in order by the test; when the passed-in `signal` aborts, it ends with `AbortError`. */
 function pendingFetch() {
   const calls: { path: string; signal: AbortSignal | null; answer: (body: MediaSourcesData) => void }[] = [];
   const fetcher = vi.fn((path: string, init: RequestInit = {}) => new Promise((resolve, reject) => {
@@ -24,7 +24,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => { queryClient.clear(); vi.unstubAllGlobals() });
 
-it('壳每检测一次都向服务端问一遍，结果落在页面读的那个键里', async () => {
+it('Each shell detection asks the server once, and the result lands in the key the page reads', async () => {
   const calls = pendingFetch();
   const first = loadMediaSources();
   await flush();
@@ -38,7 +38,7 @@ it('壳每检测一次都向服务端问一遍，结果落在页面读的那个�
   expect(queryClient.getQueryData(MEDIA_SOURCES_KEY)).toEqual(BACK);
 });
 
-it('同时在途的壳与页面合成一次请求，两边拿到同一个对象', async () => {
+it('Shell and page requests in flight at the same time merge into one call, and both sides receive the same object', async () => {
   const calls = pendingFetch();
   const shell = loadMediaSources();
   const page = prefetchMediaSources(new AbortController().signal);
@@ -49,7 +49,7 @@ it('同时在途的壳与页面合成一次请求，两边拿到同一个对象'
   expect(await shell).toBe(queryClient.getQueryData(MEDIA_SOURCES_KEY));
 });
 
-it('合并上的页面那一趟被页面中止时，壳自己再发一次', async () => {
+it('When the merged page round is aborted by the page, the shell sends its own again', async () => {
   const calls = pendingFetch();
   const leaving = new AbortController();
   const page = prefetchMediaSources(leaving.signal);
@@ -64,7 +64,7 @@ it('合并上的页面那一趟被页面中止时，壳自己再发一次', asyn
   expect(await shell).toEqual(BACK);
 });
 
-it('页面上最后一个观察者卸载不撤回壳那一趟', async () => {
+it('The page\'s last observer unmounting never withdraws the shell\'s round', async () => {
   const calls = pendingFetch();
   const observer = new QueryObserver(queryClient, { queryKey: MEDIA_SOURCES_KEY, enabled: false });
   const stop = observer.subscribe(() => {});
@@ -76,12 +76,12 @@ it('页面上最后一个观察者卸载不撤回壳那一趟', async () => {
   expect(calls).toHaveLength(1);
 });
 
-it('取不到时照常抛出，由壳落成空表', async () => {
+it('Failures still throw, with the shell settling into an empty table', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) })));
   await expect(loadMediaSources()).rejects.toThrow();
 });
 
-it('应用取消信号中止真实来源请求且不再重试', async () => {
+it('The applied abort signal stops real source requests and never retries', async () => {
   const calls = pendingFetch(), application = new AbortController();
   const request = loadMediaSources(application.signal);
   const rejection = expect(request).rejects.toMatchObject({ name: 'AbortError' });
@@ -90,7 +90,7 @@ it('应用取消信号中止真实来源请求且不再重试', async () => {
   expect(calls).toHaveLength(1);
 });
 
-it('已取消应用不发来源请求，页面合并请求取消也不恢复已卸载应用', async () => {
+it('A canceled apply sends no source request, and a canceled merged page request does not restore an unmounted apply either', async () => {
   const calls = pendingFetch(), application = new AbortController();
   application.abort(); await expect(loadMediaSources(application.signal)).rejects.toMatchObject({ name: 'AbortError' });
   expect(calls).toHaveLength(0);

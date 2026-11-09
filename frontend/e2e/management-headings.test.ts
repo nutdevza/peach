@@ -5,11 +5,11 @@ import type { Browser } from 'playwright-core';
 import { settledRun } from './design-fixture.ts';
 import { launch, VIEWPORTS, visit } from './harness.ts';
 
-describe('任务中心标题排版', () => {
+describe('Task center title layout', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); await mkdir('../build/table-evidence', { recursive: true }); });
   after(async () => { await browser.close(); });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：加载与内容标题采用同一套 medium 字体`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: loading and content titles use the same medium typeface`, async () => {
     const opened = await visit(browser, '/tasks', viewport);
     let release = () => {};
     const held = new Promise<void>((resolve) => { release = resolve; });
@@ -18,9 +18,9 @@ describe('任务中心标题排版', () => {
       await page.route('**/api/tasks', async (route) => {
         await held;
         await route.fulfill({ json: { available: true,
-          running: [{ ...settledRun(1, 'running', '正在运行的示例任务'), finished_at: null }],
-          skipped: [settledRun(2, 'skipped', '本次未执行示例任务')],
-          finished: [settledRun(3, 'succeeded', '已完成的示例任务')],
+          running: [{ ...settledRun(1, 'running', 'Running sample task'), finished_at: null }],
+          skipped: [settledRun(2, 'skipped', 'No sample task ran this time')],
+          finished: [settledRun(3, 'succeeded', 'Completed sample task')],
         } });
       });
       await page.reload({ waitUntil: 'domcontentloaded' });
@@ -35,7 +35,7 @@ describe('任务中心标题排版', () => {
       assert.equal(waiting.size, '20px');
       release();
       await page.locator('[data-skeleton="board/tasks"]').waitFor({ state: 'detached' });
-      for (const title of ['正在进行', '本次未执行', '最近完成']) {
+      for (const title of ['Running', 'Did not run this time', 'Recently completed']) {
         const heading = page.getByRole('heading', { name: title, exact: true });
         await heading.waitFor();
         assert.deepEqual(await heading.evaluate(read), waiting);

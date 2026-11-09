@@ -19,7 +19,7 @@ const helpers: EntityPageHelpers = { portraitImg: entityPortraitImg, wireDrag: v
 const preference = { sort: 'rating', dir: 'asc' };
 
 function setup() {
-  let context: EntityContext | null = { kind: 'creator', name: '甲', filters: { ...emptyEntityFilters(), tag: 'one' } };
+  let context: EntityContext | null = { kind: 'creator', name: 'Alpha', filters: { ...emptyEntityFilters(), tag: 'one' } };
   let seed = '7', live = true, current = true, photos = false;
   const ports: EntityControllerPorts = {
     context: () => context, live: () => live, current: () => current, route: vi.fn(), suffix: () => '?media=online#works',
@@ -41,59 +41,59 @@ function setup() {
     live: (value: boolean) => { live = value }, current: (value: boolean) => { current = value } };
 }
 
-describe('实体与索引域控制', () => {
-  it('排序按地址与偏好解析，默认项省略，图集只在照片视图认数字 set', () => {
+describe('Entity and index domain control', () => {
+  it('Sort parses from address and preference with the default omitted, and galleries accept a numeric set only in photo view', () => {
     expect(parseEntityFilters('?sort=short', preference)).toMatchObject({ sort: 'dur', dir: 'asc' });
     expect(parseEntityFilters('', { sort: 'new', dir: 'asc' })).toMatchObject({ sort: 'new', dir: 'asc' });
     expect(entityFilterSearch(emptyEntityFilters())).toBe('');
     expect(parseMediaView('?media=photos&set=12')).toEqual({ media: 'photos', set: 12 });
     expect(parseMediaView('?media=photos&set=-1')).toEqual({ media: 'photos', set: 0 });
     expect(parseMediaView('?media=online&set=12')).toEqual({ media: 'online', set: 0 });
-    expect(entityViewPath('creator', '甲/乙', emptyEntityFilters(), { media: 'photos', set: 12 }))
-      .toBe('/creators/%E7%94%B2%2F%E4%B9%99?media=photos&set=12');
+    expect(entityViewPath('creator', 'A/B', emptyEntityFilters(), { media: 'photos', set: 12 }))
+      .toBe('/creators/A%2FB?media=photos&set=12');
   });
 
-  it('空筛选进入标记消费一次，后退和深链读 URL，创作者自身不叠 creator 筛选', () => {
+  it('Entering with an empty filter consumes the marker once; back and deep links read the URL; a creator page does not stack a creator filter on itself', () => {
     const entry = createEntityEntryState();
-    expect(entry.fresh('creator', '甲')).toBe('/creators/%E7%94%B2');
-    expect(entry.read('creator', '甲', '', preference).filters).toEqual(emptyEntityFilters());
-    expect(entry.read('creator', '甲', '?creator=乙&tag=one&media=online', preference))
+    expect(entry.fresh('creator', 'Alpha')).toBe('/creators/Alpha');
+    expect(entry.read('creator', 'Alpha', '', preference).filters).toEqual(emptyEntityFilters());
+    expect(entry.read('creator', 'Alpha', '?creator=Beta&tag=one&media=online', preference))
       .toMatchObject({ filters: { creator: '', tag: 'one' }, media: { media: 'online', set: 0 } });
-    entry.fresh('performer', '甲');
-    entry.read('performer', '乙', '', preference);
-    expect(entry.read('performer', '甲', '?sort=short', preference).filters.sort).toBe('dur');
+    entry.fresh('performer', 'Alpha');
+    entry.read('performer', 'Beta', '', preference);
+    expect(entry.read('performer', 'Alpha', '?sort=short', preference).filters.sort).toBe('dur');
   });
 
-  it('route 只推当前实体，POP 不写地址，props 使用当前种子与偏好', () => {
+  it('route pushes only the current entity, POP does not write the URL, and props use the current seed and preferences', () => {
     const { controller, ports, live } = setup(), filters = emptyEntityFilters();
-    expect(controller.route('creator', '甲', filters, { media: 'online', set: 0 }, { push: false })).toBe(true);
+    expect(controller.route('creator', 'Alpha', filters, { media: 'online', set: 0 }, { push: false })).toBe(true);
     expect(ports.route).not.toHaveBeenCalled();
     expect(ports.push).toHaveBeenCalledWith({ filters, media: { media: 'online', set: 0 }, seed: '7', jav: false });
     live(false);
     vi.mocked(ports.push).mockClear();
-    expect(controller.route('creator', '甲', filters)).toBe(false);
+    expect(controller.route('creator', 'Alpha', filters)).toBe(false);
     expect(ports.route).toHaveBeenCalledWith('/creators/%E7%94%B2');
     expect(ports.push).not.toHaveBeenCalled();
-    const props = controller.props('creator', '甲', filters, { media: 'videos', set: 0 });
+    const props = controller.props('creator', 'Alpha', filters, { media: 'videos', set: 0 });
     expect(props).toMatchObject({ revision: 3, photoSize: 'small', seed: '7', jav: false, filters });
   });
 
-  it('同一动作对象现读筛选，换一批写种子，替换名字保留查询，头像刷新失效顶栏缓存', () => {
-    const { controller, ports, context } = setup(), actions = controller.actions('creator', '甲');
-    expect(controller.actions('creator', '甲')).toBe(actions);
-    context({ kind: 'creator', name: '甲', filters: { ...emptyEntityFilters(), sort: 'rating', dir: 'desc', tag: 'two' } });
+  it('The same action object reads filters live; shuffle writes the seed; rename keeps the query; avatar refresh invalidates the top bar cache', () => {
+    const { controller, ports, context } = setup(), actions = controller.actions('creator', 'Alpha');
+    expect(controller.actions('creator', 'Alpha')).toBe(actions);
+    context({ kind: 'creator', name: 'Alpha', filters: { ...emptyEntityFilters(), sort: 'rating', dir: 'desc', tag: 'two' } });
     actions.setSort('rating');
     expect(ports.push).toHaveBeenLastCalledWith(expect.objectContaining({ filters: expect.objectContaining({ dir: 'asc', tag: 'two' }) }));
     expect(actions.reshuffleVideos()).toBe('31');
     expect(ports.push).toHaveBeenLastCalledWith(expect.objectContaining({ seed: '31' }));
-    actions.openEntity('creator', '乙', true);
+    actions.openEntity('creator', 'Beta', true);
     expect(ports.route).toHaveBeenLastCalledWith('/creators/%E4%B9%99?media=online#works', true);
     actions.avatarChanged();
     expect(ports.dropBars).toHaveBeenCalledOnce();
   });
 
-  it('照片视图切入与切出才同步密度，未挂载的 missing 微任务无操作', async () => {
-    const { controller, ports, current } = setup(), actions = controller.actions('creator', '甲');
+  it('Density syncs only when entering and leaving photo view, and the missing microtask for unmounted hosts is a no-op', async () => {
+    const { controller, ports, current } = setup(), actions = controller.actions('creator', 'Alpha');
     actions.painted('photos', true); actions.painted('photos', true); actions.painted('videos', false);
     expect(ports.syncDensity).toHaveBeenCalledTimes(2);
     expect(ports.scheduleSticky).toHaveBeenCalledTimes(3);
@@ -105,55 +105,55 @@ describe('实体与索引域控制', () => {
     expect(ports.showMissing).toHaveBeenCalledWith('creator');
   });
 
-  it('立即显示目标骨架，异步名单和重读回执尊重页面取消权', async () => {
+  it('The target skeleton shows immediately, while async rosters and reread receipts respect the page\'s right to cancel', async () => {
     let resolveWait = () => {}, resolveLoad = () => {}, current = true;
     const wait = new Promise<void>(resolve => { resolveWait = resolve });
     const load = new Promise<void>(resolve => { resolveLoad = resolve });
     const ports = { shapesReady: () => false, waitShapes: () => wait, paintSkeleton: vi.fn(), resetView: vi.fn(),
       loadShapes: () => load, syncParts: vi.fn() };
     const loading = createEntityLoading(ports);
-    const first = loading('creator', '甲', () => current);
-    expect(ports.paintSkeleton).toHaveBeenCalledWith('creator', '甲');
+    const first = loading('creator', 'Alpha', () => current);
+    expect(ports.paintSkeleton).toHaveBeenCalledWith('creator', 'Alpha');
     current = false; resolveWait(); await first;
     expect(ports.syncParts).not.toHaveBeenCalled();
-    current = true; await loading('creator', '乙', () => current);
-    expect(ports.paintSkeleton).toHaveBeenCalledWith('creator', '乙');
-    expect(ports.syncParts).toHaveBeenCalledExactlyOnceWith('creator', '乙');
+    current = true; await loading('creator', 'Beta', () => current);
+    expect(ports.paintSkeleton).toHaveBeenCalledWith('creator', 'Beta');
+    expect(ports.syncParts).toHaveBeenCalledExactlyOnceWith('creator', 'Beta');
     current = false; resolveLoad(); await Promise.resolve();
     expect(ports.syncParts).toHaveBeenCalledTimes(1);
   });
 
-  it('索引地址只写适用维度，在线作者跳转先收索引再写关注目标', () => {
-    expect(indexPath({ kind: 'studios', q: '甲 / 乙', scope: 'online', view: 'cloud', category: 'all' }))
-      .toBe('/studios?q=%E7%94%B2+%2F+%E4%B9%99');
+  it('Index addresses write only applicable dimensions, and online author jumps collapse the index before writing the follow target', () => {
+    expect(indexPath({ kind: 'studios', q: 'A / B', scope: 'online', view: 'cloud', category: 'all' }))
+      .toBe('/studios?q=A+%2F+B');
     expect(indexPath({ kind: 'tags', q: '', scope: 'online', view: 'alphabet', category: 'artist' }))
       .toBe('/tags?view=alphabet&scope=online&category=artist');
     const calls: string[] = [];
     const ports = { route: vi.fn(), followView: () => ({ status: '' as const, media: 'videos' as const, author: '', provider: '',
       work: 'old', tags: [], durMin: 0, durMax: 0, sort: 'new' as const, dir: 'desc' as const, seed: 7 }),
     adoptFollowView: vi.fn(), hideIndex: () => { calls.push('hide') }, openPage: (path: string) => { calls.push(path) } };
-    createIndexController(ports).openFollowAuthor('甲');
+    createIndexController(ports).openFollowAuthor('Alpha');
     expect(calls).toEqual(['hide', '/follow?author=%E7%94%B2']);
     expect(ports.adoptFollowView).toHaveBeenCalledWith(expect.objectContaining({ work: '' }));
   });
 
-  it('公司不以代表作作头像，人物占位说明和版本保留，创作者回落关注头像', () => {
-    const person = { k: '甲', n: 1, id: 3, has_avatar: true, rep: 9, avatar_stand_in: true };
+  it('Companies do not use a representative work as avatar; the person placeholder note and edition stay, and creators fall back to follow avatars', () => {
+    const person = { k: 'Alpha', n: 1, id: 3, has_avatar: true, rep: 9, avatar_stand_in: true };
     expect(personAvatar(person, 'studio', true).html).not.toContain('/avatar');
-    expect(personAvatar(person, 'creator', false).html).toContain('代表作画面，非本人');
+    expect(personAvatar(person, 'creator', false).html).toContain('Representative work, not the performer');
     const host = document.createElement('div');
     host.innerHTML = personAvatar({ ...person, has_image: true, image_version: 'v 2' }, 'creator', false).html;
     expect(new URL(host.querySelector('img')!.src).searchParams.get('v')).toBe('v 2');
-    const entity = { id: 3, canonical_name: '甲', asset_count: 0, has_avatar: true, representative_asset_id: 9 };
+    const entity = { id: 3, canonical_name: 'Alpha', asset_count: 0, has_avatar: true, representative_asset_id: 9 };
     expect(entityPortraitImg('studio', entity)).toBe('');
     expect(entityPortraitImg('creator', { ...entity, has_avatar: false,
       follow: { key: 'k', n: 1, providers: [], avatar: 'https://example.test/a', avatar_fallback: 'https://example.test/b', held: [] } }))
       .toContain('referrerpolicy="no-referrer"');
   });
 
-  it('异步照片墙未入 DOM 仍使用照片密度，尺寸同步仅推偏好不替换节点', () => {
+  it('The async photo wall keeps photo density before entering the DOM, and size sync only pushes the preference without replacing nodes', () => {
     const fallback = vi.fn(() => false);
-    expect(photoViewActive({ entityWall: true, entityCurrent: true, indexVisible: true, pathname: '/creators/甲',
+    expect(photoViewActive({ entityWall: true, entityCurrent: true, indexVisible: true, pathname: '/creators/Alpha',
       followMedia: 'videos', statsVisible: false }, fallback)).toBe(true);
     expect(fallback).not.toHaveBeenCalled();
     const wall = document.createElement('div'), child = document.createElement('img'); wall.append(child);
@@ -166,7 +166,7 @@ describe('实体与索引域控制', () => {
     expect(ports.pushFollow).toHaveBeenCalledWith({ photoSize: 'big', photoLayout: 'masonry', imagesOnly: true });
   });
 
-  it('厂牌大位和圆框分别取 large 与 ring，标识可回落实体图但不能回落代表作', () => {
+  it('The studio large slot and circle use large and ring respectively; the logo can fall back to the entity image but not to featured works', () => {
     const company = { k: 'Peach & Co', n: 3, entity_id: 41, has_logo: true, logo_version: 'logo 2',
       has_image: true, image_version: 'face 2', has_avatar: true, rep: 91,
       avatar_focus: { axis: 'y', pct: 20 }, avatar_stand_in: true };

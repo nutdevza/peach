@@ -10,8 +10,8 @@ const writing: NameWriting = {
 
 beforeEach(() => { registerNameWritings([]); setNameLanguage('zh-CN') });
 
-describe('实体名称的只读显示投影', () => {
-  it('同一艺名的已核对日文署名可显示中文，不把历史艺名换为现名', () => {
+describe('The read-only display projection of entity names', () => {
+  it('A verified Japanese byline for the same stage name may display in Chinese, and historical stage names are never swapped for the current name', () => {
     registerNameWritings([writing]);
     expect(entityDisplayName('performer', '楓カレン', 1)).toBe('枫花恋');
     expect(entityDisplayName('performer', '楓カレン')).toBe('枫花恋');
@@ -20,13 +20,13 @@ describe('实体名称的只读显示投影', () => {
     expect(entityDisplayName('performer', '枫花恋', 1)).toBe('楓カレン');
   });
 
-  it('共享写法不能在未取得身份时选中另一人，显式身份仍使用各自来源', () => {
-    registerNameWritings([writing, { ...writing, id: 2, canonical_name: '另一艺名', zh_cn: '另一写法' }]);
+  it('The shared logic must not select another person while identity is unresolved; explicit identity still uses its own source', () => {
+    registerNameWritings([writing, { ...writing, id: 2, canonical_name: 'Another stage name', zh_cn: 'Another spelling' }]);
     expect(entityDisplayName('performer', '楓カレン')).toBe('楓カレン');
     expect(entityDisplayName('performer', '楓カレン', 1)).toBe('枫花恋');
-    expect(entityDisplayName('performer', '楓カレン', 2)).toBe('另一写法');
+    expect(entityDisplayName('performer', '楓カレン', 2)).toBe('Another spelling');
   });
-  it('原始纯汉字署名使用服务端字形表，未绑定艺名也不漏掉简体显示', () => {
+  it('A raw hanzi-only byline uses the server glyph table, and simplified display is not missed even without a bound stage name', () => {
     const glyphs = { 宮: '宫', 澤: '泽', 寧: '宁', 鈴: '铃' };
     registerNameWritings([], glyphs);
     expect(entityDisplayName('performer', '宮澤寧音')).toBe('宫泽宁音');
@@ -42,7 +42,7 @@ describe('实体名称的只读显示投影', () => {
     setNameLanguage('zh-CN');
     expect(entityDisplayName('performer', '宮澤寧音')).toBe('宮澤寧音');
   });
-  it('切换显示语言保留原始名称、身份和来源对象', () => {
+  it('Switching display language keeps raw names, identity, and source objects', () => {
     const original = { ...writing };
     registerNameWritings([original]);
     expect(entityDisplayName('performer', '枫花恋', 1)).toBe('枫花恋');
@@ -51,19 +51,19 @@ describe('实体名称的只读显示投影', () => {
     expect(original).toEqual(writing);
   });
 
-  it('同一身份下其他艺名不会被替换为当前统称，人物与创作者分开索引', () => {
+  it('Other stage names under the same identity are never replaced by the current unified name; people and creators are indexed separately', () => {
     registerNameWriting(writing);
     setNameLanguage('ja');
     expect(entityDisplayName('performer', '田中柠檬', 1)).toBe('田中柠檬');
     expect(entityDisplayName('creator', '枫花恋', 1)).toBe('枫花恋');
   });
 
-  it('缺少已核对的写法时保留原名', () => {
+  it('Without a verified spelling the original name is kept', () => {
     registerNameWriting({ ...writing, zh_cn: null });
     expect(entityDisplayName('performer', '枫花恋', 1)).toBe('枫花恋');
   });
 
-  it('刷新资料集合清除过期名称，但保留用户的语言偏好', () => {
+  it('Refreshing the details set clears stale names while keeping the user\'s language preference', () => {
     registerNameWritings([writing]);
     setNameLanguage('ja');
     registerNameWritings([]);

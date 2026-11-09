@@ -5,15 +5,15 @@ afterEach(() => { document.body.innerHTML = '' });
 
 function surface() {
   const button = document.createElement('button'), status = document.createElement('p');
-  button.innerHTML = '<span>定位源文件 &amp; 目录</span>';
-  status.textContent = '上一次的错误';
+  button.innerHTML = '<span>Locate source file &amp; folder</span>';
+  status.textContent = 'The previous error';
   document.body.append(button, status);
   button.focus();
   return { button, status, html: button.innerHTML };
 }
 
-describe('定位资产动作', () => {
-  it('等待留在可聚焦按钮中，重复触发不重发；成功才回执并恢复原按钮', async () => {
+describe('The locate-asset action', () => {
+  it('The wait stays on the focusable button and repeated triggers do not resend; only success settles and restores the original button', async () => {
     let release!: () => void;
     const request = vi.fn(() => new Promise<void>((done) => { release = done })), success = vi.fn();
     const reveal = createRevealSourceAction({ request, success, failureText: () => '' });
@@ -25,8 +25,8 @@ describe('定位资产动作', () => {
     expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.disabled).toBe(false);
     expect(document.activeElement).toBe(button);
-    expect(button.querySelector('[role="status"]')?.getAttribute('aria-label')).toBe('正在定位');
-    expect(button.textContent).toContain('定位源文件 & 目录');
+    expect(button.querySelector('[role="status"]')?.getAttribute('aria-label')).toBe('Locating');
+    expect(button.textContent).toContain('Locate source file & folder');
     await reveal(41, status, { button });
     expect(request).toHaveBeenCalledTimes(1);
     expect(success).not.toHaveBeenCalled();
@@ -38,14 +38,14 @@ describe('定位资产动作', () => {
     expect(button.hasAttribute('aria-disabled')).toBe(false);
   });
 
-  it('失败留在动作旁边，不发成功回执，忙态恢复后可以重试', async () => {
-    const missing = new Error('源文件离线'), request = vi.fn().mockRejectedValueOnce(missing).mockResolvedValueOnce(undefined);
-    const success = vi.fn(), failureText = vi.fn(() => '源文件不在这台机器上');
+  it('Failures stay beside the action without sending success receipts, and retry is available once the busy state clears', async () => {
+    const missing = new Error('Source file offline'), request = vi.fn().mockRejectedValueOnce(missing).mockResolvedValueOnce(undefined);
+    const success = vi.fn(), failureText = vi.fn(() => 'The source file is not on this machine');
     const reveal = createRevealSourceAction({ request, success, failureText });
     const { button, status, html } = surface();
     await reveal(41, status, { button });
     expect(failureText).toHaveBeenCalledWith(missing);
-    expect(status.textContent).toBe('源文件不在这台机器上');
+    expect(status.textContent).toBe('The source file is not on this machine');
     expect(success).not.toHaveBeenCalled();
     expect(button.innerHTML).toBe(html);
     expect(button.hasAttribute('aria-busy')).toBe(false);
@@ -55,12 +55,12 @@ describe('定位资产动作', () => {
     expect(success).toHaveBeenCalledTimes(1);
   });
 
-  it('React 调用方接收失败文本并自行画等待态，不需要提供按钮', async () => {
+  it('React callers receive the failure text and render their own waiting state; no button needs to be provided', async () => {
     const status = { textContent: '' }, success = vi.fn();
     const reveal = createRevealSourceAction({ request: async () => { throw new Error('offline') },
-      success, failureText: () => '脱盘' });
+      success, failureText: () => 'Dead links' });
     await reveal(42, status);
-    expect(status.textContent).toBe('脱盘');
+    expect(status.textContent).toBe('Dead links');
     expect(success).not.toHaveBeenCalled();
   });
 });

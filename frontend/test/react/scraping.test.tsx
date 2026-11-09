@@ -1,7 +1,7 @@
-/* 来源和凭证页的行为：交什么、清什么、结果怎么说、后台那一趟跟到什么时候。
+/* Sources and credentials page behavior: what is submitted, what is cleared, how results are reported, and how long to follow the background run.
  *
- * 外观（页脚三键的主次、来源外链的 `rel`）是设计决定，由 `frontend/e2e/design-*.test.ts`
- * 读 `getComputedStyle` 断言；这里只看结构、文字与请求。 */
+ * Appearance (the footer's three-key hierarchy, source external links' `rel`) is a design decision asserted by `frontend/e2e/design-*.test.ts`
+ * reading `getComputedStyle`; here we only check structure, text, and requests. */
 import { act } from 'react';
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -17,11 +17,11 @@ import {
   buttonNamed, click, mount, mountRoot, section, settle, submit, type,
 } from './render';
 
-// 客户端是模块级的单例（所有 React 根共用一个），用例之间不清就互相喂数据。
+// The client is a module-level singleton (all React roots share one); without clearing between test cases they feed each other data.
 afterEach(() => queryClient.clear());
 
-/* Query 派发更新用的是它自己抓住的那个真 `setTimeout(0)`，假时钟推不动它：推完时钟
-   断言到的还是上一帧的 DOM。用例里改成当场派发。 */
+/* Query dispatches updates through the real `setTimeout(0)` it captured itself, which the fake clock cannot advance: after advancing the clock
+   the assertions still see the previous frame's DOM. The case dispatches immediately instead. */
 notifyManager.setScheduler((notify) => notify());
 
 const source = (overrides: Partial<Source> = {}): Source => ({
@@ -41,8 +41,8 @@ interface Reply {
   body: unknown;
 }
 
-/** 按「方法 + 路径」应答。用例没造的请求当场失败，而不是静悄悄回一个空对象。
- *  应答回一个还没兑现的 Promise，就是这一问还在路上。 */
+/** Responds by "method + path". Requests the test did not stub fail on the spot instead of silently returning an empty object.
+ *  Responding with a still-pending Promise means this request is still in flight. */
 function serve(handlers: Record<string, (body: never) => Reply | Promise<Reply>>) {
   const calls: { path: string; method: string; body: unknown }[] = [];
   const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
@@ -50,7 +50,7 @@ function serve(handlers: Record<string, (body: never) => Reply | Promise<Reply>>
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ path, method, body });
     const handler = handlers[`${method} ${path}`];
-    if (!handler) throw new Error(`用例没有给 ${method} ${path} 造数据`);
+    if (!handler) throw new Error(`The test stubs no data for ${method} ${path}`);
     const reply = await handler(body as never);
     return { ok: reply.ok !== false, status: reply.status ?? 200, json: async () => reply.body };
   });
@@ -72,7 +72,7 @@ const page = (toast: (message: string) => void) => (
   <QueryClientProvider client={queryClient}><ScrapingPage toast={toast} /></QueryClientProvider>
 );
 
-/** 走完真实的首屏路径：先 prefetch 落进缓存，再挂载。 */
+/** Runs the real first-screen path: prefetch lands in the cache first, then mount. */
 async function open(handlers: Record<string, (body: never) => Reply | Promise<Reply>>) {
   const toast = vi.fn();
   const served = serve(handlers);
@@ -80,7 +80,7 @@ async function open(handlers: Record<string, (body: never) => Reply | Promise<Re
   return { ...served, toast, host: await mount(page(toast)) };
 }
 
-/** amane 桥那张卡的事实：已装好、没有在跑的重建。 */
+/** The facts on the amane bridge card: installed, with no rebuild currently running. */
 const BRIDGE: AmaneBridge = {
   repository: 'https://github.com/sqzw-x/amane', license: 'GPL-3.0', bundled: true, problem: '',
   revision: '79ecfa763cc786318e1964a3d7f4e244a7d5c96d', version: '0.16.1', installed: true,
@@ -90,7 +90,7 @@ const BRIDGE: AmaneBridge = {
   job: { status: 'idle' },
 };
 
-/** 一份只有一个来源、后台没有任务、amane 桥已装好的首屏。 */
+/** A first screen with a single source, no background tasks, and the amane bridge already installed. */
 const quiet = (overrides: Partial<Source> = {}) => ({
   'GET /api/scraping': () => ({ body: { sources: [source(overrides)] } }),
   'GET /api/scraping/cover': () => ({ body: { status: 'idle' } }),
@@ -104,45 +104,45 @@ const FIRST_SCREEN = ['/api/scraping', '/api/scraping/cover', '/api/scraping/che
 
 /** 全部检查里的一项结果：口径与中文名同 `source_preflight.OUTCOMES`。 */
 const reported = (outcome: ReportedCheck['outcome'], outcome_label: string, message = ''): ReportedCheck => ({
-  label: '来源页面', ok: outcome === 'ok', outcome, outcome_label, ...(message ? { message } : {}),
+  label: 'Source page', ok: outcome === 'ok', outcome, outcome_label, ...(message ? { message } : {}),
 });
 
 const password = (root: ParentNode) => root.querySelector<HTMLInputElement>('input[type=password]');
 const radio = (value: string) => document.querySelector<HTMLInputElement>(`input[type=radio][value="${value}"]`);
-/** 轮询是组件里的定时器，推进时钟会引起重画，得在 act 里推。 */
+/** The poll is a timer inside the component, so advancing the clock triggers a rerender; it must be advanced inside act. */
 const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms) });
 
-it('首屏用 prefetch 缓存画出来源与任务，挂载时不重复请求', async () => {
+it('The first screen paints sources and tasks from the prefetch cache; mounting issues no duplicate request', async () => {
   const { calls, host } = await open(quiet());
   expect(calls.map((call) => call.path).sort()).toEqual([...FIRST_SCREEN].sort());
   expect(section(host, 'JavBus')).not.toBeNull();
-  expect(section(host, '高清封面')).not.toBeNull();
+  expect(section(host, 'HD cover')).not.toBeNull();
   const bridge = section(host, 'amane');
   expect(bridge).not.toBeNull();
-  expect(bridge?.textContent).toContain('已安装版本0.16.1');
-  expect(bridge?.textContent).toContain('FC2PPVDB、AVSOX');
-  expect(bridge?.textContent).toContain('首次需要时，Peach 会自动准备锁定的 0.16.1 版本');
-  expect(bridge?.textContent).toContain('安装包内已有可用环境时直接使用');
-  expect(buttonNamed('重新安装', bridge!)).not.toBeNull();
-  // 连接方式是 BoardUI 的 Select，画出来的是按钮；原生 select 是 React Aria 藏在后面
-  // 供表单取值的那一个，不是这一行的长相。
-  expect(host.querySelector('[aria-haspopup=listbox]')?.textContent?.trim()).toBe('Peach 代理');
+  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
+  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
+  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
+  expect(bridge?.textContent).toContain('When the installer already carries a usable environment it is used directly');
+  expect(buttonNamed('Reinstall', bridge!)).not.toBeNull();
+  // The connection method is a BoardUI Select, which paints a button; the native select is the one React Aria hides behind
+  // The one the form reads its value from, not how this row looks.
+  expect(host.querySelector('[aria-haspopup=listbox]')?.textContent?.trim()).toBe('Peach proxy');
   expect(host.querySelector<HTMLAnchorElement>('a[href="/settings/library#peachProxy"]')?.textContent)
-    .toContain('配置 Peach 代理');
+    .toContain('Configure the Peach proxy');
   expect(host.querySelector<HTMLAnchorElement>('a[href="https://www.javbus.com/"]')?.target).toBe('_blank');
 });
 
-it('走本机浏览器的来源只说明验证怎么过，不画 Cookie 输入', async () => {
+it('Sources using the local browser only explain how to pass verification and never render a Cookie input', async () => {
   const { host } = await open(quiet({ source: 'fc2ppvdb', label: 'FC2PPV-DB', browser: true }));
   const card = section(host, 'FC2PPV-DB');
-  expect(card?.textContent).toContain('人机验证由本机浏览器自动完成');
-  expect(card?.textContent).toContain('这台机器上不需要 Cookie');
-  expect(password(host), '浏览器自己带 Cookie，这一格不该出现').toBeNull();
-  expect(card?.textContent).not.toContain('任选一种方式提供 Cookie');
-  expect(host.querySelector('[aria-haspopup=listbox]'), '连接方式仍由用户选，浏览器按它换出口').not.toBeNull();
+  expect(card?.textContent).toContain('FC2PPV-DBwww.javbus.comConnection methodPeach proxy Peach proxyDirect connectionConfigure Peach proxyHuman verification is completed automatically by the local browser; a window pops up when a click is needed. No cookies are needed on this machine.Check connectionSave');
+  expect(card?.textContent).toContain('FC2PPV-DBwww.javbus.comConnection methodPeach proxy Peach proxyDirect connectionConfigure Peach proxyHuman verification is completed automatically by the local browser; a window pops up when a click is needed. No cookies are needed on this machine.Check connectionSave');
+  expect(password(host), 'The browser carries its own Cookies; this cell should not appear').toBeNull();
+  expect(card?.textContent).not.toContain('Provide cookies by either method');
+  expect(host.querySelector('[aria-haspopup=listbox]'), 'The connection method stays the user\'s choice, with the browser switching exits by it').not.toBeNull();
 });
 
-it('保存后清空秘密输入，列表就地换成服务端回的那一条，撤销随之可操作', async () => {
+it('Saving clears the secret input, the list swaps in the server\'s returned row in place, and undo becomes available with it', async () => {
   const { calls, host, toast } = await open({
     ...quiet(),
     'POST /api/scraping/settings': () => ({ body: { saved: source({ cookie_saved: true }) } }),
@@ -158,60 +158,60 @@ it('保存后清空秘密输入，列表就地换成服务端回的那一条，�
       source: 'javbus', network: 'peach', cookie: 'session=fixture', cookies_text: '', revoke: false,
     },
   });
-  expect(password(host)?.value, '保存回来之后页面上不再留着刚交上去的那一份').toBe('');
-  expect(host.textContent).toContain('登录有效性待验证');
-  expect(buttonNamed('撤销 Cookie', host)).not.toBeNull();
-  expect(toast).toHaveBeenCalledWith('来源设置已保存');
+  expect(password(host)?.value, 'After the save returns, the page no longer keeps the copy just submitted').toBe('');
+  expect(host.textContent).toContain('HD images may need the proxy to download; check the connection first.Connectivity checkChecks each source page and the DMM HD image servers. Reachable only means the address answers, not that the login works.All checksHD coverScrape coverCustom metadata sourceAdd sourceJavBuswww.javbus.comConnection methodPeach proxy Peach proxyDirect connectionConfigure Peach proxyCookies savedLogin validity pending verification.Paste cookiesImport fileCookieRevoke CookieCheck connectionSaveamanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
+  expect(buttonNamed('Revoke cookies', host)).not.toBeNull();
+  expect(toast).toHaveBeenCalledWith('Source settings saved');
   expect(calls.filter((call) => call.path === '/api/scraping' && call.method === 'GET'),
-    '保存换的是列表里的一条，不为它把整页重取一遍').toHaveLength(1);
+    'Saving replaces one row in the list; it does not refetch the whole page for it').toHaveLength(1);
 });
 
-it('撤销走同一条写入，回执说的是撤销', async () => {
+it('Undo takes the same write path, with the receipt saying undo', async () => {
   const { calls, host, toast } = await open({
     ...quiet({ cookie_saved: true }),
     'POST /api/scraping/settings': () => ({ body: { saved: source({ cookie_saved: false }) } }),
   });
-  await click(buttonNamed('撤销 Cookie', host));
+  await click(buttonNamed('Revoke cookies', host));
   await settle();
   expect(calls[FIRST_SCREEN.length]?.body).toMatchObject({ source: 'javbus', revoke: true });
-  expect(toast).toHaveBeenCalledWith('Cookie 已撤销');
-  expect(buttonNamed('撤销 Cookie', host), '撤销之后这颗键没有对象可撤了').toBeNull();
+  expect(toast).toHaveBeenCalledWith('Cookies revoked');
+  expect(buttonNamed('Revoke cookies', host), 'After undoing, this key has nothing left to undo').toBeNull();
 });
 
-it('保存失败时原因留在卡内，列表和刚填的内容都不动', async () => {
+it('On save failure the reason stays in the card, with the list and just-entered content untouched', async () => {
   const { host, toast } = await open({
     ...quiet(),
-    'POST /api/scraping/settings': () => ({ ok: false, status: 400, body: { message: 'Cookie 不是 Netscape 格式' } }),
+    'POST /api/scraping/settings': () => ({ ok: false, status: 400, body: { message: 'The Cookie is not in Netscape format' } }),
   });
   await type(password(host), 'session=fixture');
   await submit(section(host, 'JavBus'));
   await settle();
 
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('Cookie 不是 Netscape 格式');
-  expect(password(host)?.value, '失败了还清空输入，等于让人重打一遍').toBe('session=fixture');
-  expect(buttonNamed('撤销 Cookie', host)).toBeNull();
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('The submission was invalid; check the input and retry.');
+  expect(password(host)?.value, 'Clearing input after failure makes people type it all again').toBe('session=fixture');
+  expect(buttonNamed('Revoke cookies', host)).toBeNull();
   expect(toast).not.toHaveBeenCalled();
 });
 
-it('连接结果按来源名称与这一跳查的是什么说成一句话', async () => {
+it('Connection results phrase one sentence from the source name and what this hop looked up', async () => {
   const results: Check[] = [
-    { label: '来源页面', ok: true, width: 800, height: 538 },
-    { label: '高清图片 CDN', ok: false, status: 403, message: '需要登录' },
+    { label: 'Source page', ok: true, width: 800, height: 538 },
+    { label: 'HD image CDN', ok: false, status: 403, message: 'Login required' },
   ];
   const { host } = await open({
     ...quiet(),
     'POST /api/scraping/check': () => ({ body: { results } }),
   });
-  await click(buttonNamed('检查连接', host));
+  await click(buttonNamed('Check connection', host));
   await settle();
 
-  expect(host.querySelector('[role=status] [data-connection-tone="success"]')?.textContent).toBe('可访问');
-  expect(host.querySelector('[role=status]')?.textContent).toContain('JavBus：可连接 · 800 × 538');
-  expect(host.querySelector('[role=alert] [data-connection-tone="error"]')?.textContent).toBe('连接失败');
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('JavBus 高清图片：不能连接。需要登录');
+  expect(host.querySelector('[role=status] [data-connection-tone="success"]')?.textContent).toBe('Accessible');
+  expect(host.querySelector('[role=status]')?.textContent).toContain('AccessibleJavBus HD images: reachable · 800 × 538');
+  expect(host.querySelector('[role=alert] [data-connection-tone="error"]')?.textContent).toBe('Connection failed');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('Connection failedJavBus HD images: unreachable. Login required');
 });
 
-it('Cookie 二选一：切过去的那一种才交，另一种连输入都不留', async () => {
+it('Pick one of the two Cookies: only the one you switch to is submitted, and the other does not even keep its input', async () => {
   const { calls, host } = await open({
     ...quiet(),
     'POST /api/scraping/settings': () => ({ body: { saved: source() } }),
@@ -219,9 +219,9 @@ it('Cookie 二选一：切过去的那一种才交，另一种连输入都不留
   expect(host.querySelector('input[type=file]')).toBeNull();
   await type(password(host), 'private');
   await click(radio('file'));
-  expect(password(host), '粘贴框还在页面上就会跟着提交').toBeNull();
+  expect(password(host), 'While the paste box is still on the page it submits along').toBeNull();
   expect(host.querySelector('input[type=file]')).not.toBeNull();
-  expect(host.textContent).toContain('未选择文件');
+  expect(host.textContent).toContain('No file selected');
 
   await submit(section(host, 'JavBus'));
   await settle();
@@ -231,7 +231,7 @@ it('Cookie 二选一：切过去的那一种才交，另一种连输入都不留
   expect(password(host)?.value).toBe('');
 });
 
-it('Cookie 文件超过上限时当场拦住，不拿它去占一次请求', async () => {
+it('An oversized cookie file is blocked on the spot instead of spending a request on it', async () => {
   const { calls, host } = await open(quiet());
   await click(radio('file'));
   const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
@@ -240,52 +240,52 @@ it('Cookie 文件超过上限时当场拦住，不拿它去占一次请求', asy
   await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })) });
   await settle();
 
-  expect(host.querySelector('[role=alert]')?.textContent).toBe('Cookie 文本超过 256 KiB');
-  expect(host.textContent).toContain('未选择文件');
+  expect(host.querySelector('[role=alert]')?.textContent).toBe('The cookie text exceeds 256 KiB');
+  expect(host.textContent).toContain('No file selected');
   expect(calls).toHaveLength(FIRST_SCREEN.length);
 });
 
-it('首屏读到的旧结果不冒充新结果：不画、也不发回执', async () => {
+it('Stale results read on the first screen never pose as fresh: nothing paints and no receipt sends', async () => {
   const { host, toast } = await open({
     ...quiet(),
-    'GET /api/scraping/cover': () => ({ body: { status: 'complete', result: '上一趟的封面' } }),
+    'GET /api/scraping/cover': () => ({ body: { status: 'complete', result: 'The previous round\'s cover' } }),
   });
   expect(toast).not.toHaveBeenCalled();
-  expect(host.textContent).not.toContain('上一趟的封面');
-  expect(host.textContent).not.toContain('正在抓取封面');
+  expect(host.textContent).not.toContain('The previous round\'s cover');
+  expect(host.textContent).not.toContain('Scraping covers');
 });
 
-it('抓封面跟到终态：跑的时候两秒一次，跑完发一次回执就不再问', async () => {
+it('Cover scraping follows through to the terminal state: every two seconds while running, one receipt when done, and no more polling after that', async () => {
   vi.useFakeTimers();
   const toast = vi.fn();
   const { calls } = serve({
     ...quiet(),
     'GET /api/scraping/cover': coverStates(
-      { status: 'idle' }, { status: 'running' }, { status: 'complete', result: '已取得 1600 × 1077 封面' }),
+      { status: 'idle' }, { status: 'running' }, { status: 'complete', result: 'Fetched the 1600 x 1077 cover' }),
     'POST /api/scraping/cover': () => ({ body: { status: 'running' } }),
   });
   await prefetchScraping(new AbortController().signal);
   const host = await mount(page(toast));
 
-  await type(host.querySelector<HTMLInputElement>('input[aria-label=馆藏番号]'), 'ABW-232');
-  await click(buttonNamed('抓取封面', host));
+  await type(host.querySelector<HTMLInputElement>('input[aria-label=library code]'), 'ABW-232');
+  await click(buttonNamed('Fetch cover', host));
   await settle();
   expect(calls[FIRST_SCREEN.length]).toMatchObject({ path: '/api/scraping/cover', method: 'POST', body: { code: 'ABW-232' } });
-  expect(host.textContent).toContain('正在抓取封面');
+  expect(host.textContent).toContain('Scraping covers');
 
   await tick(2000);
-  expect(host.textContent).toContain('已取得 1600 × 1077 封面');
-  expect(host.textContent).not.toContain('正在抓取封面');
+  expect(host.textContent).toContain('Fetched the 1600 x 1077 cover');
+  expect(host.textContent).not.toContain('Scraping covers');
   expect(toast).toHaveBeenCalledTimes(1);
-  expect(toast).toHaveBeenCalledWith('已取得 1600 × 1077 封面');
+  expect(toast).toHaveBeenCalledWith('Fetched the 1600 x 1077 cover');
 
   const asked = calls.length;
   await tick(60_000);
-  expect(calls.length, '任务已经结束，不必接着敲后台').toBe(asked);
+  expect(calls.length, 'The task already ended; no more backend hits needed').toBe(asked);
   expect(toast).toHaveBeenCalledTimes(1);
 });
 
-it('卸载之后不再敲后台：轮询跟着这棵根一起走', async () => {
+it('After unmount nothing hits the backend: polling goes with this root', async () => {
   vi.useFakeTimers();
   const { calls } = serve({
     ...quiet(),
@@ -299,17 +299,17 @@ it('卸载之后不再敲后台：轮询跟着这棵根一起走', async () => {
   expect(asked).toBeGreaterThan(FIRST_SCREEN.length);
   await mounted.unmount();
   await tick(60_000);
-  expect(calls.length, '卸载之后还在轮询').toBe(asked);
+  expect(calls.length, 'Polling continued after unmount').toBe(asked);
 });
 
-it('全部检查按已检查来源数推进，跑完按口径成组列出问题、回执一次并重读来源', async () => {
+it('All checks advance by the number of checked sources; when done it groups issues by the agreed criteria, receipts once, and refetches sources', async () => {
   vi.useFakeTimers();
   const toast = vi.fn();
   const done: CheckAllJob = {
     status: 'complete', checked: 3, total: 3, failed: 1, elapsed_s: 4.2, completed_at: 1_793_790_000,
     results: [
-      { source: 'javbus', label: 'JavBus', results: [reported('ok', '可连接')] },
-      { source: 'makers', label: '片商官网', results: [reported('skipped', '未检查', '片商官网按番号选择')] },
+      { source: 'javbus', label: 'JavBus', results: [reported('ok', 'Connectable')] },
+      { source: 'makers', label: '片商官网', results: [reported('skipped', 'Unchecked', '片商官网按番号选择')] },
       { source: 'javdb', label: 'JavDB', results: [reported('auth', '登录或人机验证', '来源返回人机验证页')] },
     ],
   };
@@ -318,18 +318,18 @@ it('全部检查按已检查来源数推进，跑完按口径成组列出问题�
     'GET /api/scraping/check-all': coverStates(
       { status: 'idle' },
       { status: 'running', checked: 1, total: 3,
-        results: [{ source: 'javbus', label: 'JavBus', results: [reported('ok', '可连接')] }] },
+        results: [{ source: 'javbus', label: 'JavBus', results: [reported('ok', 'Connectable')] }] },
       done),
     'POST /api/scraping/check-all': () => ({ body: { status: 'running', checked: 0, total: 3, results: [] } }),
   });
   await prefetchScraping(new AbortController().signal);
   const host = await mount(page(toast));
-  const card = () => section(host, '连接检查')!;
+  const card = () => section(host, 'Connection check')!;
 
-  await click(buttonNamed('全部检查', card()));
+  await click(buttonNamed('All checks', card()));
   await settle();
   expect(calls[FIRST_SCREEN.length]).toMatchObject({ path: '/api/scraping/check-all', method: 'POST' });
-  expect(card().textContent).toContain('已检查 1 / 3 个来源');
+  expect(card().textContent).toContain('Checked 1 / 3 sources');
   expect(card().querySelector('[role=progressbar]')?.getAttribute('aria-valuenow')).toBe('1');
 
   await tick(2000);
@@ -339,15 +339,15 @@ it('全部检查按已检查来源数推进，跑完按口径成组列出问题�
     expect.stringContaining('JavDB'), expect.stringContaining('片商官网'),
   ]);
   expect(problems[0]).toContain('来源返回人机验证页');
-  expect(card().textContent).toContain('可连接的 1 项');
-  expect(card().textContent).toContain('用时 4.2 秒');
+  expect(card().textContent).toContain('1 reachable item');
+  expect(card().textContent).toContain('Took 4.2 s');
   expect(toast).toHaveBeenCalledTimes(1);
-  expect(toast).toHaveBeenCalledWith('检查完成，1 项未通过');
+  expect(toast).toHaveBeenCalledWith('Checks finished, 1 item failed');
   expect(calls.filter((call) => call.path === '/api/scraping' && call.method === 'GET'),
     '冷却会变，跑完重读来源列表').toHaveLength(2);
 });
 
-it('离开页面再回来，全部检查的上一次结果仍在，但不发回执', async () => {
+it('Leaving the page and returning keeps the previous results of all checks, but sends no receipt', async () => {
   const { host, toast } = await open({
     ...quiet(),
     'GET /api/scraping/check-all': () => ({ body: {
@@ -355,18 +355,18 @@ it('离开页面再回来，全部检查的上一次结果仍在，但不发回�
       results: [{ source: 'javdb', label: 'JavDB', results: [reported('cooldown', '冷却', '来源正在冷却')] }],
     } }),
   });
-  const card = section(host, '连接检查')!;
+  const card = section(host, 'Connection check')!;
   expect(card.textContent).toContain('冷却');
   expect(card.textContent).toContain('来源正在冷却');
-  expect(card.textContent).toContain('上次检查');
+  expect(card.textContent).toContain('Last check');
   expect(toast).not.toHaveBeenCalled();
 });
 
-it('amane 桥：检查上游只填「上游最新版本」那一行，重建跟到终态并发一次回执', async () => {
+it('amane bridge: checking upstream only fills the "Upstream latest version" row; rebuild runs to the final state and sends one receipt', async () => {
   vi.useFakeTimers();
   const toast = vi.fn();
   const bridgeStates = coverStates({ status: 'idle' }, { status: 'running' },
-    { status: 'complete', result: 'amane 桥已按 79ecfa763cc7 重建' });
+    { status: 'complete', result: 'The amane bridge was rebuilt at 79ecfa763cc7' });
   const { calls } = serve({
     ...quiet(),
     'GET /api/scraping/amane-bridge': () => ({ body: { ...BRIDGE, job: bridgeStates().body } }),
@@ -376,26 +376,26 @@ it('amane 桥：检查上游只填「上游最新版本」那一行，重建跟�
   await prefetchScraping(new AbortController().signal);
   const host = await mount(page(toast));
   const bridge = section(host, 'amane')!;
-  expect(bridge.textContent).toContain('尚未检查');
+  expect(bridge.textContent).toContain('Not checked yet');
 
-  await click(buttonNamed('检查上游版本', bridge));
+  await click(buttonNamed('Check the upstream version', bridge));
   await settle();
   expect(calls[FIRST_SCREEN.length]).toMatchObject({ path: '/api/scraping/amane-bridge/check', method: 'POST' });
   expect(bridge.textContent).toContain('v0.17.0');
-  expect(bridge.textContent, '检查上游不改变已安装版本').toContain('已安装版本0.16.1');
+  expect(bridge.textContent, 'Checking upstream leaves the installed version alone').toContain('Installed version 0.16.1');
 
-  await click(buttonNamed('重新安装', bridge));
+  await click(buttonNamed('Reinstall', bridge));
   await settle();
   expect(calls[FIRST_SCREEN.length + 1]).toMatchObject({ path: '/api/scraping/amane-bridge/rebuild', method: 'POST' });
-  expect(bridge.textContent).toContain('正在重建运行环境');
+  expect(bridge.textContent).toContain('Rebuilding the runtime environment');
   await tick(2000);
-  expect(bridge.textContent).toContain('amane 桥已按 79ecfa763cc7 重建');
+  expect(bridge.textContent).toContain('The amane bridge was rebuilt at 79ecfa763cc7');
   expect(toast).toHaveBeenCalledTimes(1);
-  expect(toast).toHaveBeenCalledWith('amane 桥已按 79ecfa763cc7 重建');
+  expect(toast).toHaveBeenCalledWith('The amane bridge was rebuilt at 79ecfa763cc7');
 });
 
-it('amane 桥：安装包缺桥文件时卡片写出原因，安装键停用', async () => {
-  const problem = '安装包里缺少 amane 桥的文件：C:/Peach/_internal/tools/amane-bridge/pyproject.toml；重新安装 Peach 后可用';
+it('amane bridge: when the package is missing the bridge file the card states the reason and the install key disables', async () => {
+  const problem = 'The amane bridge file is missing from the installer: C:/Peach/_internal/tools/amane-bridge/pyproject.toml; available after reinstalling Peach';
   const { host } = await open({
     ...quiet(),
     'GET /api/scraping/amane-bridge': () => ({ body: {
@@ -404,13 +404,13 @@ it('amane 桥：安装包缺桥文件时卡片写出原因，安装键停用', a
   });
   const bridge = section(host, 'amane')!;
   expect(bridge.textContent).toContain(problem);
-  expect(bridge.textContent).not.toContain('Peach 内置的');
-  expect(buttonNamed('安装', bridge)?.disabled).toBe(true);
+  expect(bridge.textContent).not.toContain('Built into Peach');
+  expect(buttonNamed('Install', bridge)?.disabled).toBe(true);
 });
 
-it('登录外链只写主机名；数据库里认不出的连接方式原样列成一项，下拉框不落到空占位', () => {
+it('The login external link writes only the host name; unrecognized connection types in the database are listed as-is, and the dropdown never falls to an empty placeholder', () => {
   expect(linkHost('https://www.javbus.com/login?next=%2F')).toBe('www.javbus.com');
-  expect(linkHost('不是地址')).toBe('不是地址');
+  expect(linkHost('Not a URL')).toBe('Not a URL');
   expect(networkOptions('peach').map(([key]) => key)).toEqual(['peach', 'direct']);
-  expect(networkOptions('socks-legacy')).toEqual([['peach', 'Peach 代理'], ['direct', '直接连接'], ['socks-legacy', 'socks-legacy']]);
+  expect(networkOptions('socks-legacy')).toEqual([['peach', 'Peach proxy'], ['direct', 'Direct connection'], ['socks-legacy', 'socks-legacy']]);
 });

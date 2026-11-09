@@ -4,7 +4,7 @@ import { stopAutoScroll, wireAutoScroll } from '../src/ui-kit/scroll';
 let row:HTMLElement;
 afterEach(()=>{stopAutoScroll(row);document.body.removeAttribute('data-detail-open');document.body.innerHTML='';vi.unstubAllGlobals()});
 
-it('详情打开时背景自动滚动停止，关闭后从当前位置继续',async()=>{
+it('While details are open the background\'s auto-scroll pauses, resuming from position after closing',async()=>{
   const frames=new Map<number,FrameRequestCallback>();let id=0;
   vi.stubGlobal('requestAnimationFrame',(callback:FrameRequestCallback)=>{frames.set(++id,callback);return id});
   vi.stubGlobal('cancelAnimationFrame',(key:number)=>frames.delete(key));
@@ -23,7 +23,7 @@ it('详情打开时背景自动滚动停止，关闭后从当前位置继续',as
   tick(2300);tick(2350);expect(row.scrollLeft).toBeGreaterThan(held);
 });
 
-it('滚出视口或被播放墙盖住时停下，循环里不量几何；回到视口接着走',async()=>{
+it('It stops when scrolled out of the viewport or covered by the playback wall, never measuring geometry in the loop, and resumes when back in view',async()=>{
   const frames=new Map<number,FrameRequestCallback>();let id=0;
   vi.stubGlobal('requestAnimationFrame',(callback:FrameRequestCallback)=>{frames.set(++id,callback);return id});
   vi.stubGlobal('cancelAnimationFrame',(key:number)=>frames.delete(key));

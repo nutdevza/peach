@@ -5,17 +5,17 @@ import type { Browser } from 'playwright-core';
 import { launch, layout, requiredEnv, VIEWPORTS } from './harness.ts';
 
 const routes = ['/', '/?browse=folders', '/jav', '/jav?tab=discover', '/jav?tab=wants', '/follow', '/performers', '/creators', '/studios', '/agencies', '/series', '/tags',
-  '/performers/演示艺人', '/creators/演示创作者', '/studios/演示厂牌', '/series/演示系列', '/agencies/演示事务所', '/tags/演示标签',
+  '/performers/demo-performer', '/creators/demo-creator', '/studios/demo-studio', '/series/demo-series', '/agencies/demo-agency', '/tags/demo-tag',
   '/stats', '/taste', '/data-cleanup', '/tasks', '/duplicates', '/quality-goals', '/playlists', '/review', '/sources',
   '/settings/library', '/settings/subscriptions', '/settings/downloads', '/settings/network', '/settings/maintenance', '/settings/diagnostics',
   '/unseen', '/watch-later', '/flagged', '/junk-files', '/trash', '/assets/1', '/posts/1', '/works/EXM-001'];
 
-describe('各页骨架的显示门槛与绘制边界', () => {
+describe('Per-page skeleton show gates and paint boundaries', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) for (const theme of ['light', 'dark']) for (const [index, path] of routes.entries()) {
-    it(`${viewport.name} ${theme} ${path} 隐藏时不泄露微光，显示时不越出视口`, async () => {
+    it(`${viewport.name} ${theme} ${path} leaks no shimmer while hidden and never leaves the viewport while shown`, async () => {
       const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
       let release = () => {};
       const held = new Promise<void>(resolve => { release = resolve });
@@ -47,14 +47,14 @@ describe('各页骨架的显示门槛与绘制边界', () => {
         assert.deepEqual(leaks, []);
         const missing = await page.locator('[data-skeleton] svg use,[data-skeleton-tier] svg use,[data-skeleton-control] svg use').evaluateAll(nodes =>
           nodes.map(node => node.getAttribute('href') || '').filter(href => href.startsWith('#') && !document.getElementById(href.slice(1))));
-        assert.deepEqual(missing, [], '骨架使用了未提供的图标');
+        assert.deepEqual(missing, [], 'The skeleton used an icon that was not provided');
         const scrollbars = await page.locator('[data-skeleton],[data-skeleton-tier]').evaluateAll(roots =>
           roots.flatMap(root => [root,...root.querySelectorAll('*')]).filter(node => {
             const style=getComputedStyle(node);
             return /^(auto|scroll)$/.test(style.overflowX) || /^(auto|scroll)$/.test(style.overflowY);
           }).filter(node => getComputedStyle(node).scrollbarWidth !== 'none')
             .map(node => `${node.tagName}.${node.className}`));
-        assert.deepEqual(scrollbars, [], '骨架显示了原生滚动条');
+        assert.deepEqual(scrollbars, [], 'The skeleton shows a native scrollbar');
         assert.deepEqual((await layout(page)).offenders, []);
         const evidence = process.env.PEACH_SKELETON_EVIDENCE;
         if (evidence) await page.screenshot({ path: join(evidence, `${viewport.name}-${theme}-${index}.png`) });

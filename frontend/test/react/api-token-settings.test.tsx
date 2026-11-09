@@ -33,44 +33,44 @@ function serve(body: unknown) {
 const rotatable = { rotatable: true, reason: '', paired: false };
 const render = (node: ReactNode) => mount(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
 
-it('确认文案按访问方式说清谁要重新登录', () => {
-  expect(rotationEffect('password', false)).toContain('用访问密码登录的浏览器不受影响');
-  expect(rotationEffect('legacy', false)).toContain('其他浏览器现在用这串口令登录，会全部退出');
-  expect(rotationEffect('open', false)).toContain('浏览器不需要登录，不受影响');
-  expect(rotationEffect('password', true)).toContain('另一台电脑要换成同一份口令文件');
+it('The confirmation copy says, per access method, who must sign in again', () => {
+  expect(rotationEffect('password', false)).toContain('Browsers signed in with the access password are unaffected');
+  expect(rotationEffect('legacy', false)).toContain('Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.Scripts and API calls using the old token stop working immediately.');
+  expect(rotationEffect('open', false)).toContain('Browsers without sign-in are unaffected.Scripts and API calls using the old token stop working immediately.');
+  expect(rotationEffect('password', true)).toContain('Another computer needs the same token file');
   for (const mode of ['password', 'legacy', 'open'] as const) {
-    expect(rotationEffect(mode, false)).toContain('用旧口令的脚本和 API 调用会立即失效');
+    expect(rotationEffect(mode, false)).toContain('Scripts and API calls using the old token stop working immediately');
   }
 });
 
-it('取消确认就不发请求，确认后显示新口令一次', async () => {
+it('Canceling the confirmation sends no request; confirming shows the new token once', async () => {
   const fetcher = serve({ ...rotatable, token: 'new-token-value', mode: 'legacy', signed_out: 2 });
   const receipt = vi.fn();
   const seen = confirmWith(false);
   const host = await render(<ApiTokenSettings initial={rotatable} mode="legacy" receipt={receipt} />);
-  await click(buttonNamed('更换口令', host)!);
+  await click(buttonNamed('Change token', host)!);
   expect(seen[0]!.body).toBe(rotationEffect('legacy', false));
   expect(fetcher).not.toHaveBeenCalled();
 
   vi.restoreAllMocks();
   confirmWith(true);
-  await click(buttonNamed('更换口令', host)!);
+  await click(buttonNamed('Change token', host)!);
   await settle();
   expect(fetcher).toHaveBeenCalledWith('/api/configuration/access/token/rotate', expect.objectContaining({ method: 'POST' }));
-  const card = section(host, '访问口令')!;
+  const card = section(host, 'Access passphrase')!;
   expect(card.querySelector<HTMLInputElement>('input[readonly]')!.value).toBe('new-token-value');
-  expect(card.textContent).toContain('新口令只显示这一次');
-  expect(receipt).toHaveBeenCalledWith('已更换访问口令，2 台设备需要重新登录');
+  expect(card.textContent).toContain('The new token shows only this once');
+  expect(receipt).toHaveBeenCalledWith('Access token rotated; 2 devices must sign in again');
 });
 
-it('口令被启动参数覆盖时只写原因，不给更换键', async () => {
+it('When the token is overridden by a startup argument only the reason is written; no change button', async () => {
   const host = await render(<ApiTokenSettings initial={{ rotatable: false, reason: '口令由启动参数指定。', paired: false }}
     mode="password" receipt={vi.fn()} />);
-  expect(buttonNamed('更换口令', host)).toBeNull();
-  expect(section(host, '访问口令')!.textContent).toContain('口令由启动参数指定。');
+  expect(buttonNamed('Change token', host)).toBeNull();
+  expect(section(host, 'Access passphrase')!.textContent).toContain('口令由启动参数指定。');
 });
 
-it('证书分区画出二维码、分段的指纹和下载链接', async () => {
+it('The certificate section draws the QR code, the segmented fingerprint and the download link', async () => {
   const fingerprint = Array.from({ length: 32 }, (_, index) => index.toString(16).padStart(2, '0').toUpperCase()).join(':');
   const state: CertificateState = {
     fingerprint, not_after: '2036-08-18', download: '/api/configuration/certificate/peach-local-ca.crt',
@@ -78,10 +78,10 @@ it('证书分区画出二维码、分段的指纹和下载链接', async () => {
     qr: ['101', '010', '101'],
   };
   const host = await render(<CertificateTrust initial={state} />);
-  const card = section(host, '其他设备信任 HTTPS 证书')!;
+  const card = section(host, 'Other devices trust the HTTPS certificate')!;
   expect(card.querySelector('svg[role="img"] path')!.getAttribute('d')).toBe('M4 4h1v1h-1zM6 4h1v1h-1zM5 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z');
   expect([...card.querySelectorAll('.font-mono > span')].map(node => node.textContent)).toEqual([
     '00:01:02:03:04:05:06:07', '08:09:0A:0B:0C:0D:0E:0F', '10:11:12:13:14:15:16:17', '18:19:1A:1B:1C:1D:1E:1F']);
   expect(card.querySelector('a[download]')!.getAttribute('href')).toBe(state.download);
-  expect(card.textContent).toContain('证书信任设置');
+  expect(card.textContent).toContain('Certificate trust settings');
 });

@@ -6,19 +6,19 @@ import { join } from 'node:path';
 import { launch, layout, VIEWPORTS, visit } from './harness.ts';
 
 async function showTable(page: Page) {
-  const items = Array.from({ length: 12 }, (_, index) => ({ id: 98000 + index, name: `示例影片 ${index + 1}.mp4`,
+  const items = Array.from({ length: 12 }, (_, index) => ({ id: 98000 + index, name: `Sample video ${index + 1}.mp4`,
     medium: 'video', location: 'local', duration: 60, size: 1000000, width: 1920, height: 1080, rating: 80 }));
   await page.route('**/api/items?*', route => route.fulfill({ json: { items, total: items.length } }));
-  await page.getByRole('radiogroup', { name: '馆藏显示方式' }).locator('label')
-    .filter({ has: page.getByRole('radio', { name: '列表', exact: true }) }).click();
+  await page.getByRole('radiogroup', { name: 'Library display mode' }).locator('label')
+    .filter({ has: page.getByRole('radio', { name: 'Lists', exact: true }) }).click();
   await page.locator('[data-catalog-row][data-id="98000"]').waitFor();
 }
 
-describe('馆藏表格宽屏与选择操作', () => {
+describe('Library table wide layout and selection actions', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
-  it('行内评分保存、取消、重试和撤销均保持普通浏览状态', { timeout: 60000 }, async () => {
+  it('Inline rating save, cancel, retry, and undo all keep normal browsing state', { timeout: 60000 }, async () => {
     const opened = await visit(browser, '/', VIEWPORTS[0]!);
     const { page } = opened;
     let release!: () => void;
@@ -34,32 +34,32 @@ describe('馆藏表格宽屏与选择操作', () => {
         if (writes.length === 1) await pending;
         if (body.value === 40 && !failed) {
           failed = true;
-          return route.fulfill({ status: 500, json: { error: '示例评分失败' } });
+          return route.fulfill({ status: 500, json: { error: 'Sample rating failed' } });
         }
         return route.fulfill({ json: { rating: body.value || null } });
       });
       const row = page.locator('[data-catalog-row]').first();
-      const five = row.getByRole('button', { name: '评为 5 星', exact: true });
+      const five = row.getByRole('button', { name: 'Rate 5 stars', exact: true });
       await five.dblclick();
       await page.waitForFunction(() => document.querySelector('[data-catalog-rating] button[aria-busy="true"]'));
       assert.deepEqual(writes, [100]);
       release();
-      await row.getByRole('group', { name: '评分 5 / 5', exact: true }).waitFor();
-      await row.getByRole('button', { name: '取消评分（当前 5 星）', exact: true }).click();
-      await row.getByRole('group', { name: '未评分', exact: true }).waitFor();
-      await row.getByRole('button', { name: '评为 2 星', exact: true }).click();
-      await row.getByText('示例评分失败', { exact: true }).waitFor();
-      await row.getByRole('button', { name: '立即重试评分', exact: true }).click();
-      await row.getByRole('group', { name: '评分 2 / 5', exact: true }).waitFor();
-      await page.locator('[data-sonner-toast]').filter({ hasText: '已评 2 星' }).getByRole('button', { name: '撤销', exact: true }).click();
-      await row.getByRole('group', { name: '未评分', exact: true }).waitFor();
+      await row.getByRole('group', { name: 'Rating 5 / 5', exact: true }).waitFor();
+      await row.getByRole('button', { name: 'Clear rating (currently 5 stars)', exact: true }).click();
+      await row.getByRole('group', { name: 'Unrated', exact: true }).waitFor();
+      await row.getByRole('button', { name: 'Rate 2 stars', exact: true }).click();
+      await row.getByText('Sample rating failed', { exact: true }).waitFor();
+      await row.getByRole('button', { name: 'Retry rating now', exact: true }).click();
+      await row.getByRole('group', { name: 'Rating 2 / 5', exact: true }).waitFor();
+      await page.locator('[data-sonner-toast]').filter({ hasText: 'Rated 2 stars' }).getByRole('button', { name: 'Undo', exact: true }).click();
+      await row.getByRole('group', { name: 'Unrated', exact: true }).waitFor();
       assert.deepEqual(writes, [100, 0, 40, 40, 0]);
       assert.equal(await page.locator('#selectMode').getAttribute('aria-pressed'), 'false');
       assert.equal(new URL(page.url()).pathname, '/');
       assert.deepEqual(opened.problems.filter(line => !line.includes('VIDEOJS') && !line.includes('/api/feedback') && !line.includes('500 (Internal Server Error)')), []);
     } finally { release(); await opened.close() }
   });
-  for (const folders of [false, true]) it(`宽屏${folders ? '文件夹' : '普通'}列表铺满外框且控件等高`, { timeout: 60000 }, async () => {
+  for (const folders of [false, true]) it(`Wide-screen ${folders ? 'folder' : 'regular'} list fills the outer frame with equal-height controls`, { timeout: 60000 }, async () => {
     const opened = await visit(browser, folders ? '/?browse=folders' : '/', { name: 'wide', width: 2560, height: 1440, mobile: false });
     const { page } = opened;
     try {
@@ -95,7 +95,7 @@ describe('馆藏表格宽屏与选择操作', () => {
       assert.deepEqual(opened.problems.filter(line => !line.includes('VIDEOJS')), []);
     } finally { await opened.close() }
   });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：普通浏览、拖动与手动多选互不干扰`, { timeout: 60000 }, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: normal browsing, dragging, and manual multi-select never interfere`, { timeout: 60000 }, async () => {
     const opened = await visit(browser, '/', viewport);
     const { page } = opened;
     try {
@@ -118,7 +118,7 @@ describe('馆藏表格宽屏与选择操作', () => {
       assert.ok(await scroll.evaluate(node => node.scrollLeft) >= Math.min(100, range) - 2);
       assert.equal(await page.locator('#selectMode').getAttribute('aria-pressed'), 'false');
       assert.equal(await scope.locator('[data-board-selected]').count(), 0);
-      // 在表格外松手不会产生容器内 click，后续勾选仍须响应第一次点击。
+      // Releasing outside the table produces no click inside the container, so later checks must still respond to the first click.
       await scroll.evaluate(node => { node.scrollLeft = 0 });
       await page.mouse.move(startX, y); await page.mouse.down();
       await page.mouse.move(box.x - 20, y, { steps: 10 }); await page.mouse.up();

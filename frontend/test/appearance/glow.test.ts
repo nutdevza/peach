@@ -1,4 +1,4 @@
-/* 光晕那一层的写入时机（`src/appearance/glow.ts`）。点选写什么由 `test/react/glow-picker.test.tsx` 走。 */
+/* When the glow layer writes (`src/appearance/glow.ts`). What a click writes is covered by `test/react/glow-picker.test.tsx`. */
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { applyHomeGlow, paintHomeGlowNow, type GlowSettings } from '../../src/appearance/glow';
@@ -11,12 +11,12 @@ const strength = () => document.querySelector<HTMLElement>('.glowlayer')!.style.
 
 beforeEach(() => { document.body.innerHTML = '<div class="glowlayer"></div>' });
 
-it('启动那一次当场写进侧栏那一层，不等下一帧', () => {
+it('The startup pass writes into the sidebar layer on the spot without waiting a frame', () => {
   paintHomeGlowNow(store());
   expect(strength()).toBe('1');
 });
 
-it('拖动时一帧只写一次，写的是那一帧时的值', () => {
+it('Dragging writes once per frame with that frame\'s value', () => {
   const frames: FrameRequestCallback[] = [];
   vi.stubGlobal('requestAnimationFrame', (run: FrameRequestCallback) => frames.push(run));
   const current = store();

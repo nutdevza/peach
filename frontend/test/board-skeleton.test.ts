@@ -9,7 +9,7 @@ vi.mock('@peach/legacy/core', async importOriginal => ({
 
 describe('Board 页面骨架', () => {
   it.each([
-    ['subscriptions', '来源与订阅'], ['downloads', '下载渠道'], ['network', '网络与访问'], ['maintenance', '应用与维护'],
+    ['subscriptions', 'Sources and subscriptions'], ['downloads', 'Download channels'], ['network', '网络与访问'], ['maintenance', '应用与维护'],
   ])('配置深链 %s 使用对应分区', (key, label) => {
     const root = document.createElement('div');
     root.innerHTML = boardPageSkeleton(`/settings/${key}`);
@@ -46,8 +46,8 @@ describe('Board 页面骨架', () => {
     const root = document.createElement('div');
     root.innerHTML = boardPageSkeleton('/jav');
     history.replaceState(null, '', before);
-    expect([...root.querySelectorAll('span.whitespace-nowrap.rounded-md')].find(node => node.classList.contains('text-text-primary'))?.textContent).toBe('新作');
-    expect(root.querySelector('[data-index-search] input')?.getAttribute('aria-label')).toBe('筛选新作');
+    expect([...root.querySelectorAll('span.whitespace-nowrap.rounded-md')].find(node => node.classList.contains('text-text-primary'))?.textContent).toBe('New work');
+    expect(root.querySelector('[data-index-search] input')?.getAttribute('aria-label')).toBe('Filter new works');
     expect(root.querySelector('form')).toBeNull();
     expect(root.querySelectorAll('[data-catalog-tier] [data-catalog-placeholder]').length).toBeGreaterThan(0);
     expect(root.querySelector('[data-entity-tag="external"]')).toBeNull();
@@ -91,29 +91,29 @@ describe('Board 页面骨架', () => {
     const root = follow();
     wireBoardSegments(root);
     expect(root.querySelector('.board-segment-thumb')).toBeNull();
-    expect(root.querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
+    expect(root.querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
     const track = root.querySelector('[data-section-items]')!;
     expect([...track.children].map((span) => span.textContent)).toEqual(['关注列表', '添加关注', '标签管理']);
   });
   it('关注骨架选中地址栏 `?tab=` 那一枚页签，列表以外的页签不画关注列表的工具行', () => {
     const tags = follow({ followTab: 'tags' });
-    expect(tags.querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('标签管理');
+    expect(tags.querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Manage tags');
     expect(tags.querySelector('.ui-follow-skeleton-toolbar')).toBeNull();
     expect(tags.querySelector('.ui-follow-skeleton-surface')).not.toBeNull();
-    expect(follow({ followTab: 'feeds' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
+    expect(follow({ followTab: 'feeds' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
     expect(follow({ followTab: 'wants' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
     expect(follow({ followTab: 'nope' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
   });
   it('关注骨架的工具行按 Board UI 最终变体画：检查全部是主按钮，视图切换是按版式选中的按钮组', () => {
     const toolbar = follow().querySelector('.ui-follow-skeleton-toolbar')!;
     const check = toolbar.querySelector('[data-follow-toolbar-actions] > button')!;
-    expect(check.textContent).toBe('检查全部');
+    expect(check.textContent).toBe('Check all');
     expect(check.classList.contains('bg-button-primary')).toBe(true);
     const group = [...toolbar.querySelectorAll('[data-button-group][role="group"] > button')];
     expect(group.map((button) => button.querySelector('use')?.getAttribute('href'))).toEqual(['#i-layout-grid', '#i-table']);
     expect(group.map((button) => button.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
     expect(group.every((button) => button.classList.contains('bg-button-ghost-background'))).toBe(true);
-    expect(toolbar.querySelector('button[aria-haspopup="listbox"]')?.textContent).toBe('排序检查时间');
+    expect(toolbar.querySelector('button[aria-haspopup="listbox"]')?.textContent).toBe('SortCheck time');
     expect([...toolbar.querySelectorAll('button')].at(-1)?.textContent).toBe('全部收起');
     const tableGroup = follow({ followLayout: 'table' }).querySelectorAll('[data-button-group] > button');
     expect([...tableGroup].map((button) => button.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
@@ -125,7 +125,7 @@ describe('Board 页面骨架', () => {
       .nextElementSibling!.querySelector('use')?.getAttribute('href');
     expect(arrow(toolbar({}))).toBe('#i-arrow-down');
     const byName = toolbar({ followSort: 'name' });
-    expect(byName.querySelector('button[aria-haspopup]')?.textContent).toBe('排序创作者名称');
+    expect(byName.querySelector('button[aria-haspopup]')?.textContent).toBe('SortCreator name');
     expect(arrow(byName)).toBe('#i-arrow-up');
     expect(arrow(toolbar({ followSort: 'name', followDir: 'desc' }))).toBe('#i-arrow-down');
   });
@@ -146,7 +146,7 @@ describe('Board 页面骨架', () => {
     const root = document.createElement('div');
     root.innerHTML = boardPageSkeleton('/taste');
     expect(root.querySelector('.peach-react')).not.toBeNull();
-    expect(root.querySelector('[data-taste-segments] [data-selected]')?.textContent).toBe('浏览器记录');
+    expect(root.querySelector('[data-taste-segments] [data-selected]')?.textContent).toBe('Browser history');
     expect([...root.querySelectorAll('[data-taste-metrics] > div > span')].map((span) => span.textContent))
       .toEqual(['浏览记录', '口味维度', '浏览线索', '私有导出']);
     expect(root.querySelector('[data-taste-portrait]')?.textContent).toContain('浏览器画像');
@@ -168,7 +168,7 @@ describe('Board 页面骨架', () => {
     try {
       const root = follow({ followLayout: 'table' });
       expect(root.querySelectorAll('.follow-skeleton-table tbody tr')).toHaveLength(40);
-      expect(root.querySelector('.ui-follow-skeleton-surface > :last-child button[aria-haspopup]')?.textContent).toBe('每页 40 条');
+      expect(root.querySelector('.ui-follow-skeleton-surface > :last-child button[aria-haspopup]')?.textContent).toBe('Per page 40 items');
     } finally { localStorage.removeItem('peach.settings.v1') }
   });
 });

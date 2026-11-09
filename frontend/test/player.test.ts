@@ -1,5 +1,5 @@
-/* 播放器模块（`src/player/`）里不依赖真 Video.js 的几块：片源判据、流会话取消、沉浸模式的每一格、观看上报、
- * 加载读数、画中画的 Media Session 与外挂字幕。挂上真 Video.js 的那一面在 `e2e/stage.test.ts`。 */
+/* The pieces of the player module (`src/player/`) that do not depend on real Video.js: source criteria, stream session cancellation, every cell of immersive mode, watch reporting,
+ * loading readings, picture-in-picture's Media Session, and external subtitles. The side that mounts real Video.js lives in `e2e/stage.test.ts`. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mountPlayerMediaSession, mountPlayerQualityControl, mountPlayerSubtitles } from '../src/player/controls';
@@ -39,7 +39,7 @@ const host = (seekSeconds = 10): PlayerHost => ({
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-it('播放器导览抑制片源与自动播放，结束后沿用已保存的播放偏好', async () => {
+it('The player tour suppresses sources and autoplay; after it ends the saved playback preferences apply', async () => {
   const settings = { ...host().settings(), detailAutoplay: true };
   const saveSettings = vi.fn();
   configurePlayer({ ...host(), settings: () => settings, saveSettings });
@@ -69,15 +69,15 @@ it('播放器导览抑制片源与自动播放，结束后沿用已保存的播�
   } finally { releaseNormal(); configurePlayer(host()) }
 });
 
-describe('片源判据', () => {
-  it('保存过的在线作品走关注条目的代理，不问 stream-plan', async () => {
+describe('Source rules', () => {
+  it('Saved online videos go through the follows entry proxy and never ask stream-plan', async () => {
     const calls = stubFetch(() => null);
     const source = await playableStreamSource({ id: 7, location: 'online', follow_item_id: 42 }, 's1');
     expect(source).toEqual({ src: '/follow-stream?id=42', type: 'video/mp4' });
     expect(calls).toEqual([]);
   });
 
-  it('服务端要转码分片就给分片；计划取不到就带会话直读，webm 按扩展名给类型', async () => {
+  it('Serve transcode segments when the server asks; if the plan cannot be fetched, read directly with the session, and give webm its type by extension', async () => {
     stubFetch(() => ({ protocol: 'hls', src: '/stream/hls/3/index.m3u8' }));
     expect(await playableStreamSource({ id: 3 }, 's2'))
       .toEqual({ src: '/stream/hls/3/index.m3u8', type: 'application/vnd.apple.mpegurl' });
@@ -87,7 +87,7 @@ describe('片源判据', () => {
     expect(directStreamSource({ id: 4 }, 'x').type).toBe('video/mp4');
   });
 
-  it('详情这一路共用一个会话，取消时按会话通知服务端并清空', async () => {
+  it('The details path shares one session; canceling notifies the server per session and clears it', async () => {
     const calls = stubFetch(() => ({ cancelled: 1 }));
     await detailStreamSource({ id: 5 });
     const session = detailStreamSession();
@@ -102,17 +102,17 @@ describe('片源判据', () => {
     expect(JSON.parse(document.documentElement.dataset.peachStreamCancel || 'null')).toEqual({ cancelled: 1 });
   });
 
-  it('STRM 的文件类型使用服务端播放计划', async () => {
+  it('STRM file kinds use the server\'s playback plan', async () => {
     stubFetch(() => ({ protocol: 'range', src: '/stream?id=6', mime_type: 'video/webm' }));
     expect(await playableStreamSource({ id: 6, name: 'ABC-123.strm' }, 'strm'))
       .toEqual({ src: '/stream?id=6', type: 'video/webm' });
   });
 });
 
-describe('观看上报', () => {
+describe('Watch reporting', () => {
   beforeEach(() => { vi.useFakeTimers(); });
 
-  it('离开详情时既不 pause 也不 ended：emptied 收尾停表', async () => {
+  it('Leaving details fires neither pause nor ended: emptied finishes the teardown and stops the clock', async () => {
     const calls = stubFetch(() => ({ real_ratio: .5 }));
     const video = document.createElement('video');
     wireTelemetry({ id: 9, duration: -1 }, video);
@@ -126,7 +126,7 @@ describe('观看上报', () => {
     expect(calls).toHaveLength(settled);
   });
 
-  it('放完冲一次 ended，再交给调用方接着放下一条；-1 时长不画负比例', () => {
+  it('Playback end fires ended once, then hands over to the caller for the next item; a -1 duration never draws a negative ratio', () => {
     const calls = stubFetch(() => null);
     const video = document.createElement('video');
     const ratio = document.createElement('span');
@@ -143,8 +143,8 @@ describe('观看上报', () => {
   });
 });
 
-describe('沉浸模式的每一格', () => {
-  /** 一个记账的 Video.js：记下挂了什么片源、`error` 一次性监听由用例触发。 */
+describe('Each cell of immersive mode', () => {
+  /** A bookkeeping Video.js: it records which source was attached, and the one-time `error` listener is triggered by the test case. */
   function fakeVideojs() {
     const made: { sources: unknown[]; disposed: boolean; error?: () => void }[] = [];
     const factory = vi.fn((video: HTMLVideoElement) => {
@@ -172,7 +172,7 @@ describe('沉浸模式的每一格', () => {
     return { factory, made };
   }
 
-  it('片源按 stream-plan 交给裸播放器，分片出错退回直读；拆这一格时按会话取消并拆播放器', async () => {
+  it('The stream is handed to the bare player per stream-plan, falling back to direct read on segment errors; tearing down the cell cancels by session and disposes the player', async () => {
     const calls = stubFetch((url) => url.startsWith('/api/player/memory') ? { selected: null, tracks: [] }
       : url.startsWith('/api/stream-plan') ? { protocol: 'hls', src: '/stream/hls/8/index.m3u8' } : { cancelled: 1 });
     const { factory, made } = fakeVideojs();
@@ -192,7 +192,7 @@ describe('沉浸模式的每一格', () => {
     expect(cancels.map((call) => call.url)).toEqual(['/api/stream-cancel?session=imm-1']);
   });
 
-  it('片源还没解析出来就拆掉：不再挂播放器，也不回调', async () => {
+  it('Tearing down before the source resolves: no player mounts and no callbacks fire', async () => {
     stubFetch(() => ({ protocol: 'direct', src: '/stream?id=9' }));
     const { factory } = fakeVideojs();
     const onLoaded = vi.fn();
@@ -204,25 +204,25 @@ describe('沉浸模式的每一格', () => {
   });
 });
 
-describe('加载读数', () => {
+describe('Loading count', () => {
   const buffered = (ranges: [number, number][]) => ({
     length: ranges.length, start: (i: number) => ranges[i]![0], end: (i: number) => ranges[i]![1],
   });
 
-  it('缓冲健康只数播放位置所在那一段；码率要有大小和真时长才算得出', () => {
+  it('Buffer health counts only the segment at the play position; bitrate needs size and true duration to be computable', () => {
     const video = { currentTime: 12, buffered: buffered([[0, 5], [10, 30]]) } as unknown as HTMLVideoElement;
     expect(bufferedAhead(video)).toBe(18);
     expect(averageBitrate(1_000_000, 8)).toBe(1_000_000);
     expect(averageBitrate(1_000_000, -1)).toBe(0);
   });
 
-  it('码率未知时报还能往前放多久，不报「× 实时」这类要换算的口径', () => {
-    expect(fmtLoadRate(0, 12.4)).toBe('已缓冲 12 秒');
+  it('With unknown bitrate it reports how much longer playback can continue, not convertible metrics like "x realtime"', () => {
+    expect(fmtLoadRate(0, 12.4)).toBe('Buffered 12 sec');
     expect(fmtLoadRate(8 * 2048, 0)).toBe('2 KB/s');
-    expect(fmtLoadRate(0, 0)).toBe('加载中…');
+    expect(fmtLoadRate(0, 0)).toBe('Loading…');
   });
 
-  it('三条指标各留 24 个采样，坏值记成 0', () => {
+  it('Each of the three metrics keeps 24 samples, recording bad values as 0', () => {
     const samples: number[] = [];
     for (let i = 1; i <= 30; i++) pushPlayerStat(samples, i);
     pushPlayerStat(samples, Number.NaN);
@@ -250,7 +250,7 @@ function fakePlayer(state: { time: number; duration: number }) {
   return { player: player as unknown as VjsPlayer, raw: player, fire };
 }
 
-it('画中画入口保持占位，媒体就绪后启用，浏览器不支持时保留原因并禁用', async () => {
+it('The picture-in-picture entry keeps its placeholder, enables once media is ready, and when the browser lacks support keeps the reason and disables', async () => {
   const root = document.createElement('div'), video = document.createElement('video'), button = document.createElement('button');
   root.append(video, button);
   let ready = 0;
@@ -267,14 +267,14 @@ it('画中画入口保持占位，媒体就绪后启用，浏览器不支持时�
   ready = 4; video.dispatchEvent(new Event('loadedmetadata'));
   expect(pip.disabled).toBe(false);
   await (pip.activate as (media: unknown) => Promise<unknown>)({});
-  expect(failure).toHaveBeenCalledWith('当前浏览器不支持画中画');
+  expect(failure).toHaveBeenCalledWith('The current browser does not support picture-in-picture');
   expect(pip.disabled).toBe(true);
-  expect(pip.getAttribute('label')).toBe('当前浏览器不支持画中画');
+  expect(pip.getAttribute('label')).toBe('The current browser does not support picture-in-picture');
   fire('dispose');
   expect(pip.activate).toBe(original);
 });
 
-describe('播放器清晰度', () => {
+describe('Player quality', () => {
   function menu(entries: QualityLevel[], selectedIndex = 0) {
     configurePlayer(host());
     const root = document.createElement('div'), bar = document.createElement('div'), video = document.createElement('video');
@@ -299,7 +299,7 @@ describe('播放器清晰度', () => {
       close: () => { fire('dispose'); root.remove() } };
   }
 
-  it('设置菜单选择四个方向并可恢复原始画面', () => {
+  it('The settings menu picks among four orientations and can restore the original picture', () => {
     const view = menu([]);
     try {
       Object.defineProperties(view.video, { videoWidth: { value: 1920 }, videoHeight: { value: 1080 },
@@ -318,7 +318,7 @@ describe('播放器清晰度', () => {
     expect(view.video.style.transform).toBe('');
   });
 
-  it('单档 HLS 用实际视频尺寸命名，不展示轨道地址或虚构自动档', () => {
+  it('Single-tier HLS is named by the actual video size and never shows the track URL or a fabricated Auto tier', () => {
     const view = menu([{ id: '0-https://example.test/index.m3u8?session=private', enabled: true }]);
     try {
       Object.defineProperties(view.video, { videoWidth: { value: 1920 }, videoHeight: { value: 1080 } });
@@ -332,33 +332,33 @@ describe('播放器清晰度', () => {
     } finally { view.close() }
   });
 
-  it('尺寸未取得的单档不拿源文件高度猜清晰度', () => {
+  it('A single tier without dimensions never guesses quality from the source file\'s height', () => {
     const view = menu([{ id: 'private-stream-url', enabled: true }]);
     try {
       view.open();
-      expect(view.labels()).toEqual(['当前画质']);
+      expect(view.labels()).toEqual(['Current quality']);
       expect(view.bar.querySelector<HTMLElement>('[data-player-quality-badge]')!.hidden).toBe(true);
     } finally { view.close() }
   });
 
-  it('轨道逐个加入时保留自动选择', () => {
+  it('Auto selection is preserved as tracks are added one by one', () => {
     const entries = [{ width: 640, height: 360, enabled: true }];
     const view = menu(entries);
     try {
       view.open();
       entries.push({ width: 1920, height: 1080, enabled: true });
       view.notify('addqualitylevel');
-      expect(view.labels()).toEqual(['自动', '360p', '1080p']);
+      expect(view.labels()).toEqual(['Auto', '360p', '1080p']);
       expect(view.bar.querySelector('[data-player-quality-option="auto"]')?.getAttribute('aria-checked')).toBe('true');
     } finally { view.close() }
   });
 
-  it('自动档的角标跟随正在播放的轨道，未知档位使用线路名', () => {
+  it('The auto tier\'s badge follows the playing track, and unknown tiers use the route name', () => {
     const view = menu([{ width: 640, height: 360, enabled: true }, { width: 3840, height: 2160, enabled: true },
       { id: 'private-url', enabled: true }]);
     try {
       view.open();
-      expect(view.labels()).toEqual(['自动', '360p', '2160p', '线路 3']);
+      expect(view.labels()).toEqual(['Auto', '360p', '2160p', 'Route 3']);
       const badge = view.bar.querySelector<HTMLElement>('[data-player-quality-badge]')!;
       expect(badge.hidden).toBe(true);
       view.levels.selectedIndex = 1; view.change();
@@ -367,7 +367,7 @@ describe('播放器清晰度', () => {
     } finally { view.close() }
   });
 
-  it('菜单开着时换轨与尺寸变化只就地更新清晰度面板，焦点留在原档', () => {
+  it('With the menu open, track changes and resizes update the quality panel in place, keeping focus on the original tier', () => {
     const entries = [{ width: 640, height: 360, enabled: true }, { width: 1920, height: 1080, enabled: true }];
     const view = menu(entries);
     try {
@@ -378,19 +378,19 @@ describe('播放器清晰度', () => {
       entries.push({ width: 3840, height: 2160, enabled: true });
       view.notify('addqualitylevel');
       const panel = view.bar.querySelector('.vjs-peach-settings-menu')!.lastElementChild!;
-      expect(panel.querySelector('strong')?.textContent).toBe('清晰度');
+      expect(panel.querySelector('strong')?.textContent).toBe('Quality');
       expect([...panel.querySelectorAll('[data-player-quality-option]')].map((node) => node.textContent))
-        .toEqual(['自动', '360p', '1080p', '2160p']);
+        .toEqual(['Auto', '360p', '1080p', '2160p']);
       expect((document.activeElement as HTMLElement).dataset.playerQualityOption).toBe('1');
     } finally { view.close() }
   });
 
-  it('主菜单开着时尺寸变化只改清晰度那一行的读数', () => {
+  it('While the main menu is open, a size change only updates the quality row\'s readout', () => {
     const view = menu([{ id: 'private-stream-url', enabled: true }]);
     try {
       view.bar.querySelector<HTMLButtonElement>('.vjs-peach-settings-toggle')!.click();
       const row = view.bar.querySelector('[data-player-quality-view]')!;
-      expect(row.querySelector('b')?.textContent).toBe('当前画质');
+      expect(row.querySelector('b')?.textContent).toBe('Current quality');
       Object.defineProperties(view.video, { videoWidth: { value: 1920 }, videoHeight: { value: 1080 } });
       view.video.dispatchEvent(new Event('resize'));
       expect(view.bar.querySelector('[data-player-quality-view]')).toBe(row);
@@ -399,8 +399,8 @@ describe('播放器清晰度', () => {
   });
 });
 
-describe('画中画的快进快退', () => {
-  it('逐个登记动作，一个不认不带走其余；步长取设置；换片时整组摘掉', () => {
+describe('Picture-in-picture seek buttons', () => {
+  it('Actions register one by one; one unrecognized action takes none of the rest down, step size comes from settings, and switching videos removes the whole set', () => {
     configurePlayer(host(15));
     const handlers = new Map<string, MediaSessionActionHandler | null>();
     const positions: unknown[] = [];
@@ -427,19 +427,19 @@ describe('画中画的快进快退', () => {
   });
 });
 
-describe('外挂字幕', () => {
-  it('能播的轨全挂上，一条都不预先打开', async () => {
+describe('External subtitle', () => {
+  it('Every playable track mounts with none opened in advance', async () => {
     stubFetch(() => ({ subtitles: [
-      { id: 'sidecar:1', playable: true, src: '/sub/1.vtt', language: 'zh', label: '简体' },
-      { id: 'sidecar:2', playable: false, src: '/sub/2.ass', language: 'ja', label: '日语' },
-      { id: 'sidecar:3', playable: true, src: '/sub/3.vtt', label: '繁体' },
+      { id: 'sidecar:1', playable: true, src: '/sub/1.vtt', language: 'zh', label: 'Simplified' },
+      { id: 'sidecar:2', playable: false, src: '/sub/2.ass', language: 'ja', label: 'Japanese' },
+      { id: 'sidecar:3', playable: true, src: '/sub/3.vtt', label: 'Traditional' },
     ] }));
     const { player, raw } = fakePlayer({ time: 0, duration: 0 });
     mountPlayerSubtitles(player, 21);
     await flush(); await flush();
     expect(raw.addRemoteTextTrack.mock.calls).toEqual([
-      [{ id: 'sidecar:1', kind: 'subtitles', src: '/sub/1.vtt', srclang: 'zh', label: '简体', default: false }, true],
-      [{ id: 'sidecar:3', kind: 'subtitles', src: '/sub/3.vtt', srclang: '', label: '繁体', default: false }, true],
+      [{ id: 'sidecar:1', kind: 'subtitles', src: '/sub/1.vtt', srclang: 'zh', label: 'Simplified', default: false }, true],
+      [{ id: 'sidecar:3', kind: 'subtitles', src: '/sub/3.vtt', srclang: '', label: 'Traditional', default: false }, true],
     ]);
   });
 });

@@ -3,12 +3,12 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, requiredEnv, VIEWPORTS } from './harness.ts';
 
-describe('宽封套与来源封面', () => {
+describe('Wide jackets and source covers', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}: Blu-ray 正封完整可见，剧照保持横图取景`, async () => {
+    it(`${viewport.name}: Blu-ray front cover fully visible, stills keep landscape framing`, async () => {
       const context = await browser.newContext({ viewport });
       try {
         await context.addInitScript(() => localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false, feedAutoScroll: false })));
@@ -21,12 +21,12 @@ describe('宽封套与来源封面', () => {
         await page.route('**/cover?code=MDVR-276*', route => route.fulfill({ contentType: 'image/svg+xml',
           body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#ccc"/></svg>' }));
         await page.route('**/api/feeds/discoveries?*', route => route.fulfill({ json: { ok: true, items: [
-          ...['MIDA-122', 'MIDA-239', 'MIDA-198'].map((code, id) => ({ id: id + 1, code, title: '作品（ブルーレイディスク）', cover_url: remote })),
-          { id: 4, code: 'EXM-004', title: '横版剧照', cover_url: remote },
-          { id: 5, code: 'MIDA-085', title: '作品（ブルーレイディスク）', cover_url: '/jav-cover?code=MIDA-085' },
-          { id: 6, code: 'EXM-006', title: '作品', has_cover: true,
+          ...['MIDA-122', 'MIDA-239', 'MIDA-198'].map((code, id) => ({ id: id + 1, code, title: 'Video (Blu-ray Disc)', cover_url: remote })),
+          { id: 4, code: 'EXM-004', title: 'Landscape stills', cover_url: remote },
+          { id: 5, code: 'MIDA-085', title: 'Video (Blu-ray Disc)', cover_url: '/jav-cover?code=MIDA-085' },
+          { id: 6, code: 'EXM-006', title: 'Videos', has_cover: true,
             poster_box: { x0: 428, y0: 0, x1: 800, y1: 438, px: [800, 438] } },
-          { id: 7, code: 'MDVR-276', title: '【VR】作品', has_cover: true, cover_frame: { cx: .22, cy: .2, layout: 'still' } },
+          { id: 7, code: 'MDVR-276', title: '[VR] video', has_cover: true, cover_frame: { cx: .22, cy: .2, layout: 'still' } },
         ] } }));
         await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + '/');
         for (const id of [1, 2, 3, 5, 6]) {

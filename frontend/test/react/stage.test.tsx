@@ -1,10 +1,12 @@
-/* 详情舞台作为常驻组件（`RESIDENT_ROUTES.stage`）在路由树里的行为：宿主是 body 末尾的 `[data-stage-host]`、
- * 画上之后才交出句柄、小窗节点在句柄交出时已经画好、`open` 里的几次绘制同步画完、换详情不换宿主、抛错只卸
- * 组件而句柄照调不抛。
+/* The details stage's behavior as a resident component (`RESIDENT_ROUTES.stage`) in the route tree: the host is
+ * `[data-stage-host]` at the end of body, the handle is handed over only after rendering, the mini player node is already
+ * rendered when the handle arrives, the renders inside `open` complete synchronously, switching details does not switch hosts,
+ * and a thrown error unmounts only the component while the handle keeps working without throwing.
  *
- * 每条用例照应用启动顺序走一遍：重新装载模块、画路由树、接上取数，再经 `application-residents` 的 `loadStage` 拿句柄。
- * 播放器换成一个记账的替身：这里看的是舞台这一面怎么画、什么时候交出句柄，真 Video.js、进出场与小窗的交接
- * 由 e2e 在浏览器里走一遍（`e2e/stage.test.ts`），播放器在两个位置之间的交接在 `stage-player.test.ts`。 */
+ * Every case walks the app startup order: reload the modules, render the route tree, connect fetching, then take the handle
+ * via `application-residents`' `loadStage`. The player is swapped for a bookkeeping double: what is tested here is how this
+ * stage surface renders and when it hands over the handle; real Video.js, enter/exit and the mini player handoff are walked in
+ * the browser by e2e (`e2e/stage.test.ts`), and the player's handoff between the two positions in `stage-player.test.ts`. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
@@ -14,7 +16,7 @@ import type { DetailItem, ItemDetailHelpers, ItemDetailProps } from '../../src/r
 import type { ShellActions } from '../../src/react/router/shell-actions';
 import type { StageApi, StageHost, StageItemRequest } from '../../src/react/stage/stage-api';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 type ActFlag = { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -35,11 +37,11 @@ vi.mock('../../src/player', async (importOriginal) => {
   };
 });
 
-/* ── 假服务端 ── */
+/* ── Fake server ── */
 
 const detail = (id: number): DetailItem => ({
-  id, name: `sample_${id}.mp4`, title: `作品 ${id}`, location: 'local', cost: 'free', size: 1024, duration: 3600,
-  rating: 60, performers: ['七海ひな'], tags: [{ k: '剧情' }],
+  id, name: `sample_${id}.mp4`, title: `Video ${id}`, location: 'local', cost: 'free', size: 1024, duration: 3600,
+  rating: 60, performers: ['七海ひな'], tags: [{ k: 'Drama' }],
 } as DetailItem);
 
 function serve() {
@@ -52,7 +54,7 @@ function serve() {
   return fetcher;
 }
 
-/* ── 宿主与请求 ── */
+/* ── Host and requests ── */
 
 function makeHost(): StageHost {
   const settings = {
@@ -61,7 +63,7 @@ function makeHost(): StageHost {
   return {
     player: {
       settings: () => settings, saveSettings: vi.fn(), toast: vi.fn(), loadSourceStatus: vi.fn(async () => ({})),
-      offlineReason: () => '盘没挂上',
+      offlineReason: () => 'The drive is not mounted',
     },
     sourceOffline: () => false,
     expand: vi.fn(),
@@ -74,7 +76,7 @@ function helpers(patch: Partial<ItemDetailHelpers> = {}): ItemDetailHelpers {
     badgeHtml: () => '', titleHtml: (shown) => String(shown.name), displayName: (shown) => String(shown.name),
     javImage: () => 'cover',
     tagLabel: (tag) => tag, isDurationTag: () => false, tagCandidates: () => [], sourceOffline: () => false,
-    offlineReason: () => '盘没挂上', relatedSkeletonHtml: () => '', mixRelated: async () => [], wireDrag: vi.fn(),
+    offlineReason: () => 'The drive is not mounted', relatedSkeletonHtml: () => '', mixRelated: async () => [], wireDrag: vi.fn(),
     wireDragReorder: vi.fn(), ...patch,
   };
 }
@@ -98,7 +100,7 @@ function request(id: number, patch: Partial<StageItemRequest> = {}): StageItemRe
   };
 }
 
-/* 常驻组件适配层直接读取同一包内的配置函数；测试只接本场景的句柄契约。 */
+/* The resident component adapter reads the config functions from the same package directly; tests only hook into this scenario's handle contract. */
 type ShellIslands = { connectApplication(next: (actions: ShellActions) => void): () => void;
   loadStage(host: StageHost): Promise<StageApi>;
   stageApi(): StageApi | null;
@@ -133,7 +135,7 @@ function shellActions(): ShellActions {
 
 const unmounts: Array<() => void> = [];
 
-/** 壳启动时先画路由树（根的选项与 `mountApplication` 同一份）；接上取数单独一步，用例可以把它往后放。 */
+/** At shell startup the route tree paints first (the root's options are the same ones as `mountApplication`); attaching fetches is a separate step the test can defer. */
 async function mountRouter(r: Loaded) {
   unmounts.push(r.islands.connectApplication(() => {}));
   const tree = createRoot(document.createElement('div'), r.ROUTER_ROOT_OPTIONS);
@@ -144,7 +146,7 @@ async function connect(r: Loaded) {
   await act(async () => { r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute)) });
 }
 
-/** 收下每一次上报；`console.error` 只静音，不数条数。 */
+/** Accept every report; `console.error` is only muted, not counted. */
 function watchReports() {
   const reported = vi.fn();
   vi.stubGlobal('reportError', reported);
@@ -158,7 +160,7 @@ const q = <T extends Element = HTMLElement>(selector: string) => document.queryS
 let loaded: Loaded;
 let api: StageApi;
 
-/* 照壳的 `openItem` 接上：路由树已经画着、接上了取数，第一次打开详情时装载并拿到句柄。 */
+/* Wire up along the shell's `openItem`: the route tree is already rendered and wired to fetching; it mounts on the first details open and gets the handle. */
 beforeEach(async () => {
   player.mounted = [];
   loaded = await load();
@@ -174,8 +176,8 @@ afterEach(async () => {
   document.body.replaceChildren();
 });
 
-describe('常驻组件', () => {
-  it('Escape 命令与原生取消优先关闭内层，没有弹层时关闭详情', async () => {
+describe('Resident components', () => {
+  it('Escape commands and native cancel close the inner layer first; with no popover open they close the details', async () => {
     serve();
     const opened = request(1);
     await act(async () => { await api.open(opened) });
@@ -204,13 +206,13 @@ describe('常驻组件', () => {
     expect(opened.actions.close).toHaveBeenCalledTimes(1);
   });
 
-  it('画上之后句柄才交出；宿主是 body 末尾的 [data-stage-host]，里面直接是藏着的小窗，不包 .peach-react', async () => {
+  it('The handle is only handed out after painting; the host is [data-stage-host] at the end of body, directly containing the hidden mini player, not wrapped in .peach-react', async () => {
     const r = await load();
     await mountRouter(r);
     let loading: Promise<StageApi> | null = null;
     await act(async () => { loading = r.islands.loadStage(makeHost()) });
-    expect(r.islands.stageApi(), '路由树还没接上取数，句柄不交出').toBeNull();
-    expect(stageHostOf(r), '这一面还没画上').toBeUndefined();
+    expect(r.islands.stageApi(), 'The route tree has not attached fetching yet, so no handle hands over').toBeNull();
+    expect(stageHostOf(r), 'This side is not drawn yet').toBeUndefined();
 
     await connect(r);
     let handed: StageApi | null = null;
@@ -220,57 +222,57 @@ describe('常驻组件', () => {
     expect(container.hasAttribute('data-stage-host')).toBe(true);
     expect(container.parentElement).toBe(document.body);
     expect(document.body.lastElementChild).toBe(container);
-    expect([...container.children].map((el) => el.id), '句柄交出时小窗节点已经在，舞台还没开').toEqual(['miniplayer']);
+    expect([...container.children].map((el) => el.id), 'When the handle hands over the mini window node exists but the stage has not opened').toEqual(['miniplayer']);
     expect((container.firstElementChild as HTMLElement).hidden).toBe(true);
     expect(container.querySelector('.peach-react')).toBeNull();
     expect(container.closest('.peach-react')).toBeNull();
     expect(handed!.isOpen()).toBe(false);
   });
 
-  it('open 里的每一次绘制都在句柄里画完：同步段里骨架与浮窗已经开着，返回时内容已画、焦点在关闭键上；换详情不换宿主', async () => {
+  it('Every paint inside open completes within the handle: during the sync phase the skeleton and popover are already up, on return the content is painted and focus sits on the close button; switching details keeps the host', async () => {
     serve();
     const container = stageHostOf(loaded);
     const first = request(1);
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出句柄自己同步没有。 */
+    /* No act wrapper: act defers flushSync to its end, which hides whether the handle flushed synchronously on its own. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     const opening = api.open(first);
     const dialog = q<HTMLDialogElement>('#stage')!;
-    expect(dialog.parentElement, '浮窗直接画在宿主里').toBe(container);
-    expect(dialog.open, '同步段里已经 showModal').toBe(true);
-    expect(dialog.querySelector(':scope > [data-skeleton="detail"]'), '同步段里骨架已经画上').not.toBeNull();
+    expect(dialog.parentElement, 'Floating window rendered directly in the host').toBe(container);
+    expect(dialog.open, 'showModal already ran within the sync phase').toBe(true);
+    expect(dialog.querySelector(':scope > [data-skeleton="detail"]'), 'Skeleton rendered in the synchronous section').not.toBeNull();
     expect(document.body.hasAttribute('data-detail-open')).toBe(true);
     expect(api.isOpen()).toBe(true);
     await opening;
-    expect(dialog.querySelector('[data-stage-scroll] > .peach-react'), '返回时内容已经画完，不等下一次渲染').not.toBeNull();
-    expect(q('#vid'), '媒体框交给舞台的播放器').toBe(player.mounted.at(-1));
+    expect(dialog.querySelector('[data-stage-scroll] > .peach-react'), 'On return the content is already painted with no wait for the next render').not.toBeNull();
+    expect(q('#vid'), 'The media box goes to the stage\'s player').toBe(player.mounted.at(-1));
     expect(document.activeElement?.id).toBe('closeStage');
-    expect(first.actions.present, '画出来的那一条报给壳').toHaveBeenCalledTimes(1);
+    expect(first.actions.present, 'The rendered row is reported to the shell').toHaveBeenCalledTimes(1);
     expect(first.actions.present).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), null);
 
     const second = request(2);
     await api.open(second);
-    expect(q('#stage'), '同一种详情开着时原地换条，浮窗不重建').toBe(dialog);
+    expect(q('#stage'), 'With the same kind of details open, items swap in place and the popover never rebuilds').toBe(dialog);
     expect(dialog.open).toBe(true);
-    expect(dialog.querySelector('[data-stage-scroll] > .peach-react'), '返回时新的一条已经画完').not.toBeNull();
-    expect(second.actions.present, '原地换上的那一条同样报给壳').toHaveBeenCalledTimes(1);
+    expect(dialog.querySelector('[data-stage-scroll] > .peach-react'), 'On return the new entry is already painted').not.toBeNull();
+    expect(second.actions.present, 'The swapped in place entry is reported to the shell too').toHaveBeenCalledTimes(1);
     expect(second.actions.present).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), null);
-    expect(first.actions.present, '换走的那一条不再报').toHaveBeenCalledTimes(1);
+    expect(first.actions.present, 'The swapped-away row is no longer reported').toHaveBeenCalledTimes(1);
     expect(stageHostOf(loaded)).toBe(container);
     expect(document.querySelectorAll('[data-stage-host]')).toHaveLength(1);
     expect([...container.children].map((el) => el.id)).toEqual(['stage', 'miniplayer']);
 
     api.dispose({ miniplayer: false });
-    expect(q('#stage'), 'dispose 返回时浮窗已经拆掉').toBeNull();
+    expect(q('#stage'), 'When dispose returns the popover is already torn down').toBeNull();
     expect(document.body.hasAttribute('data-detail-open')).toBe(false);
-    expect([...container.children].map((el) => el.id), '小窗节点留着').toEqual(['miniplayer']);
+    expect([...container.children].map((el) => el.id), 'The mini window node stays').toEqual(['miniplayer']);
 
     await api.open(request(3));
-    expect(q('#stage'), '拆掉之后再开按新的一代重建浮窗').not.toBe(dialog);
-    expect(stageHostOf(loaded), '重开也是同一个宿主').toBe(container);
+    expect(q('#stage'), 'Reopening after teardown rebuilds the popover under a new generation').not.toBe(dialog);
+    expect(stageHostOf(loaded), 'Reopening uses the same host').toBe(container);
     expect([...container.children].map((el) => el.id)).toEqual(['stage', 'miniplayer']);
   });
 
-  it('重进已读取的作品立即显示缓存，后台刷新不遮住内容', async () => {
+  it('Re-entering a read video shows cache immediately, and background refresh never covers the content', async () => {
     serve();
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     await api.open(request(1));
@@ -289,12 +291,12 @@ describe('常驻组件', () => {
     expect(dialog.querySelector('[data-skeleton="detail"]')).toBeNull();
   });
 
-  it('缓存里的空队列退出详情时不留舞台和等待态', async () => {
+  it('An empty cached queue leaving details leaves no stage or waiting state', async () => {
     serve();
     const { queryClient } = await import('../../src/react/query');
     const { queueKey } = await import('../../src/react/item-detail/item-detail');
     const queue = { kind: 'parts' as const, seedId: 1 };
-    queryClient.setQueryData(queueKey(queue), { ...queue, title: '示例卷组', items: [] });
+    queryClient.setQueryData(queueKey(queue), { ...queue, title: 'Sample volume group', items: [] });
     const props = request(1, { id: null, queue });
     vi.mocked(props.actions.redirect).mockImplementation(() => api.dispose({ miniplayer: false }));
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
@@ -304,7 +306,7 @@ describe('常驻组件', () => {
     expect(q('#stage')).toBeNull();
   });
 
-  it('抛错只卸组件、宿主还在，body 上的打开标记留着，批量条照画；之后句柄各成员照调不抛', async () => {
+  it('On throw only the component unmounts, the host stays, the open marker on body remains and the batch bar still paints; afterwards each handle member can be called without throwing', async () => {
     const reported = watchReports();
     const dockRoot = document.createElement('div');
     dockRoot.setAttribute('data-batch-dock', '');
@@ -313,23 +315,23 @@ describe('常驻组件', () => {
     await act(async () => { dock = await loaded.islands.loadBatchDock({ root: dockRoot, run: vi.fn() }) });
     serve();
     const container = stageHostOf(loaded);
-    /* 内容画出来、侧栏画标签时抛。 */
-    const broken = request(1, { helpers: helpers({ tagLabel: () => { throw new Error('标签画不出来') } }) });
+    /* Thrown when the content is drawn and the sidebar draws its tags. */
+    const broken = request(1, { helpers: helpers({ tagLabel: () => { throw new Error('The tag never paints') } }) });
 
     await act(async () => { await api.open(broken) });
     expect(reported).toHaveBeenCalledTimes(1);
-    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: '标签画不出来' }));
-    expect(container.isConnected, '宿主不撤').toBe(true);
-    expect(container.childNodes.length, '组件卸掉了，浮窗跟着消失').toBe(0);
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: 'The tag never paints' }));
+    expect(container.isConnected, 'The host never withdraws').toBe(true);
+    expect(container.childNodes.length, 'When the component unmounts the popover goes with it').toBe(0);
     expect(q('#stage')).toBeNull();
     expect(loaded.managedTaken(container)).toBe(false);
-    expect(loaded.managedEntries().map((entry) => entry.path), '别的面照画').toEqual(['batch-dock']);
-    expect(document.body.hasAttribute('data-detail-open'), '卸组件不清 body 上的打开标记').toBe(true);
-    expect(broken.actions.present, '没画出来的那一条不报').not.toHaveBeenCalled();
+    expect(loaded.managedEntries().map((entry) => entry.path), 'Other faces still drawn').toEqual(['batch-dock']);
+    expect(document.body.hasAttribute('data-detail-open'), 'Unmounting the component never clears the body\'s open flag').toBe(true);
+    expect(broken.actions.present, 'The unrendered row is not reported').not.toHaveBeenCalled();
 
     act(() => {
       expect(api.isOpen()).toBe(true);
-      expect(api.showing(), '浮窗跟着组件卸掉了，没有能原地换条的那一种').toBeNull();
+      expect(api.showing(), 'The floating window unmounts with the component; there is no variant that swaps items in place').toBeNull();
       expect(api.activeVideo()).toBeNull();
       expect(() => api.update({ selectMode: true })).not.toThrow();
       expect(() => api.toggleTheater()).not.toThrow();
@@ -340,7 +342,7 @@ describe('常驻组件', () => {
       expect(() => api.repaintPoster()).not.toThrow();
       expect(() => api.requestClose()).not.toThrow();
     });
-    expect(broken.actions.close, '关闭请求照旧交给详情自己的 close').toHaveBeenCalledTimes(1);
+    expect(broken.actions.close, 'Close requests still go to the details\' own close').toHaveBeenCalledTimes(1);
     await act(async () => { await expect(api.exit()).resolves.toBeUndefined() });
     act(() => { expect(() => api.dispose({ miniplayer: false })).not.toThrow() });
     expect(api.isOpen()).toBe(false);
@@ -349,10 +351,10 @@ describe('常驻组件', () => {
     expect(api.isOpen()).toBe(true);
     act(() => { expect(() => api.miniplayerPlay(3)).not.toThrow() });
     act(() => { expect(() => api.dispose({ miniplayer: false })).not.toThrow() });
-    expect(container.childNodes.length, '空到刷新为止，不自愈').toBe(0);
-    expect(reported, '确定性抛错只报那一次').toHaveBeenCalledTimes(1);
-    /* 批量条放在最后画：它的进场动画跑在 motion 的帧循环上，画完就收尾，卸树时不留进行中的动画。 */
+    expect(container.childNodes.length, 'Stays empty until refresh, no self-healing').toBe(0);
+    expect(reported, 'The deterministic throw is reported only once').toHaveBeenCalledTimes(1);
+    /* The batch bar is painted last: its entrance animation runs on motion's frame loop, so it finishes right after painting and leaves no in-flight animation when the tree unmounts. */
     await act(async () => { dock.render({ count: 2, context: 'catalog', junkDismissed: false }) });
-    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('已选 2 项');
+    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('Selected 2 items');
   });
 });

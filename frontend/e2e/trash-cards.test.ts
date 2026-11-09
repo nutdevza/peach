@@ -3,23 +3,23 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, requiredEnv, VIEWPORTS } from './harness.ts';
 
-describe('回收站卡片', () => {
+describe('Trash cards', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 混排卡片${viewport.mobile ? '按内容定高' : '等高'}、展示归入原因并可还原视频`, async () => {
+    it(`${viewport.name} mixed cards ${viewport.mobile ? 'sized to content' : 'equal height'}, showing the merge reason and allowing video restore`, async () => {
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
       try {
         const page = await context.newPage();
         await page.addInitScript(() => localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false })));
         const reasons = ['manual', 'junk', 'duplicate', 'missing', null];
         const items = Array.from({ length: 10 }, (_, i) => ({
-          id: 92000 + i, name: i === 1 ? '长标题'.repeat(40) : `示例资源 ${i}`,
+          id: 92000 + i, name: i === 1 ? 'Long title'.repeat(40) : `Sample resource ${i}`,
           medium: ['video', 'image', 'other'][i % 3], location: 'local', duration: i % 3 === 0 ? 163 : null,
           size: 10000, disposal: 'trash', disposal_reason: reasons[i % 5],
           is_jav: i === 0, code: i === 0 ? 'DEMO-001' : null, release_date: '2026-01-01',
-          creator: '示例创作者', tags: i % 2 === 0 ? ['示例标签', '长标签'.repeat(20)] : [],
+          creator: 'Example creator', tags: i % 2 === 0 ? ['Example tag', 'Long tag'.repeat(20)] : [],
         }));
         const restored: number[] = [];
         let attempts = 0;
@@ -33,7 +33,7 @@ describe('回收站卡片', () => {
           if (body.operation === 'restore') {
             attempts += 1;
             if (attempts === 1) {
-              await route.fulfill({ status: 503, json: { error: '演示还原失败' } });
+              await route.fulfill({ status: 503, json: { error: 'Demo restore failed' } });
               return;
             }
             restored.push(...body.ids);
@@ -64,7 +64,7 @@ describe('回收站卡片', () => {
           assert.ok(Math.max(...heights) - Math.min(...heights) < 1, JSON.stringify(heights));
         }
         assert.deepEqual(await cards.locator('[data-media-disposal-reason]').allTextContents(),
-          ['手动', '垃圾', '重复', '文件缺失', '原因未记录', '手动', '垃圾', '重复', '文件缺失', '原因未记录']);
+          ['Manual', 'Junk', 'Duplicates', 'Missing file', 'Reason not recorded', 'Manual', 'Junk', 'Duplicates', 'Missing file', 'Reason not recorded']);
         assert.equal(await cards.locator('[data-flag="dispose"]').count(), 0);
         const textInsets: number[] = [];
         for (const i of [3, 4]) {
@@ -76,7 +76,7 @@ describe('回收站卡片', () => {
           }));
         }
         assert.ok(Math.abs(textInsets[0]! - textInsets[1]!) < 1,
-          `视频与资源的首行标题未对齐：${JSON.stringify(textInsets)}`);
+          `First line titles of videos and assets are not aligned: ${JSON.stringify(textInsets)}`);
         const video = cards.first();
         await video.scrollIntoViewIfNeeded();
         const boxes = await video.evaluate(card => {
@@ -88,15 +88,15 @@ describe('回收站卡片', () => {
         assert.equal(boxes.overflow, false);
         await video.locator('[data-media-resource-action="restore"]').click();
         await video.locator('[data-media-operation-error]').waitFor();
-        assert.equal(await video.locator('[data-media-operation-error]').textContent(), '演示还原失败');
+        assert.equal(await video.locator('[data-media-operation-error]').textContent(), 'Demo restore failed');
         assert.equal(await cards.count(), 10);
         await video.locator('[data-media-resource-action="restore"]').click();
         await page.locator('#grid [data-media-card][data-id="92000"]').waitFor({ state: 'detached' });
         assert.deepEqual(restored, [92000]);
-        await page.getByRole('button', { name: '撤销', exact: true }).last().click();
+        await page.getByRole('button', { name: 'Undo', exact: true }).last().click();
         const returned = page.locator('#grid [data-media-card][data-id="92000"]');
         await returned.waitFor();
-        assert.equal(await returned.locator('[data-media-disposal-reason]').textContent(), '手动');
+        assert.equal(await returned.locator('[data-media-disposal-reason]').textContent(), 'Manual');
       } finally { await context.close() }
     });
   }

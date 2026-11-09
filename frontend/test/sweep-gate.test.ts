@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); document.body.replaceChildren(); });
 
-it('等图的框在视口外停扫，露面满十秒还没到换成静止占位，到手后撤掉标记', async () => {
+it('Image boxes outside the viewport pause scanning; after ten seconds visible without arrival they become a static placeholder, and the marker clears on arrival', async () => {
   vi.useFakeTimers();
   let sight: (entries: Partial<IntersectionObserverEntry>[]) => void = () => {};
   const observed = new Set<Element>();
@@ -17,7 +17,7 @@ it('等图的框在视口外停扫，露面满十秒还没到换成静止占位�
   expect(observed.has(box)).toBe(true);
   sight([{ target: box, isIntersecting: false }]);
   expect(box.dataset.sweep).toBe('idle');
-  // 在屏幕外待多久都不算超时。
+  // No matter how long it stays offscreen, it does not count as a timeout.
   vi.advanceTimersByTime(SWEEP_STALL_MS * 2);
   expect(box.dataset.sweep).toBe('idle');
   sight([{ target: box, isIntersecting: true }]);

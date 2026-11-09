@@ -4,13 +4,13 @@ import type { Browser } from 'playwright-core';
 import { launch, requiredEnv } from './harness.ts';
 import { mockJavDetail } from './jav-detail-fixture.ts';
 
-describe('JAV 评论展开的详情绘制', () => {
+describe('Details rendering for the expanded JAV comments', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
-  for (const viewport of [{ name: '桌面', width: 1730, height: 1032, scale: 2 },
-    { name: '手机', width: 390, height: 844, scale: 1 }]) {
-    it(`${viewport.name} 正常动画下评论区域独立等待`, { timeout: 60000 }, async () => {
+  for (const viewport of [{ name: 'Desktop', width: 1730, height: 1032, scale: 2 },
+    { name: 'Phone', width: 390, height: 844, scale: 1 }]) {
+    it(`${viewport.name} comments area waits independently under normal animation`, { timeout: 60000 }, async () => {
       const context = await browser.newContext({ viewport, deviceScaleFactor: viewport.scale, reducedMotion: 'no-preference' });
       let release = () => {};
       try {
@@ -24,8 +24,8 @@ describe('JAV 评论展开的详情绘制', () => {
           requests++;
           await response;
           await route.fulfill({ json: { ok: true, page: 1, more: false,
-            items: Array.from({ length: 10 }, (_, index) => ({ id: String(index), username: '示例评论者',
-              content: '正常动画下的评论正文与资源来源。'.repeat(40), score: 4, created_at: '2026-10-13' })) } });
+            items: Array.from({ length: 10 }, (_, index) => ({ id: String(index), username: 'Example commenter',
+              content: 'Comments body and resource sources under normal animation.'.repeat(40), score: 4, created_at: '2026-10-13' })) } });
         });
         await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + '/works/EXM-001');
         const title = page.locator('[data-jav-info] h1');
@@ -34,10 +34,10 @@ describe('JAV 评论展开的详情绘制', () => {
         await page.locator('#stage').evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished)));
         const original = await title.elementHandle();
         const side = page.locator('[data-jav-info]');
-        assert.equal(requests, 0, '评论按展开请求');
+        assert.equal(requests, 0, 'Comments fetch on expand');
         await page.locator('[data-jav-reviews] summary').click();
         await page.locator('[data-jav-reviews] [data-skeleton="reviews"]').waitFor();
-        assert.equal(await side.locator('[data-skeleton]').count(), 1, '等待态只属于评论区');
+        assert.equal(await side.locator('[data-skeleton]').count(), 1, 'Loading state belongs to the comments section only');
         const shimmer = await page.locator('[data-skeleton="reviews"] .skeleton-sheen').evaluateAll(nodes => nodes.map(node => {
           const host = getComputedStyle(node), sweep = getComputedStyle(node, '::after');
           return { position: host.position, overflow: host.overflow, sweep: sweep.position,
@@ -45,15 +45,15 @@ describe('JAV 评论展开的详情绘制', () => {
         }));
         assert.equal(shimmer.length, 15);
         for (const bar of shimmer) {
-          assert.equal(bar.position, 'relative', '微光定位属于评论占位条');
-          assert.equal(bar.overflow, 'hidden', '微光在占位条内裁切');
+          assert.equal(bar.position, 'relative', 'The shimmer\'s position belongs to the comments placeholder strip');
+          assert.equal(bar.overflow, 'hidden', 'Shimmer clipped inside the placeholder bar');
           assert.equal(bar.sweep, 'absolute');
           assert.ok(bar.radius > 0 && Math.abs(bar.height - bar.sweepHeight) < 1, JSON.stringify(bar));
         }
         assert.equal(await page.locator('[data-jav-review-skeleton]').count(), 3);
         assert.ok((await page.locator('[data-skeleton="reviews"]').boundingBox())!.height >= 240);
-        assert.ok(await original!.evaluate(node => node.isConnected), '等待期间标题 DOM 保留');
-        assert.ok(await page.locator('[data-jav-actions]').isVisible(), '等待期间操作区保留');
+        assert.ok(await original!.evaluate(node => node.isConnected), 'The title DOM is kept while waiting');
+        assert.ok(await page.locator('[data-jav-actions]').isVisible(), 'Action area retained while loading');
         await page.waitForFunction(() => {
           const placeholder = document.querySelector('[data-skeleton="reviews"]')!;
           const body = placeholder.closest('.ui-fcollapse')!;
@@ -63,15 +63,15 @@ describe('JAV 评论展开的详情绘制', () => {
         release();
         await page.locator('[data-jav-review]').first().waitFor();
         await page.locator('[data-jav-reviews] [data-skeleton]').waitFor({ state: 'hidden' });
-        assert.ok(await original!.evaluate(node => node.isConnected), '标题 DOM 保留');
+        assert.ok(await original!.evaluate(node => node.isConnected), 'Title DOM retained');
         await page.screenshot({ path: `../build/comments-${viewport.name}-expanded.png` });
         await page.locator('[data-jav-reviews] summary').click();
         await page.locator('[data-jav-reviews] details:not([open])').waitFor();
         await page.locator('[data-jav-reviews] summary').click();
         await page.locator('[data-jav-review]').first().waitFor();
-        assert.equal(await side.locator('[data-skeleton="reviews"]').count(), 0, '缓存评论立即显示');
-        assert.equal(requests, 1, '缓存展开保留已取得评论');
-        assert.ok(await original!.evaluate(node => node.isConnected), '反复开合保留标题');
+        assert.equal(await side.locator('[data-skeleton="reviews"]').count(), 0, 'Cached comments show immediately');
+        assert.equal(requests, 1, 'Expanding from cache keeps already-fetched comments');
+        assert.ok(await original!.evaluate(node => node.isConnected), 'Title kept across repeated open and close');
         assert.deepEqual(errors, []);
       } finally { release(); await context.close() }
     });

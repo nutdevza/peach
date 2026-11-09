@@ -1,6 +1,6 @@
-/* 图片落地之后的取景：头像按人脸放大、封面按人脸与正封框取景、过小的图原尺寸摆、加载中的微光。
+/* Cropping after images land: avatars scale by face, covers crop by face and front-cover box, undersized images sit at natural size, shimmer while loading.
  *
- * 测试环境没有布局也不解码图片：框的尺寸和图的像素直接写在元素上。 */
+ * The test environment has no layout and does not decode images: frame sizes and image pixels are written directly on the elements. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -31,8 +31,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('avatarFrame：圆框按人脸放大', () => {
-  it('图撑到 cover 缩放乘倍数那么大，负偏移把脸拉向框心，并撤掉预检的宽度上限', () => {
+describe('avatarFrame: the ring zooms to the face', () => {
+  it('The image scales to cover times the factor, a negative offset pulls the face toward the box center, and the precheck width cap is removed', () => {
     const host = mount('<span class="ring"><img data-facebox="0.439 0.224 67 640 960"></span>');
     const img = sized(host.querySelector('img')!, 640, 960);
     boxOf(img.parentElement!, 160, 160);
@@ -48,7 +48,7 @@ describe('avatarFrame：圆框按人脸放大', () => {
     expect(img.style.maxWidth).toBe('none');
   });
 
-  it('派生件按比例换算脸框，换成别的图就退回几何居中', () => {
+  it('Derived assets rescale the face box proportionally, falling back to geometric centering on a different image', () => {
     const host = mount('<span class="ring"><img data-facebox="0.439 0.224 67 640 960"></span>');
     const derived = sized(host.querySelector('img')!, 320, 480);
     boxOf(derived.parentElement!, 160, 160);
@@ -62,7 +62,7 @@ describe('avatarFrame：圆框按人脸放大', () => {
     expect(other.style.width).toBe('');
   });
 
-  it('原尺寸摆放的小图不放大', () => {
+  it('Small images placed at native size never enlarge', () => {
     const host = mount('<span class="ring" data-native-small="true"><img data-facebox="0.439 0.224 67 640 960"></span>');
     const img = sized(host.querySelector('img')!, 640, 960);
     boxOf(img.parentElement!, 160, 160);
@@ -71,7 +71,7 @@ describe('avatarFrame：圆框按人脸放大', () => {
     expect(img.style.width).toBe('');
   });
 
-  it('框还没布局时先藏着，等量到尺寸再取景', () => {
+  it('The box stays hidden until laid out, framing once its size measures', () => {
     const observers: { fire(): void }[] = [];
     vi.stubGlobal('ResizeObserver', class {
       constructor(private readonly callback: () => void) { observers.push({ fire: () => this.callback() }); }
@@ -91,13 +91,13 @@ describe('avatarFrame：圆框按人脸放大', () => {
   });
 });
 
-describe('coverAnchor：封面按自己的宽高比分流', () => {
+describe('coverAnchor: covers route by their own aspect ratio', () => {
   const cover = (src: string, width: number, height: number, attrs = '') => {
     const host = mount(`<div class="pic"><img class="poster cover front" src="${src}" style="--card-ratio:0.75" ${attrs}></div>`);
     return sized(host.querySelector('img')!, width, height);
   };
 
-  it('封套、正封、剧照三种形态；FC2 一律当整幅画面', () => {
+  it('Three forms: jacket, front cover, and stills; FC2 always counts as a full frame', () => {
     const sleeve = cover('/cover?code=SSIS-001', 800, 538);
     coverAnchor(sleeve);
     expect(sleeve.dataset.frame).toBe('sleeve');
@@ -112,7 +112,7 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
     expect(fc2.dataset.frame).toBe('still');
   });
 
-  it('人脸落到可见窗口正中：锚点是 (脸 − 窗口/2) / (1 − 窗口)，夹在 0–100%', () => {
+  it('The face lands centered in the visible window: the anchor is (face − window/2) / (1 − window), clamped to 0–100%', () => {
     const img = cover('/cover?code=SSIS-003', 1600, 900, 'data-cx="0.6"');
     coverAnchor(img);
     const visible = 0.75 / (1600 / 900);
@@ -120,11 +120,11 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
     const edge = cover('/cover?code=SSIS-004', 1600, 900, 'data-cx="0.95"');
     coverAnchor(edge);
     expect(edge.style.getPropertyValue('--cover-x')).toBe('100%');
-    // 横向整幅可见的那根轴不裁，锚点在那里是死值，不写。
+    // The axis fully visible horizontally is not clipped; the anchor is a dead value there and is not written.
     expect(edge.style.getPropertyValue('--cover-y')).toBe('');
   });
 
-  it('没有框的封套按正封比例从右缘量回去，正封边缘使用封面模糊补底', () => {
+  it('Cases without a border measure back from the right edge at front-cover proportions, and the front-cover edge is backed by a blurred cover', () => {
     const img = cover('/cover?code=SSIS-001&thumb=1', 800, 538);
     img.parentElement!.style.setProperty('--cover-blur', 'url("/cover?code=SSIS-001&thumb=1")');
     coverAnchor(img);
@@ -134,7 +134,7 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
     expect(img.parentElement!.style.getPropertyValue('--cover-blur')).toContain('/cover?code=SSIS-001&thumb=1');
   });
 
-  it('整幅大封按主体人脸居中，重取景会清掉正封框样式', () => {
+  it('Full covers center on the subject\'s face, and reframing clears the front-cover box style', () => {
     const img = cover('/cover?code=SPONE-001', 2184, 1638, 'data-cx=".555" data-cy=".331"');
     coverAnchor(img);
     expect(img.classList.contains('panel')).toBe(true);
@@ -147,7 +147,7 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
     expect(img.parentElement!.style.getPropertyValue('--cover-blur')).toBe('');
   });
 
-  it('Blu-ray 与已知宽封套按宽正封取景，FC2 保留整幅画面', () => {
+  it('Blu-ray and known wide cases frame by the wide front cover; FC2 keeps the full artwork', () => {
     const wide = cover('https://covers.example/MIDA.jpg', 800, 438, 'data-cover-code="MIDA-122" data-wide-sleeve="1"');
     coverAnchor(wide);
     expect(wide.dataset.frame).toBe('sleeve');
@@ -162,7 +162,7 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
     expect(dvd.style.getPropertyValue('--panel-height')).toBe('100%');
   });
 
-  it('框描述的是另一张图时一个字都不写；等比缩小的派生档照用', () => {
+  it('When the box describes a different image nothing is written at all; proportionally downscaled derived URLs still apply', () => {
     const derived = cover('/cover?code=SSIS-001&thumb=1', 800, 538, 'data-posterbox="842 1600 1076 0 1600 1076"');
     coverAnchor(derived);
     expect(derived.classList.contains('panel')).toBe(true);
@@ -172,8 +172,8 @@ describe('coverAnchor：封面按自己的宽高比分流', () => {
   });
 });
 
-describe('宽正封框', () => {
-  it('VR 画面在 4:3 源图上按左侧人脸取景', () => {
+describe('The wide front-cover box', () => {
+  it('VR frames crop the 4:3 source image around the left-side face', () => {
     const host = mount('<div class="pic"><img class="poster cover front" src="/cover?code=MDVR-276" style="--card-ratio:.75" data-cover-layout="still" data-cx=".22" data-posterbox="380 800 600 0 800 600"></div>');
     const img = sized(host.querySelector('img')!, 800, 600);
     coverAnchor(img);
@@ -181,7 +181,7 @@ describe('宽正封框', () => {
     expect(img.classList.contains('panel')).toBe(false);
     expect(img.style.getPropertyValue('--cover-x')).toBe('0%');
   });
-  it('来源框独立于标题保留完整宽正封', () => {
+  it('The source box keeps a full-width front cover independent of the title', () => {
     const host = mount('<div class="pic"><img class="poster cover front" src="/cover?code=MIDA-239" style="--card-ratio:.75" data-posterbox="428 800 438 0 800 438"></div>');
     const img = sized(host.querySelector('img')!, 800, 438);
     coverAnchor(img);
@@ -191,8 +191,8 @@ describe('宽正封框', () => {
   });
 });
 
-describe('upgradeCover：派生档不够清楚就换回原件', () => {
-  it('一个源像素要占不止一个设备像素才换，模糊底仍取派生档', () => {
+describe('upgradeCover: falls back to the original when the derived tier is not sharp enough', () => {
+  it('The swap happens only when one source pixel spans more than one device pixel, and the blur base still takes the derived tier', () => {
     const host = mount('<div class="pic"><img class="poster cover" src="/cover?code=A&thumb=1"></div>');
     const img = sized(host.querySelector('img')!, 300, 200);
     boxOf(img, 600, 400);
@@ -205,7 +205,7 @@ describe('upgradeCover：派生档不够清楚就换回原件', () => {
     expect(sharp.getAttribute('src')).toBe('/cover?code=B&thumb=1');
   });
 
-  it('800 那一档不够清楚先换 1600 那一档，版本号留着；模糊底记第一张派生档', () => {
+  it('When the 800 tier is not sharp enough, switch to the 1600 tier first and keep the version; the blurry base records the first derived tier', () => {
     const host = mount('<div class="pic"><img class="poster cover" src="/cover?code=A&thumb=2&v=9"></div>');
     const img = sized(host.querySelector('img')!, 800, 538);
     boxOf(img, 1000, 672);
@@ -222,8 +222,8 @@ describe('upgradeCover：派生档不够清楚就换回原件', () => {
   });
 });
 
-describe('fitNativeImage：比框还小的图原尺寸摆', () => {
-  it('小图按源尺寸摆并拿自己垫模糊底，够大的铺满', () => {
+describe('fitNativeImage: images smaller than the frame place at native size', () => {
+  it('Small images are placed at source size and serve as their own blurred base; large enough ones fill the area', () => {
     const host = mount('<span data-fit-native><img src="/logo?studio=a"></span>');
     const box = host.querySelector<HTMLElement>('[data-fit-native]')!;
     Object.defineProperty(box, 'clientWidth', { value: 180 });
@@ -240,7 +240,7 @@ describe('fitNativeImage：比框还小的图原尺寸摆', () => {
     expect(box.style.getPropertyValue('--markbg')).toBe('none');
   });
 
-  it('超扁的标识短边撑到下限、不补模糊底；人像框不走这一条', () => {
+  it('Ultra-flat marks stretch their short edge to the minimum with no blur base; portrait boxes skip this rule', () => {
     const host = mount('<span data-fit-native="mark"><img src="/logo?studio=b"></span>'
       + '<span data-fit-native="portrait"><img src="/avatar?p=c"></span>');
     const [mark, portrait] = [...host.querySelectorAll<HTMLElement>('[data-fit-native]')];
@@ -258,8 +258,8 @@ describe('fitNativeImage：比框还小的图原尺寸摆', () => {
   });
 });
 
-describe('加载微光', () => {
-  it('插进页面时还没到手的图在框上标 imgwait，等得不久就直接摘', () => {
+describe('Loading shimmer', () => {
+  it('An image not yet arrived when inserted marks the frame imgwait, and is removed directly once it waits too briefly', () => {
     const host = mount('<span class="ring"><img src="/a"></span>');
     const img = host.querySelector('img')!;
     Object.defineProperty(img, 'complete', { configurable: true, value: false });
@@ -270,7 +270,7 @@ describe('加载微光', () => {
     expect(img.parentElement!.classList.contains('ui-imgdone')).toBe(false);
   });
 
-  it('等过门槛的淡出完再摘；动效不来时一秒兜底', () => {
+  it('It waits out the threshold-crossing fade before removing, with a one-second fallback when no animation comes', () => {
     vi.useFakeTimers();
     const host = mount('<span class="ring"><img src="/a"></span>');
     const img = host.querySelector('img')!;
@@ -284,8 +284,8 @@ describe('加载微光', () => {
   });
 });
 
-describe('installCardArt：全站一组捕获监听', () => {
-  it('头像加载完按脸框取景；封面加载完取景；取不到图收掉微光', () => {
+describe('installCardArt: one site-wide set of capture listeners', () => {
+  it('Avatars frame to the face box once loaded; covers frame once loaded; an unfetchable image clears the shimmer', () => {
     installCardArt();
     installCardArt();
     const host = mount('<span class="ring"><img data-facebox="0.439 0.224 67 640 960"></span><div class="pic"><img class="poster cover" src="/cover?code=X" style="--card-ratio:0.75"></div><span class="ring imgwait"><img src="/gone"></span>');

@@ -1,6 +1,7 @@
-/* 舞台与小窗共用的那一个播放器（`src/react/stage/stage-player.ts`）：同一条认领回来不重建、换一条
- * 先拆旧的再挂新的、离开详情时哪些情形交给小窗。Video.js 本身换成假的：这里量的是实例在两个位置
- * 之间怎么交接，挂载与拆除各发生了几次。真 Video.js 的挂载在 `e2e/stage.test.ts` 里量。 */
+/* The one player shared by stage and mini player (`src/react/stage/stage-player.ts`): the same instance claimed back without
+ * rebuilding, tearing the old one down before mounting the new one on switch, and which situations hand the player to the
+ * mini player on leaving details. Video.js itself is faked: what is measured here is how the instance hands over between the
+ * two positions and how many times mount and teardown each ran. Real Video.js mounting is measured in `e2e/stage.test.ts`. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PlayerItem } from '../src/player';
@@ -95,11 +96,11 @@ function miniplayerDom() {
   };
 }
 
-const item = (id: number) => ({ id, title: `作品 ${id}` }) as PlayerItem;
+const item = (id: number) => ({ id, title: `Video ${id}` }) as PlayerItem;
 
-/* 舞台打开一条再离开：舞台岛拆的顺序是先问要不要进小窗，再卸 React 树（媒体框的清理跟着跑）。 */
+/* Open one item on the stage and then leave: the stage island tears down by first asking whether to hand off to the mini player, then unmounting the React tree (the media frame's cleanup runs with it). */
 function show(id: number, frame = document.body.appendChild(document.createElement('div'))) {
-  stage.setStageMeta({ kind: 'item', item: item(id), title: `作品 ${id}`, sub: '' });
+  stage.setStageMeta({ kind: 'item', item: item(id), title: `Video ${id}`, sub: '' });
   const detach = stage.attachStagePlayer(frame, { kind: 'item', item: item(id) });
   return {
     frame,
@@ -118,7 +119,7 @@ beforeEach(async () => {
   stage = await import('../src/react/stage/stage-player');
   stage.configureStagePlayer({
     player: { settings: () => settings, loadSourceStatus: async () => ({ local: !offline }),
-      offlineReason: () => '来源未挂载' } as never,
+      offlineReason: () => 'Source not mounted' } as never,
     sourceOffline: () => offline, expand, openItem: vi.fn(),
   }, { isOpen: () => open, requestClose });
   dom = miniplayerDom();
@@ -127,11 +128,11 @@ beforeEach(async () => {
 
 afterEach(() => { document.body.replaceChildren(); vi.unstubAllGlobals() });
 
-describe('播放墙的共享播放器', () => {
+describe('Shared player for the play wall', () => {
   const response = (extra: Record<string, unknown> = {}) => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ id: 1, title: '作品 1', location: 'local', ...extra }) })));
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ id: 1, title: 'Video 1', location: 'local', ...extra }) })));
   };
-  it('收起播放墙交给小窗，打开详情认领同一实例和进度', async () => {
+  it('Collapsing the video wall hands off to the mini player; opening details claims the same instance and progress', async () => {
     open = false; response();
     const frame = document.body.appendChild(document.createElement('div'));
     const release = await stage.mountWallPlayer(item(1), frame, new AbortController().signal);
@@ -147,7 +148,7 @@ describe('播放墙的共享播放器', () => {
     expect(player.currentTime()).toBe(43);
     expect(fake.mounts).toHaveLength(1);
   });
-  it('换片或停止释放实例，重复清理保持幂等', async () => {
+  it('Switching videos or stopping releases the instance, and repeat cleanup stays idempotent', async () => {
     open = false; response();
     const release = await stage.mountWallPlayer(item(1), document.body.appendChild(document.createElement('div')), new AbortController().signal);
     release(false); release(true);
@@ -155,7 +156,7 @@ describe('播放墙的共享播放器', () => {
     expect(stage.miniplayerActive()).toBe(false);
     expect(stage.stagePlayer()).toBeNull();
   });
-  it('选定分卷或版本后使用共用播放器', async () => {
+  it('After choosing a volume or edition the shared player takes over', async () => {
     open = false; response({ part_group:{ key:'p' } });
     const frame = document.body.appendChild(document.createElement('div'));
     const release = await stage.mountWallPlayer({ ...item(1), part_group:{ key:'p' } }, frame, new AbortController().signal);
@@ -163,19 +164,19 @@ describe('播放墙的共享播放器', () => {
     expect(frame.contains(fake.mounts[0]!.player.el())).toBe(true);
     release();
   });
-  it('计费、在线和脱盘作品不能直接拉流', async () => {
+  it('Metered, online, and dead-link videos cannot stream directly', async () => {
     response();
     const frame = document.body.appendChild(document.createElement('div'));
     const signal = new AbortController().signal;
     for (const extra of [{ cost: 'metered' }, { location: 'online' }]) {
       response(extra);
-      await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('请打开详情');
+      await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('Please open details');
     }
     response(); offline = true;
-    await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('来源未挂载');
+    await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('Source not mounted');
     expect(fake.mounts).toHaveLength(0);
   });
-  it('离开页面后返回的作品响应不挂播放器', async () => {
+  it('Video responses returning after the page was left never mount a player', async () => {
     let answer!: (response: unknown) => void;
     vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { answer = resolve })));
     const controller = new AbortController();
@@ -187,8 +188,8 @@ describe('播放墙的共享播放器', () => {
   });
 });
 
-describe('舞台与小窗之间交接播放器', () => {
-  it('离开详情时正在放的那一个搬进小窗；展开回同一条认领回来，不重建', () => {
+describe('The player is handed off between the stage and the mini player', () => {
+  it('The video playing when you leave details moves into the mini player; expanding back to the same item reclaims it instead of rebuilding', () => {
     show(1).leave(true);
     const { player } = fake.mounts[0]!;
     expect(player.isDisposed()).toBe(false);
@@ -204,7 +205,7 @@ describe('舞台与小窗之间交接播放器', () => {
     expect(stage.miniplayerActive()).toBe(false);
   });
 
-  it('小窗放着别的条目时打开另一条：先拆小窗里那一个，再挂新的', () => {
+  it('Opening another item while the mini window holds a different one: the mini window\'s item tears down first, then the new one mounts', () => {
     show(1).leave(true);
     stage.prepareStageFor('item', 2);
     expect(fake.mounts[0]!.player.isDisposed()).toBe(true);
@@ -213,7 +214,7 @@ describe('舞台与小窗之间交接播放器', () => {
     expect(fake.mounts[1]!.previousDisposed).toEqual([true]);
   });
 
-  it('队列换条：上一条的媒体框先卸，下一条才挂', () => {
+  it('Queue switching: the previous item\'s media box unmounts before the next one mounts', () => {
     show(1).leave(false);
     show(2);
     expect(fake.mounts[1]!.previousDisposed).toEqual([true]);
@@ -221,10 +222,10 @@ describe('舞台与小窗之间交接播放器', () => {
   });
 
   it.each([
-    ['显式关闭', false, true, true],
-    ['暂停着', true, false, true],
-    ['设置里关了小窗', true, true, false],
-  ])('%s就不进小窗，播放器随舞台拆掉', (_name, allow, playing, enabled) => {
+    ['Explicitly closed', false, true, true],
+    ['Paused', true, false, true],
+    ['Mini player disabled in settings', true, true, false],
+  ])('%s never enters the mini window, with the player torn down alongside the stage', (_name, allow, playing, enabled) => {
     settings.miniplayer = enabled;
     const shown = show(1);
     fake.mounts[0]!.player.playing = playing;
@@ -233,7 +234,7 @@ describe('舞台与小窗之间交接播放器', () => {
     expect(stage.miniplayerActive()).toBe(false);
   });
 
-  it('i 键在详情里请求进小窗：越过播放态判定，关闭请求照常走舞台', () => {
+  it('The i key requests the mini player from details: it bypasses the playing-state check, and the close request still goes through the stage', () => {
     const shown = show(1);
     fake.mounts[0]!.player.playing = false;
     stage.toggleMiniplayer();
@@ -248,13 +249,13 @@ describe('舞台与小窗之间交接播放器', () => {
   });
 });
 
-describe('小窗自己的键', () => {
-  it('快退快进按设置里的秒数跳，标签里带着这个数；时长取不到时不封顶', () => {
+describe('The mini window\'s own keys', () => {
+  it('Rewind and fast forward jump by the seconds in settings, with that number in the label; with unknown duration there is no cap', () => {
     settings.seekSeconds = 15;
     show(1).leave(true);
     const { player } = fake.mounts[0]!;
-    expect(dom.back.getAttribute('aria-label')).toBe('后退 15 秒');
-    expect(dom.ahead.title).toBe('前进 15 秒');
+    expect(dom.back.getAttribute('aria-label')).toBe('Back 15 sec');
+    expect(dom.ahead.title).toBe('Forward 15 sec');
     player.time = 90;
     stage.seekMiniplayer(1);
     expect(player.time).toBe(100);
@@ -267,18 +268,18 @@ describe('小窗自己的键', () => {
   });
 
   it.each([
-    ['分卷组', { part_group: { key: 'p' } }],
-    ['版次组', { edition_group: { key: 'e' } }],
-    ['图片', { medium: 'image' }],
-    ['计费来源', { cost: 'metered', location: '115' }],
-    ['反查不到关注条目的在线作品', { location: 'online' }],
-  ])('小窗开着时%s的卡片照常进详情，不在小窗里换片', (_name, extra) => {
+    ['Volume group', { part_group: { key: 'p' } }],
+    ['Edition group', { edition_group: { key: 'e' } }],
+    ['Images', { medium: 'image' }],
+    ['Billing source', { cost: 'metered', location: '115' }],
+    ['Reverse lookup finds no online videos for follow entries', { location: 'online' }],
+  ])('While the mini player is open, the %s card still opens details and does not swap playback inside the mini player', (_name, extra) => {
     show(1).leave(true);
     expect(stage.miniplayerTakesCard({ id: 2, location: 'local' } as PlayerItem)).toBe(true);
     expect(stage.miniplayerTakesCard({ id: 2, location: 'local', ...extra } as PlayerItem)).toBe(false);
   });
 
-  it('来源脱盘或小窗没开时也不接', () => {
+  it('Also refuse when the source is unmounted or the mini player is closed', () => {
     expect(stage.miniplayerTakesCard({ id: 2, location: 'local' } as PlayerItem)).toBe(false);
     show(1).leave(true);
     offline = true;

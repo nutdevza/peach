@@ -46,9 +46,9 @@ async function open(browser: Browser, options: {
   const page = await context.newPage();
   const problems: string[] = [];
   page.on('pageerror', error => problems.push(error.message));
-  // 所有页面均为内存夹具，不访问来源站点或 Peach 服务。
+  // All pages are in-memory fixtures; no source site or Peach service is ever touched.
   await context.route('**/*', route => route.fulfill({
-    contentType: 'text/html; charset=utf-8', body: `<!doctype html><html><head><meta charset="utf-8"><title>${options.title || 'SSIS-057 作品详情'}</title></head><body>${options.html ?? '<h1>SSIS-057 作品详情</h1>'}</body></html>`,
+    contentType: 'text/html; charset=utf-8', body: `<!doctype html><html><head><meta charset="utf-8"><title>${options.title || 'SSIS-057 video details'}</title></head><body>${options.html ?? '<h1>SSIS-057 video details</h1>'}</body></html>`,
   }));
   await page.addInitScript(({ configured, token, base, initial, resolved, version, releaseMeta }) => {
     const mock: Mock = {
@@ -72,7 +72,7 @@ async function open(browser: Browser, options: {
           }) }), 0);
           return { abort: () => request.onabort?.() };
         }
-        // 共享进度的任务列表按不提供该接口的 Peach 应答，脚本退回逐页查询，不占用影片查询与提交的编号。
+        // The shared-progress task list follows the Peach response that doesn't provide that interface; the script falls back to page-by-page queries, not consuming the video query and submit numbers.
         if (new URL(request.url).pathname === '/api/jav-browser/active') {
           const timer = setTimeout(() => request.onload({ status: 404, responseText: '{}' }), 0);
           return { abort: () => { clearTimeout(timer); request.onabort?.(); } };
@@ -80,7 +80,7 @@ async function open(browser: Browser, options: {
         if (request.url.endsWith('/api/jav-browser/errors')) { mock.reports.push(request); return; }
         const call = { method: request.method, url: request.url, headers: request.headers,
           anonymous: request.anonymous, ...(request.data ? { data: request.data } : {}) };
-        // 更新读取使用独立响应契约，不占用影片查询与提交的编号。
+        // The update read uses its own response contract and does not consume the video query and submission numbers.
         if (request.url === releaseMeta || request.url.endsWith('/api/jav-browser/updates')) {
           mock.updates.push(call);
           const timer = setTimeout(() => request.onload({ status: 200, finalUrl: request.url,
@@ -139,18 +139,18 @@ async function unpairedStorage(page: Page) {
 }
 async function fillSettings(page: Page, base: string, token: string) {
   const dialog = settingsDialog(page);
-  await dialog.getByLabel('Peach 地址', { exact: true }).fill(base);
-  await dialog.getByLabel('专用令牌', { exact: true }).fill(token);
-  await dialog.getByRole('button', { name: '保存设置', exact: true }).click();
+  await dialog.getByLabel('Peach URL', { exact: true }).fill(base);
+  await dialog.getByLabel('Dedicated token', { exact: true }).fill(token);
+  await dialog.getByRole('button', { name: 'Save settings', exact: true }).click();
 }
-async function ready(page: Page, name = '加入 Peach 馆藏') {
+async function ready(page: Page, name = 'Add to the Peach library') {
   await page.waitForFunction(({ root, label }) => {
     const button = document.querySelector(root)?.shadowRoot?.querySelector('[data-action="add"]');
     return button?.textContent === label && button.getAttribute('aria-busy') === 'false';
   }, { root: ROOT, label: name }, { timeout: 15_000 }).catch(async error => {
     const panel = await page.locator(ROOT).evaluate(root => ({ button: root.shadowRoot?.querySelector('[data-action="add"]')?.textContent,
       status: root.shadowRoot?.querySelector('p')?.textContent,
-      fields: [...document.querySelectorAll('dt, dd')].map(field => ({ name: field.tagName, text: field.textContent })) })).catch(() => '未取得');
+      fields: [...document.querySelectorAll('dt, dd')].map(field => ({ name: field.tagName, text: field.textContent })) })).catch(() => 'Not fetched');
     throw new Error(`${(error as Error).message}\n${JSON.stringify(panel)}`);
   });
 }
@@ -168,36 +168,36 @@ async function selectCode(page: Page) {
     const selection = window.getSelection()!;
     selection.removeAllRanges();
     selection.addRange(range);
-    window.javMock.menus['开启']!();
+    window.javMock.menus['On']!();
   });
 }
 
 const AUTOMATIC: Record<string, { path: string; title: string; html: string; source?: string; code?: string }> = {
-  dmm: { path: '/av/content/?id=ssis00519&private=secret#player', source: '/av/content/?id=ssis00519', code: 'SSIS-519', title: '作品详情', html: '<h1>作品详情</h1>' },
-  mgs: { path: '/product/product_detail/300MIUM-1239/', code: '300MIUM-1239', title: '作品详情', html: '<h1>作品详情</h1>' },
-  'fc2-market': { path: '/article/4900901/', code: 'FC2-PPV-4900901', title: '作品详情', html: '<h1>作品详情</h1>' },
-  missav: { path: '/en/ssis-057', title: 'SSIS-057', html: '<h1>SSIS-057 作品</h1>' },
-  jable: { path: '/videos/ssis-057/', title: 'Jable', html: '<div class="video-info"><h4>SSIS-057 作品</h4></div>' },
-  'jav-guru': { path: '/12345/ssis-057-detail/', title: 'JAV.guru', html: '<h1 class="entry-title">[SSIS-057] 作品</h1>' },
-  njav: { path: '/en/v/ssis-057', title: 'NJAV / 123AV', html: '<h1>SSIS-057 作品</h1><dl><dt>Code</dt><dd>SSIS-057</dd></dl>' },
-  javtiful: { path: '/video/12345/ssis-057', title: 'JAVtiful', html: '<h1>SSIS-057 作品</h1>' },
-  '7mmtv': { path: '/ja/censored_content/12345/SSIS-057.html', title: '7mmtv', html: '<h1>SSIS-057 作品</h1>' },
-  javdb: { path: '/v/ABP123', title: 'JavDB', html: '<h2 class="title">作品详情</h2><div class="panel-block"><strong>番號:</strong><span class="value">SSIS-057</span></div>' },
-  javbus: { path: '/SSIS-057', title: 'JavBus', html: '<h3>作品详情</h3><div class="info"><p><span class="header">識別碼:</span> SSIS-057</p></div>' },
+  dmm: { path: '/av/content/?id=ssis00519&private=secret#player', source: '/av/content/?id=ssis00519', code: 'SSIS-519', title: 'Video details', html: '<h1>Video details</h1>' },
+  mgs: { path: '/product/product_detail/300MIUM-1239/', code: '300MIUM-1239', title: 'Video details', html: '<h1>Video details</h1>' },
+  'fc2-market': { path: '/article/4900901/', code: 'FC2-PPV-4900901', title: 'Video details', html: '<h1>Video details</h1>' },
+  missav: { path: '/en/ssis-057', title: 'SSIS-057', html: '<h1>SSIS-057 video</h1>' },
+  jable: { path: '/videos/ssis-057/', title: 'Jable', html: '<div class="video-info"><h4>SSIS-057 video</h4></div>' },
+  'jav-guru': { path: '/12345/ssis-057-detail/', title: 'JAV.guru', html: '<h1 class="entry-title">[SSIS-057] video</h1>' },
+  njav: { path: '/en/v/ssis-057', title: 'NJAV / 123AV', html: '<h1>SSIS-057 video</h1><dl><dt>Code</dt><dd>SSIS-057</dd></dl>' },
+  javtiful: { path: '/video/12345/ssis-057', title: 'JAVtiful', html: '<h1>SSIS-057 video</h1>' },
+  '7mmtv': { path: '/ja/censored_content/12345/SSIS-057.html', title: '7mmtv', html: '<h1>SSIS-057 video</h1>' },
+  javdb: { path: '/v/ABP123', title: 'JavDB', html: '<h2 class="title">Video details</h2><div class="panel-block"><strong>Code:</strong><span class="value">SSIS-057</span></div>' },
+  javbus: { path: '/SSIS-057', title: 'JavBus', html: '<h3>Video details</h3><div class="info"><p><span class="header">ID:</span> SSIS-057</p></div>' },
   javlibrary: { path: '/cn/?v=opaque_123&private=secret#player', source: '/cn/?v=opaque_123', title: 'JavLibrary',
-    html: '<div id="video_id"><span class="text">SSIS-057</span></div><div id="video_title">作品详情</div>' },
-  jav321: { path: '/video/opaque123', title: 'Jav321', html: '<h3>作品详情</h3><div class="panel-body"><b>品番:</b> SSIS-057<br><b>推荐:</b> ABW-123</div>' },
+    html: '<div id="video_id"><span class="text">SSIS-057</span></div><div id="video_title">Video details</div>' },
+  jav321: { path: '/video/opaque123', title: 'Jav321', html: '<h3>Video details</h3><div class="panel-body"><b>Code:</b> SSIS-057<br><b>Recommended:</b> ABW-123</div>' },
   avbase: { path: '/works/test-maker:SSIS-057', title: 'AVBase',
-    html: '<h1>作品详情</h1><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"work":{"work_id":"SSIS-057","recommendations":[{"work_id":"ABW-123"}]}}}}</script>' },
-  javdatabase: { path: '/movies/ssis-057/', title: 'JAVDatabase', html: '<h1>SSIS-057 作品</h1>' },
+    html: '<h1>Video details</h1><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"work":{"work_id":"SSIS-057","recommendations":[{"work_id":"ABW-123"}]}}}}</script>' },
+  javdatabase: { path: '/movies/ssis-057/', title: 'JAVDatabase', html: '<h1>SSIS-057 video</h1>' },
 };
 
-describe('JAV 用户脚本', () => {
+describe('JAV userscript', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('实际安装端点生成的脚本在 JavDB 页面读取内联清单并完成添加', async () => {
+  it('The script the real install endpoint generates reads the inline manifest on the JavDB page and completes the add', async () => {
     const response = await fetch(requiredEnv('PEACH_E2E_ORIGIN') + '/integrations/peach-jav.user.js');
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type') || '', /javascript/);
@@ -213,19 +213,19 @@ describe('JAV 用户脚本', () => {
       const submitted = await page.evaluate(() => JSON.parse(window.javMock.calls[1]!.data!));
       assert.deepEqual(submitted, { code: 'SSIS-057', source_url: 'https://javdb.com/v/ABP123' });
       await reply(page, 1, body('owned'));
-      await ready(page, '已有该影片');
+      await ready(page, 'This video is already in the library');
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close(); }
   });
 
   for (const site of MANIFEST.sites.filter(site => site.mode === 'automatic')) {
     for (const domain of site.domains) {
-      it(`${site.label} 自动识别 ${domain} 的明确作品身份`, async () => {
+      it(`${site.label} auto-detects an explicit video identity on ${domain}`, async () => {
         const fixture = AUTOMATIC[site.id];
-        assert.ok(fixture, `${site.id} 需要作品详情夹具`);
+        assert.ok(fixture, `${site.id} requires a video details fixture`);
         const code = fixture.code || 'SSIS-057';
         const opened = await open(browser, { url: `https://${domain}${fixture.path}`,
-          title: fixture.title, resolved: code, html: fixture.html + '<aside><h2>推荐 ABW-123</h2><a href="/ABW-123">ABW-123</a></aside>' });
+          title: fixture.title, resolved: code, html: fixture.html + '<aside><h2>Recommended ABW-123</h2><a href="/ABW-123">ABW-123</a></aside>' });
         const { page } = opened;
         try {
           await ready(page);
@@ -240,7 +240,7 @@ describe('JAV 用户脚本', () => {
           const submitted = await page.evaluate(() => JSON.parse(window.javMock.calls[1]!.data!));
           assert.deepEqual(submitted, { code, source_url: `https://${domain}${fixture.source || fixture.path}` });
           await reply(page, 1, body('owned', code));
-          await ready(page, '已有该影片');
+          await ready(page, 'This video is already in the library');
           assert.deepEqual(opened.problems, []);
         } finally { await opened.close(); }
       });
@@ -249,10 +249,10 @@ describe('JAV 用户脚本', () => {
 
   for (const site of MANIFEST.sites.filter(site => site.mode === 'selection')) {
     for (const domain of site.domains) {
-      it(`${site.label} 在 ${domain} 只按主动选中的番号显示添加按钮`, async () => {
+      it(`${site.label} shows the add button on ${domain} only for the actively selected code`, async () => {
         const path = site.id === 'dmm' ? '/av/content/?id=opaque_cid&token=private#player' : '/products/opaque?token=private#player';
-        const opened = await open(browser, { url: `https://${domain}${path}`, title: 'SSIS-057 商品详情',
-          html: '<h1>商品ID: ssis00057</h1><span id="selected-code">SSIS-057</span><aside>推荐 ABW-123</aside>' });
+        const opened = await open(browser, { url: `https://${domain}${path}`, title: 'SSIS-057 product details',
+          html: '<h1>Product ID: ssis00057</h1><span id="selected-code">SSIS-057</span><aside>Recommended: ABW-123</aside>' });
         const { page } = opened;
         try {
           await page.clock.fastForward(1000);
@@ -268,24 +268,24 @@ describe('JAV 用户脚本', () => {
           assert.deepEqual(submitted, { code: 'SSIS-057', source_url: site.id === 'dmm'
             ? `https://${domain}/av/content/?id=opaque_cid` : `https://${domain}/products/opaque` });
           await reply(page, 1, body('owned'));
-          await ready(page, '已有该影片');
+          await ready(page, 'This video is already in the library');
           assert.deepEqual(opened.problems, []);
         } finally { await opened.close(); }
       });
     }
   }
 
-  it('选中菜单拒绝完整标题、多番号、编解码器和超长内容', async () => {
+  it('The selection menu rejects full titles, multiple codes, codecs, and overlong content', async () => {
     const opened = await open(browser, { url: 'https://duga.jp/products/ssis00057',
-      title: '商品详情', html: '<span id="selected-code"></span>' });
+      title: 'Product details', html: '<span id="selected-code"></span>' });
     const { page } = opened;
     let alerts = 0;
     page.on('dialog', dialog => { alerts++; void dialog.dismiss(); });
     try {
       await selectCode(page);
-      await page.locator('#peach-jav-batch').getByRole('button', { name: '返回 Peach 主界面', exact: true }).click();
+      await page.locator('#peach-jav-batch').getByRole('button', { name: 'Back to the Peach home screen', exact: true }).click();
       await page.locator('#peach-jav-batch').waitFor({ state: 'detached' });
-      for (const value of ['SSIS-057 作品标题', 'SSIS-057 ABW-123', 'H264', 'X1234', 'SSIS-057'.repeat(30)]) {
+      for (const value of ['SSIS-057 video title', 'SSIS-057 ABW-123', 'H264', 'X1234', 'SSIS-057'.repeat(30)]) {
         await page.locator('#selected-code').evaluate((element, value) => { element.textContent = value; }, value);
         await selectCode(page);
       }
@@ -297,8 +297,8 @@ describe('JAV 用户脚本', () => {
   });
 
   for (const raw of ['N1234', 'k1234']) {
-    it(`Tokyo-Hot 选中番号 ${raw} 接受小写规范化响应`, async () => {
-      const opened = await open(browser, { url: 'https://www.tokyo-hot.com/product/opaque/', title: '商品详情',
+    it(`Tokyo-Hot selects code ${raw} and accepts the lowercased normalized response`, async () => {
+      const opened = await open(browser, { url: 'https://www.tokyo-hot.com/product/opaque/', title: 'Product details',
         html: `<span id="selected-code">${raw}</span>` });
       const { page } = opened;
       try {
@@ -310,27 +310,27 @@ describe('JAV 用户脚本', () => {
         await pending(page, 2);
         assert.equal(JSON.parse(await page.evaluate(() => window.javMock.calls[1]!.data!)).code, raw.toLowerCase());
         await reply(page, 1, body('owned', raw.toLowerCase()));
-        await ready(page, '已有该影片');
+        await ready(page, 'This video is already in the library');
       } finally { await opened.close(); }
     });
   }
 
-  it('JavDB 标题与明确番号字段冲突时不查询或提交', async () => {
+  it('When JavDB title and an explicit code field conflict, nothing queries or submits', async () => {
     const opened = await open(browser, { url: 'https://javdb.com/v/opaque123', title: 'JavDB',
-      html: '<h2 class="title">SSIS-057 作品</h2><div class="panel-block"><strong>番號:</strong><span class="value">ABW-123</span></div>' });
+      html: '<h2 class="title">SSIS-057 video</h2><div class="panel-block"><strong>Code:</strong><span class="value">ABW-123</span></div>' });
     try {
-      await ready(opened.page, '番号存在冲突');
+      await ready(opened.page, 'Code conflict exists');
       assert.equal(await button(opened.page).isDisabled(), true);
       assert.equal(await opened.page.evaluate(() => window.javMock.calls.length), 0);
     } finally { await opened.close(); }
   });
 
-  it('用户选定番号接管自动冲突，点击提交后切页隔离旧响应', async () => {
+  it('A user-chosen code takes over automatic conflicts, and page switches after submit isolate stale responses', async () => {
     const opened = await open(browser, { url: 'https://javdb.com/v/opaque123', title: 'JavDB',
-      html: '<h2 class="title">SSIS-057 作品</h2><div class="panel-block"><strong>番號:</strong><span class="value">ABW-123</span></div><span id="selected-code">SSIS-057</span>' });
+      html: '<h2 class="title">SSIS-057 video</h2><div class="panel-block"><strong>Code:</strong><span class="value">ABW-123</span></div><span id="selected-code">SSIS-057</span>' });
     const { page } = opened;
     try {
-      await ready(page, '番号存在冲突');
+      await ready(page, 'Code conflict exists');
       assert.equal(await page.evaluate(() => window.javMock.calls.length), 0);
       await selectCode(page);
       await ready(page);
@@ -342,7 +342,7 @@ describe('JAV 用户脚本', () => {
       assert.equal(JSON.parse(await page.evaluate(() => window.javMock.calls[1]!.data!)).code, 'SSIS-057');
       await page.evaluate(() => {
         history.pushState({}, '', '/v/otherOpaque');
-        document.querySelector('h2.title')!.textContent = 'ABW-123 作品';
+        document.querySelector('h2.title')!.textContent = 'ABW-123 video';
       });
       await pending(page, 3);
       await reply(page, 1, body('owned'));
@@ -362,7 +362,7 @@ describe('JAV 用户脚本', () => {
     'https://javtiful.com/actress/SSIS-057', 'https://avbase.net/works?q=SSIS-057',
     'https://javdatabase.com/idols/SSIS-057/',
   ]) {
-    it(`详情适配不扫描列表 ${url}`, async () => {
+    it(`Details adaptation does not scan the list ${url}`, async () => {
       const opened = await open(browser, { url, html: '<h1>SSIS-057</h1><h2 class="title">SSIS-057</h2>' });
       try {
         await opened.page.clock.fastForward(1000);
@@ -373,7 +373,7 @@ describe('JAV 用户脚本', () => {
   }
 
   for (const domain of ['fc2.com', 'contents.fc2.com', 'other.fc2.com', 'javstore.net', 'r18.com', 'sodprime.com', 'javdb.com.evil.invalid']) {
-    it(`未列入清单的域 ${domain} 不接受选中添加`, async () => {
+    it(`The domain ${domain} is not in the list and rejects selected additions`, async () => {
       const opened = await open(browser, { url: `https://${domain}/products/SSIS-057`,
         html: '<h1>SSIS-057</h1><span id="selected-code">SSIS-057</span>' });
       try {
@@ -385,16 +385,16 @@ describe('JAV 用户脚本', () => {
     });
   }
 
-  it('配置存入 GM，提交仅带番号和无查询参数的来源地址，重复点击只创建一项任务', async () => {
+  it('Configuration is stored in GM; the submission carries only the code and a source URL without query parameters, and repeated clicks create a single task', async () => {
     const opened = await open(browser, { configured: false });
     const { page } = opened;
     try {
-      await ready(page, '配置 Peach');
+      await ready(page, 'Configure Peach');
       await button(page).click();
       await fillSettings(page, BASE, TOKEN);
       await ready(page);
       assert.equal(await page.evaluate(() => window.javMock.calls.length), 1);
-      await page.locator(ROOT).getByRole('button', { name: '展开 Peach 面板', exact: true }).click();
+      await page.locator(ROOT).getByRole('button', { name: 'Expand the Peach panel', exact: true }).click();
       await ready(page);
       assert.equal(await page.evaluate(() => window.javMock.calls.length), 2);
       await page.evaluate(() => { window.javMock.automatic = false; });
@@ -433,18 +433,18 @@ describe('JAV 用户脚本', () => {
       await page.clock.fastForward(2100);
       await pending(page, 6);
       await reply(page, 5, body('ingested'));
-      await ready(page, '已有该影片');
+      await ready(page, 'This video is already in the library');
       assert.equal(await button(page).isDisabled(), true);
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close(); }
   });
 
   for (const example of [
-    { url: 'https://jable.tv/videos/fc2-ppv-1234567/', title: 'FC2 PPV 1234567 作品', code: 'FC2-PPV-1234567' },
-    { url: 'https://missav.ai/ja/ssni001', title: 'SSNI-001 作品', code: 'SSNI-001' },
-    { url: 'https://missav.com/cn/abw-123-uncensored', title: 'ABW-123 作品', code: 'ABW-123' },
+    { url: 'https://jable.tv/videos/fc2-ppv-1234567/', title: 'FC2 PPV 1234567 video', code: 'FC2-PPV-1234567' },
+    { url: 'https://missav.ai/ja/ssni001', title: 'SSNI-001 video', code: 'SSNI-001' },
+    { url: 'https://missav.com/cn/abw-123-uncensored', title: 'ABW-123 video', code: 'ABW-123' },
   ]) {
-    it(`识别详情页 ${example.code}`, async () => {
+    it(`Recognize details page ${example.code}`, async () => {
       const opened = await open(browser, { url: example.url, title: example.title, html: `<h1>${example.title}</h1>` });
       try {
         await ready(opened.page);
@@ -456,12 +456,12 @@ describe('JAV 用户脚本', () => {
   }
 
   for (const example of [
-    { slug: 'abp-7', title: 'ABP-0007 作品', extracted: 'ABP-7', canonical: 'ABP-007' },
-    { slug: '300mium-0123', title: '300MIUM-123 作品', extracted: '300MIUM-0123', canonical: '300MIUM-123' },
-    { slug: '092415_001', title: '092415_001 作品', extracted: '092415_001', canonical: '092415_001' },
-    { slug: '092415-001', title: '092415-001 作品', extracted: '092415-001', canonical: '092415-001' },
+    { slug: 'abp-7', title: 'ABP-0007 video', extracted: 'ABP-7', canonical: 'ABP-007' },
+    { slug: '300mium-0123', title: '300MIUM-123 video', extracted: '300MIUM-0123', canonical: '300MIUM-123' },
+    { slug: '092415_001', title: '092415_001 video', extracted: '092415_001', canonical: '092415_001' },
+    { slug: '092415-001', title: '092415-001 video', extracted: '092415-001', canonical: '092415-001' },
   ]) {
-    it(`接受服务端规范化番号 ${example.canonical}`, async () => {
+    it(`Accepts the server-normalized code ${example.canonical}`, async () => {
       const opened = await open(browser, { url: `https://jable.tv/videos/${example.slug}/`,
         title: example.title, html: `<h1>${example.title}</h1>` });
       const { page } = opened;
@@ -473,7 +473,7 @@ describe('JAV 用户脚本', () => {
         const submitted = await page.evaluate(() => JSON.parse(window.javMock.calls[1]!.data!));
         assert.equal(submitted.code, example.extracted);
         await reply(page, 1, body('owned', example.canonical));
-        await ready(page, '已有该影片');
+        await ready(page, 'This video is already in the library');
         assert.equal(await button(page).isDisabled(), true);
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close(); }
@@ -484,10 +484,10 @@ describe('JAV 用户脚本', () => {
     { url: 'https://jable.tv/videos/092415_001/', title: '092415-001' },
     { url: 'https://jable.tv/videos/fc2-ppv-0123456/', title: 'FC2-PPV-123456' },
   ]) {
-    it(`保留番号身份边界 ${example.title}`, async () => {
+    it(`Keeps code identity boundaries ${example.title}`, async () => {
       const opened = await open(browser, { url: example.url, title: example.title, html: `<h1>${example.title}</h1>` });
       try {
-        await ready(opened.page, '番号存在冲突');
+        await ready(opened.page, 'Code conflict exists');
         assert.equal(await button(opened.page).isDisabled(), true);
         assert.equal(await opened.page.evaluate(() => window.javMock.calls.length), 0);
       } finally { await opened.close(); }
@@ -503,14 +503,14 @@ describe('JAV 用户脚本', () => {
     { base: BASE, token: 't'.repeat(257) },
     { base: BASE, token: '' },
   ]) {
-    it(`拒绝保存无效配置 ${invalid.base} / token 长度 ${invalid.token.length}`, async () => {
+    it(`Refusing to save an invalid configuration ${invalid.base} / token length ${invalid.token.length}`, async () => {
       const opened = await open(browser, { configured: false });
       const { page } = opened;
       try {
-        await ready(page, '配置 Peach');
+        await ready(page, 'Configure Peach');
         await button(page).click();
         await fillSettings(page, invalid.base, invalid.token);
-        await ready(page, '配置 Peach');
+        await ready(page, 'Configure Peach');
         assert.deepEqual(await unpairedStorage(page), {});
         assert.equal(await page.evaluate(() => window.javMock.calls.length), 0);
         assert.match(await settingsDialog(page).getByRole('alert').innerText(), /请输入/);
@@ -519,11 +519,11 @@ describe('JAV 用户脚本', () => {
   }
 
   for (const base of ['http://localhost:8099', 'http://127.0.0.1:8099', 'http://[::1]:8099']) {
-    it(`接受 HTTP 回环配置 ${base}`, async () => {
+    it(`Accept HTTP loopback configuration ${base}`, async () => {
       const opened = await open(browser, { configured: false });
       const { page } = opened;
       try {
-        await ready(page, '配置 Peach');
+        await ready(page, 'Configure Peach');
         await button(page).click();
         await fillSettings(page, base, TOKEN);
         await ready(page);
@@ -539,8 +539,8 @@ describe('JAV 用户脚本', () => {
     'https://jable.tv/categories/ssis-057/', 'https://jable.tv/videos/',
     'https://unrelated.example.invalid/videos/ssis-057/',
   ]) {
-    it(`排除列表页与未支持页面 ${new URL(url).pathname}`, async () => {
-      const opened = await open(browser, { url, html: '<h1>SSIS-057</h1><article>ABW-123 推荐作品</article>' });
+    it(`Excluded on list pages and unsupported pages ${new URL(url).pathname}`, async () => {
+      const opened = await open(browser, { url, html: '<h1>SSIS-057</h1><article>ABW-123 recommended video</article>' });
       try {
         await opened.page.clock.fastForward(1000);
         assert.equal(await opened.page.locator(ROOT).count(), 0);
@@ -549,19 +549,19 @@ describe('JAV 用户脚本', () => {
     });
   }
 
-  it('身份字段冲突时禁用，推荐区与查询参数不参与身份', async () => {
-    const opened = await open(browser, { title: 'SSIS-057', html: '<h1>SSIS-057</h1><dl><dt>番号：</dt><dd>ABW-123</dd></dl>' });
+  it('Conflicting identity fields disable, and recommendation areas plus query params never join identity', async () => {
+    const opened = await open(browser, { title: 'SSIS-057', html: '<h1>SSIS-057</h1><dl><dt>Code:</dt><dd>ABW-123</dd></dl>' });
     try {
-      await ready(opened.page, '番号存在冲突');
+      await ready(opened.page, 'Code conflict exists');
       assert.equal(await button(opened.page).isDisabled(), true);
       assert.equal(await opened.page.evaluate(() => window.javMock.calls.length), 0);
     } finally { await opened.close(); }
-    const detail = await open(browser, { html: '<h1>SSIS-057</h1><article><h2>推荐 ABW-123</h2></article>',
+    const detail = await open(browser, { html: '<h1>SSIS-057</h1><article><h2>Recommended ABW-123</h2></article>',
       url: 'https://missav.ws/en/ssis-057?related=ABW-123' });
     try { await ready(detail.page); } finally { await detail.close(); }
   });
 
-  it('提交超时只提供查询，查询失败可重试，明确失败后可主动重新加入', async () => {
+  it('A submission timeout offers query only; a failed query can be retried, and after a definite failure you can rejoin manually', async () => {
     const opened = await open(browser);
     const { page } = opened;
     try {
@@ -570,28 +570,28 @@ describe('JAV 用户脚本', () => {
       await button(page).click();
       await pending(page, 2);
       await page.evaluate(() => window.javMock.pending[1]!.ontimeout());
-      await ready(page, '查询 Peach 状态');
+      await ready(page, 'Query Peach status');
       await page.clock.fastForward(30_000);
       assert.equal(await page.evaluate(() => window.javMock.calls.length), 2);
       assert.equal(await page.evaluate(() => window.javMock.reports.length), 1);
       await button(page).click();
       await pending(page, 3);
       await page.evaluate(() => window.javMock.pending[2]!.onerror());
-      await ready(page, '查询 Peach 状态');
+      await ready(page, 'Query Peach status');
       await button(page).click();
       await pending(page, 4);
       await reply(page, 3, body('failed'));
-      await ready(page, '重试加入 Peach 馆藏');
+      await ready(page, 'Retry adding to the Peach library');
       await button(page).click();
       await pending(page, 5);
       assert.deepEqual(await page.evaluate(() => window.javMock.calls.map(call => call.method)), ['GET', 'POST', 'GET', 'GET', 'POST']);
       await reply(page, 4, body('no_match'));
-      await ready(page, '重试加入 Peach 馆藏');
+      await ready(page, 'Retry adding to the Peach library');
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close(); }
   });
 
-  it('状态响应身份不匹配或令牌无效时保留查询入口', async () => {
+  it('Keep the lookup entry when the status response identity mismatches or the token is invalid', async () => {
     const opened = await open(browser);
     const { page } = opened;
     try {
@@ -600,17 +600,17 @@ describe('JAV 用户脚本', () => {
       await button(page).click();
       await pending(page, 2);
       await reply(page, 1, body('owned', 'ABW-123'));
-      await ready(page, '查询 Peach 状态');
-      assert.match(await page.locator(ROOT).getByRole('status', { name: 'Peach 任务状态', exact: true }).innerText(), /状态无效/);
+      await ready(page, 'Query Peach status');
+      assert.match(await page.locator(ROOT).getByRole('status', { name: 'Peach task state', exact: true }).innerText(), /状态无效/);
       await button(page).click();
       await pending(page, 3);
       await page.evaluate(() => window.javMock.reply(2, {}, 401));
-      await ready(page, '查询 Peach 状态');
-      assert.match(await page.locator(ROOT).getByRole('status', { name: 'Peach 任务状态', exact: true }).innerText(), /令牌无效/);
+      await ready(page, 'Query Peach status');
+      assert.match(await page.locator(ROOT).getByRole('status', { name: 'Peach task state', exact: true }).innerText(), /令牌无效/);
     } finally { await opened.close(); }
   });
 
-  it('SPA 切页隔离过期响应，列表页移除按钮，重复执行只注入一份', async () => {
+  it('SPA navigation isolates stale responses, the list page removes its button, and repeated runs inject only one copy', async () => {
     const opened = await open(browser);
     const { page } = opened;
     try {
@@ -650,25 +650,25 @@ describe('JAV 用户脚本', () => {
     } finally { await opened.close(); }
   });
 
-  it('后台状态轮询先 2 秒后 15 秒、满一小时停止且不创建 POST，馆藏已有时不可加入', async () => {
+  it('Background status polling runs at 2 seconds then 15, stops after an hour, creates no POST, and cannot be added when the library already has it', async () => {
     const opened = await open(browser, { initial: 'queued' });
     try {
       await pending(opened.page, 1);
       for (let index = 0; index < 30; index++) {
-        await opened.page.waitForFunction(() => document.querySelector('#peach-jav-action')?.shadowRoot?.querySelector('p')?.textContent?.includes('已排队'));
+        await opened.page.waitForFunction(() => document.querySelector('#peach-jav-action')?.shadowRoot?.querySelector('p')?.textContent?.includes('Queued'));
         await opened.page.clock.fastForward(2100);
         await pending(opened.page, index + 2);
       }
-      // 前 30 次之后改为 15 秒一次：2 秒时不再请求，满 15 秒才发下一次。
+      // After the first 30 rounds it slows to once per 15 seconds: no request at the 2-second mark, the next one only when 15 seconds are up.
       await opened.page.clock.fastForward(2100);
       await opened.page.waitForTimeout(300);
       assert.equal(await opened.page.evaluate(() => window.javMock.calls.length), 31);
       await opened.page.clock.fastForward(13_000);
       await pending(opened.page, 32);
-      // 跳过一小时期限：到点的那次等待结束后再查一次，随后停止并允许手动查询。
+      // Skips past the one-hour deadline: when the wait that reaches the deadline ends, check once more, then stop and allow manual queries.
       await opened.page.clock.fastForward(60 * 60_000);
       await pending(opened.page, 33);
-      await ready(opened.page, '查询 Peach 状态');
+      await ready(opened.page, 'Query Peach status');
       const calls = await opened.page.evaluate(() => window.javMock.calls);
       assert.ok(calls.every(call => call.method === 'GET'));
       await opened.page.clock.fastForward(60_000);
@@ -676,13 +676,13 @@ describe('JAV 用户脚本', () => {
     } finally { await opened.close(); }
     const owned = await open(browser, { initial: 'owned' });
     try {
-      await ready(owned.page, '已有该影片');
+      await ready(owned.page, 'This video is already in the library');
       assert.equal(await button(owned.page).isDisabled(), true);
     } finally { await owned.close(); }
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 下按钮可聚焦且不越出视口`, async () => {
+    it(`${viewport.name} buttons stay focusable and within the viewport`, async () => {
       const opened = await open(browser, { viewport });
       try {
         await ready(opened.page);

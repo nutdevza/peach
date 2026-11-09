@@ -12,12 +12,12 @@ import { prepareBrowserUpload } from '../scripts/upload-sourcemaps';
 const fixtures: string[] = [];
 afterEach(() => {
   for (const fixture of fixtures.splice(0)) {
-    if (!fixture.startsWith(realpathSync(tmpdir()))) throw new Error('临时目录必须属于系统临时目录');
+    if (!fixture.startsWith(realpathSync(tmpdir()))) throw new Error('The temp directory must live inside the system temp directory');
     rmSync(fixture, { recursive: true, force: true });
   }
 });
 
-it('官方构建生成可复现 Debug ID，私有 map 可还原源码位置，公开目录只含正式文件与本次的 chunk', async () => {
+it('Official builds produce reproducible Debug IDs, private maps can restore source positions, and the public directory holds only release files and the chunks of this build', async () => {
   const root = realpathSync(mkdtempSync(resolve(tmpdir(), 'peach-symbols-')));
   fixtures.push(root);
   const directory = resolve(root, 'artifacts');
@@ -28,7 +28,7 @@ it('官方构建生成可复现 Debug ID，私有 map 可还原源码位置，�
   writeFileSync(resolve(root, 'fixture.css'), '.fixture { color: red; }\n');
   const compile = async (name: 'peach-app' | 'peach-pages') => {
     await build({
-      // 公开目录就叫 `public`，不关掉 publicDir 的话 Vite 会把它整个抄回私有目录。
+      // The public folder is named `public`; without turning off publicDir, Vite would copy the whole thing back into the private directory.
       configFile: false, root, logLevel: 'silent', publicDir: false,
       plugins: browserSymbols(name, shipped),
       build: {
@@ -71,14 +71,14 @@ it('官方构建生成可复现 Debug ID，私有 map 可还原源码位置，�
     'sourcemaps', 'upload', '--validate', '--strict', '--wait', '--url-prefix', 'app:///', directory,
   ]);
   writeFileSync(resolve(shipped, 'peach-app.js'), 'mismatched bundle');
-  expect(() => prepareBrowserUpload(env, directory, shipped)).toThrow('分发产物不一致');
+  expect(() => prepareBrowserUpload(env, directory, shipped)).toThrow('Distribution artifacts inconsistent');
   writeFileSync(resolve(shipped, 'peach-app.js'), first);
   writeFileSync(mapPath, JSON.stringify({ ...map, debug_id: 'invalid' }));
-  expect(() => prepareBrowserUpload(env, directory, shipped)).toThrow('匹配的 source map');
-  // 这条用例在测试里跑一整遍正式构建：拆出 chunk 后每个都要核对 Debug ID，Linux runner 上实测 45 秒。
+  expect(() => prepareBrowserUpload(env, directory, shipped)).toThrow('Matching source map');
+  // This test runs a full production build: after chunks split, each one's Debug ID must be checked; measured 45 seconds on a Linux runner.
 }, 120_000);
 
-it('上传入口在没有明确环境配置时拒绝启动 CLI', () => {
+it('The upload entry refuses to start the CLI without explicit environment configuration', () => {
   expect(() => prepareBrowserUpload({})).toThrow('SENTRY_AUTH_TOKEN');
   expect(() => prepareBrowserUpload({ SENTRY_AUTH_TOKEN: 'test-only' })).toThrow('SENTRY_ORG');
   expect(() => prepareBrowserUpload({ SENTRY_AUTH_TOKEN: 'test-only', SENTRY_ORG: 'fixture' })).toThrow('SENTRY_PROJECT');

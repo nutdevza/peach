@@ -3,12 +3,12 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, requiredEnv, VIEWPORTS } from './harness.ts';
 
-describe('外壳首帧', () => {
+describe('Shell first frame', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) for (const theme of ['light', 'dark']) for (const sidebar of ['open', 'closed']) {
-    it(`${viewport.name} ${theme} ${sidebar} 主包到达前媒体库和侧栏按钮保持最终几何`, async () => {
+    it(`${viewport.name} ${theme} ${sidebar} library and sidebar buttons keep their final geometry before the main bundle arrives`, async () => {
       const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
       let release = () => {};
       const held = new Promise<void>(resolve => { release = resolve });
@@ -32,7 +32,7 @@ describe('外壳首帧', () => {
             inTop: !!document.querySelector('.top>#filterBtn') };
         });
         const waiting = await read();
-        assert.equal(await page.locator('#brandHome h1').textContent(), '全部媒体库');
+        assert.equal(await page.locator('#brandHome h1').textContent(), 'All libraries');
         assert.equal(await page.locator('#brandHome img').count(), 0);
         assert.equal(await page.locator('.top>#brandHome').count(), 0);
         assert.equal(waiting.expanded, String(!viewport.mobile && sidebar === 'open'));

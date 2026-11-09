@@ -1,7 +1,7 @@
-/* 骨架的延迟显形：低于门槛的请求不该闪一下占位。
+/* The skeleton's delayed reveal: requests under the threshold should not flash a placeholder.
  *
- * 这里守的是「同一批占位都要拿到标记」。`fitSkeleton` 会被反复调用——网格补行、
- * 容器改宽都会再进来一次，第二次里总有已经武装过的那几枚。 */
+ * What this guards is "every placeholder of the same batch gets the marker". `fitSkeleton` is called repeatedly; grid row-fills and
+ * container resizes re-enter, and the second pass always finds some already-armed ones. */
 import { describe, expect, it, vi } from 'vitest';
 
 import { fitSkeleton } from '../src/ui-kit';
@@ -13,8 +13,8 @@ const placeholder = (root: HTMLElement): HTMLElement => {
   return node;
 };
 
-describe('骨架延迟显形', () => {
-  it('补进来的占位与先到的一样拿到等待标记', () => {
+describe('The skeleton appears on delay', () => {
+  it('Backfilled placeholders get the waiting mark just like earlier arrivals', () => {
     const root = document.createElement('div');
     document.body.append(root);
     const first = placeholder(root);
@@ -28,7 +28,7 @@ describe('骨架延迟显形', () => {
     root.remove();
   });
 
-  it('等待超过门槛后整批一起显形', () => {
+  it('Past the wait threshold the whole batch appears at once', () => {
     vi.useFakeTimers();
     try {
       const root = document.createElement('div');

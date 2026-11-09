@@ -13,7 +13,7 @@ import type { JunkQueueProps } from '../../src/react/junk-queue/junk-queue';
 import type { ShellActions } from '../../src/react/router/shell-actions';
 import { revealSkeleton } from '../../src/ui-kit';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -61,20 +61,20 @@ async function mount(r: Loaded) {
 type Reply = { ok: boolean; status: number; json(): Promise<unknown> };
 const reply = (body: unknown): Reply => ({ ok: true, status: 200, json: async () => body });
 
-/** 目录的一页：名字带着排序键，认得出画的是哪一次取回来的。 */
+/** One page of the catalog: names carry the sort key so you can tell which fetch this page was drawn from. */
 const catalogPage = (sort: string) => ({
-  items: [1, 2, 3].map((id) => ({ id, name: `作品 ${id} ${sort}`, has_thumb: true })), total: 3,
+  items: [1, 2, 3].map((id) => ({ id, name: `Video ${id} ${sort}`, has_thumb: true })), total: 3,
 });
 const playlistPage = { items: [] };
-/** 垃圾队列的一页：名字带着分类，认得出画的是哪一次取回来的。 */
+/** One page of the junk queue: names carry the category so you can tell which fetch this page was drawn from. */
 const junkPage = (kind: string) => ({
   items: [11, 12, 13].map((id) => ({
-    id, name: `垃圾 ${id} ${kind || '全部'}.mp4`, junk_kind: kind || 'video', why: '时长过短', location: 'local', cost: 'free',
+    id, name: `junk ${id} ${kind || 'All'}.mp4`, junk_kind: kind || 'video', why: 'Duration too short', location: 'local', cost: 'free',
   })),
   total: 3, all_total: 3, dismissed_total: 0, counts: { video: 3 },
 });
 
-/** 目录、垃圾队列与播放列表的取数：`/api/items` 可以手动兑现（首屏等的就是它）。 */
+/** Fetching for the catalog, the junk queue, and playlists: `/api/items` can be resolved manually (the first screen waits for exactly that). */
 function catalogFetch({ deferred = false } = {}) {
   const pending: Array<() => void> = [];
   const fetched = vi.fn((input: string, init?: RequestInit) => {
@@ -87,7 +87,7 @@ function catalogFetch({ deferred = false } = {}) {
     if (!deferred || url.pathname !== '/api/items' || summary) return Promise.resolve(reply(body));
     return new Promise<Reply>((resolve, reject) => {
       pending.push(() => resolve(reply(body)));
-      init?.signal?.addEventListener('abort', () => { reject(new DOMException('已中止', 'AbortError')) });
+      init?.signal?.addEventListener('abort', () => { reject(new DOMException('Aborted', 'AbortError')) });
     });
   });
   vi.stubGlobal('fetch', fetched);
@@ -117,7 +117,7 @@ const catalogOpen = (patch: Partial<CatalogGridProps> = {}): CatalogGridProps =>
   mix: false, shorts: false, onCount: vi.fn(), emptyHtml: () => '', canLoadMore: () => true, ...patch,
 });
 
-/** 垃圾队列那一页的打开：计数行是壳的 `#count`，壳往里铺着骨架那一版。 */
+/** Opening the junk files queue page: the count row is the shell's `#count`, with the shell's skeleton version laid inside. */
 function junkOpen(patch: Partial<JunkQueueProps> = {}): JunkQueueProps {
   const countRow = document.createElement('div');
   countRow.id = 'count';
@@ -135,7 +135,7 @@ const junkCards = (grid: Element) => grid.querySelectorAll('.peach-react [data-j
 const GRID_SKELETON = '<div class="grid"><div class="catalog-skeleton" data-skeleton="catalog">'
   + '<div class="skeletoncard"></div></div></div>';
 
-/** 目录的容器，里面是壳铺好的骨架。 */
+/** The catalog container; the shell lays the skeleton inside. */
 function gridSurface() {
   const grid = document.createElement('div');
   grid.id = 'grid';
@@ -146,14 +146,14 @@ function gridSurface() {
 function statsSurface() {
   const stats = document.createElement('section');
   stats.id = 'stats';
-  stats.innerHTML = '<div data-skeleton="playlists">正在读取播放列表</div>';
+  stats.innerHTML = '<div data-skeleton="playlists">Loading playlists</div>';
   const index = document.createElement('section');
   index.id = 'index';
   document.body.append(stats, index);
   return { stats, index };
 }
 
-/** 同壳里的 `revealRoutedPage`：骨架交给 `revealSkeleton` 抬成淡出层，`write` 只放进空宿主。 */
+/** Same as the shell's `revealRoutedPage`: the skeleton goes to `revealSkeleton` to be raised into a fade-out layer, while `write` only goes into the empty host. */
 function revealRoutedPage(container: Element): HTMLElement {
   const host = document.createElement('div');
   host.className = 'peach-react';
@@ -166,11 +166,11 @@ async function until(ok: () => boolean, what: string): Promise<void> {
     if (ok()) return;
     await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
   }
-  throw new Error(`一直没等到：${what}`);
+  throw new Error(`Timed out waiting for: ${what}`);
 }
 
 const cards = (grid: Element) => grid.querySelectorAll('.peach-react [data-media-grid] > [data-media-card][data-id]');
-/** 页面画出来的那一块（宿主里的第一个元素）：重挂之后就换成另一个。 */
+/** The block the page renders (the host's first element): after a remount it is a different one. */
 const painted = (grid: Element) => grid.querySelector(':scope > .peach-react > *');
 
 it('冷启动深链首页取齐首屏再挂，壳的骨架一直留到数据到，挂上就是内容', async () => {
@@ -180,7 +180,7 @@ it('冷启动深链首页取齐首屏再挂，壳的骨架一直留到数据到�
   const fetch = catalogFetch({ deferred: true });
   const open = catalogOpen({ skeletonHtml: () => GRID_SKELETON });
   const opened = r.openManagedRoute('/', open, { container: grid, isCurrent: () => true, place: revealRoutedPage });
-  await until(() => fetch.calls('/api/items').length > 0, '首屏取数发出去');
+  await until(() => fetch.calls('/api/items').length > 0, 'First-screen fetch sent out');
   expect(skeleton.isConnected, '取数在途时壳的骨架原样留着').toBe(true);
   expect(r.managedEntry(grid), '页面还没挂').toBeFalsy();
   const batches: Array<{ pageSkeleton: boolean; shell: boolean; painted: boolean }> = [];
@@ -195,26 +195,26 @@ it('冷启动深链首页取齐首屏再挂，壳的骨架一直留到数据到�
   unmounts.push(() => observer.disconnect());
   fetch.resolve();
   await act(async () => { expect(await opened).toBe(true) });
-  await until(() => cards(grid).length === 3, '首屏内容就绪');
+  await until(() => cards(grid).length === 3, 'First-screen content ready');
   expect(batches.length).toBeGreaterThan(0);
   expect(batches.some((batch) => batch.pageSkeleton), '页面挂上时不再铺第二份骨架').toBe(false);
-  expect(batches.every((batch) => batch.shell || batch.painted), '每一批变化都有占位或内容').toBe(true);
+  expect(batches.every((batch) => batch.shell || batch.painted), 'Every batch of changes has a placeholder or real content').toBe(true);
   expect(grid.querySelector('.skelfade')?.contains(skeleton), '壳的骨架抬成淡出层与内容交叉').toBe(true);
   expect(grid.querySelector('[data-content-transition]')?.getAttribute('aria-busy')).toBe('false');
   expect(grid.querySelector('[data-content-skeleton]')?.getAttribute('aria-hidden')).toBe('true');
-  expect(fetch.pages(), '首屏列表只取一次').toHaveLength(1);
-  expect(fetch.summaries(), '统计单独取一次').toHaveLength(1);
+  expect(fetch.pages(), 'The first-screen list fetches only once').toHaveLength(1);
+  expect(fetch.summaries(), 'Statistics fetch once separately').toHaveLength(1);
   expect(open.settled).toHaveBeenCalledWith(0);
   expect(r.managedEntry(grid)).toMatchObject({ path: '/', props: { filters: { sort: 'seed' } } });
-  // jsdom 不发 transitionend，淡出层靠 `revealSkeleton` 的兜底定时器收掉。
+  // jsdom does not fire transitionend, so the fade layer is cleaned up by `revealSkeleton`'s fallback timer.
   await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 1100) }) });
   expect(grid.querySelector('.skelfade')).toBeNull();
   expect(cards(grid)).toHaveLength(3);
 });
 
-/* 壳每次换页都认领表面（`claimSurface`），目录内换筛选也是：那里点名收 `#stats` 与 `#index`，`#grid` 上的
-   网格照旧画着，只有点名 `#grid` 才收。 */
-it('`#grid` 上画着网格时，收 `#stats` 与 `#index` 不动它；点名 `#grid` 才收', async () => {
+/* The shell claims surfaces on every page change (`claimSurface`), including filter changes inside the catalog: there it names `#stats` and `#index` for teardown, while the
+   grid on `#grid` keeps rendering and is torn down only when `#grid` is named. */
+it('While the grid is painted on `#grid`, collapsing `#stats` and `#index` leaves it alone; only naming `#grid` collapses it', async () => {
   const r = await load('/');
   const { grid } = gridSurface();
   const { stats, index } = statsSurface();
@@ -226,18 +226,18 @@ it('`#grid` 上画着网格时，收 `#stats` 与 `#index` 不动它；点名 `#
   const revision = r.managedEntry(grid)?.revision;
   expect(r.managedEntries().map((entry) => entry.path)).toEqual(['/', '/playlists']);
   act(() => { r.releaseManagedRoute(stats, index) });
-  expect(stats.querySelector('.peach-react'), '`#stats` 那一页收掉了').toBeNull();
-  expect(painted(grid), '收别的容器不许卸网格').toBe(page);
+  expect(stats.querySelector('.peach-react'), 'The `#stats` page collapsed').toBeNull();
+  expect(painted(grid), 'Collapsing other containers must not unmount the grid').toBe(page);
   expect(r.managedEntry(grid)?.revision).toBe(revision);
   expect(cards(grid)).toHaveLength(3);
-  expect(fetch.pages(), '网格不重取').toHaveLength(1);
-  expect(fetch.summaries(), '统计不重取').toHaveLength(1);
+  expect(fetch.pages(), 'Grid not refetched').toHaveLength(1);
+  expect(fetch.summaries(), 'Statistics not refetched').toHaveLength(1);
   act(() => { r.releaseManagedRoute(grid) });
   expect([grid.querySelector('.peach-react'), r.managedEntries().length]).toEqual([null, 0]);
 });
 
-/* 多选、换版式、换快进秒数落在目录上：壳推进来，卡片就地重画，不重挂也不重取。 */
-it('就地推选择态与版式：代次不变、不重挂、不重取', async () => {
+/* Multi-select, layout change and skip-seconds change land on the catalog: the shell pushes them in, cards redraw in place, no remount and no refetch. */
+it('Selection state and layout are pushed in place: same generation, no remount, no refetch', async () => {
   const r = await load('/');
   const { grid } = gridSurface();
   await mount(r);
@@ -251,16 +251,16 @@ it('就地推选择态与版式：代次不变、不重挂、不重取', async (
   await act(async () => {
     r.updateManagedRoute(grid, { layout: { active: true, size: 'big', portrait: false, javImage: 'cover' }, seekSeconds: 30 });
   });
-  expect(painted(grid), '推选择态与版式不许重挂').toBe(page);
+  expect(painted(grid), 'Pushing selection state and layout must never remount').toBe(page);
   expect(r.managedEntry(grid)?.revision).toBe(revision);
-  expect(fetch.pages(), '列表不重取').toHaveLength(1);
-  expect(fetch.summaries(), '统计不重取').toHaveLength(1);
+  expect(fetch.pages(), 'The list is not refetched').toHaveLength(1);
+  expect(fetch.summaries(), 'Statistics not refetched').toHaveLength(1);
   expect(r.managedEntry(grid)?.props).toMatchObject({ selectMode: true, seekSeconds: 30, layout: { size: 'big' } });
-  expect((r.managedEntry(grid)!.props as CatalogGridProps).actions, '壳那一份动作原样留着').toBe(open.actions);
+  expect((r.managedEntry(grid)!.props as CatalogGridProps).actions, 'The shell\'s own actions kept as-is').toBe(open.actions);
 });
 
-/* 换排序、侧栏标签、首页与回收站互切落在目录上：壳推新的筛选与刷新代次，页面只按新键重取一次，宿主不换。 */
-it('就地推筛选与刷新代次：宿主与代次不变，只按新键重取一次', async () => {
+/* Changing the sort, switching sidebar tags, and moving between home and trash all land on the catalog: the shell pushes the new filters and refresh epoch, the page refetches once under the new key, and the host stays. */
+it('Filters and the refresh epoch push in place: host and epoch stay, and only one refetch runs under the new key', async () => {
   const r = await load('/');
   const { grid } = gridSurface();
   await mount(r);
@@ -270,39 +270,39 @@ it('就地推筛选与刷新代次：宿主与代次不变，只按新键重取�
   const host = r.managedEntry(grid)?.host;
   const revision = r.managedEntry(grid)?.revision;
   await act(async () => { r.updateManagedRoute(grid, { filters: { sort: 'new' }, revision: 1 }) });
-  await until(() => Boolean(grid.textContent?.includes('作品 1 new')), '按新键重取回来的那一份画上');
-  expect(fetch.pages().map((url) => url.searchParams.get('sort')), '列表只按新键重取一次').toEqual(['seed', 'new']);
-  expect(fetch.summaries().map((url) => url.searchParams.get('sort')), '统计按相同筛选各取一次').toEqual(['seed', 'new']);
-  expect(grid.querySelectorAll(':scope > .peach-react'), '宿主只有一个').toHaveLength(1);
+  await until(() => Boolean(grid.textContent?.includes('Video 1 new')), 'Paint the copy refetched with the new key');
+  expect(fetch.pages().map((url) => url.searchParams.get('sort')), 'The list refetches once only by the new key').toEqual(['seed', 'new']);
+  expect(fetch.summaries().map((url) => url.searchParams.get('sort')), 'Statistics fetch once each under the same filters').toEqual(['seed', 'new']);
+  expect(grid.querySelectorAll(':scope > .peach-react'), 'Exactly one host').toHaveLength(1);
   expect(r.managedEntry(grid)?.host).toBe(host);
   expect(r.managedEntry(grid)?.revision).toBe(revision);
   expect(open.settled).toHaveBeenLastCalledWith(1);
 });
 
-/* 进垃圾文件：壳先收掉 `#grid` 上的目录网格，再打开队列。队列打开前不取数，一次清空骨架、放进宿主，
-   不交叉淡入；读数由页面自己取，只取一次。 */
-it('垃圾队列：换掉 `#grid` 上的网格，一次清空骨架，首屏由页面自己取一次', async () => {
+/* Entering junk files: the shell first removes the catalog grid on `#grid`, then opens the queue. No fetch before the queue opens; the skeleton is cleared once and placed into the host,
+   no cross-fade; the page fetches its own counts, exactly once. */
+it('Junk queue: swap the grid on `#grid`, clear the skeleton in one pass, and the page fetches the first screen itself once', async () => {
   const r = await load('/junk-files');
   const { grid } = gridSurface();
   await mount(r);
   const fetch = catalogFetch();
   await act(async () => { await r.openManagedRoute('/', catalogOpen(), { container: grid, isCurrent: () => true }) });
-  await until(() => cards(grid).length === 3, '目录首屏画上');
-  expect(grid.querySelector('[data-media-sections]'), '先画着目录网格').not.toBeNull();
+  await until(() => cards(grid).length === 3, 'Painted on the catalog\'s first screen');
+  expect(grid.querySelector('[data-media-sections]'), 'Draws the catalog grid first').not.toBeNull();
   const open = junkOpen();
   await act(async () => { expect(await r.openManagedRoute('/junk-files', open, { container: grid, isCurrent: () => true })).toBe(true) });
-  expect(r.managedEntries().map((entry) => entry.path), '同一容器只留一页').toEqual(['/junk-files']);
-  expect([...grid.children].map((el) => el.className), '骨架一次清空，没有淡出层').toEqual(['peach-react']);
-  await until(() => junkCards(grid).length === 3, '队列画上');
-  expect(grid.querySelector('[data-media-sections]'), '目录网格已经不在').toBeNull();
-  expect(fetch.calls('/api/ads'), '读数只取一次').toHaveLength(1);
-  expect(open.countRow?.querySelector(':scope > .peach-react:not([data-junk-count-skeleton])'), '计数行那一格接管了骨架').not.toBeNull();
+  expect(r.managedEntries().map((entry) => entry.path), 'One container keeps a single page').toEqual(['/junk-files']);
+  expect([...grid.children].map((el) => el.className), 'The skeleton clears at once with no fade layer').toEqual(['peach-react']);
+  await until(() => junkCards(grid).length === 3, 'The queue painted');
+  expect(grid.querySelector('[data-media-sections]'), 'The catalog grid is already gone').toBeNull();
+  expect(fetch.calls('/api/ads'), 'The reading fetches once').toHaveLength(1);
+  expect(open.countRow?.querySelector(':scope > .peach-react:not([data-junk-count-skeleton])'), 'The count row\'s cell took over from the skeleton').not.toBeNull();
   expect(open.settled).toHaveBeenCalledWith(0);
 });
 
-/* 壳从垃圾文件去别处时先收 `#grid`，再往 `#count` 铺骨架。收的那一刻队列在计数行里建的那一格必须已经撤掉：
-   晚一拍撤，就是把壳刚铺的骨架冲掉，或者往一个已经被换掉的节点里卸 portal。 */
-it('收 `#grid` 上的垃圾队列：计数行那一格在收的同一刻撤掉，壳随后铺的骨架留得住', async () => {
+/* When the shell navigates away from junk files it first retracts `#grid`, then lays a skeleton over `#count`. The cell the queue built in the count row must already be withdrawn at retraction:
+   withdrawing one beat late would flush away the shell's freshly laid skeleton, or unload a portal into an already-replaced node. */
+it('Collapsing the junk queue on `#grid`: the count row cell is removed the same instant it collapses, and the skeleton the shell lays afterwards stays', async () => {
   const r = await load('/junk-files');
   const { grid } = gridSurface();
   await mount(r);
@@ -310,7 +310,7 @@ it('收 `#grid` 上的垃圾队列：计数行那一格在收的同一刻撤掉�
   const open = junkOpen();
   const count = open.countRow!;
   await act(async () => { await r.openManagedRoute('/junk-files', open, { container: grid, isCurrent: () => true }) });
-  await until(() => junkCards(grid).length === 3, '队列画上');
+  await until(() => junkCards(grid).length === 3, 'The queue painted');
   const errors = vi.spyOn(console, 'error');
   let atRelease: unknown[] = [];
   act(() => {
@@ -318,36 +318,36 @@ it('收 `#grid` 上的垃圾队列：计数行那一格在收的同一刻撤掉�
     atRelease = [count.childElementCount, grid.querySelector('.peach-react'), r.managedEntry(grid)];
     count.innerHTML = '<div class="peach-react" data-junk-count-skeleton=""></div>';
   });
-  expect(atRelease, '收的那一刻计数行那一格、宿主与登记都已撤掉').toEqual([0, null, null]);
+  expect(atRelease, 'At the moment of collapse, the count row cell, host, and registration are all gone').toEqual([0, null, null]);
   await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
-  expect(count.querySelectorAll('[data-junk-count-skeleton]'), '壳铺的骨架还在').toHaveLength(1);
+  expect(count.querySelectorAll('[data-junk-count-skeleton]'), 'Skeleton laid by the shell remains').toHaveLength(1);
   expect(errors).not.toHaveBeenCalled();
   errors.mockRestore();
 });
 
-/* 换分类、换视图、处置完重读与选择模式落在垃圾队列上：壳推进来，页面按新键重取，宿主与代次不变。 */
-it('就地推分类、刷新代次与选择态：垃圾队列不重挂，只按新键重取一次', async () => {
+/* Category switch, view switch, re-read after disposal, and selection mode land on the junk queue: the shell pushes them in, the page refetches by the new key, and the host and epoch stay unchanged. */
+it('Category, generation, and selection are pushed in place: the trash queue never remounts, it only refetches once with the new key', async () => {
   const r = await load('/junk-files');
   const { grid } = gridSurface();
   await mount(r);
   const fetch = catalogFetch();
   const open = junkOpen();
   await act(async () => { await r.openManagedRoute('/junk-files', open, { container: grid, isCurrent: () => true }) });
-  await until(() => junkCards(grid).length === 3, '队列画上');
+  await until(() => junkCards(grid).length === 3, 'The queue painted');
   const host = r.managedEntry(grid)?.host;
   const revision = r.managedEntry(grid)?.revision;
   const countHost = open.countRow?.firstElementChild;
   await act(async () => { r.updateManagedRoute(grid, { kind: 'image', revision: 1 }) });
-  await until(() => Boolean(grid.textContent?.includes('垃圾 11 image')), '按新分类取回来的那一份画上');
+  await until(() => Boolean(grid.textContent?.includes('Junk 11 image')), 'Paint the copy refetched with the new category');
   await act(async () => { r.updateManagedRoute(grid, { selectMode: true, selected: new Set([12]) }) });
-  expect(fetch.calls('/api/ads').map((url) => url.searchParams.get('kind')), '只按新键重取一次').toEqual([null, 'image']);
+  expect(fetch.calls('/api/ads').map((url) => url.searchParams.get('kind')), 'Refetches once under the new key only').toEqual([null, 'image']);
   expect([r.managedEntry(grid)?.host, r.managedEntry(grid)?.revision]).toEqual([host, revision]);
-  expect(open.countRow?.firstElementChild, '计数行那一格不重建').toBe(countHost);
+  expect(open.countRow?.firstElementChild, 'The count row cell is not rebuilt').toBe(countHost);
   expect(grid.querySelector('[data-junk-grid]')?.hasAttribute('data-select-mode')).toBe(true);
   expect(open.settled).toHaveBeenLastCalledWith(1);
 });
 
-it('目录网格与垃圾队列：壳那一整份 props 原样交给页面，助手与动作身份不变', async () => {
+it('Catalog grid and junk queue: the shell\'s full props are handed to the page as-is, with helper and action identities unchanged', async () => {
   const r = await load();
   const open = catalogOpen({ revision: 4 });
   const props = (r.CATALOG_ROUTES['/'].page(open, shellActions(), vi.fn()) as ReactElement<CatalogGridProps>).props;
@@ -361,7 +361,7 @@ it('目录网格与垃圾队列：壳那一整份 props 原样交给页面，助
   expect(junkProps.actions).toBe(junk.actions);
 });
 
-it('目录与垃圾文件的路径不走 React Router：交壳写地址再打开；槽里只认页面键', async () => {
+it('Catalog and junk files paths do not go through React Router: hand the shell the address write, then open; the slot only recognizes page keys', async () => {
   const r = await load('/stats');
   const actions = shellActions();
   const navigate = vi.fn();
@@ -375,5 +375,5 @@ it('目录与垃圾文件的路径不走 React Router：交壳写地址再打开
     expect(r.isManagedPath(path)).toBe(false);
   }
   expect([r.isRoutedPath('/'), r.isRoutedPath('/junk-files')]).toEqual([true, true]);
-  expect(r.isRoutedPath('/trash'), '回收站画的也是 `/` 那一页').toBe(false);
+  expect(r.isRoutedPath('/trash'), 'Trash also paints the `/` page').toBe(false);
 });

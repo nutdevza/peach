@@ -1,11 +1,11 @@
-/* 界面偏好那一份真相：壳原地改字段，落盘时通知订阅者；面板靠版本号知道要重画。 */
+/* The source of truth for UI preferences: the shell mutates fields in place and notifies subscribers on save; panels use the version number to know when to redraw. */
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { createSettingsStore } from '../src/settings-store';
 
 beforeEach(() => localStorage.clear());
 
-it('存的是壳手里那个对象本身，原地改完落盘就是改后的值', () => {
+it('What is stored is the shell\'s own object, so in-place edits persist the edited values', () => {
   const value = { theme: 'system', batchSize: 60 };
   const store = createSettingsStore('peach.settings.v1', value);
   value.theme = 'dark';
@@ -14,7 +14,7 @@ it('存的是壳手里那个对象本身，原地改完落盘就是改后的值'
   expect(JSON.parse(localStorage.getItem('peach.settings.v1')!)).toEqual({ theme: 'dark', batchSize: 60 });
 });
 
-it('每次落盘换一个版本号并通知订阅者；退订之后不再收到', () => {
+it('Each persist bumps a version and notifies subscribers; unsubscribing stops delivery', () => {
   const store = createSettingsStore('k', { on: true });
   const listener = vi.fn();
   const stop = store.subscribe(listener);
@@ -27,7 +27,7 @@ it('每次落盘换一个版本号并通知订阅者；退订之后不再收到'
   expect(listener).toHaveBeenCalledTimes(1);
 });
 
-it('值在别的键上时只通知不落盘', () => {
+it('When the value lives on another key, notify without persisting', () => {
   const store = createSettingsStore('k', { on: true });
   const listener = vi.fn();
   store.subscribe(listener);

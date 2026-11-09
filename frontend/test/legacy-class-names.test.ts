@@ -1,9 +1,10 @@
-/* React 样式产物里的类名不能和旧样式表的类选择器同名。
+/* Class names in the React style output must not collide with the legacy stylesheet's class selectors.
  *
- * 两份样式表都不分层，`board.css` 与 `/app.css` 排在 `peach-app.css` 后面，同名类按先后由旧规则
- * 胜出：卡片网格的 `.grid` 会把 `grid-cols-7` 压成一列、把 `gap-1` 撑到 16px。反过来，生成出来的
- * `.ring` 也会落到旧页面的 `.ring` 元素上。React 侧真要用的工具类换一种写法（flex 父元素里的网格
- * 容器写 `inline-grid`）；注释里的英文词被扫成工具类的，在 `styles.css` 用 `@source not inline` 排除。 */
+ * Neither stylesheet is layered, and `board.css` and `/app.css` come after `peach-app.css`, so same-name classes are won by
+ * the legacy rules: the card grid's `.grid` would crush `grid-cols-7` into one column and stretch `gap-1` to 16px. The other
+ * way, the generated `.ring` would land on legacy pages' `.ring` elements too. Utility classes React genuinely needs are
+ * spelled differently (a grid container inside a flex parent writes `inline-grid`); English words in comments that would be
+ * scanned into utilities are excluded in `styles.css` with `@source not inline`. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -12,7 +13,7 @@ import { expect, it } from 'vitest';
 const web = resolve(process.cwd(), '../web');
 const read = (...path: string[]) => readFileSync(resolve(web, ...path), 'utf8');
 
-/** 样式表里类选择器用到的类名，转义字符还原。 */
+/** Class names used by class selectors in the stylesheet, with escape characters restored. */
 function classNames(css: string): Set<string> {
   const names = new Set<string>();
   const selectors = css.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{};]+(?=\{)/g) ?? [];
@@ -25,19 +26,20 @@ function classNames(css: string): Set<string> {
   return names;
 }
 
-it('React 样式产物的类名不和旧样式表同名', () => {
+it('React style output class names do not share names with the old stylesheet', () => {
   const legacy = new Set([
     ...classNames(read('board.css')),
     ...readdirSync(resolve(web, 'css')).filter((name) => name.endsWith('.css'))
       .flatMap((name) => [...classNames(read('css', name))]),
   ]);
-  /* 这两枚是两边约好的名字，同名正是契约：`.peach-react` 让旧样式表把 React 子树排除在
-     全局焦点环之外；`.dark` 是 `src/appearance/theme.ts` 的 `applyTheme` 挂在 <html> 上的主题标记，旧
-     样式表按它给浅色单独换面，React 侧 Tailwind 的 dark 变体读的也是它。 */
+  /* These two are names both sides agreed on, and the sameness is the contract: `.peach-react` lets the legacy stylesheet
+     exclude the React subtree from the global focus ring; `.dark` is the theme marker `applyTheme` in
+     `src/appearance/theme.ts` hangs on <html>, which the legacy stylesheet uses to give light mode its own face and which the
+     React side's Tailwind dark variants also read. */
   const agreed = new Set(['peach-react', 'dark']);
-  /* `video-js` 与 `vjs-*` 是 Video.js 的组件契约：类由它自己的组件挂上，播放器样式
-     （`src/player/player.css`、沉浸岛的 `immerse.css`）只能按这些类写；旧样式表里的同名规则选中的
-     是同一种元素，同名正是契约。 */
+  /* `video-js` and `vjs-*` are Video.js's component contract: classes are attached by its own components, and player styles
+     (`src/player/player.css`, the immerse island's `immerse.css`) may only be written against these classes; same-named rules in the old stylesheet select
+     the same kind of element, and the shared name is the contract. */
   const videojs = (name: string) => name === 'video-js' || name.startsWith('vjs-');
   const shared = [...classNames(read('dist', 'peach-app.css'))]
     .filter((name) => !agreed.has(name) && !videojs(name) && legacy.has(name));

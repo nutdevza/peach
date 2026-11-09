@@ -59,15 +59,15 @@ async function motion(page: Page, trigger: Locator) {
   assert.equal(await trigger.locator(':scope > svg').evaluate(node => getComputedStyle(node).transitionDuration), '0s');
 }
 
-describe('折叠正文与箭头共用动画', () => {
+describe('The collapsible body and arrow share an animation', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：关注卡片高度过渡、反向点击，勾选框在行首、站标贴着名称`, async () => {
+    it(`${viewport.name}: follow cards transition height and handle reverse clicks, the checkbox leads the row and the site logo hugs the name`, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
-        const section = opened.page.getByRole('region', { name: 'kou 的关注来源', exact: true });
+        const section = opened.page.getByRole('region', { name: 'kou\'s follow sources', exact: true });
         const leading = section.locator('[data-follow-source-row]').first();
         const boxes = await leading.evaluate(node => {
           const icon = node.querySelector('[data-follow-source-site] img')!.getBoundingClientRect();
@@ -81,21 +81,21 @@ describe('折叠正文与箭头共用动画', () => {
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }
     });
-    it(`${viewport.name}：任务通知与教程可动画折叠`, async () => {
+    it(`${viewport.name}: task notifications and the tutorial collapse with animation`, async () => {
       const opened = await visit(browser, '/', viewport, async page => {
         await page.route('**/api/library-processing', route => route.fulfill({ json: {
           status: 'running', job_id: 'motion', total: 100, checked: 12, speed_mode: 'standard',
-          steps: [{ id: 'sources', label: '扫描文件', status: 'current' }],
+          steps: [{ id: 'sources', label: 'Scan files', status: 'current' }],
         } }));
       });
       try {
         await opened.page.locator('#toasts [data-processing-dock]').waitFor();
-        // 此任务由夹具保持运行，补全入口的忙态不会在本用例中结束。
+        // The fixture keeps this task running, so the completion entry's busy state never ends within this case.
         const taskButtons = '[data-library-completion] [data-split-button] > button[aria-busy="true"]';
         await settle(opened.page, 'body', { except: taskButtons });
         await motion(opened.page, opened.page.locator('#toasts [data-processing-dock] button[aria-controls]'));
         await opened.page.locator('#tutorialBtn').click();
-        await opened.page.locator('label').filter({ has: opened.page.getByRole('radio', { name: '界面导览', exact: true }) }).click();
+        await opened.page.locator('label').filter({ has: opened.page.getByRole('radio', { name: 'Interface tour', exact: true }) }).click();
         await motion(opened.page, opened.page.locator('[data-guide-topic="browse"] > details > summary'));
         assert.deepEqual(opened.problems, []);
       } finally { await opened.close() }

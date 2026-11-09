@@ -1,4 +1,4 @@
-/* 设计决定：控件、状态与首页顶部。读 `getComputedStyle` 断言用户定过的外观；共用的桩与浏览器生命周期在 `design-fixture.ts`。 */
+/* Design decisions: controls, states and the home page top. Reads `getComputedStyle` to assert the appearance the user set; shared stubs and browser lifecycle live in `design-fixture.ts`. */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
@@ -10,11 +10,11 @@ import {
   installDesignBrowser, openReview,
 } from './design-fixture.ts';
 
-describe('设计决定：控件、状态与首页顶部', () => {
+describe('Design decisions: controls, states, and the home top', () => {
   let browser: Browser;
   installDesignBrowser((next) => { browser = next; });
 
-  it('复核状态沿用首页玻璃控件尺寸，空分类保留选中玻璃与状态入口', { timeout: 60_000 }, async () => {
+  it('Review state reuses the home glass control sizes; empty categories keep the selected glass and the state entry', { timeout: 60_000 }, async () => {
     for (const viewport of [DESKTOP, MOBILE]) {
       const home = await openCatalogBars(browser, viewport);
       let reference;
@@ -42,7 +42,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
           const bottom = element.querySelector('[data-filter-row="bottom"]')!.getBoundingClientRect();
           return Math.abs(top.top - bottom.top) < 1;
         });
-        assert.equal(sameRow, !viewport.mobile, '足宽同排、窄屏换排');
+        assert.equal(sameRow, !viewport.mobile, 'Full width in one row, wraps on narrow screens');
         const divider = await filter.locator('[data-entity-sep]').evaluate(element => getComputedStyle(element).visibility);
         assert.equal(divider, viewport.mobile ? 'hidden' : 'visible');
         await filter.getByRole('button', { name: /^已忽略/ }).click();
@@ -65,25 +65,25 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('聚焦 React 输入框只画 BoardUI 外框，旧样式表的焦点环不进来', { timeout: 60_000 }, async () => {
+  it('Focusing a React input draws only the BoardUI outline; the legacy stylesheet focus ring stays out', { timeout: 60_000 }, async () => {
     const opened = await openAccess(browser);
     try {
       const input = opened.form.locator('#access-password');
       await input.focus();
       const style = await input.evaluate((element) => ({
         outline: getComputedStyle(element).outlineStyle,
-        // TextField 经 GroupContext 把外框的 role 设成 presentation。
+        // TextField sets the outer field's role to presentation through GroupContext.
         ring: getComputedStyle(element.closest('[role="presentation"]')!).boxShadow,
       }));
-      assert.equal(style.outline, 'none', '输入框自己画了 outline：旧的全局 :focus-visible 进了 React 子树');
-      assert.notEqual(style.ring, 'none', '外框没有聚焦描边');
+      assert.equal(style.outline, 'none', 'The input drew its own outline: the old global :focus-visible rule leaked into the React subtree');
+      assert.notEqual(style.ring, 'none', 'Outer frame missing the focus outline');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('详情舞台的焦点：骨架期间留在浮窗本身、不画焦点环，内容到了交给关闭键', { timeout: 60_000 }, async () => {
+  it('Details stage focus: during the skeleton it stays on the popover itself with no focus ring, and moves to the close button once content arrives', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, '/', DESKTOP, { ready: `#grid [data-media-card][data-id="${ITEM.plain}"]` });
     try {
       const page = opened.page;
@@ -92,13 +92,13 @@ describe('设计决定：控件、状态与首页顶部', () => {
       await page.route((url) => url.pathname === '/api/item', async (route) => { await held; await route.fallback() });
       await page.locator(`#grid [data-media-card][data-id="${ITEM.plain}"] [data-media-title]`).first().press('Enter');
       await page.locator('#stage[open] [data-skeleton="detail"]').waitFor();
-      /* 键盘打开也一样：骨架里没有可操作的东西，焦点环画在浮窗外沿上只是一圈噪声。 */
+      /* Same when the keyboard is open: the skeleton has nothing operable, and a focus ring on the floating window's outer edge is just noise. */
       const waiting = await page.evaluate(() => {
         const focused = document.activeElement as HTMLElement;
         return { id: focused?.id, outline: getComputedStyle(focused).outlineStyle, visible: focused.matches(':focus-visible') };
       });
-      assert.equal(waiting.id, 'stage', '骨架期间焦点不在浮窗上');
-      assert.equal(waiting.outline, 'none', `骨架期间浮窗画了焦点环（:focus-visible=${waiting.visible}）`);
+      assert.equal(waiting.id, 'stage', 'Focus is not on the popover during the skeleton');
+      assert.equal(waiting.outline, 'none', `The popover painted a focus ring during the skeleton phase (:focus-visible=${waiting.visible})`);
       release();
       await page.locator('#stage[open] [data-item-side]').waitFor();
       await page.waitForFunction(() => document.activeElement?.id === 'closeStage', null, { timeout: 5_000 });
@@ -108,15 +108,15 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('岛外与 React 子树的语义色是同一份：board.css 根上的每个 --color-* 两边画出同一个像素', { timeout: 60_000 }, async () => {
+  it('Semantic colors are identical inside and outside the React subtree: every --color-* on the board.css root paints the same pixel on both sides', { timeout: 60_000 }, async () => {
     const opened = await openAccess(browser);
     try {
       const shell = await opened.form.locator('#access-password').evaluate(
         (element) => getComputedStyle(element.closest('[role="presentation"]')!).backgroundColor);
-      // BoardUI theme.css 把浅色 neutral-200 改成了 #ebebeb，不是 Tailwind 默认的 #e5e5e5。
+      // BoardUI theme.css changed light neutral-200 to #ebebeb, not Tailwind's default #e5e5e5.
       assert.equal(shell, 'rgb(235, 235, 235)');
-      // 岛外的骨架读根上的值，接管后的组件读岛内的值；同一块面两帧要同色。岛内写 oklch、
-      // board.css 写十六进制或引用，字面不同，画成像素再比。
+      // Skeletons outside the island read the root value and components after takeover read the island value; the same surface must be the same color across frames. Inside the island it is written as oklch,
+      // board.css writes hex or references; the literals differ, so paint to pixels before comparing.
       const drift = await opened.form.evaluate((island) => {
         const sheet = [...document.styleSheets].find((candidate) => candidate.href?.includes('/board.css'))!;
         const names = new Set<string>();
@@ -146,7 +146,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
           root.classList.toggle('dark', theme === 'dark');
           for (const name of names) {
             const page = pixel(document.body, name), inside = pixel(island, name);
-            if (page !== inside) drift.push(`${theme} ${name}：岛外 ${page}，岛内 ${inside}`);
+            if (page !== inside) drift.push(`${theme} ${name}: outside the island ${page}, inside the island ${inside}`);
           }
         }
         if (before.theme === undefined) delete root.dataset.theme;
@@ -154,7 +154,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
         root.classList.toggle('dark', before.dark);
         return { count: names.size, drift };
       });
-      assert.ok(drift.count >= 15, `只从 board.css 根上读到 ${drift.count} 个语义色`);
+      assert.ok(drift.count >= 15, `Read only ${drift.count} semantic colors from the board.css root`);
       assert.deepEqual(drift.drift, []);
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -162,54 +162,54 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('持久警示是状态色块，不和字段说明共用灰色小字', { timeout: 60_000 }, async () => {
+  it('The persistent warning is a status color block, not sharing the gray small print with field descriptions', { timeout: 60_000 }, async () => {
     const opened = await openAccess(browser);
     try {
-      await opened.form.getByRole('checkbox', { name: '关闭访问密码', exact: true }).locator('xpath=ancestor::label[1]').click({ timeout: 5_000 });
+      await opened.form.getByRole('checkbox', { name: 'Disable access password', exact: true }).locator('xpath=ancestor::label[1]').click({ timeout: 5_000 });
       const note = opened.form.locator('[role="note"]');
       await note.waitFor({ timeout: 5_000 });
       const surface = await note.evaluate((element) => getComputedStyle(element).backgroundColor);
-      assert.notEqual(surface, 'rgba(0, 0, 0, 0)', '警示没有底色');
+      assert.notEqual(surface, 'rgba(0, 0, 0, 0)', 'Warning has no background');
       assert.equal(surface, await tokenColor(opened.page, '.peach-react', '--color-status-yellow-background'));
       const ink = await note.evaluate((element) => getComputedStyle(element).color);
       assert.equal(await opened.form.locator('input[type="password"]').count(), 0);
       const hint = await tokenColor(opened.page, '.peach-react', '--color-text-secondary');
-      assert.notEqual(ink, hint, '警示文字和字段说明同色');
+      assert.notEqual(ink, hint, 'Warning text and field description share a color');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('跑失败的那一轮整张卡框线换成 danger 色，结束原因还是正文色', { timeout: 60_000 }, async () => {
+  it('A failed run turns the whole card\'s border danger-colored while the finish reason stays body-colored', { timeout: 60_000 }, async () => {
     const opened = await openActivity(browser, [
-      settledRun(1, 'failed', '扫描与采集'), settledRun(2, 'succeeded', '追更检查'),
+      settledRun(1, 'failed', 'Scan and scrape'), settledRun(2, 'succeeded', 'Update check'),
     ]);
     try {
       const danger = await tokenColor(opened.page, '.peach-react', '--color-border-error-default');
-      // 框线画成不占盒子的 outline：只比颜色会放过「有色无宽、根本没画出来」的线，宽度一起比。
+      // The border is drawn as an outline that doesn't occupy the box: comparing only color would let through a 'colored but zero-width, never actually drawn' line, so compare width too.
       const frame = (status: string) => opened.page.locator(`li[data-status="${status}"]`)
         .evaluate((element) => {
           const style = getComputedStyle(element);
           return style.outlineStyle === 'none' ? '' : `${style.outlineWidth} ${style.outlineColor}`;
         });
-      assert.equal(await frame('failed'), `1px ${danger}`, '失败卡的框线不是 danger 色');
-      assert.notEqual(await frame('succeeded'), `1px ${danger}`, '没失败的卡也用了 danger 框线');
-      // 一屏十几行里逐行读红字比看一眼哪张卡的框是红的慢：原因那行留正文色。
+      assert.equal(await frame('failed'), `1px ${danger}`, 'The failed card\'s border is not danger colored');
+      assert.notEqual(await frame('succeeded'), `1px ${danger}`, 'Cards that did not fail also use danger borders');
+      // Reading red text line by line across a dozen rows is slower than glancing at which card's frame is red: the reason line keeps body text color.
       const reason = await opened.page.locator('li[data-status="failed"] [data-task-error]')
         .evaluate((element) => getComputedStyle(element).color);
-      assert.notEqual(reason, danger, '结束原因那行字被涂成了 danger 色');
+      assert.notEqual(reason, danger, 'The end reason line is painted in the danger color');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('任务结果成功绿、失败和取消红、中断黄，排队中性', { timeout: 60_000 }, async () => {
+  it('Task results: green for success, red for failure and cancellation, yellow for interruption, neutral for queued', { timeout: 60_000 }, async () => {
     const opened = await openActivity(browser, [
-      settledRun(1, 'succeeded', '追更检查'), settledRun(2, 'failed', '扫描与采集'),
-      settledRun(3, 'cancelled', '批量操作'), settledRun(4, 'pending', '命令行批处理'),
-      settledRun(5, 'interrupted', '资料采集'),
+      settledRun(1, 'succeeded', 'Update check'), settledRun(2, 'failed', 'Scan and scrape'),
+      settledRun(3, 'cancelled', 'Bulk actions'), settledRun(4, 'pending', 'Command-line batch processing'),
+      settledRun(5, 'interrupted', 'Detail scraping'),
     ]);
     try {
       const badge = (status: string) => opened.page.locator(`li[data-status="${status}"] span`).first()
@@ -226,8 +226,8 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('高清版卡片的封面是 150px 宽的 16/10 方块，长标题从头显示、最多两行', { timeout: 60_000 }, async () => {
-    const long = '这是一个长到必须省略才放得下的文件名，用来盯住标题从头显示而番号不被截掉.mp4';
+  it('The HD card cover is a 150px-wide 16/10 block; long titles show from the start, two lines at most', { timeout: 60_000 }, async () => {
+    const long = 'This is a file name so long it must be truncated to fit, used to watch that the title shows from the start and the code is not cut off.mp4';
     const opened = await openQualityGoals(browser, [
       qualityGoal(1, long), qualityGoal(2, 'short.mp4'),
     ]);
@@ -248,7 +248,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
         hint: element.getAttribute('title'),
       }));
       assert.equal(shown.clamp, '2');
-      assert.equal(shown.middle, false, '标题仍被中间截断');
+      assert.equal(shown.middle, false, 'Title still truncated in the middle');
       assert.equal(shown.text, long);
       assert.equal(shown.hint, long);
       assert.deepEqual(opened.problems, []);
@@ -257,50 +257,50 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('一张来源卡底下只有写入那一颗是主按钮，其余次级', { timeout: 60_000 }, async () => {
+  it('Under a source card only the write key is primary and the rest are secondary', { timeout: 60_000 }, async () => {
     const opened = await openScraping(browser);
     try {
-      const card = opened.page.locator('form[aria-label="演示来源甲"]');
+      const card = opened.page.locator('form[aria-label="Demo source Alpha"]');
       const fill = (name: string) => card.getByRole('button', { name, exact: true })
         .evaluate((element) => getComputedStyle(element).backgroundColor);
-      // 收 Cookie 且已存了一份的来源，底下三颗：撤销、检查、保存；只有保存是写入。
-      assert.equal(await fill('保存'), await tokenColor(opened.page, '.peach-react', '--color-button-primary'));
+      // For a source that takes cookies and has one saved, three keys below: undo, check, save; only save writes.
+      assert.equal(await fill('Save'), await tokenColor(opened.page, '.peach-react', '--color-button-primary'));
       const secondary = await tokenColor(opened.page, '.peach-react', '--color-background-primary-default');
-      assert.equal(await fill('检查连接'), secondary, '检查连接被画成了主按钮');
-      assert.equal(await fill('撤销 Cookie'), secondary, '撤销 Cookie 被画成了主按钮');
-      // 没存过 Cookie 的来源没有可撤的对象，那一颗不画。
-      const plain = opened.page.locator('form[aria-label="演示来源乙"]');
-      assert.equal(await plain.getByRole('button', { name: '撤销 Cookie', exact: true }).count(), 0);
+      assert.equal(await fill('Check connection'), secondary, 'Check connection renders as a primary button');
+      assert.equal(await fill('Revoke cookies'), secondary, 'The undo cookie rendered as a primary button');
+      // A source with no saved Cookie has nothing to revoke, so that button is not drawn.
+      const plain = opened.page.locator('form[aria-label="Demo source Beta"]');
+      assert.equal(await plain.getByRole('button', { name: 'Revoke cookies', exact: true }).count(), 0);
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('常驻任务面在运行时使用中性色，失败时使用状态红并跨页保留', { timeout: 60_000 }, async () => {
+  it('The persistent task surface uses a neutral color while running, status red on failure, and survives across pages', { timeout: 60_000 }, async () => {
     const running = await openProcessing(browser, '/', RUNNING_JOB);
     try {
       const banner = running.page.locator('#toasts [data-processing-dock][role="status"]');
       await banner.waitFor({ state: 'visible', timeout: 15_000 });
       assert.match(await banner.innerText(), /采集缺失资料 · 38 \/ 100/);
-      // 一圈长度钉成 100，画出来的那一段就是百分比本身。
+      // The circle length is pinned to 100, so the drawn arc is the percentage itself.
       assert.equal(await banner.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '38');
-      // 判据是「不是语气色」，不钉某一个具体的底：在跑那条走中性底，黄与红留给出事的时候。
+      // The criterion is "not a tone color", not pinned to one specific fill: the running item uses a neutral fill, and yellow and red stay for when something goes wrong.
       const tint = await banner.evaluate((element) => getComputedStyle(element).backgroundColor);
       for (const tone of ['--color-background-tertiary-error', '--color-status-yellow-background']) {
         assert.notEqual(tint, await tokenColor(running.page, '.peach-react', tone),
-          '任务在跑是正在发生的事，配上状态底色就和「出事了」一个分量');
+          'A running task is something happening now; with a status background it carries the same weight as "something went wrong"');
       }
     } finally {
       await running.close();
     }
 
-    const failed = await openProcessing(browser, '/', { status: 'failed', error: '来源离线' });
+    const failed = await openProcessing(browser, '/', { status: 'failed', error: 'Sources offline' });
     try {
       const banner = failed.page.locator('#toasts [data-processing-dock][role="alert"]');
       await banner.waitFor({ state: 'visible', timeout: 15_000 });
-      /* 计算值现在是 `oklab()`／`oklch()`，两种记法之间没法直接比字符串，所以统一在
-         canvas 上取回 RGBA 再比。 */
+      /* Computed values are now `oklab()`/`oklch()`; the two notations cannot be compared as strings directly, so always read RGBA back
+         on a canvas and compare that. */
       const readSurface = () => banner.evaluate((element) => {
         const style = getComputedStyle(element);
         const context = document.createElement('canvas').getContext('2d')!;
@@ -322,32 +322,32 @@ describe('设计决定：控件、状态与首页顶部', () => {
         }, theme);
         const surface = await readSurface();
         const errorTint = await tokenColor(failed.page, '.peach-react', '--color-background-tertiary-error');
-        assert.equal(surface.base[3], 255, '任务卡的底层不透明');
+        assert.equal(surface.base[3], 255, 'Task card base is opaque');
         assert.equal(surface.tint, `linear-gradient(${errorTint}, ${errorTint})`);
         assert.equal(surface.button, await tokenColor(failed.page, '.peach-react', '--color-background-primary-default'));
         assert.equal(surface.link, await tokenColor(failed.page, '.peach-react', '--color-text-secondary'));
         for (const at of [0, 1, 2]) {
           assert.ok(Math.abs(surface.line[at]! - surface.ink[at]!) <= 2,
-            `横幅的线没跟着语气走：线 ${surface.line} 与字 ${surface.ink} 不是同一个色`);
+            `The banner's border does not follow its tone: border ${surface.line} and text ${surface.ink} are not the same color`);
         }
-        assert.ok(surface.line[3]! < surface.ink[3]!, '状态分隔线比正文更淡');
+        assert.ok(surface.line[3]! < surface.ink[3]!, 'State dividers run lighter than body text');
       }
-      // 数据管理子页继续保留同一趟尚未处理的失败提示。
+      // The data management subpage keeps the same run's unhandled failure notice.
       await failed.page.goto(new URL('/junk-files', failed.page.url()).href, { waitUntil: 'load' });
       await failed.page.locator('[data-junk-filters]').waitFor({ state: 'visible', timeout: 15_000 });
       const retainedFailure = failed.page.locator('#toasts [data-processing-dock][role="alert"]');
       await retainedFailure.waitFor({ state: 'visible', timeout: 15_000 });
       assert.equal(await retainedFailure.count(), 1,
-        '未处理的失败在换页后仍可找到');
+        'Unhandled failures remain findable after paging away');
     } finally {
       await failed.close();
     }
   });
 
-  it('扫描卡的进度条走焦点环色，底槽是三级底，任务在跑时同步键标为不可用但仍可聚焦', { timeout: 60_000 }, async () => {
+  it('The scan card\'s progress bar uses the focus-ring color, the base slot is the third-level background, and while a task is running the sync key is marked unavailable but still focusable', { timeout: 60_000 }, async () => {
     const opened = await openProcessing(browser, '/data-cleanup', RUNNING_JOB);
     try {
-      const card = opened.page.locator('section[aria-label="扫描与采集"]');
+      const card = opened.page.locator('section[aria-label="Scan and scrape"]');
       await card.waitFor({ state: 'visible', timeout: 15_000 });
       const bar = card.locator('[role="progressbar"]');
       assert.equal(await bar.getAttribute('aria-valuenow'), '38');
@@ -358,41 +358,41 @@ describe('设计决定：控件、状态与首页顶部', () => {
         await tokenColor(opened.page, '.peach-react', '--color-background-tertiary-default'));
       assert.equal(await fill(1),
         await tokenColor(opened.page, '.peach-react', '--color-border-focus-ring'));
-      // 已有任务在跑只标 `aria-disabled`、不改 `disabled`：控件仍可聚焦，点了由卡片说明为什么没开始。
-      const scan = card.getByRole('button', { name: '同步新增文件', exact: true });
+      // When a task is already running, only mark aria-disabled, don't change disabled: the control stays focusable, and clicking is explained by the card for why it didn't start.
+      const scan = card.getByRole('button', { name: 'Sync new files', exact: true });
       assert.equal(await scan.getAttribute('aria-disabled'), 'true');
       assert.equal(await scan.getAttribute('aria-busy'), null);
       assert.equal(await scan.evaluate((element) => (element as HTMLButtonElement).disabled), false,
-        '用原生 disabled 挡的话按钮连焦点都拿不到');
+        'Guarding with native disabled would keep the button from receiving focus at all');
       const split = card.locator('[data-split-button]');
       const parts = split.locator(':scope > button');
-      assert.equal(await parts.count(), 2, '拆分按钮没有保持主操作与菜单两区');
+      assert.equal(await parts.count(), 2, 'The split button did not keep its primary action and menu regions separate');
       const boxes = await parts.evaluateAll((buttons) => buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return { left: rect.left, right: rect.right, height: rect.height };
       }));
       assert.ok(Math.abs(boxes[0]!.right - boxes[1]!.left) < 0.5,
-        '拆分按钮两区之间留了空隙');
-      assert.equal(boxes[0]!.height, boxes[1]!.height, '拆分按钮两区高度不一致');
+        'The split button leaves a gap between its halves');
+      assert.equal(boxes[0]!.height, boxes[1]!.height, 'The split button halves differ in height');
       const divider = await parts.nth(1).evaluate((element) => {
         const style = getComputedStyle(element, '::after');
         return { width: style.width, color: style.backgroundColor };
       });
-      assert.equal(divider.width, '1px', '拆分按钮分隔线宽度不对');
-      assert.notEqual(divider.color, 'rgba(0, 0, 0, 0)', '拆分按钮分隔线没有颜色');
+      assert.equal(divider.width, '1px', 'The split button divider width is wrong');
+      assert.notEqual(divider.color, 'rgba(0, 0, 0, 0)', 'The split button divider has no color');
     } finally {
       await opened.close();
     }
   });
 
-  it('拆分按钮两半各自抬填充：悬停哪半只有哪半变，中缝那条线不动', { timeout: 60_000 }, async () => {
-    // Geist 实测（`vercel-geist-split-button.md`「悬停」）：两半各是一颗有自己底色的按钮，
-    // 悬停只抬指针下那一颗；分隔线是触发档 `::before`，`left:-1px` 盖在主动作最后一列上，
-    // 高度顶满、颜色不随悬停变。
+  it('The two halves of a split button raise fill independently: hovering one half changes only that half, and the center seam line stays', { timeout: 60_000 }, async () => {
+    // Measured from Geist (`vercel-geist-split-button.md`, "Hover"): each half is its own button with its own background,
+    // Hovering lifts only the one under the pointer; the separator is the trigger tier's `::before`, `left:-1px` laid over the last column of the primary action,
+    // Full height, and the color does not change on hover.
     const opened = await openProcessing(browser, '/data-cleanup', { status: 'idle' });
     try {
-      // 骨架那张卡同名同结构，等到 React 接管、两半不再带骨架标记才量。
-      const split = opened.page.locator('section[aria-label="扫描与采集"] [data-split-button]:not(:has(> [data-skeleton-action]))');
+      // The skeleton card shares the name and structure; measurement waits until React takes over and neither half carries skeleton markers.
+      const split = opened.page.locator('section[aria-label="Scan and collect"] [data-split-button]:not(:has(> [data-skeleton-action]))');
       await split.waitFor({ state: 'visible', timeout: 15_000 });
       await settle(opened.page);
       const parts = split.locator(':scope > button');
@@ -407,27 +407,27 @@ describe('设计决定：控件、状态与首页顶部', () => {
           clip: getComputedStyle(element).overflowX };
       });
       assert.equal(await split.evaluate((element) => getComputedStyle(element).backgroundImage), 'none',
-        '底色画在整组上，两半就没法各自抬填充');
+        'With the background painted on the whole group the two halves cannot each lift their fill');
       await opened.page.mouse.move(0, 0);
       const rest = await faces();
-      assert.match(rest[0]!.fill, /gradient/, '主动作那半没有自己的蓝色填充');
-      assert.equal(rest[1]!.fill, rest[0]!.fill, '两半静止时不是同一档填充');
-      assert.deepEqual(rest.map((face) => face.lift), ['0', '0'], '没悬停就抬了填充');
+      assert.match(rest[0]!.fill, /gradient/, 'The primary action\'s half has no blue fill of its own');
+      assert.equal(rest[1]!.fill, rest[0]!.fill, 'The two halves at rest use different fill tiers');
+      assert.deepEqual(rest.map((face) => face.lift), ['0', '0'], 'Fill raised without hover');
       const line = await seam();
       assert.equal(line.width, '1px');
-      assert.equal(line.left, '-1px', '分隔线该盖在主动作最后一列上，不占触发档的宽度');
-      assert.equal(line.height, line.full, '分隔线没有上下顶满');
-      assert.equal(line.clip, 'visible', '触发档把伸到左邻上的分隔线裁掉了，屏幕上看不见');
+      assert.equal(line.left, '-1px', 'The divider should cover the primary action\'s last column without taking the trigger tier\'s width');
+      assert.equal(line.height, line.full, 'Divider does not span full height');
+      assert.equal(line.clip, 'visible', 'The trigger tier clips the divider that reaches toward its left neighbor, so it is invisible on screen');
       assert.notEqual(line.color, 'rgba(0, 0, 0, 0)');
       for (const [at, other] of [[0, 1], [1, 0]] as const) {
         await parts.nth(at).hover();
-        // 悬停层按 150ms 淡入淡出，直接读会落在半路；走到终点再比。
+        // The hover layer fades over 150ms, so reading immediately lands mid-fade; compare after it reaches its end state.
         await opened.page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
         const hovered = await faces();
-        assert.equal(hovered[at]!.lift, '1', `悬停第 ${at + 1} 半没有抬填充`);
-        assert.equal(hovered[other]!.lift, '0', `悬停第 ${at + 1} 半时另一半也跟着变了`);
-        assert.deepEqual(hovered.map((face) => face.ink), rest.map((face) => face.ink), '悬停改了字色');
-        assert.deepEqual(await seam(), line, '悬停时分隔线变了');
+        assert.equal(hovered[at]!.lift, '1', `Hovering half ${at + 1} does not lift the fill`);
+        assert.equal(hovered[other]!.lift, '0', `Hovering half ${at + 1} also changed the other half`);
+        assert.deepEqual(hovered.map((face) => face.ink), rest.map((face) => face.ink), 'Hover changes text color');
+        assert.deepEqual(await seam(), line, 'Divider changes on hover');
       }
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -435,11 +435,11 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('失败提示里重试键靠右，问题清单铺满提示并走覆盖式滚动条', { timeout: 60_000 }, async () => {
+  it('In the failure note the retry key sits right, the issue list fills the note, and an overlay scrollbar scrolls it', { timeout: 60_000 }, async () => {
     const opened = await openProcessing(browser, '/data-cleanup', FAILED_JOB);
     try {
       const alert = opened.page.locator('#libraryProcessing [role="alert"]');
-      await expectBody(opened.page, '/data-cleanup 处理失败提示', [alert], opened.problems);
+      await expectBody(opened.page, '/data-cleanup processing failure notice', [alert], opened.problems);
       await alert.locator('summary').click();
       const list = alert.locator('ul');
       await list.waitFor({ state: 'visible', timeout: 5_000 });
@@ -456,13 +456,13 @@ describe('设计决定：控件、状态与首页顶部', () => {
         };
       });
       assert.ok(geometry.noteRight - geometry.buttonRight - geometry.padding < 1,
-        '重试与归档没有贴着提示的右内边，读起来就不是这条提示的动作');
+        'Retry and archive are not hugging the notice\'s right padding, so they do not read as this notice\'s actions');
       assert.ok(geometry.noteRight - geometry.listRight - geometry.padding < 1,
-        '问题清单没有铺满提示的宽度');
-      assert.equal(geometry.client, geometry.offset, '原生滚动条还占着清单右边一列');
-      assert.ok(geometry.track, '清单没有挂上全站那条覆盖式滚动条');
-      /* 同一块红底上叠着三段：结论、清单、完整记录。条与条之间要看得见界，完整记录
-         要退回灰字——它不是这条提示在说的事，是出事之后自己去翻的东西。 */
+        'The issue list never fills the note\'s width');
+      assert.equal(geometry.client, geometry.offset, 'The native scrollbar still occupies a column at the list\'s right');
+      assert.ok(geometry.track, 'The list never picked up the site-wide overlay scrollbar');
+      /* Three sections stack on the same red base: verdict, list, full record. The boundary between entries must be visible, and the full record
+         falls back to gray text; it is not what this alert is saying, it is what you dig through after the fact. */
       const layering = await alert.evaluate((element) => {
         const context = document.createElement('canvas').getContext('2d')!;
         const paint = (color: string) => {
@@ -471,9 +471,9 @@ describe('设计决定：控件、状态与首页顶部', () => {
           context.fillRect(0, 0, 1, 1);
           return [...context.getImageData(0, 0, 1, 1).data];
         };
-        // `divide-y` 把线画在每条的下缘（末条除外），所以量的是第一条的下边。
+        // `divide-y` draws the line on each row's bottom edge (except the last), so measure the first row's bottom.
         const first = element.querySelectorAll('li')[0]!;
-        const log = element.querySelector('[aria-label="在资源管理器中显示"]')!.closest('.text-text-secondary')!.querySelector('p')!;
+        const log = element.querySelector('[aria-label="Show in File Explorer"]')!.closest('.text-text-secondary')!.querySelector('p')!;
         return {
           divider: parseFloat(getComputedStyle(first).borderBottomWidth),
           dividerInk: paint(getComputedStyle(first).borderBottomColor),
@@ -481,61 +481,61 @@ describe('设计决定：控件、状态与首页顶部', () => {
           bodyInk: paint(getComputedStyle(element).color),
         };
       });
-      assert.ok(layering.divider > 0, '两条明细之间没有界，几十条连成一片');
-      assert.ok(layering.dividerInk[3]! < layering.bodyInk[3]!, '条间的线和正文一样实');
+      assert.ok(layering.divider > 0, 'No boundary sits between two details, with dozens running together');
+      assert.ok(layering.dividerInk[3]! < layering.bodyInk[3]!, 'Row dividers are as solid as body text');
       assert.ok([0, 1, 2].some((at) => Math.abs(layering.logInk[at]! - layering.bodyInk[at]!) > 8),
-        '完整记录还跟着提示是红的，读起来像又出了一件事');
+        'The full record still follows the red note, reading like yet another problem');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('一趟的问题收在同一块提示里，「7 天内不再问」、完整记录与导出都跟着它', { timeout: 60_000 }, async () => {
+  it('The issues of a run are grouped into a single prompt; “Don\'t ask for 7 days”, the full record, and export all follow it', { timeout: 60_000 }, async () => {
     const notes = { fetching_cover: 84, querying_metadata: 18 };
-    const button = '[aria-label="在资源管理器中显示"]';
+    const button = '[aria-label="Show in File Explorer"]';
     const reveal = `#libraryProcessing ${button}`;
     const failed = await openProcessing(browser, '/data-cleanup', { ...FAILED_JOB, notes });
     try {
       const alert = failed.page.locator('#libraryProcessing [role="alert"]');
-      await expectBody(failed.page, '/data-cleanup 失败提示与不再问提示', [alert], failed.problems);
-      assert.ok((await alert.textContent())!.includes('7 天内不再问'), '「7 天内不再问」没有并进失败提示');
+      await expectBody(failed.page, '/data-cleanup failure note and do-not-ask note', [alert], failed.problems);
+      assert.ok((await alert.textContent())!.includes('Not asked again for 7 days'), '“Do not ask again for 7 days” was not merged into the failure notice');
       assert.equal(await failed.page.locator('#libraryProcessing [role="note"]').count(), 0,
-        '失败提示旁边还另挂着一块同类提示');
-      assert.equal(await failed.page.locator(reveal).count(), 1, '完整记录印了不止一处');
-      assert.equal(await alert.locator(button).count(), 1, '完整记录该跟着问题提示');
-      assert.equal(await alert.getByRole('button', { name: '导出完整问题清单' }).count(), 1, '导出没有跟着完整记录');
+        'A similar notice is hung next to the failure notice');
+      assert.equal(await failed.page.locator(reveal).count(), 1, 'Full record printed in more than one place');
+      assert.equal(await alert.locator(button).count(), 1, 'The full record should follow the problem notice');
+      assert.equal(await alert.getByRole('button', { name: 'Export the full issue list' }).count(), 1, 'Export did not follow the full record');
       assert.deepEqual(failed.problems, []);
     } finally {
       await failed.close();
     }
-    /* 跑完的一趟没有失败提示，这条提示就是日志唯一的入口；分隔线上下的留白与内边距相同。 */
+    /* A finished run with no failure notice has this prompt as its only log entry point; spacing and padding above and below the divider match. */
     const complete = await openProcessing(browser, '/data-cleanup', {
       status: 'complete', job_id: 'two', issue_count: 3, issues_log: FAILED_JOB.issues_log, notes,
     });
     try {
-      const note = complete.page.locator('#libraryProcessing [role="note"]', { hasText: '7 天内不再问' });
-      await expectBody(complete.page, '/data-cleanup 不再问提示', [note], complete.problems);
-      assert.equal(await complete.page.locator(reveal).count(), 1, '跑完的一趟丢了完整记录');
+      const note = complete.page.locator('#libraryProcessing [role="note"]', { hasText: 'Not asked again for 7 days' });
+      await expectBody(complete.page, '/data-cleanup do-not-ask note', [note], complete.problems);
+      assert.equal(await complete.page.locator(reveal).count(), 1, 'A finished round lost its full record');
       const rhythm = await note.evaluate((element, selector) => {
         const bar = element.querySelector(selector)!.closest('.border-t')!;
         const note = getComputedStyle(element);
         const style = getComputedStyle(bar);
         return { padding: note.paddingTop, gap: note.rowGap, above: style.marginTop, below: style.paddingTop };
       }, button);
-      assert.equal(rhythm.above, rhythm.padding, '分隔线上方的留白和提示内边距不一样');
-      assert.equal(rhythm.below, rhythm.padding, '分隔线下方的留白和提示内边距不一样');
-      assert.ok(rhythm.gap === 'normal' || rhythm.gap === '0px', '正文与分隔线之间还多垫了一段间距');
+      assert.equal(rhythm.above, rhythm.padding, 'The space above the divider differs from the note padding');
+      assert.equal(rhythm.below, rhythm.padding, 'The space below the divider differs from the note padding');
+      assert.ok(rhythm.gap === 'normal' || rhythm.gap === '0px', 'Extra padding sits between the body and the divider');
       assert.deepEqual(complete.problems, []);
     } finally {
       await complete.close();
     }
   });
 
-  it('新窗口打开的来源地址两项 rel 都写：不带走会话，也不带走来处', { timeout: 60_000 }, async () => {
+  it('Source addresses opened in a new window set both rel values: no session and no referrer', { timeout: 60_000 }, async () => {
     const opened = await openScraping(browser);
     try {
-      const link = opened.page.locator('form[aria-label="演示来源甲"] a[target="_blank"]');
+      const link = opened.page.locator('form[aria-label="Demo source A"] a[target="_blank"]');
       assert.equal(await link.getAttribute('href'), 'https://demoa.example/login');
       assert.equal((await link.getAttribute('rel'))!.split(/\s+/).sort().join(' '), 'noopener noreferrer');
       assert.deepEqual(opened.problems, []);
@@ -544,7 +544,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('顶栏版式键保留两枚字形并原地换态', { timeout: 60_000 }, async () => {
+  it('The top bar\'s layout key keeps both glyphs and swaps state in place', { timeout: 60_000 }, async () => {
     const opened = await openCatalog(browser);
     try {
       await opened.page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -556,19 +556,19 @@ describe('设计决定：控件、状态与首页顶部', () => {
       await swap.evaluate((element) => { element.setAttribute('data-test-identity', 'density-swap'); });
       await button.click();
       assert.notEqual(await swap.getAttribute('data-icon-state'), before,
-        '按下后仍停在同一枚字形');
+        'After pressing it stays on the same glyph');
       assert.equal(await swap.locator('[data-icon]').count(), 2,
-        '换态不应销毁其中一枚字形');
+        'Switching state must not destroy either glyph');
       await button.click();
-      assert.equal(await swap.getAttribute('data-icon-state'), before, '第二次按下没有回到原字形');
+      assert.equal(await swap.getAttribute('data-icon-state'), before, 'The second press does not restore the original glyph');
       assert.equal(await button.locator('[data-icon-swap][data-test-identity="density-swap"]').count(), 1,
-        '两次换态之间重建了字形容器');
+        'The glyph container rebuilt between two state changes');
     } finally {
       await opened.close();
     }
   });
 
-  it('数字首写静态、变值弹入；筛选读数原位淡入淡出并保留控件', { timeout: 60_000 }, async () => {
+  it('Numbers start static and pop in on change; filter readings cross-fade in place while keeping their controls', { timeout: 60_000 }, async () => {
     const opened = await openCatalogFixture(browser, (payload, url) => {
       payload.total = url.searchParams.has('q') ? 34 : 12;
     });
@@ -591,7 +591,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
         host.remove();
         return answer;
       });
-      assert.equal(result.firstWasStatic, true, '首次写入不应弹动');
+      assert.equal(result.firstWasStatic, true, 'First write should not bounce');
       assert.equal(result.animationName, 'digit-pop-in');
       assert.equal(result.duration, '0.25s');
 
@@ -604,7 +604,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
       await page.route('**/api/items?**', async route => { await held; await route.fallback() });
       await page.evaluate(() => { Object.assign(window, { countFrame: document.querySelector('[data-catalog-frame]') }) });
       try {
-        await input.fill('读数变值');
+        await input.fill('Count changes');
         await input.press('Enter');
         await page.waitForFunction(() => document.querySelector('[data-catalog-readout] [data-async-text]')?.getAttribute('aria-busy') === 'true');
         const fading = await readout.evaluate(node => {
@@ -615,11 +615,11 @@ describe('设计决定：控件、状态与首页顶部', () => {
             same: (window as unknown as { countFrame: Element }).countFrame === document.querySelector('[data-catalog-frame]') };
         });
         assert.equal(fading.hidden, 'true');
-        assert.ok(fading.transition.includes('opacity') && fading.duration > 0, '读数缺少淡入淡出');
-        assert.ok(before && Math.abs(fading.width - before.width) <= 1, '等待骨架没有保留读数宽度');
-        assert.equal(fading.same, true, '加载读数替换了筛选控件');
+        assert.ok(fading.transition.includes('opacity') && fading.duration > 0, 'The reading is missing its cross-fade');
+        assert.ok(before && Math.abs(fading.width - before.width) <= 1, 'The waiting skeleton did not keep the reading\'s width');
+        assert.equal(fading.same, true, 'The loading reading replaced the filter controls');
       } finally { release() }
-      await page.waitForFunction(() => document.querySelector('[data-catalog-readout]')?.textContent?.includes('34 个符合'));
+      await page.waitForFunction(() => document.querySelector('[data-catalog-readout]')?.textContent?.includes('34 matches'));
       assert.equal(await readout.getAttribute('aria-busy'), null);
       assert.equal(await readout.locator('[data-async-text-value]').getAttribute('aria-hidden'), null);
     } finally {
@@ -627,11 +627,11 @@ describe('设计决定：控件、状态与首页顶部', () => {
     }
   });
 
-  it('五枚叠放头像浮于文字上展开，左缘与标题列不动', { timeout: 60_000 }, async () => {
-    const names = Array.from({ length: 7 }, (_, index) => `演示演员 ${index + 1}`);
+  it('Five stacked avatars fan out over the text while the left edge and title column stay put', { timeout: 60_000 }, async () => {
+    const names = Array.from({ length: 7 }, (_, index) => `Demo performer ${index + 1}`);
     const opened = await openCatalogFixture(browser, (payload) => {
       const item = payload.items[0];
-      if (!item) throw new Error('演示目录没有可替换的卡片');
+      if (!item) throw new Error('The demo catalog has no swappable cards');
       item.creator = '';
       item.performers = names;
       item.performer_total = names.length;
@@ -642,7 +642,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
       const stack = opened.page.locator('[data-media-card][data-id] [data-media-avatars]').first();
       await stack.waitFor({ timeout: 5_000 });
       const avatars = stack.locator('[data-media-avatar]');
-      assert.equal(await avatars.count(), 5, 'API 给七位表演者时卡片没有收在五枚以内');
+      assert.equal(await avatars.count(), 5, 'When the API returns seven performers, the card does not cap at five avatars');
       const before = await avatars.evaluateAll((items) => items.map((item) => parseFloat(getComputedStyle(item).left)));
       const left = (await stack.boundingBox())!.x;
       const textBefore = await stack.locator('xpath=ancestor::article[@data-media-card]').first().locator('[data-media-text]').boundingBox();
@@ -655,7 +655,7 @@ describe('设计决定：控件、状态与首页顶部', () => {
       await waitForAvatarMotion();
       const firstSpread = await avatars.evaluateAll((items) => items.map((item) => parseFloat(getComputedStyle(item).left)));
       for (let index = 1; index < firstSpread.length; index += 1) {
-        assert.ok(firstSpread[index] > before[index], `首枚悬停时第 ${index + 1} 枚没有向标题方向展开`);
+        assert.ok(firstSpread[index] > before[index], `When the first one hovers, item ${index + 1} does not expand toward the title`);
       }
 
       await avatars.nth(2).hover();
@@ -677,22 +677,22 @@ describe('设计决定：控件、状态与首页顶部', () => {
           cardRight: cardRect.right,
         };
       });
-      assert.equal(bounds.stackLeft, left, '展开时左缘发生位移');
-      // Chrome 合成层结束 transition 时会留下远小于一个物理像素的浮点残差；这里守的是
-      // 头像没有发生可见位移，不把 303 与 302.9933 这种同一像素内的取整差判成布局回退。
-      assert.ok(Math.abs(after[0] - before[0]) <= .5, '指向第三枚时第一枚被往左推');
-      assert.ok(after.slice(1).every((value,index)=>Math.abs(value-firstSpread[index+1]!)<=.5), '在头像间移动时展开位置不稳定');
-      assert.ok(after[3] > before[3] && after[4] > before[4], '头像没有朝标题方向展开');
-      assert.ok(bounds.firstRingLeft >= bounds.cardLeft - .5, '首枚放大加描边后被卡片左缘裁切');
-      assert.ok(bounds.lastRingRight <= bounds.cardRight + .5, '头像展开越出卡片右缘');
-      assert.ok(bounds.lastRingRight > bounds.textLeft && bounds.stackRight <= bounds.textLeft, '展开头像没有浮于文字上方');
-      assert.ok(Math.abs(bounds.textLeft-textBefore!.x)<=.5, '展开头像改变了标题列位置');
+      assert.equal(bounds.stackLeft, left, 'Left edge shifts when expanded');
+      // When a Chrome compositor layer finishes a transition it leaves a float residual far below one physical pixel; this guards
+      // The avatar shows no visible movement, so a rounding gap like 303 vs 302.9933 within the same pixel is not judged a layout regression.
+      assert.ok(Math.abs(after[0] - before[0]) <= .5, 'Pointing at the third pushed the first one left');
+      assert.ok(after.slice(1).every((value,index)=>Math.abs(value-firstSpread[index+1]!)<=.5), 'Moving between avatars makes the expanded position unstable');
+      assert.ok(after[3] > before[3] && after[4] > before[4], 'The avatar did not expand toward the title');
+      assert.ok(bounds.firstRingLeft >= bounds.cardLeft - .5, 'The first one enlarged with a ring got clipped by the card\'s left edge');
+      assert.ok(bounds.lastRingRight <= bounds.cardRight + .5, 'The expanded avatar leaves the card\'s right edge');
+      assert.ok(bounds.lastRingRight > bounds.textLeft && bounds.stackRight <= bounds.textLeft, 'The expanded avatar does not float over the text');
+      assert.ok(Math.abs(bounds.textLeft-textBefore!.x)<=.5, 'Expanding the avatar moves the title column');
 
       await opened.page.mouse.move(0, 0);
       await avatars.nth(2).focus();
       await waitForAvatarMotion();
       const layers = await avatars.evaluateAll((items) => items.map((item) => Number(getComputedStyle(item).zIndex)));
-      assert.equal(layers[2], Math.max(...layers), '键盘焦点所在头像没有升到最高层');
+      assert.equal(layers[2], Math.max(...layers), 'The keyboard-focused avatar did not rise to the top layer');
 
       await opened.page.setViewportSize({ width: 390, height: 844 });
       const drawer = opened.page.locator('#drawer');
@@ -724,20 +724,20 @@ describe('设计决定：控件、状态与首页顶部', () => {
         };
       });
       assert.ok(narrow.firstRingLeft >= Math.max(narrow.cardLeft, narrow.clipLeft) - .5,
-        '390px 视口下首枚头像或描边被最近的裁切祖先截掉');
+        'At a 390px viewport the first avatar or ring gets clipped by its nearest clipping ancestor');
       assert.ok(narrow.lastRingRight <= Math.min(narrow.cardRight, narrow.clipRight, narrow.viewport) + .5,
-        '390px 视口下展开头像越出卡片、裁切祖先或视口');
+        'At a 390px viewport the expanded avatar leaves the card, a clipping ancestor, or the viewport');
     } finally {
       await opened.close();
     }
   });
 
-  it('搜索框从非空变空时立即清值并溶解原内容', { timeout: 60_000 }, async () => {
+  it('When the search box empties it clears the value immediately and dissolves the previous content', { timeout: 60_000 }, async () => {
     const opened = await openCatalog(browser);
     try {
       await opened.page.emulateMedia({ reducedMotion: 'no-preference' });
       const input = opened.page.locator('#q');
-      const text = '一段长到会在搜索框里横向滚动的内容 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ '.repeat(4).trim();
+      const text = 'A stretch of content long enough to scroll sideways in the search box 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ '.repeat(4).trim();
       await input.fill(text);
       await input.evaluate((element) => {
         const field = element as HTMLInputElement;
@@ -746,10 +746,10 @@ describe('设计决定：控件、状态与首页顶部', () => {
         field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
       });
       assert.ok(await input.evaluate((element) => (element as HTMLInputElement).scrollLeft) > 0,
-        '测试内容没有真正让搜索框横向滚动');
-      /* 残影最多活一秒（动画结束或兜底计时器就摘掉），负载重时测试的几次往返之间它就没了。
-         清空前在页面里挂好观察者：残影一挂上就记下文字与位移，再在同一个页面循环里逐帧等
-         placeholder 淡到完全透明；残影先被摘掉而 placeholder 还没透明，才算真失败。 */
+        'The test content never actually scrolled the search box sideways');
+      /* A ghost lives at most one second (removed on animation end or the fallback timer), so between the test's few round trips under load it is gone.
+         Set up the observer on the page before clearing: as soon as the ghost mounts, record its text and offset, then in the same page loop wait frame by frame for
+         the placeholder to fade to fully transparent; only if the ghost is removed first while the placeholder is not yet transparent is it a real failure. */
       type DissolveSeen = { text: string | null; transform: string; hidden: boolean };
       type DissolveWindow = Window & { dissolveSeen?: Promise<DissolveSeen> };
       await input.evaluate((element) => {
@@ -773,25 +773,25 @@ describe('设计决定：控件、状态与首页顶部', () => {
         });
       });
       await input.fill('');
-      assert.equal(await input.inputValue(), '', '动画阻塞了真实输入框清空');
+      assert.equal(await input.inputValue(), '', 'The animation blocks clearing the real input');
       const seen = await opened.page.evaluate(() => (window as DissolveWindow).dissolveSeen!);
-      assert.equal(seen.text, text, '清空时没有挂上带原内容的残影');
+      assert.equal(seen.text, text, 'Clearing never attached a ghost carrying the original content');
       assert.match(seen.transform, /translateX\(-\d+px\)/);
-      assert.ok(seen.hidden, '残影在场时 placeholder 没有完全透明');
+      assert.ok(seen.hidden, 'While the ghost is present the placeholder is not fully transparent');
       const ghost = opened.page.locator('.search > .cleardissolve');
       await ghost.waitFor({ state: 'detached', timeout: 2_000 });
       assert.equal(await input.evaluate((element) => element.classList.contains('dissolving')), false,
-        '动画结束后仍压着输入框的溶解状态');
+        'After the animation ends the input\'s dissolve state still applies');
 
       await input.fill(text);
       await input.fill('');
       await opened.page.locator('.search > .cleardissolve').waitFor({ timeout: 1_000 });
-      await input.type('新输入');
+      await input.type('New input');
       assert.equal(await opened.page.locator('.search > .cleardissolve').count(), 0,
-        '清空后继续输入仍被旧残影覆盖');
-      assert.equal(await input.inputValue(), '新输入');
+        'Typing after clearing stays covered by the old ghost');
+      assert.equal(await input.inputValue(), 'New input');
 
-      await input.fill('输入法候选');
+      await input.fill('IME candidates');
       await input.fill('');
       await opened.page.locator('.search > .cleardissolve').waitFor({ timeout: 1_000 });
       await input.evaluate((element) => element.dispatchEvent(new CompositionEvent('compositionstart', {
@@ -799,56 +799,56 @@ describe('设计决定：控件、状态与首页顶部', () => {
         data: '候',
       })));
       assert.equal(await opened.page.locator('.search > .cleardissolve').count(), 0,
-        '输入法开始组字后旧残影仍覆盖候选字');
+        'After IME composition starts the old ghost still covers the candidate text');
     } finally {
       await opened.close();
     }
   });
 
-  it('搜索框空着且没聚焦时占位推荐词隔几秒换一句，聚焦、打字或组字就停', { timeout: 60_000 }, async () => {
+  it('While the search box is empty and unfocused, the placeholder recommendation cycles every few seconds; it stops on focus, typing, or composition', { timeout: 60_000 }, async () => {
     const opened = await openCatalog(browser);
     try {
       await opened.page.emulateMedia({ reducedMotion: 'no-preference' });
       const input = opened.page.locator('#q');
       const ghost = opened.page.locator('.search > .placeholderroll');
-      // 推荐词池在页面空闲时取，取到就把第一句换上去；之后每隔几秒换一句。
+      // The recommendation phrase pool is fetched when the page is idle; once it arrives, swap in the first phrase, then rotate every few seconds after.
       await opened.page.waitForFunction(() => document.querySelector<HTMLInputElement>('#q')?.dataset.suggestion,
         null, { timeout: 15_000 });
-      // 第一句换上去时也走一次换句动画，等它走完再记「换之前」的那一句。
+      // The first query also runs the swap animation when set; wait for it to finish before recording the “before swap” phrase.
       await ghost.waitFor({ state: 'detached', timeout: 2_000 });
       const before = await input.getAttribute('placeholder');
       await ghost.waitFor({ timeout: 8_000 });
       const after = await input.getAttribute('placeholder');
-      assert.notEqual(after, before, '换句时 placeholder 没有改成新的一句');
-      assert.equal(after, await input.getAttribute('data-suggestion'), '占位字与空回车要搜的词对不上');
+      assert.notEqual(after, before, 'When cycling sentences, the placeholder was not updated to the new one');
+      assert.equal(after, await input.getAttribute('data-suggestion'), 'The placeholder does not match what an empty Enter would search for');
       assert.equal(await input.evaluate((element) => getComputedStyle(element, '::placeholder').opacity), '0',
-        '换句的那一层在场时框里自己的占位字没有收起');
+        'When the cycling layer is present, the box\'s own placeholder is not dismissed');
       await ghost.waitFor({ state: 'detached', timeout: 2_000 });
       assert.equal(await input.evaluate((element) => element.classList.contains('placeholderrolling')), false,
-        '换完之后仍压着输入框的占位字');
+        'After swapping, the input box\'s placeholder still overlaps');
 
       await ghost.waitFor({ timeout: 8_000 });
-      await input.type('新');
-      assert.equal(await ghost.count(), 0, '开始打字后换句的那一层仍盖在输入框上');
-      // 聚焦时不换句：人正对着这一句，换掉了回车搜的就不是刚看见的词。
+      await input.type('new');
+      assert.equal(await ghost.count(), 0, 'After typing starts, the cycling layer still sits over the input box');
+      // Don't swap the query while focused: the user is looking at this phrase; swapping it means Enter won't search the word they just saw.
       await input.fill('');
       await opened.page.waitForTimeout(6_000);
-      assert.equal(await ghost.count(), 0, '聚焦在搜索框上时占位字仍在换句');
+      assert.equal(await ghost.count(), 0, 'Placeholder still cycling while the search box is focused');
       await input.blur();
       await ghost.waitFor({ timeout: 8_000 });
       await input.evaluate((element) => element.dispatchEvent(new CompositionEvent('compositionstart', {
         bubbles: true, data: '候',
       })));
-      assert.equal(await ghost.count(), 0, '输入法开始组字后换句的那一层仍盖着候选字');
+      assert.equal(await ghost.count(), 0, 'Once the input method starts composing, the cycling layer still sits over the candidate words');
     } finally {
       await opened.close();
     }
   });
 
-  /* 搜索框住在粘性顶栏里，永远在视口上沿；可 `html` 的 `scroll-padding-top` 把那一条
-     划成「被顶栏盖住」的区域，浏览器每敲一个字就把光标往下滚一次，页面一路往回退。
-     点击走鼠标坐标：定位器的 click 会先替元素滚进视口，那一下不是页面自己的行为。 */
-  it('往下翻过之后在搜索框里打字，页面停在原处', { timeout: 60_000 }, async () => {
+  /* The search box lives in the sticky top bar, always at the viewport's top edge; but `html`'s `scroll-padding-top` marks that strip
+     as "covered by the top bar", so the browser scrolls the cursor down on every keystroke and the page keeps scrolling back.
+     Clicks use mouse coordinates: a locator's click first scrolls the element into view, and that motion is not the page's own. */
+  it('After scrolling down, typing in the search box keeps the page in place', { timeout: 60_000 }, async () => {
     const opened = await openCatalog(browser);
     try {
       const { page } = opened;
@@ -858,18 +858,18 @@ describe('设计决定：控件、状态与首页顶部', () => {
       await page.waitForFunction(() => scrollY > 300, undefined, { timeout: 5_000 });
       const before = await page.evaluate(() => scrollY);
       const box = await page.locator('#q').boundingBox();
-      if (!box) throw new Error('搜索框不可见');
+      if (!box) throw new Error('Search box not visible');
       await page.mouse.click(box.x + 40, box.y + box.height / 2);
-      await page.keyboard.type('演示abc', { delay: 60 });
+      await page.keyboard.type('demoabc', { delay: 60 });
       await page.waitForTimeout(300);
-      assert.equal(await page.evaluate(() => scrollY), before, '打字时页面跟着滚动了');
+      assert.equal(await page.evaluate(() => scrollY), before, 'Typing scrolled the page along');
     } finally {
       await opened.close();
     }
   });
 
-  it('首页版式默认小图，大图统一作品画面框，选择单独记住', { timeout: 60_000 }, async () => {
-    /* 首张卡使用番号封面，第二张使用普通预览图。 */
+  it('Home layout defaults to small images, large images unify the video frame, and the choice is remembered separately', { timeout: 60_000 }, async () => {
+    /* The first card uses the code cover, the second uses an ordinary preview image. */
     const opened = await openCatalogFixture(browser, (payload) => {
       Object.assign(payload.items[0], { is_jav: true, code: 'ABC-123', display_code: 'ABC-123', has_cover: true });
     });
@@ -878,27 +878,27 @@ describe('设计决定：控件、状态与首页顶部', () => {
       .evaluate((element) => element.getBoundingClientRect().width / element.getBoundingClientRect().height);
     const choice = (value: string) => page.locator(`[data-catalog-filter] input[name="home-layout"][value="${value}"]`);
     try {
-      assert.equal(await choice('small').isChecked(), true, '首页版式默认不是小图');
-      assert.ok(Math.abs(await ratio(0) - 16 / 9) < 0.05, '小图下番号卡不是 16:9');
+      assert.equal(await choice('small').isChecked(), true, 'Home layout does not default to small images');
+      assert.ok(Math.abs(await ratio(0) - 16 / 9) < 0.05, 'Under small images code cards are not 16:9');
       await choice('big').check({ force: true });
-      assert.ok(Math.abs(await ratio(0) - 0.75) < 0.05, '大图下番号卡没有拉成正封比例');
-      assert.ok(Math.abs(await ratio(1) - 0.75) < 0.05, '大图下普通作品画面框不是 3:4');
+      assert.ok(Math.abs(await ratio(0) - 0.75) < 0.05, 'Under large images code cards did not stretch to front-cover ratio');
+      assert.ok(Math.abs(await ratio(1) - 0.75) < 0.05, 'Under large images regular video frames are not 3:4');
       const box = (index: number) => page.locator('#grid [data-media-grid] > [data-media-card][data-id]').nth(index).locator('[data-media-pic]')
         .evaluate((element) => ({ top: element.getBoundingClientRect().top, height: element.getBoundingClientRect().height }));
       const [jav, plain] = [await box(0), await box(1)];
-      assert.ok(Math.abs(jav.top - plain.top) < 1, '前两张卡不在同一行，量不到撑高');
-      assert.ok(Math.abs(plain.height - jav.height) < 1, '同行作品画面框不等高');
-      // `visit()` 的初始化脚本每次导航都重写设置，刷新验不了；直接读存下来的那份。
+      assert.ok(Math.abs(jav.top - plain.top) < 1, 'The first two cards are not on one line, so the stretch cannot measure');
+      assert.ok(Math.abs(plain.height - jav.height) < 1, 'Video frames on one line differ in height');
+      // `visit()`'s init script rewrites settings on every navigation, so a reload cannot verify it; read the persisted copy directly.
       const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('peach.settings.v1') || '{}'));
-      assert.equal(saved.homeLayout, 'big', '首页版式没有存下来');
+      assert.equal(saved.homeLayout, 'big', 'Home layout not persisted');
     } finally {
       await opened.close();
     }
   });
 
-  it('首页标签：没加上去是 --field-ring-hover 的虚线，加上去是玻璃上那圈实线，视图不画虚线；触屏上排 48、视图与标签取紧凑档', { timeout: 60_000 }, async () => {
-    /* 虚线只说「这条筛选可加、此刻没加」，取 Vercel 筛选令牌未生效那一档；四枚视图恒有一枚生效，不画。
-       圆角同卡片、详情与交集条那一颗（`--tag-radius`）。触屏控件共用 30px 高度。 */
+  it('Home tabs: unselected is the --field-ring-hover dashed ring, selected is the solid ring on glass, and views draw no dashed ring; on touch the top row is 48, and views and tabs take the compact tier', { timeout: 60_000 }, async () => {
+    /* The dashed style says "this filter can be added, not currently added", taking Vercel's inactive filter token tier; the four view keys always have one active and draw nothing.
+       Radius matches the cards', details', and intersection bar's key (`--tag-radius`). Touch controls share the 30px height. */
     const opened = await openCatalogBars(browser);
     try {
       const { page } = opened;
@@ -915,12 +915,12 @@ describe('设计决定：控件、状态与首页顶部', () => {
         return { style: style.borderTopStyle, color: style.borderTopColor, radius: style.borderTopLeftRadius === radius };
       });
       assert.deepEqual(await edge('[data-catalog-tag][aria-pressed="false"]'), { style: 'dashed', color: ring, radius: true },
-        '没加上去的标签不是 --field-ring-hover 的虚线，或圆角不是 --tag-radius');
-      assert.notEqual((await edge('[data-catalog-view]')).style, 'dashed', '视图恒有一枚生效，不画虚线');
+        'The unadded tag is not the --field-ring-hover dashed line, or its radius is not --tag-radius');
+      assert.notEqual((await edge('[data-catalog-view]')).style, 'dashed', 'Exactly one view is always active, so no dashed line paints');
       await page.locator(`${scope} [data-catalog-tag][aria-pressed="false"]`).first().click();
       await page.locator(`${scope} [data-catalog-tag][aria-pressed="true"]`).waitFor({ timeout: 5_000 });
       assert.deepEqual(await edge('[data-catalog-tag][aria-pressed="true"]'), { style: 'solid', color: low, radius: true },
-        '加上去的标签那圈线不是玻璃上的 --glass-low');
+        'The added tag\'s ring is not --glass-low on glass');
     } finally {
       await opened.close();
     }
@@ -937,20 +937,20 @@ describe('设计决定：控件、状态与首页顶部', () => {
           compact: parseFloat(getComputedStyle(document.querySelector('[data-catalog-filter]')!).getPropertyValue('--control-h-compact')) };
       });
       assert.equal(heights.compact, 32);
-      assert.deepEqual(heights, { coarse: true, row: 48, view: heights.compact, tag: heights.compact, compact: heights.compact }, '触屏筛选按钮高度不一致');
+      assert.deepEqual(heights, { coarse: true, row: 48, view: heights.compact, tag: heights.compact, compact: heights.compact }, 'Touch filter button heights disagree');
     } finally {
       await phone.close();
     }
   });
 
-  it('首页换一批：头像、厂牌与标签原地藏起来只露一层微光，名字条收成 52px，四枚视图不盖', { timeout: 60_000 }, async () => {
-    /* 框就是它们自己的框，零位移；`visibility:hidden` 的控件也不可聚焦。视图由 state 决定，这一趟不改它们。 */
+  it('Index shuffle: avatars, labels and tags hide in place showing only a shimmer, the name bar collapses to 52px, and the four views do not overlap', { timeout: 60_000 }, async () => {
+    /* The boxes are their own boxes, zero offset; controls with `visibility:hidden` are not focusable either. The view is decided by state, and this pass does not change them. */
     const opened = await openCatalogBars(browser);
     let release = () => {};
     try {
       const { page } = opened;
       const held = new Promise<void>((resolve) => { release = resolve; });
-      // 后注册的先拦：拖住这一趟，放行后交回夹具那一份。
+      // Later registrations intercept first: hold this pass, then hand back the fixture's copy on release.
       await page.route((url) => url.pathname === '/api/tops', async (route) => { await held; await route.fallback(); });
       await page.locator('[data-catalog-filter] [data-entity-batch]').click();
       await page.locator('[data-catalog-filter] [data-catalog-root][data-refreshing]').waitFor({ timeout: 5_000 });
@@ -965,11 +965,11 @@ describe('设计决定：控件、状态与首页顶部', () => {
           studio: read('[data-tier-studio]'), view: read('[data-catalog-view]') };
       });
       for (const key of ['tag', 'ring', 'name', 'studio'] as const) {
-        assert.equal(shown[key]?.hidden, 'hidden', `换一批时${key}没有藏起来：${JSON.stringify(shown[key])}`);
-        assert.equal(shown[key]?.sheen, 'visible', `换一批时${key}上没有那层微光：${JSON.stringify(shown[key])}`);
+        assert.equal(shown[key]?.hidden, 'hidden', `On shuffle the ${key} did not hide: ${JSON.stringify(shown[key])}`);
+        assert.equal(shown[key]?.sheen, 'visible', `On shuffle the ${key} has no shimmer layer: ${JSON.stringify(shown[key])}`);
       }
-      assert.equal(shown.name?.width, 52, '名字条没有收成首屏骨架那一宽');
-      assert.equal(shown.view?.hidden, 'visible', '视图不随这一趟变，不该盖');
+      assert.equal(shown.name?.width, 52, 'The name strip did not collapse to the first-screen skeleton\'s width');
+      assert.equal(shown.view?.hidden, 'visible', 'The view does not change on this pass, so it should not be covered');
     } finally {
       release();
       await opened.close();

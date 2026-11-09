@@ -1,4 +1,4 @@
-/* 图片回退链：取不到就换下一张，都取不到就按 `data-drop` 收场。 */
+/* The image fallback chain: on failure move to the next image, and when all fail end via `data-drop`. */
 import { describe, expect, it } from 'vitest';
 
 import { advanceImageFallback, imageFallbackAttrs, parseFallbacks, wireImageFallbacks } from '../../src/card-art/image-fallback';
@@ -11,8 +11,8 @@ function image(attrs: string): HTMLImageElement {
   return box.querySelector('img')!;
 }
 
-describe('声明', () => {
-  it('空候选丢掉，地址转义进属性', () => {
+describe('Statement', () => {
+  it('Drop empty candidates, escape URLs into attributes', () => {
     expect(imageFallbackAttrs({ fallbacks: ['', '/a?x="1"', '/b'] }))
       .toBe('data-drop="self" data-fallbacks="/a?x=&quot;1&quot;|/b"');
     expect(imageFallbackAttrs({ fallbacks: '' })).toBe('data-drop="self"');
@@ -20,20 +20,20 @@ describe('声明', () => {
       .toBe('data-drop="initial" data-initial="A" data-drop-class="ini" data-drop-style');
   });
 
-  it('解析时去掉空段和空白', () => {
+  it('Parsing drops empty segments and whitespace', () => {
     expect(parseFallbacks(' /a | |/b ')).toEqual(['/a', '/b']);
     expect(parseFallbacks(undefined)).toEqual([]);
   });
 });
 
-describe('推进', () => {
-  it('没登记 data-drop 的图一概不动', () => {
+describe('Advance', () => {
+  it('Images without a registered data-drop are never touched', () => {
     const img = image('');
     expect(advanceImageFallback(img)).toBe('');
     expect(img.isConnected).toBe(true);
   });
 
-  it('按序换完候选再收场，最后一环把图摘掉', () => {
+  it('It cycles candidates in order before closing, with the final link removing the image', () => {
     const img = image('data-drop="self" data-fallbacks="/second|/third"');
     expect(advanceImageFallback(img)).toBe('retry');
     expect(img.getAttribute('src')).toBe('/second');
@@ -45,7 +45,7 @@ describe('推进', () => {
     expect(img.isConnected).toBe(false);
   });
 
-  it('换下一环时撤掉按上一张算的取景；脸框不论开关都撤', () => {
+  it('Moving to the next link clears framing computed from the previous image; face boxes clear whether the switch is on or off', () => {
     const framed = image('style="object-position:50% 12%" data-facebox="1 2 3 4 5" data-drop="self" data-drop-style data-fallbacks="/b"');
     advanceImageFallback(framed);
     expect(framed.hasAttribute('style')).toBe(false);
@@ -56,7 +56,7 @@ describe('推进', () => {
     expect(kept.dataset.facebox).toBeUndefined();
   });
 
-  it('closest 摘掉最近的容器，initial 换成首字母', () => {
+  it('closest strips the nearest container; initial swaps in the first letter', () => {
     const inBox = image('data-drop="closest:.ring"');
     const ring = inBox.parentElement!;
     advanceImageFallback(inBox);
@@ -68,8 +68,8 @@ describe('推进', () => {
   });
 });
 
-describe('委托监听', () => {
-  it('error 不冒泡，捕获阶段接住后代 <img>', () => {
+describe('Delegated listeners', () => {
+  it('error does not bubble, so the capture phase catches descendant <img> elements', () => {
     const root = document.createElement('section');
     document.body.append(root);
     wireImageFallbacks(root);

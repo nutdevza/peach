@@ -3,7 +3,7 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, layout, VIEWPORTS, visit } from './harness.ts';
 
-describe('列表缩略图取景', () => {
+describe('List thumbnail framing', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
@@ -13,10 +13,10 @@ describe('列表缩略图取景', () => {
     { id: 9103, code: 'DEMO-003', width: 1920, height: 1080 },
     { id: 9104, code: '', width: 1920, height: 1080 },
   ];
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：正封、封套与剧照完整可见，预览填满缩略图`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: front cover, jacket, and stills fully visible, and the preview fills the thumbnail`, async () => {
     const opened = await visit(browser, '/', viewport, async page => {
       await page.route(url => url.pathname === '/api/items', route => route.fulfill({ json: {
-        items: examples.map(row => ({ ...row, name: `示例影片 ${row.id}`, location: 'local', medium: 'video',
+        items: examples.map(row => ({ ...row, name: `Example video ${row.id}`, location: 'local', medium: 'video',
           is_jav: !!row.code, has_cover: !!row.code, has_thumb: true, tags: [], performers: [] })),
         total: examples.length, has_more: false,
       } }));
@@ -30,8 +30,8 @@ describe('列表缩略图取景', () => {
     try {
       const { page } = opened;
       await page.locator('#grid [data-media-card]').first().waitFor();
-      await page.getByRole('radiogroup', { name: '馆藏显示方式' }).locator('label')
-        .filter({ has: page.getByRole('radio', { name: '列表', exact: true }) }).click();
+      await page.getByRole('radiogroup', { name: 'Library display mode' }).locator('label')
+        .filter({ has: page.getByRole('radio', { name: 'Lists', exact: true }) }).click();
       for (const example of examples) {
         const image = page.locator(`[data-catalog-row] img${example.code ? `[data-cover-code="${example.code}"]` : ':not(.cover)'}`);
         await image.scrollIntoViewIfNeeded();

@@ -1,5 +1,5 @@
-/* 设置面板（`settings-panel` 岛，ADR-0031）：开合与焦点、每一类设置改完立刻生效并落到该去的地方。
- * 写接口的桩在 `settings-fixture.ts`；面板的版式与像素由 `design-settings.test.ts` 量，这里只写行为。 */
+/* Settings panel (the `settings-panel` island, ADR-0031): open/close and focus, and every settings category taking effect immediately on change and landing where it belongs.
+ * Write API stubs in `settings-fixture.ts`; the panel's layout and pixels are measured by `design-settings.test.ts`; only behavior is written here. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -11,16 +11,16 @@ import { openHome, openPanel, ORDER, PANEL, stubServer, type Server } from './se
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 const MOBILE = VIEWPORTS.find((viewport) => viewport.mobile)!;
 
-/** 等到条件成立，最多五秒。 */
+/** Wait until the condition holds, at most five seconds. */
 async function until(page: Page, condition: () => boolean, message: string): Promise<void> {
   for (let tries = 0; tries < 100 && !condition(); tries += 1) await page.waitForTimeout(50);
   assert.ok(condition(), message);
 }
 
-/** 等到 `path` 收到一次带 `key` 的写入，返回那一次的请求体。 */
+/** Waits until `path` receives a write carrying `key`, then returns that request body. */
 async function posted(page: Page, server: Server, path: string, key: string): Promise<Record<string, unknown>> {
   const find = () => server.posts.find((post) => post.path === path && key in post.body);
-  await until(page, () => !!find(), `${path} 没有收到 ${key} 的写入`);
+  await until(page, () => !!find(), `${path} received no write for ${key}`);
   return find()!.body;
 }
 
@@ -31,7 +31,7 @@ async function pick(page: Page, field: string, value: string): Promise<void> {
   await page.locator(`${field} [data-select-option="${value}"]`).click();
 }
 
-/** 自建一份上下文：起始设置只在本地还没有时写一次，刷新之后不会被冲掉。 */
+/** Builds its own context: the initial settings are written once, only when missing locally, and survive a refresh. */
 async function persistentContext(browser: Browser): Promise<BrowserContext> {
   const context = await browser.newContext({
     viewport: { width: DESKTOP.width, height: DESKTOP.height }, reducedMotion: 'reduce', colorScheme: 'light',
@@ -44,12 +44,12 @@ async function persistentContext(browser: Browser): Promise<BrowserContext> {
   return context;
 }
 
-describe('设置面板', () => {
+describe('Settings panel', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
-  it('持久标注开关不自动加载工具，明确开启仅在当前页面有效', { timeout: 60_000 }, async () => {
+  it('The persistent annotation switch never auto-loads tools, and explicit enabling applies only to the current page', { timeout: 60_000 }, async () => {
     let loads = 0;
     const opened = await visit(browser, '/', DESKTOP, async (page) => {
       await page.addInitScript(() => localStorage.setItem('peach.agentation', 'on'));
@@ -76,23 +76,23 @@ describe('设置面板', () => {
     } finally { await opened.close(); }
   });
 
-  it('五个偏好分区各自显示对应设置，Peach 配置单独直达配置页', { timeout: 60_000 }, async () => {
+  it('The five preference sections each show their own settings, and Peach configuration links straight to the configuration page', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
       await openPanel(page);
       assert.deepEqual(await page.locator(PANEL).getByRole('tab').allTextContents(),
-        ['外观与导航', '浏览与播放', 'JAV 与新作', '搜索与推荐', '内容显示']);
+        ['Appearance & navigation', 'Browsing & playback', 'JAV & new releases', 'Search & recommendations', 'Content display']);
       for (const [name, field] of [
-        ['外观与导航', '#themeSetting'], ['浏览与播放', '#detailAutoplaySetting'],
-        ['JAV 与新作', '#javImageSetting'], ['搜索与推荐', '#relatedLimitSetting'], ['内容显示', '#censorSetting'],
+        ['Appearance & navigation', '#themeSetting'], ['Browsing & playback', '#detailAutoplaySetting'],
+        ['JAV & new releases', '#javImageSetting'], ['Search & recommendations', '#relatedLimitSetting'], ['Content display', '#censorSetting'],
       ]) {
         await page.locator(PANEL).getByRole('tab', { name, exact: true }).click();
         await page.locator(field!).waitFor({ state: 'visible' });
         assert.deepEqual((await layout(page)).offenders, []);
       }
       assert.equal(await page.locator(`${PANEL} #videoThumbnailSetting, ${PANEL} #followScheduleSetting`).count(), 0);
-      const configuration = page.locator(PANEL).getByRole('button', { name: 'Peach 配置', exact: true });
+      const configuration = page.locator(PANEL).getByRole('button', { name: 'Peach configuration', exact: true });
       await configuration.click();
       await page.waitForURL((url) => url.pathname === '/settings/library');
       await page.locator(PANEL).waitFor({ state: 'hidden' });
@@ -100,7 +100,7 @@ describe('设置面板', () => {
     } finally { await opened.close() }
   });
 
-  it('齿轮打开、关闭键与 Escape 关上；焦点进来落在关闭键、Tab 在面板里转圈、关上后回到齿轮', { timeout: 60_000 }, async () => {
+  it('The gear opens it, and the close button and Escape close it; focus lands on the close button, Tab cycles within the panel, and closing returns focus to the gear', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
@@ -112,10 +112,10 @@ describe('设置面板', () => {
 
       await page.keyboard.press('Shift+Tab');
       assert.equal(await page.evaluate((panel) => !!document.activeElement?.closest(panel), PANEL), true,
-        '从第一枚往回 Tab 跳出了面板');
-      assert.notEqual(await page.evaluate(() => document.activeElement?.id), 'settingsClose', '往回 Tab 没有落到最后一枚');
+        'Tabbing back from the first one left the panel');
+      assert.notEqual(await page.evaluate(() => document.activeElement?.id), 'settingsClose', 'Tabbing back never landed on the last one');
       await page.keyboard.press('Tab');
-      assert.equal(await page.evaluate(() => document.activeElement?.id), 'settingsClose', '最后一枚往后 Tab 没有回到第一枚');
+      assert.equal(await page.evaluate(() => document.activeElement?.id), 'settingsClose', 'Tabbing forward from the last one never returned to the first');
 
       await page.locator('#settingsClose').click();
       await page.locator(PANEL).waitFor({ state: 'hidden', timeout: 5_000 });
@@ -133,7 +133,7 @@ describe('设置面板', () => {
     }
   });
 
-  it('主题选深色当场换上，刷新之后仍是深色', { timeout: 60_000 }, async () => {
+  it('Choosing dark theme applies on the spot and stays dark after refresh', { timeout: 60_000 }, async () => {
     const context = await persistentContext(browser);
     try {
       const page = await context.newPage();
@@ -148,15 +148,15 @@ describe('设置面板', () => {
 
       await page.reload({ waitUntil: 'load' });
       await settle(page);
-      assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true, '刷新后主题没有保持');
+      assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true, 'Theme not kept after refresh');
       await openPanel(page);
-      assert.equal(await page.locator('#themeSetting input[value="dark"]').isChecked(), true, '刷新后面板里选中的不是深色');
+      assert.equal(await page.locator('#themeSetting input[value="dark"]').isChecked(), true, 'After refresh the panel selection is not the dark one');
     } finally {
       await context.close();
     }
   });
 
-  it('改过的 SFW 快捷键按物理键位生效，原来的 Shift+S 不再切换', { timeout: 60_000 }, async () => {
+  it('The changed SFW shortcut works by physical key; the original Shift+S no longer toggles', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const page = opened.page;
@@ -170,13 +170,13 @@ describe('设置面板', () => {
       await page.keyboard.press('Alt+KeyH');
       assert.equal(await censored(), true);
       await openPanel(page);
-      await page.locator(PANEL).getByRole('tab', { name: '内容显示', exact: true }).click();
+      await page.locator(PANEL).getByRole('tab', { name: 'Content display', exact: true }).click();
       assert.equal(await page.locator(`${PANEL} [data-shortcut-keys]`).innerText(), 'Alt+H');
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close() }
   });
 
-  it('Shift+S 在页面上切换 SFW 并记住，在输入框里不切换', { timeout: 60_000 }, async () => {
+  it('Shift+S toggles SFW on the page and remembers it; it does not toggle inside the input box', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     try {
       const page = opened.page;
@@ -189,16 +189,16 @@ describe('设置面板', () => {
       assert.equal(await censored(), false);
       await page.locator('#q').focus();
       await page.keyboard.press('Shift+S');
-      assert.equal(await censored(), false, '在搜索框里打大写 S 不该切换 SFW');
+      assert.equal(await censored(), false, 'Typing a capital S in the search box should not toggle SFW');
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close() }
   });
 
-  it('界面音效关掉后点按不再出声，打开后又出声', { timeout: 60_000 }, async () => {
+  it('With UI sounds off, taps go silent; turning them on brings the sound back', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
-      /* 每一声都要新建一枚振荡器或噪声源；数它们就知道响没响。 */
+      /* Every sound builds a fresh oscillator or noise source; counting them tells whether it sounded. */
       await page.context().addInitScript(() => {
         const counted = window as unknown as { __uiTones: number };
         counted.__uiTones = 0;
@@ -216,25 +216,25 @@ describe('设置面板', () => {
       await openPanel(page);
       const tones = () => page.evaluate(() => (window as unknown as { __uiTones: number }).__uiTones);
       const box = page.locator('#uiSoundsSetting');
-      assert.equal(await box.isChecked(), true, '界面音效默认没有打开');
+      assert.equal(await box.isChecked(), true, 'Interface sounds default to off');
       await box.click();
       assert.equal(await box.isChecked(), false);
       assert.equal((await stored(page)).uiSounds, false);
       const silent = await tones();
-      await page.locator(PANEL).getByRole('tab', { name: '浏览与播放', exact: true }).click();
-      await page.locator(PANEL).getByRole('tab', { name: '外观与导航', exact: true }).click();
-      assert.equal(await tones(), silent, '关掉界面音效之后点分区还在出声');
+      await page.locator(PANEL).getByRole('tab', { name: 'Browsing & playback', exact: true }).click();
+      await page.locator(PANEL).getByRole('tab', { name: 'Appearance & navigation', exact: true }).click();
+      assert.equal(await tones(), silent, 'After turning interface sounds off, clicking sections still beeps');
       await box.click();
       assert.equal((await stored(page)).uiSounds, true);
-      await page.locator(PANEL).getByRole('tab', { name: '浏览与播放', exact: true }).click();
-      assert.ok(await tones() > silent, '打开界面音效之后点分区不出声');
+      await page.locator(PANEL).getByRole('tab', { name: 'Browsing & playback', exact: true }).click();
+      assert.ok(await tones() > silent, 'After turning interface sounds on, clicking sections stays silent');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('光晕预设点一档就换上；拉条按一下方向键改参数并落盘', { timeout: 60_000 }, async () => {
+  it('Glow presets swap on one click; arrow keys nudge slider params and persist them', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
@@ -250,7 +250,7 @@ describe('设置面板', () => {
       assert.equal(await page.locator('#homeGlowControls [data-glow-preset-name]').textContent(), label);
       assert.equal((await stored(page)).homeGlow.preset, key);
 
-      /* 「玻璃原色」那一档收起强度；挑一档有三枚光晕的，再动强度。 */
+      /* The 'Glass original' preset hides the intensity control; pick a preset with three glows, then adjust intensity. */
       if (await page.locator('[data-glow-field="strength"]').isHidden()) {
         await grid.locator('[data-glow-preset="ash"]').click();
       }
@@ -261,7 +261,7 @@ describe('设置面板', () => {
       const expected = before > 0 ? before - 1 : before + 1;
       await page.waitForFunction((value) => document.querySelector(
         '[data-glow-dial="strength"] [role="slider"]')?.getAttribute('aria-valuenow') === String(value), expected);
-      assert.equal((await stored(page)).homeGlow.strength, expected, '拉条改的强度没有落盘');
+      assert.equal((await stored(page)).homeGlow.strength, expected, 'The slider\'s intensity change never persisted');
 
       await page.locator('#homeGlowSetting').click();
       await page.locator('#homeGlowControls').waitFor({ state: 'hidden', timeout: 5_000 });
@@ -272,16 +272,16 @@ describe('设置面板', () => {
     }
   });
 
-  it('JAV 默认封面与默认排序方向改完落盘；随机排序时方向收起', { timeout: 60_000 }, async () => {
+  it('JAV default cover and default sort direction persist after change; the direction control collapses under random sort', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
-      await openPanel(page, 'JAV 与新作');
+      await openPanel(page, 'JAV & new releases');
       await page.locator('#javImageSetting label:has(input[value="thumbnail"])').click();
       assert.equal((await stored(page)).javImage, 'thumbnail');
       assert.equal(await page.locator('#javImageSetting input[value="thumbnail"]').isChecked(), true);
 
-      await page.locator(PANEL).getByRole('tab', { name: '浏览与播放', exact: true }).click();
+      await page.locator(PANEL).getByRole('tab', { name: 'Browsing & playback', exact: true }).click();
       await pick(page, '#defaultSortSetting', 'seed');
       await page.locator('#defaultSortDirectionSetting').waitFor({ state: 'hidden', timeout: 5_000 });
 
@@ -289,7 +289,7 @@ describe('设置面板', () => {
       await page.locator('#defaultSortDirectionSetting').waitFor({ state: 'visible', timeout: 5_000 });
       await pick(page, '#defaultSortDirectionSetting', 'asc');
       await page.waitForFunction(() =>
-        document.querySelector('#defaultSortDirectionSetting [data-sort-direction-label]')?.textContent === '升序');
+        document.querySelector('#defaultSortDirectionSetting [data-sort-direction-label]')?.textContent === 'Ascending');
       const saved = await stored(page);
       assert.equal(saved.defaultSort, 'rating');
       assert.equal(saved.defaultSortDirection, 'asc');
@@ -299,7 +299,7 @@ describe('设置面板', () => {
     }
   });
 
-  it('侧栏排序拖动一行：侧栏当场按新顺序重排，再写进数据库', { timeout: 60_000 }, async () => {
+  it('Dragging a row in sidebar order: the sidebar reorders on the spot, then writes to the database', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page, server } = opened;
     try {
@@ -309,13 +309,13 @@ describe('设置面板', () => {
       const rows = list.locator('[data-sidebar-row]');
       const keys = () => rows.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-sidebar-row')));
       const initial = await keys();
-      assert.deepEqual(initial, ORDER, '面板里的顺序不是数据库那一份');
+      assert.deepEqual(initial, ORDER, 'The panel\'s order is not the database\'s copy');
       const from = (await rows.nth(1).boundingBox())!, to = (await rows.nth(3).boundingBox())!;
       await page.mouse.move(from.x + 30, from.y + from.height / 2);
       await page.mouse.down();
       await page.mouse.move(from.x + 34, from.y + from.height / 2 + 6, { steps: 4 });
       await page.mouse.move(to.x + 40, to.y + to.height * 0.75, { steps: 8 });
-      assert.equal(await rows.nth(1).getAttribute('data-dragging'), '', '拖动中的那一行没有标出来');
+      assert.equal(await rows.nth(1).getAttribute('data-dragging'), '', 'The row being dragged is not marked');
       await page.mouse.up();
       const moved = [initial[0], initial[2], initial[3], initial[1], ...initial.slice(4)];
       await page.waitForFunction((want) => JSON.stringify([...document.querySelectorAll(
@@ -323,7 +323,7 @@ describe('设置面板', () => {
       JSON.stringify(moved));
       const nav = await page.locator('#drawer [data-sidebar-nav] [data-nav]').evaluateAll((nodes) =>
         nodes.map((node) => node.getAttribute('data-nav')));
-      assert.deepEqual(nav, moved, '侧栏没有跟着面板里的新顺序重排');
+      assert.deepEqual(nav, moved, 'The sidebar never reordered to the panel\'s new order');
       assert.deepEqual((await posted(page, server, '/api/settings', 'sidebarOrder')).sidebarOrder, moved);
       assert.deepEqual((await stored(page)).sidebarOrder, moved);
       assert.deepEqual(opened.problems, []);
@@ -332,20 +332,20 @@ describe('设置面板', () => {
     }
   });
 
-  it(`手机 ${MOBILE.width} 宽：面板铺满不横向溢出，分区横排可切换`, { timeout: 60_000 }, async () => {
+  it(`Mobile at ${MOBILE.width} wide: the panel fills without horizontal overflow, and sections lay out in a row and switch`, { timeout: 60_000 }, async () => {
     const opened = await openHome(browser, MOBILE);
     const { page } = opened;
     try {
       await openPanel(page);
       const geometry = await layout(page);
-      assert.ok(geometry.scrollWidth <= geometry.viewportWidth, `页面横向溢出：${geometry.scrollWidth}px`);
+      assert.ok(geometry.scrollWidth <= geometry.viewportWidth, `The page overflows horizontally: ${geometry.scrollWidth}px`);
       assert.deepEqual(geometry.offenders, []);
       const card = (await page.locator(`${PANEL} [data-settings-card]`).boundingBox())!;
-      assert.ok(card.x >= 0 && card.x + card.width <= MOBILE.width, '设置卡片越出了视口');
+      assert.ok(card.x >= 0 && card.x + card.width <= MOBILE.width, 'Settings card overflows the viewport');
       const tops = await page.locator(PANEL).getByRole('tab').evaluateAll((nodes) =>
         nodes.slice(0, 3).map((node) => Math.round(node.getBoundingClientRect().top)));
-      assert.equal(new Set(tops).size, 1, '窄屏下分区没有横排');
-      await page.locator(PANEL).getByRole('tab', { name: 'JAV 与新作', exact: true }).click();
+      assert.equal(new Set(tops).size, 1, 'Sections not laid out in a row on narrow screens');
+      await page.locator(PANEL).getByRole('tab', { name: 'JAV & new releases', exact: true }).click();
       await page.locator('#javImageSetting').waitFor({ state: 'visible', timeout: 5_000 });
       assert.deepEqual((await layout(page)).offenders, []);
       assert.deepEqual(opened.problems, []);

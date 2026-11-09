@@ -1,7 +1,8 @@
-/* 路由基座（`src/react/router/router.tsx` 与 `src/history/`）：路由根在历史变化的同一调用里同步提交；没人认领的
- * 历史变化各领一个页面打开序号，按代次挂 key 的元素随之重挂，认领的写地址不重挂；路由元数据覆盖管理区、索引与资料那几页。
+/* The routing base (`src/react/router/router.tsx` and `src/history/`): the router root commits synchronously in the same call
+ * as the history change; unclaimed history changes each take a page-open epoch and elements keyed by generation remount
+ * accordingly, while claimed address writes do not remount; route metadata covers the management, index and profile pages.
  *
- * 历史对象是模块级的，每条用例重新装载 `src/history` 与 `src/react/router`（同 `router.test.tsx`）。 */
+ * The history object is module-level; every case reloads `src/history` and `src/react/router` (same as `router.test.tsx`). */
 import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useLocation } from 'react-router';
@@ -38,7 +39,7 @@ function pop(path?: string) {
   window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
 }
 
-/** 页面组 `path="*"` 那一格的探针：记它看到的地址、页面打开序号，和按代次挂 key 的那一格挂了几次。 */
+/** Probe for the page group's `path="*"` cell: records the URL it sees, the page open counter, and how many times the epoch-keyed cell mounted. */
 function probe(r: Loaded) {
   const seen = { paths: [] as string[], epochs: [] as number[], mounted: 0, unmounted: 0, keyed: 0 };
   function Keyed() {
@@ -55,7 +56,7 @@ function probe(r: Loaded) {
   return { seen, Probe };
 }
 
-it('shellNavigate 返回时页面组的匹配已经提交：离开的那一页当场卸掉，回来的那一页当场挂上', async () => {
+it('By the time shellNavigate returns, the page group match is committed: the page being left unmounts on the spot and the page being returned to mounts on the spot', async () => {
   const r = await load('/nowhere');
   const { seen, Probe } = probe(r);
   await mount(r, <Probe />);
@@ -72,7 +73,7 @@ it('shellNavigate 返回时页面组的匹配已经提交：离开的那一页�
   expect(seen.paths.at(-1)).toBe('/no/such');
 });
 
-it('没人认领的历史变化各领一个页面打开序号、按代次挂的元素当场重挂；认领的写地址不领', async () => {
+it('Unclaimed history changes each take a page open sequence number and remount generation-keyed elements on the spot; claimed ones write the URL and take none', async () => {
   const r = await load('/nowhere');
   const { seen, Probe } = probe(r);
   await mount(r, <Probe />);
@@ -101,7 +102,7 @@ it('没人认领的历史变化各领一个页面打开序号、按代次挂的�
   expect(new Set(seen.epochs).size).toBe(4);
 });
 
-it('路由元数据登记的就是管理区、播放列表与关注、索引、资料与目录那几页，加上改写过去的旧直达地址、沉浸与覆盖的六条', async () => {
+it('The route metadata registers exactly the management pages, playlists and follows, index, profiles, and the catalog, plus the rewritten legacy deep links and the six immersive and overlay entries', async () => {
   const r = await load();
   expect(new Set(Object.keys(r.ROUTE_META))).toEqual(new Set([
     ...Object.keys(r.MANAGED_ROUTES), ...Object.keys(r.REDIRECT_ROUTES), ...Object.keys(r.BROWSE_ROUTES),

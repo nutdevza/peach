@@ -1,4 +1,4 @@
-/* 设计决定：设置、口味、统计与筛选玻璃。读 `getComputedStyle` 断言用户定过的外观；共用的桩与浏览器生命周期在 `design-fixture.ts`。 */
+/* Design decisions: settings, taste, statistics and the filter glass. Reads `getComputedStyle` to assert the appearance the user set; shared stubs and browser lifecycle live in `design-fixture.ts`. */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Browser, Page } from 'playwright-core';
@@ -10,19 +10,19 @@ import {
   farthestShadow, holdApi, openLightbox, installDesignBrowser,
 } from './design-fixture.ts';
 
-describe('设计决定：设置、口味、统计与筛选玻璃', () => {
+describe('Design decisions: settings, taste, stats, and filter glass', () => {
   let browser: Browser;
   installDesignBrowser((next) => { browser = next; });
 
-  it('使用空间按字节量级的真实容量画出已用那一段，每个卷一行、不越出卡片', { timeout: 60_000 }, async () => {
+  it('Storage draws the used segment at true capacity by byte magnitude, one row per volume, without leaving the card', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/stats', DESKTOP);
     try {
       const page = opened.page;
       const TB = 1024 ** 4;
       const volumes = [
-        { kind: 'system', label: '系统盘', root: 'C:\\', online: true, total: 2 * TB, used: 1.8 * TB, free: .2 * TB },
-        { kind: 'media', label: '资源盘', root: 'R:\\media', online: false, total: null, used: null, free: null },
-        { kind: 'media', label: 'PikPak 网盘', root: 'A:\\', online: true, total: 10240 * TB, used: 0, free: 10240 * TB },
+        { kind: 'system', label: 'System drive', root: 'C:\\', online: true, total: 2 * TB, used: 1.8 * TB, free: .2 * TB },
+        { kind: 'media', label: 'Data drive', root: 'R:\\media', online: false, total: null, used: null, free: null },
+        { kind: 'media', label: 'PikPak cloud drive', root: 'A:\\', online: true, total: 10240 * TB, used: 0, free: 10240 * TB },
       ];
       await page.route(/\/api\/stats(?:\?|$)/, async (route) => {
         const json = await (await route.fetch()).json();
@@ -47,10 +47,10 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           text: element.textContent ?? '',
         };
       });
-      assert.deepEqual(shown.filled, [90, 0], '进度条画出来的已用比例不对');
-      assert.deepEqual(shown.rows, ['1px', '1px', '0px'], '卷与卷之间没有覆盖率那样的分隔线');
-      assert.ok(shown.overflow <= .5, `使用空间的详情越出卡片内边距 ${shown.overflow}px`);
-      assert.ok(shown.text.includes('10.00 PB'), '网盘容量没按 PB 写');
+      assert.deepEqual(shown.filled, [90, 0], 'The progress bar\'s painted used ratio is wrong');
+      assert.deepEqual(shown.rows, ['1px', '1px', '0px'], 'No coverage-style divider sits between volumes');
+      assert.ok(shown.overflow <= .5, `The storage detail exceeds the card padding by ${shown.overflow}px`);
+      assert.ok(shown.text.includes('10.00 PB'), 'Drive capacity never renders in PB');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
@@ -58,16 +58,16 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`口味维度排名宽屏跟雷达那一栏等高、窄屏按条数给高度，图拉高时条不变粗（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The taste ranking matches the radar column's height on wide screens and sizes by row count on narrow ones, and the bars never thicken when the chart grows (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await openTaste(browser, viewport);
       try {
         const page = opened.page;
-        const bars = page.locator('section[aria-label="口味维度排名"]');
+        const bars = page.locator('section[aria-label="Taste dimension ranking"]');
         await bars.locator('.recharts-bar-rectangle').first().waitFor({ state: 'visible', timeout: 15_000 });
         await settle(page);
-        const shown = await page.locator('section[aria-label="浏览器画像"]').evaluate((section) => {
+        const shown = await page.locator('section[aria-label="Browser profile"]').evaluate((section) => {
           const radar = section.firstElementChild!.getBoundingClientRect();
-          const ranked = section.querySelector('section[aria-label="口味维度排名"]')!.getBoundingClientRect();
+          const ranked = section.querySelector('section[aria-label="Taste dimension ranking"]')!.getBoundingClientRect();
           return {
             radar: radar.height,
             ranked: ranked.height,
@@ -78,13 +78,13 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         assert.equal(shown.thickness.length, TASTE_CATEGORIES.length);
         if (viewport.mobile) {
           assert.ok(shown.ranked >= 32 * TASTE_CATEGORIES.length,
-            `窄屏排行条只有 ${shown.ranked}px，${TASTE_CATEGORIES.length} 条挤不下`);
+            `On narrow screens the ranking bar is only ${shown.ranked}px, too tight for ${TASTE_CATEGORIES.length} rows`);
         } else {
           assert.ok(Math.abs(shown.ranked - shown.radar) < 2,
-            `排行条 ${shown.ranked}px，雷达那一栏 ${shown.radar}px，两栏不等高`);
+            `The ranking bar is ${shown.ranked}px and the radar column ${shown.radar}px, so the two columns differ in height`);
         }
-        // 26 是一格 32 里默认留出的粗细；图被拉高时多出来的高度拉开条距，不进条本身。
-        assert.ok(shown.thickness.every((height) => height <= 26.5), `条粗 ${shown.thickness.join('、')}px`);
+        // 26 is the thickness a 32px cell reserves by default; extra height from a taller chart widens the bar gaps, not the bars themselves.
+        assert.ok(shown.thickness.every((height) => height <= 26.5), `Bar thickness is ${shown.thickness.join(', ')}px`);
         assert.deepEqual(opened.problems, []);
       } finally {
         await opened.close();
@@ -92,16 +92,16 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     });
   }
 
-  it('口味榜的女优与创作者头像按人脸框放大：图保持原比例、盖满圆框，不露出底下的首字母', { timeout: 60_000 }, async () => {
+  it('Taste ranking performer and creator avatars scale by face box: the image keeps its ratio, fills the circle, and never shows the initial underneath', { timeout: 60_000 }, async () => {
     const opened = await openTaste(browser, DESKTOP);
     try {
       const page = opened.page;
-      await page.getByRole('tablist', { name: '口味分析的数据来源' }).getByRole('tab', { name: 'Peach 观看与评价' }).click();
-      for (const name of ['女优', '创作者']) {
-        await page.getByRole('tablist', { name: 'Peach 口味维度' }).getByRole('tab', { name }).click();
+      await page.getByRole('tablist', { name: 'Data sources for taste analysis' }).getByRole('tab', { name: 'Peach watch and rating' }).click();
+      for (const name of ['Performers', 'Creators']) {
+        await page.getByRole('tablist', { name: 'Peach taste dimensions' }).getByRole('tab', { name }).click();
         const img = page.getByRole('tabpanel', { name }).locator('img[data-facebox]').first();
         await img.scrollIntoViewIfNeeded();
-        // 放大是图加载后 `avatarFrame` 写进内联 style 的；等到那一步落地再量。
+        // The zoom is written into inline style by `avatarFrame` after the image loads; measure only once that step has landed.
         await page.waitForFunction((element) => element instanceof HTMLImageElement
           && element.complete && element.naturalWidth > 0 && element.style.width !== '',
         await img.elementHandle(), { timeout: 15_000 });
@@ -114,11 +114,11 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
             gaps: [box.left - ring.left, ring.right - box.right, box.top - ring.top, ring.bottom - box.bottom],
           };
         });
-        assert.equal(frame.maxWidth, 'none', `${name}头像的图被预检的 max-width 夹住`);
-        assert.ok(frame.width > frame.ring, `${name}头像没有按人脸框放大：图宽 ${frame.width}px，圆框 ${frame.ring}px`);
+        assert.equal(frame.maxWidth, 'none', `${name} avatar image is clamped by the preflight max-width`);
+        assert.ok(frame.width > frame.ring, `${name}'s avatar is not zoomed to the face box: image width ${frame.width}px, ring ${frame.ring}px`);
         assert.ok(Math.abs(frame.aspect - TASTE_FACE.imgW / TASTE_FACE.imgH) < .02,
-          `${name}头像的图宽高比 ${frame.aspect}，被压扁了`);
-        assert.ok(frame.gaps.every((gap) => gap <= .5), `${name}头像的图没盖满圆框：${frame.gaps.join('、')}`);
+          `${name} avatar image aspect ratio is ${frame.aspect}, squashed`);
+        assert.ok(frame.gaps.every((gap) => gap <= .5), `${name} avatar image does not fill the circle: ${frame.gaps.join(', ')}`);
       }
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -126,9 +126,9 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('被打断的那一轮只有结束原因，卡片正文下面不留空行', { timeout: 60_000 }, async () => {
+  it('An interrupted round carries only its finish reason, leaving no blank line under the card body', { timeout: 60_000 }, async () => {
     const opened = await openActivity(browser, [
-      { ...settledRun(1, 'interrupted', '追更检查'), error: '服务重启，这一轮没有跑完' },
+      { ...settledRun(1, 'interrupted', 'Update check'), error: 'The service restarted and this round never finished' },
     ]);
     try {
       const body = await opened.page.locator('li[data-status="interrupted"] > div').first()
@@ -137,23 +137,23 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           padding: parseFloat(getComputedStyle(element).paddingBottom),
         }));
       assert.ok(Math.abs(body.trailing - body.padding) <= .5,
-        `正文最后一行下面空出 ${body.trailing}px，底边距只有 ${body.padding}px`);
+        `${body.trailing}px sit empty under the body's last line while the bottom padding is only ${body.padding}px`);
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  /* 首页「未入库的新作」那一排会自己横着走，每一帧都发一次 scroll。手机上侧栏是抽屉，
-     两枚弹层一打开就碰上它；演示库没有订阅，这一排由拦下的 `/api/feeds/discoveries`
-     画出来（字段以 `src/peach/web_feeds.py` 为准）。夹具关了动效，自动滚动不起步，
-     所以这里亲手滚它，发出的是同一种 scroll。 */
-  it('390px 下侧栏两枚弹层不随别处那一排横滚收起，整页滚动才收', { timeout: 60_000 }, async () => {
+  /* The home "new releases not in the library" row scrolls horizontally by itself, firing one scroll event per frame. On the
+     phone the sidebar is a drawer and the two popovers run right into it; the demo library has no subscriptions, so this row
+     is rendered by the intercepted `/api/feeds/discoveries` (fields per `src/peach/web_feeds.py`). The fixture turns motion
+     off, so auto-scroll never starts, and this scrolls it by hand, emitting the same kind of scroll. */
+  it('At 390px the sidebar\'s two popovers do not collapse on another row\'s horizontal scroll, only on page scroll', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', MOBILE);
     try {
       const items = Array.from({ length: 12 }, (_, index) => ({
-        id: index + 1, code: `DEMO-${String(index + 1).padStart(3, '0')}`, title: `演示新作 ${index + 1}`,
-        studio: '演示厂牌', release_date: '2026-09-01', has_cover: false, cover_url: '', link: '', read: false,
+        id: index + 1, code: `DEMO-${String(index + 1).padStart(3, '0')}`, title: `Demo new release ${index + 1}`,
+        studio: 'Demo label', release_date: '2026-09-01', has_cover: false, cover_url: '', link: '', read: false,
       }));
       await opened.page.route((url) => url.pathname === '/api/feeds/discoveries', (route) => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify({ items }),
@@ -163,7 +163,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       await row.waitFor({ state: 'visible', timeout: 15_000 });
       await settle(opened.page);
       assert.ok(await row.evaluate((element) => element.scrollWidth > element.clientWidth + 120),
-        '新作那一排在 390px 下没有可横滚的余量，这条用例量不到东西');
+        'At 390px the new releases row has no horizontal slack, so this test has nothing to measure');
       await opened.page.locator('#filterBtn').tap();
       await opened.page.waitForFunction(() => document.querySelector('#drawer')?.classList.contains('open'));
       for (const [trigger, menuId] of [['#brandHome', 'boardLibraryMenu'], ['#boardGlowBtn', 'boardGlowMenu']] as const) {
@@ -174,11 +174,11 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           await row.evaluate((element) => { element.scrollLeft += 30; });
           await opened.page.waitForTimeout(100);
         }
-        assert.ok(await menu.isVisible(), `${trigger} 打开的弹层随新作那一排横滚收起了`);
-        // 菜单装不下时本来就要在内部滚；捕获阶段的 scroll 连它自己的也收得到。
+        assert.ok(await menu.isVisible(), `The popover opened by ${trigger} collapsed with the new releases row's horizontal scroll`);
+        // A menu too tall for the screen scrolls internally anyway; a capture-phase scroll listener catches even its own scrolling.
         await menu.evaluate((element) => element.dispatchEvent(new Event('scroll')));
         await opened.page.waitForTimeout(100);
-        assert.ok(await menu.isVisible(), `${trigger} 打开的弹层随它自己的内部滚动收起了`);
+        assert.ok(await menu.isVisible(), `The popover opened by ${trigger} collapsed on its own internal scroll`);
         assert.equal(await opened.page.locator(trigger).getAttribute('aria-expanded'), 'true');
         await opened.page.evaluate(() => document.dispatchEvent(new Event('scroll')));
         await menu.waitFor({ state: 'hidden', timeout: 5_000 });
@@ -189,7 +189,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('设置里的光晕配色和侧栏配色卡是同一组预设色块，键盘选一档两处一起换', { timeout: 60_000 }, async () => {
+  it('The glow palette in settings and the sidebar palette card are the same preset swatches, and keyboard selection changes both at once', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     try {
       await settle(opened.page);
@@ -204,12 +204,12 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           ball: getComputedStyle(node.querySelector('[data-glow-ball]')!).backgroundImage,
         })));
       const inSettings = await chips('#homeGlowControls');
-      assert.ok(inSettings.length >= 2, '设置里没有预设色块');
-      assert.deepEqual(inSettings, await chips('#boardGlowMenu'), '设置里的预设色块和侧栏配色卡不是同一组');
+      assert.ok(inSettings.length >= 2, 'No preset color swatches in settings');
+      assert.deepEqual(inSettings, await chips('#boardGlowMenu'), 'The settings preset swatches and the sidebar palette card are not the same set');
       const size = await grid.locator('[data-glow-ball]').first().evaluate((node) => node.getBoundingClientRect().width);
-      assert.equal(size, 28, '设置里的色块和侧栏那一枚不是同一副尺寸');
-      /* 设置这一行有整块设置那么宽：列数跟着可用宽度走，每格就是一枚球，挨着排满再换行，
-         间距与侧栏那条 `[data-glow-grid]` 同一个值；侧栏那张卡仍是六列。 */
+      assert.equal(size, 28, 'The settings swatch and the sidebar one are not the same size');
+      /* The settings row spans the full settings block: column count follows available width, each cell is one orb packed side by side before wrapping,
+         with the same spacing as the sidebar's `[data-glow-grid]`; the sidebar card keeps its six columns. */
       const gridStyle = (root: string) => opened.page.locator(`${root} [data-glow-grid]`).evaluate((node) => {
         const style = getComputedStyle(node);
         return { tracks: style.gridTemplateColumns, gap: style.columnGap, inline: style.paddingLeft };
@@ -230,19 +230,19 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       });
       const settingsGrid = await gridStyle('#homeGlowControls');
       const sidebarGrid = await gridStyle('#boardGlowMenu');
-      assert.ok(settingsGrid.tracks.split(' ').every((track) => track === '28px'), '设置里的色块每格不是一枚球的宽度');
-      assert.equal(settingsGrid.gap, sidebarGrid.gap, '设置里的色块间距和侧栏配色卡不同');
-      assert.equal(settingsGrid.inline, '0px', '设置里的色块没有从这一行的内容左缘起');
-      // 侧栏配色卡此刻收着，计算值停在声明式 `repeat(6, 1fr)`；展开时是六个解析后的宽度。
+      assert.ok(settingsGrid.tracks.split(' ').every((track) => track === '28px'), 'The settings swatches are not one ball\'s width per cell');
+      assert.equal(settingsGrid.gap, sidebarGrid.gap, 'The settings swatch spacing differs from the sidebar palette card');
+      assert.equal(settingsGrid.inline, '0px', 'The settings swatch does not start from the row content\'s left edge');
+      // The sidebar palette card is collapsed at this moment, so the computed value is still the declarative `repeat(6, 1fr)`; expanded it becomes six resolved widths.
       assert.ok(sidebarGrid.tracks === 'repeat(6, 1fr)' || sidebarGrid.tracks.split(' ').length === 6,
-        `侧栏配色卡不再是每行六枚：${sidebarGrid.tracks}`);
+        `The sidebar palette card is no longer six per row: ${sidebarGrid.tracks}`);
       const wide = await swatchLayout();
-      assert.ok(wide.firstRow > 6, `桌面宽度下第一行只排了 ${wide.firstRow} 枚，右边的空间没用上`);
-      assert.ok(wide.steps.every((step) => step === 34), `设置里的色块没有挨着排：步长 ${wide.steps.join('/')}`);
-      assert.equal(wide.startsAt, 0, '设置里的第一枚色块没有从这一行的内容左缘起');
-      assert.equal(wide.overflow, false, '桌面宽度下色块越出了这一行');
+      assert.ok(wide.firstRow > 6, `At desktop width the first row laid out only ${wide.firstRow} chips; the space on the right went unused`);
+      assert.ok(wide.steps.every((step) => step === 34), `The swatches in settings are not laid out flush: step ${wide.steps.join('/')}`);
+      assert.equal(wide.startsAt, 0, 'The first swatch in settings does not start at the row content\'s left edge');
+      assert.equal(wide.overflow, false, 'At desktop width the color block overflows this row');
       assert.equal(await grid.getAttribute('role'), 'group');
-      assert.ok(await grid.getAttribute('aria-label'), '预设色块那一组没有无障碍名称');
+      assert.ok(await grid.getAttribute('aria-label'), 'The preset swatch group has no accessible name');
 
       const target = inSettings.find((chip) => chip.pressed === 'false')!;
       const chip = grid.locator(`[data-glow-preset="${target.key}"]`);
@@ -253,32 +253,32 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       assert.equal(await grid.locator('[aria-pressed="true"]').count(), 1);
       assert.equal(await opened.page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.glowPreset
         && document.activeElement!.closest('#homeGlowControls [data-glow-grid]') ? (document.activeElement as HTMLElement).dataset.glowPreset : null),
-        target.key, '选完之后焦点离开了刚选的那一枚色块');
+        target.key, 'After choosing, focus left the swatch just selected');
       assert.equal(await opened.page.locator(`#boardGlowMenu [data-glow-preset="${target.key}"]`)
-        .getAttribute('aria-pressed'), 'true', '侧栏配色卡没有跟着换到同一档');
+        .getAttribute('aria-pressed'), 'true', 'The sidebar palette card did not follow to the same tier');
       assert.equal(await opened.page.locator('#homeGlowControls [data-glow-preset-name]').textContent(), target.label);
       assert.equal(await opened.page.evaluate(() => JSON.parse(localStorage.getItem('peach.settings.v1')!).homeGlow.preset),
-        target.key, '选中的那一档没有写进设置');
+        target.key, 'The selected tier is not written to settings');
 
       await opened.page.setViewportSize({ width: MOBILE.width, height: MOBILE.height });
       await grid.waitFor({ state: 'visible', timeout: 10_000 });
       const narrow = await swatchLayout();
-      assert.ok(narrow.firstRow < narrow.count && narrow.rows > 1, `${MOBILE.width}px 下色块没有换行`);
-      assert.ok(narrow.steps.every((step) => step === 34), `${MOBILE.width}px 下色块没有挨着排`);
-      assert.equal(narrow.startsAt, 0, `${MOBILE.width}px 下第一枚色块没有从内容左缘起`);
-      assert.equal(narrow.overflow, false, `${MOBILE.width}px 下色块越出了这一行`);
-      assert.equal(narrow.viewportOverflow, false, `${MOBILE.width}px 下页面出现横向溢出`);
+      assert.ok(narrow.firstRow < narrow.count && narrow.rows > 1, `At ${MOBILE.width}px the swatches did not wrap`);
+      assert.ok(narrow.steps.every((step) => step === 34), `At ${MOBILE.width}px the swatches are not flush together`);
+      assert.equal(narrow.startsAt, 0, `At ${MOBILE.width}px the first swatch does not start from the content's left edge`);
+      assert.equal(narrow.overflow, false, `At ${MOBILE.width}px a swatch leaves the row`);
+      assert.equal(narrow.viewportOverflow, false, `At ${MOBILE.width}px the page overflows horizontally`);
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  /* ADR-0050：设置弹层只放一行一个值、改完就生效的控件；带「保存配置」的表单在配置页，
-     要确认、要看进度的长任务在数据管理页，订阅源在关注管理页。 */
-  /* 设置面板：盖住整页的弹层与作品详情浮窗同一档遮罩、同一组进出场；遮罩不带模糊，值只来自 `--scrim`。
-     动效要真跑起来才读得到关键帧名，这一条自建不减动态的上下文。 */
-  it('设置面板的遮罩取 --scrim、不带模糊、压在最顶层，卡片用弹层那一组关键帧进出', { timeout: 60_000 }, async () => {
+  /* ADR-0050: the settings popover holds only one value per row, effective on change; forms with a "Save configuration" button live on the configuration page,
+     long tasks needing confirmation or progress live on the data management page, and feeds live on the follows management page. */
+  /* The settings panel: the full-page popover shares the video details overlay's scrim tier and enter/exit animations; the scrim has no blur and takes its value only from `--scrim`.
+     Animation keyframe names are readable only while animations actually run, so this case builds its own context without reduced motion. */
+  it('The settings panel scrim uses --scrim, no blur, and sits on the topmost layer; the card enters and exits with the popover keyframes', { timeout: 60_000 }, async () => {
     const context = await browser.newContext({ viewport: { width: DESKTOP.width, height: DESKTOP.height } });
     await context.addInitScript(() => localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false })));
     try {
@@ -300,14 +300,14 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         };
       });
       assert.equal(shown.position, 'fixed');
-      assert.equal(shown.z, shown.layer, '设置遮罩不在 --layer-dialog 那一层');
-      assert.deepEqual(shown.inset, ['0px', '0px', '0px', '0px'], '设置遮罩没有铺满视口');
-      assert.equal(shown.face, scrim, '设置遮罩的颜色不是 --scrim');
-      assert.deepEqual(shown.blur, ['none', 'none'], '设置遮罩或卡片带了模糊');
+      assert.equal(shown.z, shown.layer, 'The settings scrim is not on the --layer-dialog layer');
+      assert.deepEqual(shown.inset, ['0px', '0px', '0px', '0px'], 'The settings scrim never fills the viewport');
+      assert.equal(shown.face, scrim, 'The settings scrim color is not --scrim');
+      assert.deepEqual(shown.blur, ['none', 'none'], 'The settings scrim or card carries blur');
       assert.deepEqual(shown.backdrop, ['settings-backdrop-in', 'both']);
-      // 进场填 `backwards`：终点帧留下的 filter 会另起一个 backdrop root，左栏玻璃就只采样得到卡片自己。
+      // Fill `backwards` on entry: the filter left by the final frame would start another backdrop root, and the left pane's glass would sample only the card itself.
       assert.deepEqual(shown.card, ['board-dialog-in', 'backwards']);
-      /* 安全区内边距让开刘海与 Home 指示条；桌面上没有安全区，两端都是 18px 的底。 */
+      /* Safe-area padding clears the notch and the Home indicator; desktop has no safe areas, so both ends get an 18px base. */
       assert.deepEqual(shown.padding, ['18px', '18px']);
 
       const leaving = await page.locator(PANEL).evaluate((panel) => {
@@ -316,7 +316,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         return { backdrop: getComputedStyle(panel).animationName, card: [card.animationName, card.animationFillMode] };
       });
       assert.equal(leaving.backdrop, 'settings-backdrop-out');
-      // 退场要 `both`：终点（透明）不是元素的自然状态。
+      // The exit needs `both`: the end state (transparent) is not the element's natural state.
       assert.deepEqual(leaving.card, ['board-dialog-out', 'both']);
       await page.locator(PANEL).waitFor({ state: 'hidden', timeout: 5_000 });
     } finally {
@@ -324,7 +324,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('设置面板的标题栏占满右栏、压在滚动区上面，滚过那段留白才投下左栏玻璃那道影子', { timeout: 60_000 }, async () => {
+  it('The settings panel header fills the right column and sits above the scroll area, casting the left column\'s glass shadow only after scrolling past that whitespace', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
@@ -348,26 +348,26 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         };
       });
       const resting = await read();
-      assert.deepEqual(resting.head.slice(0, 2), resting.body.slice(0, 2), '标题栏和滚动区不是同一列同一宽');
-      assert.ok(resting.head[2]! <= resting.body[2]! + 0.5, '标题栏没有压在滚动区上面');
+      assert.deepEqual(resting.head.slice(0, 2), resting.body.slice(0, 2), 'The title bar and scroll area are not the same column and width');
+      assert.ok(resting.head[2]! <= resting.body[2]! + 0.5, 'The title bar does not layer above the scroll area');
       assert.equal(resting.z, '2');
       assert.equal(resting.overflow, 'auto');
-      assert.equal(resting.overscroll, 'contain', '滚到底之后滚动会漏给背后的页面');
-      assert.equal(resting.shadow, 'none', '还没滚动标题栏就投了影');
-      assert.equal(resting.navigationClip, 'inset(0px)', '玻璃导航的外部投影越过列边界');
-      // 影子只要往下那一半：往上会糊在标题自己头上、往左会糊到左栏上。
+      assert.equal(resting.overscroll, 'contain', 'After scrolling to the end, scroll leaks through to the page behind');
+      assert.equal(resting.shadow, 'none', 'The title bar cast its shadow before any scrolling');
+      assert.equal(resting.navigationClip, 'inset(0px)', 'The glass nav\'s outer shadow crosses the column boundary');
+      // The shadow only needs the downward half: upward it smears onto the title itself, leftward onto the left column.
       assert.equal(resting.clip, 'inset(0px 0px -96px)');
 
       await page.locator(`${PANEL} [data-settings-scroll]`).evaluate((scroll) => { scroll.scrollTop = 4 });
       await page.waitForTimeout(100);
-      assert.equal((await read()).shadow, 'none', `滚动量还没过 ${resting.gap} 的留白标题栏就投了影`);
+      assert.equal((await read()).shadow, 'none', `The title bar casts its shadow before the scroll passes the ${resting.gap} padding`);
       await page.locator(`${PANEL} [data-settings-scroll]`).evaluate((scroll) => { scroll.scrollTop = 80 });
       await page.waitForFunction((want) => getComputedStyle(
         document.querySelector('#settingsPanel [data-settings-head]')!).boxShadow === want, shadow);
       await page.locator(`${PANEL} [data-settings-scroll]`).evaluate((scroll) => { scroll.scrollTop = 0 });
       await page.waitForFunction(() => getComputedStyle(document.querySelector('#settingsPanel [data-settings-head]')!).boxShadow === 'none');
       await page.locator(`${PANEL} [data-settings-scroll]`).evaluate((scroll) => { scroll.scrollTop = 80 });
-      await page.locator(PANEL).getByRole('tab', { name: '浏览与播放', exact: true }).click();
+      await page.locator(PANEL).getByRole('tab', { name: 'Browsing & playback', exact: true }).click();
       await page.waitForFunction(() => getComputedStyle(document.querySelector('#settingsPanel [data-settings-head]')!).boxShadow === 'none');
       assert.deepEqual(opened.problems, []);
     } finally {
@@ -375,7 +375,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('设置面板左栏当前项自己不铺底，那块玻璃跟着指针走、离开这一列回到当前项', { timeout: 60_000 }, async () => {
+  it('The settings nav\'s current item paints no background of its own; the glass follows the pointer and falls back to the current item when the pointer leaves', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page } = opened;
     try {
@@ -384,27 +384,27 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       const glide = () => nav.locator('[data-settings-glide]').evaluate((node) => Math.round(node.getBoundingClientRect().top));
       const top = (name: string) => nav.getByRole('tab', { name, exact: true })
         .evaluate((node) => Math.round(node.getBoundingClientRect().top));
-      const selected = await nav.getByRole('tab', { name: '外观与导航', exact: true }).evaluate((node) => {
+      const selected = await nav.getByRole('tab', { name: 'Appearance & navigation', exact: true }).evaluate((node) => {
         const style = getComputedStyle(node), icon = getComputedStyle(node.querySelector('svg')!);
-        // 与文字同行的图标取 `--icon-inline`（1.2em），按所在文字字号算出应有的边长。
+        // Icons inline with text take `--icon-inline` (1.2em), computing their edge length from the surrounding text's font size.
         const side = (value: string) => `${Math.round(parseFloat(value) * 10) / 10}px`;
         return { face: style.backgroundColor, ring: style.boxShadow, inline: side(String(parseFloat(style.fontSize) * 1.2)),
           icon: [side(icon.width), side(icon.height), icon.fill === style.color, icon.stroke] };
       });
-      assert.equal(selected.face, 'rgba(0, 0, 0, 0)', '当前项自己铺了底，滑动的那块玻璃被盖住');
+      assert.equal(selected.face, 'rgba(0, 0, 0, 0)', 'The current item paints its own background, covering the sliding glass');
       assert.equal(selected.ring, 'none');
-      // Remix 的线条是 `fill` 画出的轮廓，全站默认的 `stroke:currentColor;fill:none` 会让它整枚消失。
+      // Remix icons draw their outline with `fill`; the site-wide default `stroke:currentColor;fill:none` would make the whole glyph vanish.
       assert.deepEqual(selected.icon, [selected.inline, selected.inline, true, 'none']);
-      assert.equal(await glide(), await top('外观与导航'), '玻璃没有落在当前项上');
+      assert.equal(await glide(), await top('Appearance & navigation'), 'The glass never lands on the current item');
 
-      await nav.getByRole('tab', { name: '浏览与播放', exact: true }).hover();
-      const target = await top('浏览与播放');
+      await nav.getByRole('tab', { name: 'Browsing & playback', exact: true }).hover();
+      const target = await top('Browsing & playback');
       await page.waitForFunction(([want]) => Math.round(document.querySelector(
         '#settingsPanel [data-settings-glide]')!.getBoundingClientRect().top) === want, [target]);
-      assert.equal(await nav.getByRole('tab', { name: '外观与导航', exact: true }).getAttribute('aria-selected'), 'true',
-        '指针移上去就换了分区');
+      assert.equal(await nav.getByRole('tab', { name: 'Appearance & navigation', exact: true }).getAttribute('aria-selected'), 'true',
+        'Merely hovering switched the section');
       await page.locator(`${PANEL} [data-settings-scroll]`).hover();
-      const home = await top('外观与导航');
+      const home = await top('Appearance & navigation');
       await page.waitForFunction(([want]) => Math.round(document.querySelector(
         '#settingsPanel [data-settings-glide]')!.getBoundingClientRect().top) === want, [home]);
       assert.deepEqual(opened.problems, []);
@@ -413,7 +413,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('设置面板的分组是 --ground 圆角面，开关、主题分段与关闭键各是一副尺寸，窄屏下开关不换行', { timeout: 60_000 }, async () => {
+  it('The settings panel groups are --ground rounded surfaces; the toggle, theme segments and close button each have their own size, and on narrow screens the toggle does not wrap', { timeout: 60_000 }, async () => {
     for (const viewport of [DESKTOP, MOBILE]) {
       const opened = await openHome(browser, viewport);
       const { page } = opened;
@@ -439,13 +439,13 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
             close: [box(close).join('×'), getComputedStyle(close).borderTopLeftRadius, getComputedStyle(close).paddingLeft],
           };
         });
-        assert.deepEqual(shown.group, [ground, '16px'], `${viewport.name}：分组不是 --ground 的 16px 圆角面`);
-        assert.deepEqual(shown.toggles, ['42×24'], `${viewport.name}：开关不是同一副 42×24`);
-        // 开关只有 42px，跟标题同一行绰绰有余；跟着换行只是白占一行高度。
-        assert.equal(shown.toggleOnRow, true, `${viewport.name}：开关没有留在标题那一行`);
-        assert.deepEqual(shown.theme, ['32×32', '32×32', '32×32'], `${viewport.name}：主题三档不是 32px 的圆`);
+        assert.deepEqual(shown.group, [ground, '16px'], `${viewport.name}: the group is not a 16px rounded surface of --ground`);
+        assert.deepEqual(shown.toggles, ['42×24'], `${viewport.name}: the toggles are not the same pair of 42×24`);
+        // The toggle is only 42px and fits the title's row with room to spare; wrapping it below would just waste a line's height.
+        assert.equal(shown.toggleOnRow, true, `${viewport.name}: the toggle did not stay on the title row`);
+        assert.deepEqual(shown.theme, ['32×32', '32×32', '32×32'], `${viewport.name}: the three theme tiers are not 32px circles`);
         assert.equal(shown.themeIcon, '16×16');
-        assert.deepEqual(shown.close, ['24×24', '50%', '0px'], `${viewport.name}：关闭键不是 24px 的圆钮`);
+        assert.deepEqual(shown.close, ['24×24', '50%', '0px'], `${viewport.name}: the close key is not a 24px round button`);
         assert.deepEqual(opened.problems, []);
       } finally {
         await opened.close();
@@ -453,14 +453,14 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('偏好设置按标题与控件的实际宽度同行，空间不足时完整换行', { timeout: 60_000 }, async () => {
+  it('Preference rows keep title and control on one line by real widths, wrapping completely when space runs out', { timeout: 60_000 }, async () => {
     for (const width of [320, 375, 390, 428, DESKTOP.width]) {
       const opened = await openHome(browser, { ...(width > 760 ? DESKTOP : MOBILE), width });
       try {
         await openPanel(opened.page);
-        for (const section of ['外观与导航', '浏览与播放', 'JAV 与新作', '搜索与推荐', '内容显示']) {
+        for (const section of ['Appearance & navigation', 'Browsing & playback', 'JAV & new releases', 'Search & recommendations', 'Content display']) {
           await opened.page.locator(PANEL).getByRole('tab', { name: section, exact: true }).click();
-          const subheadings = ({ '浏览与播放': ['作品列表', '播放'], 'JAV 与新作': ['作品显示', '新作显示'] } as
+          const subheadings = ({ '浏览与播放': ['Video list', 'Play'], 'JAV 与新作': ['Video display', 'New releases'] } as
             Record<string, string[] | undefined>)[section];
           if (subheadings) {
             const headings = await opened.page.locator(`${PANEL} [data-setting-group]:not([hidden]) [data-settings-subheading]`)
@@ -489,12 +489,12 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           }));
           assert.ok(rows.length > 0);
           for (const row of rows) {
-            assert.equal(row.textLines, 1, `${width}px：${row.title}标题发生折行`);
-            assert.equal(row.contained, true, `${width}px：${row.title}控件越出设置行`);
-            assert.ok(Math.abs(row.rightGap) <= 1, `${width}px：${row.title}控件没有靠右`);
-            if (row.fits || (section === '搜索与推荐' && width >= 375)) {
-              assert.equal(row.sameLine, true, `${width}px：${row.title}控件没有与标题同行`);
-              assert.ok(row.gap >= 11, `${width}px：${row.title}与控件之间缺少间距`);
+            assert.equal(row.textLines, 1, `${width}px: ${row.title} title wraps`);
+            assert.equal(row.contained, true, `${width}px: ${row.title} control overflows the settings row`);
+            assert.ok(Math.abs(row.rightGap) <= 1, `${width}px: ${row.title} control is not right-aligned`);
+            if (row.fits || (section === 'Search & recommendations' && width >= 375)) {
+              assert.equal(row.sameLine, true, `${width}px: the ${row.title} control is not on the title's line`);
+              assert.ok(row.gap >= 11, `${width}px: spacing is missing between ${row.title} and the control`);
             }
           }
         }
@@ -505,7 +505,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('侧栏排序的添加行：触发器与「添加」同高 --control-h，「添加」是主按钮，候选用完时触发器给禁止光标', { timeout: 60_000 }, async () => {
+  it('The sidebar order add row: the trigger and "Add" share the --control-h height, "Add" is a primary button, and the trigger shows a not-allowed cursor when candidates run out', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
@@ -535,25 +535,25 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           cursor: getComputedStyle(trigger).cursor,
         };
       });
-      assert.equal(shown.trigger, shown.height, '添加行的触发器没有引用 --control-h');
-      assert.equal(shown.add, shown.height, '「添加」没有引用 --control-h');
-      assert.deepEqual(shown.face, shown.expected, '「添加」没有穿主按钮那一身');
+      assert.equal(shown.trigger, shown.height, 'The add row\'s trigger does not reference --control-h');
+      assert.equal(shown.add, shown.height, '"Add" does not reference --control-h');
+      assert.deepEqual(shown.face, shown.expected, 'The "Add" button does not use the primary button style');
       assert.equal(shown.cursor, 'pointer');
 
-      /* 一项一项加回去，直到清单里没有可加的入口。 */
+      /* Add them back one by one, until no addable entry remains in the list. */
       const add = row.locator('[data-sidebar-add]'), trigger = row.locator('[data-sidebar-add-trigger]');
       for (let left = 30; left > 0 && await add.isEnabled(); left -= 1) await add.click();
-      assert.equal(await trigger.isDisabled(), true, '全部入口都加回侧栏之后触发器还能点');
-      assert.ok((server.settings.sidebarOrder as string[]).length > ORDER.length, '加回的入口没有写进数据库');
+      assert.equal(await trigger.isDisabled(), true, 'After every entry is added back to the sidebar the trigger stays clickable');
+      assert.ok((server.settings.sidebarOrder as string[]).length > ORDER.length, 'The re-added entry is not written to the database');
       assert.equal(await trigger.evaluate((node) => getComputedStyle(node).cursor), 'not-allowed',
-        '没有可添加的入口时触发器还是普通光标');
+        'With nothing addable the trigger keeps the default cursor');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('来源与订阅中禁用的自动检查开关降低轨道不透明度并使用禁止光标', { timeout: 60_000 }, async () => {
+  it('Disabled auto-check toggles in sources and subscriptions lower track opacity and use a not-allowed cursor', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     const { page } = opened;
     try {
@@ -561,9 +561,9 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       server.schedule.available = false;
       await page.goto(new URL('/settings/library', page.url()).href, { waitUntil: 'load' });
       await settle(page);
-      const source = () => page.getByRole('tablist', { name: '配置分区' }).getByRole('tab', { name: '来源与订阅', exact: true });
+      const source = () => page.getByRole('tablist', { name: 'Configuration section' }).getByRole('tab', { name: 'Sources and subscriptions', exact: true });
       await source().click();
-      const toggle = page.getByRole('switch', { name: '自动检查更新', exact: true });
+      const toggle = page.getByRole('switch', { name: 'Automatically check for updates', exact: true });
       await toggle.and(page.locator(':disabled:checked')).waitFor({ state: 'attached', timeout: 10_000 });
       const face = (node: Element) => {
         const label = node.closest('label')!;
@@ -582,15 +582,15 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       assert.equal(live.opacity, 1);
       assert.equal(live.cursor, 'pointer');
       assert.notEqual(live.gradient, 'none');
-      assert.equal(blocked.gradient, live.gradient, '两种状态应比较同一个已开启的开关');
-      assert.ok(blocked.opacity < live.opacity, '禁用轨道的视觉强度没有降低');
+      assert.equal(blocked.gradient, live.gradient, 'Both states should compare the same enabled switch');
+      assert.ok(blocked.opacity < live.opacity, 'The disabled track does not look visually weaker');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('导航顺序两张卡片的内容与卡片四边留出同样的内边距', { timeout: 60_000 }, async () => {
+  it('The two navigation-order cards give their content the same padding on all four sides of the card', { timeout: 60_000 }, async () => {
     for (const viewport of [DESKTOP, MOBILE]) {
       const opened = await openHome(browser, viewport);
       const { page } = opened;
@@ -607,15 +607,15 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
             .map(Math.round);
         }));
         assert.equal(insets.length, 2);
-        assert.deepEqual(insets[1], insets[0], `${viewport.name}：两张卡片的内边距不一致`);
-        for (const side of insets[1]) assert.ok(side >= 8, `${viewport.name}：内容贴着卡片边缘 ${JSON.stringify(insets)}`);
+        assert.deepEqual(insets[1], insets[0], `${viewport.name}: the two cards have inconsistent padding`);
+        for (const side of insets[1]) assert.ok(side >= 8, `${viewport.name}: content flush against the card edge ${JSON.stringify(insets)}`);
       } finally {
         await opened.close();
       }
     }
   });
 
-  it('光晕配色与自定义颜色使用独立卡片；「玻璃原色」只留漂移速度', { timeout: 60_000 }, async () => {
+  it('Glow palettes and custom colors use separate cards; "Glass base color" keeps only the drift speed', { timeout: 60_000 }, async () => {
     for (const viewport of [DESKTOP, MOBILE]) {
       const opened = await openHome(browser, viewport);
       const { page } = opened;
@@ -636,8 +636,8 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         });
         assert.equal(shown.right, 0);
         assert.ok(shown.left);
-        assert.equal(shown.overflow, false, `${viewport.name}：参数块被内容顶宽`);
-        assert.deepEqual(shown.headings, ['光晕配色', '自定义颜色']);
+        assert.equal(shown.overflow, false, `${viewport.name}: the parameter block was widened by content`);
+        assert.deepEqual(shown.headings, ['Glow palette', 'Custom color']);
         assert.equal(shown.cards.length, 2);
         for (const card of shown.cards) {
           assert.equal(card.radius, '16px');
@@ -694,7 +694,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         await block.locator('[data-glow-native-note]').waitFor({ state: 'visible', timeout: 5_000 });
         const fields = await block.locator('[data-glow-field]').evaluateAll((nodes) => nodes
           .filter((node) => node.getClientRects().length > 0).map((node) => (node as HTMLElement).dataset.glowField));
-        assert.deepEqual(fields, ['speed'], `${viewport.name}：「玻璃原色」下还摆着管不着任何东西的拉条`);
+        assert.deepEqual(fields, ['speed'], `${viewport.name}: under "glass original" there is still a slider that controls nothing`);
         assert.equal(await block.locator('[data-glow-colours]').isVisible(), false);
         assert.deepEqual(opened.problems, []);
       } finally {
@@ -703,7 +703,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('统计页选中的读数卡：2px 描边压在脚注带上面、圆角跟卡走，接触阴影收掉', { timeout: 60_000 }, async () => {
+  it('Stats page selected stat card: a 2px outline layered above the footnote band, corners following the card, contact shadow removed', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/stats', DESKTOP);
     try {
       const page = opened.page;
@@ -716,7 +716,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         const after = getComputedStyle(element, '::after');
         const footer = element.querySelector('small')!;
         const other = document.querySelector('#stats [role="tab"]:not([data-selected])')!;
-        // `shadow-none` 是五层透明的 0px，不是字面的 none：看有没有一层带颜色。
+        // `shadow-none` is five transparent 0px layers, not a literal none: check whether any layer carries color.
         const shadowVisible = [...card.boxShadow.matchAll(/rgba?\([^)]*\)/g)]
           .some((match) => !/, 0\)$/.test(match[0]));
         return {
@@ -730,23 +730,23 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           otherAfter: getComputedStyle(other, '::after').content,
         };
       });
-      assert.equal(shown.shadowVisible, false, '选中的卡还压着接触阴影');
+      assert.equal(shown.shadowVisible, false, 'The selected card still carries its contact shadow');
       assert.equal(shown.position, 'relative');
-      assert.equal(shown.after.content, '""', '选中的卡没有画覆盖层');
+      assert.equal(shown.after.content, '""', 'The selected card never painted its overlay');
       assert.equal(shown.after.position, 'absolute');
-      assert.deepEqual(shown.after.inset, ['0px', '0px', '0px', '0px'], '覆盖层没有铺满整张卡');
-      assert.deepEqual([shown.after.width, shown.after.color], ['2px', ring], '描边不是 2px 焦点环色');
-      assert.equal(shown.after.radius, shown.radius, '覆盖层圆角和卡不一致');
-      assert.ok(Number(shown.after.z) >= 1, `覆盖层 z-index ${shown.after.z}，会被脚注带盖住`);
-      assert.notEqual(shown.footerFace, 'rgba(0, 0, 0, 0)', '脚注带没有底色，这条用例守的就是环压在它上面');
-      assert.equal(shown.otherAfter, 'none', '没选中的卡也画了覆盖层');
+      assert.deepEqual(shown.after.inset, ['0px', '0px', '0px', '0px'], 'The overlay never fills the whole card');
+      assert.deepEqual([shown.after.width, shown.after.color], ['2px', ring], 'The outline is not the 2px focus ring color');
+      assert.equal(shown.after.radius, shown.radius, 'The overlay\'s radius disagrees with the card\'s');
+      assert.ok(Number(shown.after.z) >= 1, `Overlay z-index ${shown.after.z} would be covered by the footnote band`);
+      assert.notEqual(shown.footerFace, 'rgba(0, 0, 0, 0)', 'The footnote strip has no background; this case guards the ring drawing on top of it');
+      assert.equal(shown.otherAfter, 'none', 'Unselected cards painted the overlay too');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('索引页容器不横向裁剪：筛选玻璃左右两侧的影洒得出来，页面也不横向溢出', { timeout: 60_000 }, async () => {
+  it('The index page container does not clip horizontally: the filter glass shadow spreads on both sides and the page does not overflow', { timeout: 60_000 }, async () => {
     const opened = await openIndexPage(browser, '/tags');
     try {
       const page = opened.page;
@@ -757,23 +757,23 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           spill: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
-      assert.equal(clip.overflow, 'visible', '#index 横向裁剪，玻璃左右两侧的影被切成直边');
-      assert.equal(clip.spill, 0, '不裁剪后页面被撑出横向滚动');
+      assert.equal(clip.overflow, 'visible', '#index clips horizontally, cutting the glass shadow into straight edges on both sides');
+      assert.equal(clip.spill, 0, 'Without clipping the page gains a horizontal scrollbar');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('标签页骨架里就铺着那块筛选玻璃，React 落地时玻璃与开头那组内容都留在原位', { timeout: 60_000 }, async () => {
-    /* 骨架与真页面各量一遍：玻璃的位置与大小、开头那组内容的上沿。药丸、读数与首字要等数据，
-       骨架里是占位；视图切换此刻就是最终那一档。 */
+  it('The tag page skeleton already lays that filter glass; when React lands, the glass and the first group of content stay in place', { timeout: 60_000 }, async () => {
+    /* Measure the skeleton and the real page separately: the glass's position and size, and the top edge of the leading group's content. Pill, count, and first letter wait for data
+       and are placeholders in the skeleton; the view toggle is already at its final setting at this moment. */
     const opened = await visit(browser, '/tags', DESKTOP);
     try {
       const page = opened.page;
       await page.route('**/api/index?**', (route) => route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify({ items: [{ k: '痴女', n: 4, cat: 'role' }, { k: '秘书OL', n: 2, cat: 'scene' },
+        body: JSON.stringify({ items: [{ k: 'Nympho', n: 4, cat: 'role' }, { k: 'Secretary OL', n: 2, cat: 'scene' },
           { k: 'BDSM', n: 3, cat: 'role' }], has_more: false, categories: { role: 2, scene: 1 } }),
       }));
       const release = await holdApi(page);
@@ -794,26 +794,26 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       release();
       await page.locator('#index [data-alphabet]').waitFor({ timeout: 15_000 });
       await settle(page);
-      const live = await measure('#index [data-filter-glass]', '#index [data-alpha-group]', '[aria-label="标签视图"]');
-      assert.ok(skeleton.glass && skeleton.group && skeleton.view, '标签页骨架里缺筛选玻璃、开头那组或视图切换');
-      assert.ok(skeleton.pills > 0, '骨架玻璃的上排没有铺药丸占位');
-      assert.ok(live.glass && live.group && live.view, '接管后找不到筛选玻璃、开头那组或视图切换');
+      const live = await measure('#index [data-filter-glass]', '#index [data-alpha-group]', '[aria-label="Tag view"]');
+      assert.ok(skeleton.glass && skeleton.group && skeleton.view, 'The tab skeleton is missing the filter glass, the leading group, or the view switch');
+      assert.ok(skeleton.pills > 0, 'The skeleton glass\'s top row lays no pill placeholders');
+      assert.ok(live.glass && live.group && live.view, 'After takeover, the filter glass, leading group, or view switch cannot be found');
       for (const key of ['top', 'left', 'width', 'height'] as const) {
         assert.ok(Math.abs(skeleton.glass![key] - live.glass![key]) <= 1,
-          `筛选玻璃的 ${key} 接管时跳了：骨架 ${skeleton.glass![key]}，接管后 ${live.glass![key]}`);
+          `The filter glass's ${key} jumped at takeover: skeleton ${skeleton.glass![key]}, after takeover ${live.glass![key]}`);
       }
       assert.ok(Math.abs(skeleton.group!.top - live.group!.top) <= 1,
-        `开头那组内容的上沿接管时跳了：骨架 ${skeleton.group!.top}，接管后 ${live.group!.top}`);
+        `The top edge of the leading group's content jumped at takeover: skeleton ${skeleton.group!.top}, after takeover ${live.group!.top}`);
       assert.ok(skeleton.gap !== null && live.gap !== null && Math.abs(skeleton.gap - live.gap) <= 1,
-        `字母表各组之间的间距骨架与接管后不同：骨架 ${skeleton.gap}，接管后 ${live.gap}`);
+        `The alphabetical groups' spacing differs between skeleton and takeover: skeleton ${skeleton.gap}, after takeover ${live.gap}`);
       assert.ok(Math.abs(skeleton.view!.top - live.view!.top) <= 1 && Math.abs(skeleton.view!.left - live.view!.left) <= 1,
-        `视图切换接管时挪了位：骨架 (${skeleton.view!.left}, ${skeleton.view!.top})，接管后 (${live.view!.left}, ${live.view!.top})`);
+        `View switch moved between skeleton and takeover: skeleton (${skeleton.view!.left}, ${skeleton.view!.top}), after takeover (${live.view!.left}, ${live.view!.top})`);
     } finally {
       await opened.close();
     }
   });
 
-  it('艺人页骨架里就排着身份分类那一行，React 落地时分类行与名册网格都留在原位', { timeout: 60_000 }, async () => {
+  it('The performer page skeleton already lays the identity category row; when React lands, the category row and roster grid stay in place', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/performers', DESKTOP);
     try {
       const page = opened.page;
@@ -826,7 +826,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       await page.reload({ waitUntil: 'load' });
       await page.locator('#index [data-skeleton^="index/performers/"]').waitFor({ timeout: 15_000 });
       const measure = (cell: string) => page.evaluate((cellSelector) => {
-        const row = document.querySelector('#index [aria-label="身份分类"]');
+        const row = document.querySelector('#index [aria-label="Identity groups"]');
         const box = row?.getBoundingClientRect();
         const first = row?.querySelector('[aria-pressed="true"]')?.getBoundingClientRect();
         return { row: box ? { top: box.top, left: box.left, height: box.height } : null,
@@ -838,21 +838,21 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
       await page.locator('#index [data-index-cell]').first().waitFor({ timeout: 15_000 });
       await settle(page);
       const live = await measure('#index [data-index-cell]');
-      assert.ok(skeleton.row && skeleton.pressed && skeleton.cell !== null, `艺人页骨架里缺身份分类行或名册格：${JSON.stringify(skeleton)}`);
-      assert.ok(live.row && live.pressed && live.cell !== null, `接管后找不到身份分类行或名册格：${JSON.stringify(live)}`);
+      assert.ok(skeleton.row && skeleton.pressed && skeleton.cell !== null, `The talent page skeleton is missing the identity category row or roster cells: ${JSON.stringify(skeleton)}`);
+      assert.ok(live.row && live.pressed && live.cell !== null, `Identity category row or roster cell not found after takeover: ${JSON.stringify(live)}`);
       for (const key of ['top', 'left', 'height'] as const) {
         assert.ok(Math.abs(skeleton.row![key] - live.row![key]) <= 1,
-          `身份分类行的 ${key} 接管时跳了：骨架 ${skeleton.row![key]}，接管后 ${live.row![key]}`);
+          `The identity classification row's ${key} jumped at takeover: skeleton ${skeleton.row![key]}, after takeover ${live.row![key]}`);
       }
-      assert.deepEqual(skeleton.pressed, live.pressed, '选中的那枚分类键接管时换了尺寸');
-      assert.ok(Math.abs(skeleton.cell! - live.cell!) <= 1, `名册第一格的上沿接管时跳了：骨架 ${skeleton.cell}，接管后 ${live.cell}`);
+      assert.deepEqual(skeleton.pressed, live.pressed, 'The selected category key changed size at takeover');
+      assert.ok(Math.abs(skeleton.cell! - live.cell!) <= 1, `The roster's first cell jumps at takeover: skeleton ${skeleton.cell}, after takeover ${live.cell}`);
     } finally {
       await opened.close();
     }
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`首页吸顶筛选条的上沿在深浅主题中保持透明（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The home sticky filter bar's top edge stays transparent in dark and light themes (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await openHome(browser, viewport);
       try {
         const page = opened.page;
@@ -874,7 +874,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     });
   }
 
-  it('筛选玻璃吸顶使用抬起阴影，深浅主题的上沿保持透明间隙', { timeout: 60_000 }, async () => {
+  it('The stuck filter glass uses a lifted shadow, keeping a transparent gap at its top edge in both themes', { timeout: 60_000 }, async () => {
     const opened = await openIndexPage(browser, '/tags');
     try {
       const page = opened.page;
@@ -894,23 +894,23 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         return { content: strip.content, top: strip.top, height: strip.height, z: strip.zIndex, mask: strip.maskImage };
       });
       const resting = await read();
-      assert.equal(resting.stuck, false, '还没滚就标成吸顶');
-      assert.equal(farthestShadow(resting.shadow), farthestShadow(resting.rest), '静止态的影不是 --glass-shadow');
-      assert.equal((await readStrip()).content, 'none', '静止态就画了遮带');
-      // 桩数据只有两枚标签，页面不够长滚不动：垫一块高度再滚。
+      assert.equal(resting.stuck, false, 'Marked stuck before any scrolling');
+      assert.equal(farthestShadow(resting.shadow), farthestShadow(resting.rest), 'The resting shadow is not --glass-shadow');
+      assert.equal((await readStrip()).content, 'none', 'Scrim band drawn in the idle state');
+      // The stub data has only two tags, so the page is too short to scroll: pad some height, then scroll.
       await page.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<div style="height:200vh"></div>'));
       await page.evaluate(() => window.scrollTo(0, 600));
       await page.waitForFunction(() => document.querySelector('[data-filter-glass]')!.hasAttribute('data-stuck'),
         undefined, { timeout: 5_000 });
       const stuck = await read();
       const strip = await readStrip();
-      assert.equal(farthestShadow(stuck.shadow), farthestShadow(stuck.lift), '吸顶后的影不是 --glass-lift');
-      assert.ok(farthestShadow(stuck.shadow) > farthestShadow(resting.shadow), '吸顶后影没有抬起来');
-      assert.match(stuck.shadow, /inset/, '吸顶后四条内嵌 rim 线丢了');
+      assert.equal(farthestShadow(stuck.shadow), farthestShadow(stuck.lift), 'The shadow after sticking to the top is not --glass-lift');
+      assert.ok(farthestShadow(stuck.shadow) > farthestShadow(resting.shadow), 'Shadow not raised once stuck to top');
+      assert.match(stuck.shadow, /inset/, 'After sticking, the four inset rim lines vanished');
       assert.equal(strip.content, 'none');
       for (const theme of ['light', 'dark']) {
         await page.evaluate(value => { document.documentElement.dataset.theme = value }, theme);
-        assert.equal((await readStrip()).content, 'none', `${theme} 主题的吸顶上沿存在遮带`);
+        assert.equal((await readStrip()).content, 'none', `The ${theme} theme has a masking band at the sticky top edge`);
       }
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForFunction(() => !document.querySelector('[data-filter-glass]')!.hasAttribute('data-stuck'),
@@ -921,7 +921,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('图片灯箱：竖图按高度整张收进视口，上下让出工具条与缩略图条，左右让出翻页键', { timeout: 60_000 }, async () => {
+  it('Image lightbox: portrait images fit fully by height, yielding room above and below for the toolbar and thumbnail strip, and left and right for the pager keys', { timeout: 60_000 }, async () => {
     const opened = await openLightbox(browser, { count: 3, width: 1200, height: 4000 });
     try {
       const read = await opened.page.evaluate(() => {
@@ -930,19 +930,19 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
           strip: rect('[data-photo-strip]'), back: rect('[data-photo-nav="back"]'), viewport: innerHeight };
       });
       const { img } = read;
-      assert.ok(img.top >= 24 - .5 && img.bottom <= read.viewport - 148 + .5, `大图越出了上下安全区：${img.top}–${img.bottom}`);
-      assert.ok(Math.abs(img.width / img.height - 1200 / 4000) < .01, `竖图被拉变形：${img.width}×${img.height}`);
-      assert.ok(Math.abs(img.left + img.width / 2 - DESKTOP.width / 2) <= 1, '大图没有水平居中');
-      assert.ok(read.bar.bottom <= read.strip.top, '工具条压到了缩略图条上');
+      assert.ok(img.top >= 24 - .5 && img.bottom <= read.viewport - 148 + .5, `The large image exceeds the vertical safe area: ${img.top}-${img.bottom}`);
+      assert.ok(Math.abs(img.width / img.height - 1200 / 4000) < .01, `The portrait image is stretched: ${img.width}x${img.height}`);
+      assert.ok(Math.abs(img.left + img.width / 2 - DESKTOP.width / 2) <= 1, 'Large image not horizontally centered');
+      assert.ok(read.bar.bottom <= read.strip.top, 'The toolbar covers the thumbnail strip');
       assert.equal(Math.round(read.viewport - read.strip.bottom), 14);
-      assert.ok(read.back.right <= 72, '翻页键伸进了图片那一栏');
+      assert.ok(read.back.right <= 72, 'The page keys reach into the image row');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('图片灯箱只有一张时不画缩略图条、页码点和翻页键，底部空间还给图片', { timeout: 60_000 }, async () => {
+  it('With a single image the lightbox draws no thumbnail strip, page dots, or arrows, giving the bottom space back to the image', { timeout: 60_000 }, async () => {
     const opened = await openLightbox(browser, { count: 1, width: 4000, height: 3000 });
     try {
       const read = await opened.page.evaluate(() => {
@@ -962,7 +962,7 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     }
   });
 
-  it('灯箱圆钮：图标压在圆心，线头是圆的、不填充；前进那枚是同一枚箭头转半圈，到头那枚让开', { timeout: 60_000 }, async () => {
+  it('Lightbox round buttons: the icon sits on the circle center with round line caps and no fill; the forward button is the same arrow rotated half a turn, and the one at the end steps aside', { timeout: 60_000 }, async () => {
     const opened = await openLightbox(browser, { count: 3, width: 4000, height: 3000 });
     try {
       const read = await opened.page.evaluate(() => [
@@ -979,25 +979,25 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
         };
       }));
       for (const icon of read) {
-        assert.ok(icon.off <= .5, `${icon.selector} 的图标偏离圆心 ${icon.off}px`);
-        assert.equal(icon.fill, 'none', `${icon.selector} 的描边图标被填实了`);
-        // Lucide 的 info 圆点是长度 .01 的短线，没有圆头就缩成看不见的一横。
-        assert.equal(icon.cap, 'round', `${icon.selector} 的线头不是圆的`);
+        assert.ok(icon.off <= .5, `${icon.selector} icon is off the circle center by ${icon.off}px`);
+        assert.equal(icon.fill, 'none', `${icon.selector}'s outlined icon got filled in`);
+        // Lucide's info dot is a .01-length short line that shrinks into an invisible dash without round caps.
+        assert.equal(icon.cap, 'round', `${icon.selector}'s line caps are not round`);
       }
       const [close, back, fwd, info] = read;
       assert.equal(close.glyph, '#i-x');
       assert.equal(info.glyph, '#i-info');
       assert.deepEqual([back.glyph, fwd.glyph], ['#i-chevron-left', '#i-chevron-left']);
       assert.equal(back.turn, 'none');
-      assert.match(fwd.turn, /^matrix\(-1, /, '前进键的箭头没有转半圈');
-      assert.deepEqual([back.visibility, fwd.visibility], ['hidden', 'visible'], '停在第一张时后退键该让开');
+      assert.match(fwd.turn, /^matrix\(-1, /, 'The forward key\'s arrow never rotated half a turn');
+      assert.deepEqual([back.visibility, fwd.visibility], ['hidden', 'visible'], 'The back button should yield when stopped on the first slide');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('关注页：标题 24px、窄屏 20px，药丸间距同首页 7px，读数用等宽字', { timeout: 90_000 }, async () => {
+  it('Follows page: title 24px, 20px on narrow screens; pill spacing matches home at 7px; counts use monospace', { timeout: 90_000 }, async () => {
     const read = (page: Page) => page.evaluate(() => {
       const style = (selector: string) => getComputedStyle(document.querySelector(selector)!);
       return {
@@ -1011,15 +1011,15 @@ describe('设计决定：设置、口味、统计与筛选玻璃', () => {
     try {
       const shown = await read(wide.page);
       assert.equal(shown.title, '32px');
-      assert.deepEqual(shown.gaps, ['7px', '7px'], '关注页的药丸间距和首页那条不一样');
-      assert.match(shown.readout, /Cascadia Mono|Consolas|monospace/, `读数不是等宽字：${shown.readout}`);
+      assert.deepEqual(shown.gaps, ['7px', '7px'], 'The follows page\'s pill spacing differs from home\'s');
+      assert.match(shown.readout, /Cascadia Mono|Consolas|monospace/, `The reading is not monospaced: ${shown.readout}`);
       assert.deepEqual(wide.problems, []);
     } finally {
       await wide.close();
     }
     const narrow = await openFollowFeed(browser, '/follow', MOBILE);
     try {
-      assert.equal((await read(narrow.page)).title, '24px', '窄屏标题使用统一的页面标题字号');
+      assert.equal((await read(narrow.page)).title, '24px', 'Narrow-screen titles use the unified page title size');
       assert.deepEqual(narrow.problems, []);
     } finally {
       await narrow.close();

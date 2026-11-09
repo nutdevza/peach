@@ -1,8 +1,11 @@
-/* 页面里的页面内组件由路由树画（`SURFACE_ROUTES`）：首页筛选条、首页新作行、目录页处理横幅与顶栏搜索下拉按名字
- * 登记，壳经 `openManagedRoute` 开、`updateManagedRoute` 推、`releaseManagedRoute` 收，各画进自己的容器。
- * 路由树接上之前打开的那一面等它接上再画；首屏取齐才换掉壳铺的骨架；首屏在途时容器已归路由树。
+/* The in-page components inside pages are rendered by the route tree (`SURFACE_ROUTES`): home filter bar, home new-releases
+ * row, the catalog page's processing banner and the top-bar search dropdown are registered by name, opened by the shell via
+ * `openManagedRoute`, pushed via `updateManagedRoute` and torn down via `releaseManagedRoute`, each rendering into its own
+ * container. A surface opened before the route tree connects waits for it before rendering; the shell's skeleton is swapped
+ * only once the first screen is fetched; while the first screen is in flight the container already belongs to the route tree.
  *
- * 各面自己的内容与时序由 `library-processing.test.tsx`、`search.test.tsx` 等管，这里看的是路由树这一层。 */
+ * Each surface's own content and timing are governed by `library-processing.test.tsx`, `search.test.tsx` and the like; this
+ * file covers the route tree layer. */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
@@ -12,7 +15,7 @@ import type { ShellActions } from '../../src/react/router/shell-actions';
 
 import { deferredFetch } from '../helpers';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,7 +53,7 @@ function shellActions(): ShellActions {
   };
 }
 
-/** 壳启动时的顺序：先画路由树，再接上取数（`loadRouter`）。 */
+/** The shell's startup order: render the route tree first, then wire up fetching (`loadRouter`). */
 async function mount(r: Loaded) {
   const root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<r.RouterRoot actions={shellActions()} />) });
@@ -58,25 +61,25 @@ async function mount(r: Loaded) {
   await act(async () => { r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute)) });
 }
 
-/** 壳铺好骨架的容器。 */
+/** The container where the shell lays the skeleton. */
 function container(id: string): HTMLElement {
   const el = document.createElement('div');
   el.id = id;
-  el.innerHTML = '<div class="geist-skeleton" data-skeleton="cards">正在读取</div>';
+  el.innerHTML = '<div class="geist-skeleton" data-skeleton="cards">Loading</div>';
   document.body.append(el);
   return el;
 }
 
-/** 动态装载与取数中间隔几步不固定；等到条件成立为止。 */
+/** The steps between dynamic loading and fetching are not fixed; wait until the condition holds. */
 async function until(ok: () => boolean, what: string): Promise<void> {
   for (let step = 0; step < 100; step += 1) {
     if (ok()) return;
     await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
   }
-  throw new Error(`一直没等到：${what}`);
+  throw new Error(`Timed out waiting for: ${what}`);
 }
 
-/** 顶栏搜索那一份 props：静态输入框、能交出命令的 `expose`，取数全部回空。 */
+/** The top bar search props: a static input, an `expose` that can hand out commands, and every fetch returning empty. */
 function searchProps(exposed: { api: SearchApi | null }): SearchProps {
   const input = document.createElement('input');
   document.body.append(input);
@@ -92,7 +95,7 @@ function searchProps(exposed: { api: SearchApi | null }): SearchProps {
   };
 }
 
-it('路由树接上之前打开的搜索下拉等着，不动容器；接上那一刻画进去并交出命令', async () => {
+it('The search dropdown opened before the route tree attaches waits and leaves the container alone; at attach time it renders in and hands over the commands', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [] }) })));
   const r = await load();
   const preload = vi.fn();
@@ -100,41 +103,41 @@ it('路由树接上之前打开的搜索下拉等着，不动容器；接上那�
   const menu = container('searchMenu');
   const exposed: { api: SearchApi | null } = { api: null };
   const opening = r.openManagedRoute('search', searchProps(exposed), { container: menu, isCurrent: () => true });
-  expect(preload, '第一次打开当场发出 React 包的请求，不等 loadRouter').toHaveBeenCalledTimes(1);
+  expect(preload, 'The first open fires the React bundle request immediately, without waiting for loadRouter').toHaveBeenCalledTimes(1);
   void r.openManagedRoute('library-processing', { toast: vi.fn() }, { container: container('y'), isCurrent: () => true });
   r.releaseManagedRoute(document.getElementById('y')!);
-  expect(preload, '装载入口只调一次').toHaveBeenCalledTimes(1);
+  expect(preload, 'The mount entry runs only once').toHaveBeenCalledTimes(1);
   await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
-  expect(menu.querySelector('[data-skeleton]'), '路由树没接上时容器归壳').not.toBeNull();
-  expect(r.managedTaken(menu), '等着的那一次已经占了容器，壳不再重开').toBe(true);
+  expect(menu.querySelector('[data-skeleton]'), 'Before the route tree attaches, the container belongs to the shell').not.toBeNull();
+  expect(r.managedTaken(menu), 'The waiting attempt already holds the container, so the shell never reopens').toBe(true);
   expect(r.managedEntry(menu)).toBeNull();
 
   await mount(r);
   await act(async () => { expect(await opening).toBe(true) });
   expect(menu.querySelector('[data-skeleton]')).toBeNull();
   expect(menu.querySelector(':scope > .peach-react')).not.toBeNull();
-  expect(exposed.api, '下拉画上就把命令交给壳').not.toBeNull();
+  expect(exposed.api, 'Once the dropdown paints it hands commands to the shell').not.toBeNull();
   expect(r.managedEntry(menu)?.path).toBe('search');
 });
 
-it('处理横幅取齐首屏才换掉骨架；首屏在途时容器已归路由树', async () => {
+it('The processing banner swaps out the skeleton only once the first screen completes; while it is in flight the container already belongs to the route tree', async () => {
   const fetch = deferredFetch({ status: 'idle' });
   fetch.install();
   const r = await load();
   await mount(r);
   const el = container('libraryProcessing');
   const opening = r.openManagedRoute('library-processing', { toast: vi.fn() }, { container: el, isCurrent: () => true });
-  await until(() => fetch.fetched.mock.calls.length > 0, '取数发出去');
+  await until(() => fetch.fetched.mock.calls.length > 0, 'Fetch request sent');
   expect(r.managedTaken(el)).toBe(true);
-  expect(el.querySelector('[data-skeleton]'), '数据还没回来就撤骨架会出现第二段等待态').not.toBeNull();
+  expect(el.querySelector('[data-skeleton]'), 'Removing the skeleton before data returns creates a second waiting state').not.toBeNull();
   fetch.resolve();
   await act(async () => { await opening });
   expect(el.querySelector('[data-skeleton]')).toBeNull();
-  // token、Preflight 与焦点规则都作用在 `.peach-react` 上，页面不画在它里面就没有样式。
-  expect(el.querySelector('.peach-react')?.textContent).toContain('同步新增文件');
+  // Tokens, Preflight, and focus rules all act on `.peach-react`; a page that does not render inside it gets no styles.
+  expect(el.querySelector('.peach-react')?.textContent).toContain('Sync new files');
 });
 
-it('取数期间壳已换页就不画，骨架留给下一页', async () => {
+it('If the shell already changed pages during the fetch nothing paints, leaving the skeleton to the next page', async () => {
   const fetch = deferredFetch({ status: 'idle' });
   fetch.install();
   const r = await load();
@@ -143,7 +146,7 @@ it('取数期间壳已换页就不画，骨架留给下一页', async () => {
   let current = true;
   const opening = r.openManagedRoute('library-processing', { toast: vi.fn(), mode: 'notice' },
     { container: el, isCurrent: () => current });
-  await until(() => fetch.fetched.mock.calls.length > 0, '取数发出去');
+  await until(() => fetch.fetched.mock.calls.length > 0, 'Fetch request sent');
   current = false;
   fetch.resolve();
   await act(async () => { expect(await opening).toBe(false) });
@@ -152,18 +155,18 @@ it('取数期间壳已换页就不画，骨架留给下一页', async () => {
   expect(r.managedTaken(el)).toBe(false);
 });
 
-it('收起时中止在途取数；画过的话连宿主一起撤掉', async () => {
+it('Collapsing aborts in-flight fetches; if it had painted, the host is torn down too', async () => {
   const fetch = deferredFetch({ status: 'idle' });
   fetch.install();
   const r = await load();
   await mount(r);
   const el = container('libraryProcessingNotice');
   const opening = r.openManagedRoute('library-processing', { toast: vi.fn() }, { container: el, isCurrent: () => true });
-  await until(() => fetch.fetched.mock.calls.length > 0, '取数发出去');
+  await until(() => fetch.fetched.mock.calls.length > 0, 'Fetch request sent');
   r.releaseManagedRoute(el);
   await act(async () => { expect(await opening).toBe(false) });
-  expect(fetch.signal()?.aborted, '离开页面必须真的中止请求').toBe(true);
-  expect(el.querySelector('[data-skeleton]'), '还没画过就收起，容器里还是壳的骨架').not.toBeNull();
+  expect(fetch.signal()?.aborted, 'Leaving the page must truly abort the request').toBe(true);
+  expect(el.querySelector('[data-skeleton]'), 'Collapsing before ever painting leaves the shell\'s skeleton in the container').not.toBeNull();
 
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ status: 'idle' }) })));
   await act(async () => {
@@ -171,11 +174,11 @@ it('收起时中止在途取数；画过的话连宿主一起撤掉', async () =
   });
   expect(r.managedTaken(el)).toBe(true);
   await act(async () => { r.releaseManagedRoute(el) });
-  expect(el.querySelector('.peach-react'), '宿主要跟着收起一起走').toBeNull();
+  expect(el.querySelector('.peach-react'), 'Host collapses along with it').toBeNull();
   expect(r.managedTaken(el)).toBe(false);
 });
 
-it('没画上的容器推补丁是空操作；画上之后就地合进去，不重挂', async () => {
+it('Patching an unpainted container is a no-op; after painting it merges in place with no remount', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [] }) })));
   const r = await load();
   await mount(r);
@@ -193,5 +196,5 @@ it('没画上的容器推补丁是空操作；画上之后就地合进去，不�
   await act(async () => { r.updateManagedRoute(menu, { historyLimit: 3 }) });
   expect((r.managedEntry(menu)?.props as SearchProps | undefined)?.historyLimit).toBe(3);
   expect(r.managedEntry(menu)?.revision).toBe(revision);
-  expect(menu.querySelector('.peach-react'), '就地更新不换宿主').toBe(host);
+  expect(menu.querySelector('.peach-react'), 'In-place updates never swap the host').toBe(host);
 });

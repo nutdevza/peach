@@ -1,9 +1,11 @@
-/* 侧栏：骨架与路由树的换手、导航顺序跟 store 走、拖动排序写回、筛选键的按下态与计数、分组开合、
- * 「展开全部」、关注标签与时长两端，以及它作为常驻组件（`RESIDENT_ROUTES.sidebar`）在路由树里的行为：
- * 宿主就是 `#drawerScroll`、骨架在首帧的同一个任务里换掉、`attached` 在首帧之后调一次、句柄同步画完、
- * 壳挪进标题行的节点经重画仍在、抛错只卸组件。
+/* Sidebar: the skeleton-to-route-tree handover, nav order following the store, drag-reorder write-back, filter keys' pressed
+ * states and counts, group collapse, "Expand all", follow tags and the duration range, plus its behavior as a resident
+ * component (`RESIDENT_ROUTES.sidebar`) in the route tree: the host is `#drawerScroll`, the skeleton swaps in the same task
+ * as the first frame, `attached` runs once after the first frame, the handle renders synchronously, the nodes the shell moved
+ * into the header row survive re-renders, and a thrown error unmounts only the component.
  *
- * 玻璃的滑动、真实的拖动手势与抽屉开合要量布局，由 e2e 在浏览器里走（`e2e/sidebar.test.ts`）。 */
+ * The glass's sliding, real drag gestures and drawer open/close need measured layout, walked in the browser by e2e
+ * (`e2e/sidebar.test.ts`). */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,27 +20,27 @@ import type { SidebarApi, SidebarChip, SidebarFacets, SidebarHost, SidebarProps 
 import { moveSidebarKey } from '../../src/react/sidebar/sidebar-order';
 import { click, fetchMock, sentBody, settle } from './render';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 type ActFlag = { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
 beforeAll(async () => { await import('../../src/react/router/router') }, REACT_IMPORT_TIMEOUT_MS);
 
-/* 侧栏的字形换成一层能当场决定抛不抛的包装：用例中途改 `glyph.broken`，就是「下一次绘制抛错」。 */
+/* The sidebar's glyphs get a wrapper that decides on the spot whether to throw: a test flips `glyph.broken` mid-case, meaning "throw on the next render". */
 const glyph = vi.hoisted(() => ({ broken: false }));
 vi.mock(import('../../src/react/settings-panel/icon'), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     Icon: (props: Parameters<typeof actual.Icon>[0]) => {
-      if (glyph.broken) throw new Error('侧栏画不出来');
+      if (glyph.broken) throw new Error('The sidebar never paints');
       return actual.Icon(props);
     },
   };
 });
 
-/* 常驻组件适配层直接读取同一包内的配置函数；测试只接本场景的句柄契约。 */
+/* The resident component adapter reads the config functions from the same package directly; tests only hook into this scenario's handle contract. */
 type ShellIslands = { connectApplication(next: (actions: ShellActions) => void): () => void;
   loadSidebar(host: SidebarHost): Promise<SidebarApi>;
   sidebarApi(): SidebarApi | null;
@@ -81,7 +83,7 @@ function shellActions(): ShellActions {
   };
 }
 
-/** 壳启动时先画路由树（根的选项与 `mountApplication` 同一份）；接上取数单独一步，用例可以把它往后放。 */
+/** At shell startup the route tree paints first (the root's options are the same ones as `mountApplication`); attaching fetches is a separate step the test can defer. */
 async function mountRouter(r: Loaded) {
   unmounts.push(r.islands.connectApplication(() => {}));
   const root = createRoot(document.createElement('div'), r.ROUTER_ROOT_OPTIONS);
@@ -92,18 +94,18 @@ async function connect(r: Loaded) {
   await act(async () => { r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute)) });
 }
 
-const CATALOG = [['', '首页', 'home'], ['unseen', '未看', 'eye'], ['follow', '关注', 'rss'], ['stats', '统计', 'chart']] as const;
+const CATALOG = [['', 'Home', 'home'], ['unseen', 'Unwatched', 'eye'], ['follow', 'Follows', 'rss'], ['stats', 'Stats', 'chart']] as const;
 
 const chip = (value: string, n: number | null = 1, extra: Partial<SidebarChip> = {}): SidebarChip =>
   ({ value, label: value.toUpperCase(), n, ...extra });
 
 const facets = (patch: Partial<SidebarFacets> = {}): SidebarFacets => ({
-  locations: [chip('local', 3), chip('115', 2, { offline: '这块盘没挂上' })],
+  locations: [chip('local', 3), chip('115', 2, { offline: 'This drive is not mounted' })],
   regions: [], orientations: [], creators: [], tags: [chip('a', 5), chip('b', 4)], tech: [], followTags: [],
   duration: false, ...patch,
 });
 
-/** 壳 `index.html` 里的抽屉与滚动层，壳启动时同步写进导航骨架；`attached` 由用例按需换成壳的挪动。 */
+/** The drawer and scroll layers from the shell's `index.html`, written into the navigation skeleton synchronously at shell startup; `attached` is swapped by the test for the shell's moves as needed. */
 function sidebarHost(order = ['', 'unseen', 'follow'], current = '', attached: () => void = () => {}) {
   const drawer = document.createElement('aside');
   drawer.setAttribute('data-sidebar-drawer', '');
@@ -124,7 +126,7 @@ function sidebarHost(order = ['', 'unseen', 'follow'], current = '', attached: (
   return { drawer, scroll, store, host, press: (key: string) => { pressed = key } };
 }
 
-/** 照壳的启动顺序接上：路由树画好并接上取数，铺骨架，装载侧栏，拿到句柄。 */
+/** Follows the shell's startup order: render the route tree and wire up fetching, lay the skeleton, load the sidebar, grab the handle. */
 async function setup(order?: string[], current?: string, attached?: () => void) {
   const r = await load();
   await mountRouter(r);
@@ -136,7 +138,7 @@ async function setup(order?: string[], current?: string, attached?: () => void) 
   return { r, ...shell, api, render };
 }
 
-/** 收下每一次上报；`console.error` 只静音，不数条数。 */
+/** Accept every report; `console.error` is only muted, not counted. */
 function watchReports() {
   const reported = vi.fn();
   vi.stubGlobal('reportError', reported);
@@ -155,8 +157,8 @@ beforeEach(() => {
   document.body.replaceChildren();
 });
 
-describe('换手', () => {
-  it('骨架与侧栏画的是同一列：顺序、按下态与首页记号一致；预取未接上时滚动层里是骨架、句柄为 null', async () => {
+describe('Handoff', () => {
+  it('The skeleton and sidebar paint the same column: order, pressed state and home marker all match; when prefetch did not connect, the scroll layer holds the skeleton and the handle is null', async () => {
     const skeleton = document.createElement('div');
     skeleton.innerHTML = sidebarSkeletonHtml(['unseen', '', 'missing'], CATALOG, (key) => key === 'unseen');
     expect(navKeys(skeleton)).toEqual(['unseen', '']);
@@ -168,8 +170,8 @@ describe('换手', () => {
     const html = scroll.innerHTML;
     let loaded: Promise<SidebarApi> | null = null;
     await act(async () => { loaded = r.islands.loadSidebar(host) });
-    expect(scroll.innerHTML, '路由树还没接上取数，骨架原样').toBe(html);
-    expect(r.islands.sidebarApi(), '画上之前没有句柄，壳继续接骨架上的点击').toBeNull();
+    expect(scroll.innerHTML, 'The route tree has not attached fetching yet, so the skeleton stays as-is').toBe(html);
+    expect(r.islands.sidebarApi(), 'Before painting there is no handle, and the shell keeps taking skeleton clicks').toBeNull();
     expect(host.attached).not.toHaveBeenCalled();
 
     await connect(r);
@@ -183,13 +185,13 @@ describe('换手', () => {
     expect(host.attached).toHaveBeenCalledTimes(1);
   });
 
-  it('骨架与首帧在同一个任务里换掉：每个任务边界上滚动层里要么是骨架、要么是画好的导航，不多包 .peach-react', async () => {
+  it('Skeleton and first frame swap within one task: at every task boundary the scroll layer holds either the skeleton or the painted nav, with no extra .peach-react wrapper', async () => {
     const r = await load();
     await mountRouter(r);
     await connect(r);
     const { scroll, host } = sidebarHost();
     const skeletonNav = scroll.querySelector('[data-nav]');
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出换手发生在哪一拍。 */
+    /* No act wrapper: act defers flushSync to its end, which hides at which beat the handoff happened. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     let done = false;
     void r.islands.loadSidebar(host).then(() => { done = true });
@@ -208,7 +210,7 @@ describe('换手', () => {
     expect(scroll.firstElementChild?.hasAttribute('data-sidebar-head')).toBe(true);
   });
 
-  it('attached 在首帧画上之后、句柄交出之前调一次，之后的重画不再调', async () => {
+  it('attached runs once after the first frame paints and before the handle is handed over; later repaints do not call it again', async () => {
     const r = await load();
     await mountRouter(r);
     await connect(r);
@@ -229,7 +231,7 @@ describe('换手', () => {
     expect(shell.host.attached).toHaveBeenCalledTimes(1);
   });
 
-  it('骨架转义名称', async () => {
+  it('The skeleton escapes names', async () => {
     const node = document.createElement('div');
     node.innerHTML = sidebarSkeletonHtml(['x'], [['x', '<img src=x>', 'a"b']], () => false);
     expect(node.querySelector('img')).toBeNull();
@@ -237,8 +239,8 @@ describe('换手', () => {
   });
 });
 
-describe('导航', () => {
-  it('完整词表按持久偏好画默认导航，沉浸模式可在关注后启用', async () => {
+describe('Navigation', () => {
+  it('The full vocabulary paints the default nav per the persistent preference, and immersive mode can enable after following', async () => {
     const r = await load();
     await mountRouter(r);
     await connect(r);
@@ -256,13 +258,13 @@ describe('导航', () => {
     expect(scroll.querySelector('[data-nav="immerse"]')?.textContent).toContain('沉浸模式');
   });
 
-  it('store 里的顺序一变（设置面板或另一台机器同步回来），这一列当场重排', async () => {
+  it('The moment the order in the store changes (settings panel or sync from another machine), this column reorders on the spot', async () => {
     const { scroll, store } = await setup();
     act(() => { store.value.sidebarOrder = ['follow', '', 'stats']; store.save() });
     expect(navKeys(scroll)).toEqual(['follow', '', 'stats']);
   });
 
-  it('点一项交给壳的 navTo；按下态由壳说重读时才换', async () => {
+  it('Clicking an item hands over to the shell\'s navTo; the pressed state changes only when the shell asks for a reread', async () => {
     const { scroll, host, api, press } = await setup();
     await click(scroll.querySelector('[data-nav="unseen"]'));
     expect(host.navTo).toHaveBeenCalledWith('unseen');
@@ -272,13 +274,13 @@ describe('导航', () => {
     expect(scroll.querySelector('[data-nav=""]')!.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('双击导航只请求回顶，不重建栏目内容', async () => {
+  it('Double-clicking navigation only requests a scroll to top and never rebuilds section content', async () => {
     const { scroll, host } = await setup();
     act(() => { scroll.querySelector('[data-nav=""]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) });
     expect(host.navToTop).toHaveBeenCalledOnce();
   });
 
-  it('键盘下移一项：先落本地 store，再写 /api/settings', async () => {
+  it('Arrow-down on the keyboard: land in the local store first, then write /api/settings', async () => {
     const fetcher = fetchMock(200, { sidebarOrder: ['unseen', '', 'follow'] });
     vi.stubGlobal('fetch', fetcher);
     const { scroll, store } = await setup();
@@ -293,15 +295,15 @@ describe('导航', () => {
     expect(sentBody(fetcher)).toEqual({ sidebarOrder: ['unseen', '', 'follow'] });
   });
 
-  it('挪不了的情形不产生新顺序', async () => {
+  it('Cases that cannot move produce no new order', async () => {
     expect(moveSidebarKey(['a', 'b', 'c'], 'a', 'c', false)).toEqual(['b', 'a', 'c']);
     expect(moveSidebarKey(['a', 'b'], 'a', 'a', true)).toBeNull();
     expect(moveSidebarKey(['a', 'b'], 'x', 'a', true)).toBeNull();
   });
 });
 
-describe('筛选分组', async () => {
-  it('按下态照当前语境的筛选画，点下去交给壳；脱盘的来源点不了', async () => {
+describe('Filter group', async () => {
+  it('Pressed states paint per the current context\'s filters and clicks go to the shell; dead sources are not clickable', async () => {
     const { scroll, host, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets() }, filters: { loc: 'local', tag: 'b' } });
     expect(chipOf(scroll, 'loc', 'local')!.getAttribute('aria-pressed')).toBe('true');
@@ -314,10 +316,10 @@ describe('筛选分组', async () => {
     const offline = chipOf(scroll, 'loc', '115')!;
     expect(offline.disabled).toBe(true);
     expect(offline.hasAttribute('data-offline')).toBe(true);
-    expect(offline.title).toBe('这块盘没挂上');
+    expect(offline.title).toBe('This drive is not mounted');
   });
 
-  it('名字放不下被省略时悬停读得到全名：普通条目与关注标签都带 title', async () => {
+  it('When a name is ellipsized for space, hovering reads the full name: both plain entries and follow tags carry a title', async () => {
     const { scroll, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets({ followTags: [chip('the_legend_of_zelda:_tears_of_the_kingdom', 2)] }) } });
     expect(chipOf(scroll, 'tag', 'a')!.title).toBe(chipOf(scroll, 'tag', 'a')!.querySelector('[data-sidebar-chip-label]')!.textContent);
@@ -325,7 +327,7 @@ describe('筛选分组', async () => {
       .toBe(scroll.querySelector('[data-follow-drawer-tag="the_legend_of_zelda:_tears_of_the_kingdom"] [data-sidebar-chip-label]')!.textContent);
   });
 
-  it('就地刷新的计数只改数字：名单里有、新聚合里没有的记 0', async () => {
+  it('In-place refresh counts change only the numbers: entries present in the list but absent from the new aggregation read 0', async () => {
     const { scroll, render } = await setup();
     const content = { kind: 'catalog' as const, key: '1', facets: facets() };
     render({ content });
@@ -335,46 +337,46 @@ describe('筛选分组', async () => {
     expect(chipOf(scroll, 'tag', 'b')!.querySelector('[data-sidebar-count]')!.textContent).toBe('9');
   });
 
-  it('一进来只展开正在生效的组；人自己开合过的组按会话记住，换一份聚合也不改', async () => {
+  it('On entry only the active groups are expanded; groups the person opened or collapsed are remembered for the session and survive a new aggregation', async () => {
     const { scroll, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets() }, filters: { tag: 'a' } });
-    expect(group(scroll, '内容标签')!.open).toBe(true);
-    expect(group(scroll, '来源')!.open).toBe(false);
-    const toggle = group(scroll, '来源')!.querySelector<HTMLElement>('[data-sidebar-toggle]')!;
+    expect(group(scroll, 'Content tags')!.open).toBe(true);
+    expect(group(scroll, 'Source')!.open).toBe(false);
+    const toggle = group(scroll, 'Source')!.querySelector<HTMLElement>('[data-sidebar-toggle]')!;
     expect(document.getElementById(toggle.getAttribute('aria-controls')!)).not.toBeNull();
     await click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     render({ content: { kind: 'catalog', key: '2', facets: facets() }, filters: {} });
-    expect(group(scroll, '来源')!.open).toBe(true);
-    expect(group(scroll, '内容标签')!.open).toBe(false);
+    expect(group(scroll, 'Source')!.open).toBe(true);
+    expect(group(scroll, 'Content tags')!.open).toBe(false);
   });
 
-  it('「展开全部」接在名单末尾，摊开照最新那一份聚合', async () => {
+  it('"Expand all" sits at the end of the list, and expanding aggregates by the latest snapshot', async () => {
     const { scroll, render } = await setup();
     const tags = Array.from({ length: 32 }, (_, index) => chip(`t${index}`, 40 - index));
     const content = { kind: 'catalog' as const, key: '1', facets: facets({ tags }) };
     render({ content, latest: facets({ tags: [...tags, chip('late', 1)] }) });
-    await click(group(scroll, '内容标签')!.querySelector('[data-sidebar-toggle]'));
-    const body = group(scroll, '内容标签')!.querySelector('[data-sidebar-body]')!;
+    await click(group(scroll, 'Content tags')!.querySelector('[data-sidebar-toggle]'));
+    const body = group(scroll, 'Content tags')!.querySelector('[data-sidebar-body]')!;
     expect(body.querySelectorAll('[data-sidebar-chip]')).toHaveLength(30);
     const more = body.lastElementChild as HTMLButtonElement;
     expect(more.getAttribute('data-sidebar-more')).toBe('tag');
-    expect(more.getAttribute('aria-label')).toBe('展开全部内容标签');
+    expect(more.getAttribute('aria-label')).toBe('Expand all Content tags');
     await click(more);
     expect(body.querySelectorAll('[data-sidebar-chip]')).toHaveLength(33);
     expect(more.getAttribute('aria-expanded')).toBe('true');
-    expect(more.getAttribute('aria-label')).toBe('收起内容标签');
-    /* 收起收的是整组：组标题当场报收起、正文不再可聚焦；`details.open` 等高度过渡走完才摘。 */
+    expect(more.getAttribute('aria-label')).toBe('Collapse Content tags');
+    /* Collapsing takes the whole group: the group title announces the collapse on the spot and the body stops being focusable; `details.open` is only removed once the height transition finishes. */
     await click(more);
-    expect(group(scroll, '内容标签')!.querySelector('[data-sidebar-toggle]')!.getAttribute('aria-expanded')).toBe('false');
-    expect(group(scroll, '内容标签')!.querySelector<HTMLElement>('[data-sidebar-collapse]')!.inert).toBe(true);
+    expect(group(scroll, 'Content tags')!.querySelector('[data-sidebar-toggle]')!.getAttribute('aria-expanded')).toBe('false');
+    expect(group(scroll, 'Content tags')!.querySelector<HTMLElement>('[data-sidebar-collapse]')!.inert).toBe(true);
     expect(body.querySelectorAll('[data-sidebar-chip]')).toHaveLength(30);
   });
 
-  it('换一份聚合时只有数字变了的徽标弹一下', async () => {
+  it('On a new aggregation only badges whose number changed bounce', async () => {
     const { scroll, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets({ tags: [chip('pa', 5), chip('pb', 4)] }) } });
-    /* `popped` 加上又当场摘掉，回调到来时类名早已不在；摘掉那一笔的旧值里还留着它。 */
+    /* `popped` is added and immediately removed, so by the time the callback arrives the class is long gone; the removal entry's old value still carries it. */
     const popped: string[] = [];
     const observer = new MutationObserver((records) => {
       for (const record of records) {
@@ -388,13 +390,13 @@ describe('筛选分组', async () => {
     expect(popped).toEqual(['tag:pb']);
   });
 
-  it('目录页的关注标签去关注页，关注页的内容标签换成只按这一枚筛', async () => {
+  it('The follows tag on the catalog page goes to the follows page; on the follows page a content tag switches to filtering by just that one', async () => {
     const { scroll, host, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets({ followTags: [chip('x', 2)] }) } });
     await click(scroll.querySelector('[data-follow-drawer-tag="x"]'));
     expect(host.openFollowTag).toHaveBeenCalledWith('x');
     render({ content: { kind: 'follow', tags: [chip('y', 3), chip('z', 1)], selected: ['z'] } });
-    expect(group(scroll, '来源')).toBeNull();
+    expect(group(scroll, 'Source')).toBeNull();
     const z = scroll.querySelector('[data-follow-drawer-tag="z"]')!;
     expect(z.getAttribute('aria-pressed')).toBe('true');
     expect(z.querySelector('[data-sidebar-count]')!.textContent).toBe('1');
@@ -402,7 +404,7 @@ describe('筛选分组', async () => {
     expect(host.selectFollowTag).toHaveBeenCalledWith('y');
   });
 
-  it('关注页的来源与时长回关注筛选，不回目录筛选；详情只给标签时只有内容标签一组', async () => {
+  it('The follows page\'s source and duration return to follow filters, not catalog filters; when details provide only tags there is just the one content tags group', async () => {
     const { scroll, host, render } = await setup();
     const kemono = chip('kemono', null, { dot: { kind: 'image', src: '/source-icon?provider=kemono' } });
     render({
@@ -410,11 +412,11 @@ describe('筛选分组', async () => {
       filters: { provider: 'fanbox', dur_min: 600, dur_max: '' },
     });
     expect([...scroll.querySelectorAll('[data-sidebar-group]')].map((node) => node.getAttribute('data-sidebar-group')))
-      .toEqual(['来源', '时长', '内容标签']);
+      .toEqual(['Source', 'Duration', 'Content tags']);
     expect(chipOf(scroll, 'provider', 'fanbox')!.getAttribute('aria-pressed')).toBe('true');
     expect(chipOf(scroll, 'provider', 'kemono')!.querySelector('[data-sidebar-count]')).toBeNull();
     expect(chipOf(scroll, 'provider', 'kemono')!.querySelector('img')!.getAttribute('src')).toBe('/source-icon?provider=kemono');
-    expect(scroll.querySelector(`[data-range-end="min"]`)!.textContent).toBe('10 分钟');
+    expect(scroll.querySelector(`[data-range-end="min"]`)!.textContent).toBe('10 min');
     await click(chipOf(scroll, 'provider', 'kemono'));
     expect(host.selectFollowProvider).toHaveBeenCalledWith('kemono');
     expect(host.toggleChip).not.toHaveBeenCalled();
@@ -429,27 +431,27 @@ describe('筛选分组', async () => {
 
     render({ content: { kind: 'follow', tags: [chip('y', 1)], selected: [] } });
     expect([...scroll.querySelectorAll('[data-sidebar-group]')].map((node) => node.getAttribute('data-sidebar-group')))
-      .toEqual(['内容标签']);
+      .toEqual(['Content tags']);
   });
 
-  it('时长两端各有一枚读数，右端拉到头是「不限」；松手才提交', async () => {
+  it('The duration slider keeps a reading at each end with "Any" at the far right, and commits only on release', async () => {
     const { scroll, host, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets({ duration: true }) }, filters: { dur_min: '1200' } });
     const tip = (end: string) => scroll.querySelector(`[data-range-end="${end}"]`)!.textContent;
-    expect(tip('min')).toBe('20 分钟');
-    expect(tip('max')).toBe('不限');
+    expect(tip('min')).toBe('20 min');
+    expect(tip('max')).toBe('Any');
     const max = scroll.querySelector<HTMLInputElement>('#durMax')!;
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(max, '60');
       max.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(tip('max')).toBe('60 分钟');
+    expect(tip('max')).toBe('60 min');
     expect(host.setDuration).not.toHaveBeenCalled();
     act(() => { max.dispatchEvent(new Event('change', { bubbles: true })) });
     expect(host.setDuration).toHaveBeenCalledWith(20, 60);
   });
 
-  it('content 为 null 时只画导航', async () => {
+  it('With null content only the nav paints', async () => {
     const { scroll, render } = await setup();
     render({ content: { kind: 'catalog', key: '1', facets: facets() } });
     render({ content: null });
@@ -458,10 +460,10 @@ describe('筛选分组', async () => {
   });
 });
 
-describe('常驻组件', () => {
-  it('句柄 render 与 navChanged 返回时 DOM 已画好，不等下一次渲染', async () => {
+describe('Resident components', () => {
+  it('By the time the handle render and navChanged return, the DOM is painted without waiting for the next render', async () => {
     const { scroll, api, press } = await setup();
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出句柄自己同步没有。 */
+    /* No act wrapper: act defers flushSync to its end, which hides whether the handle flushed synchronously on its own. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     api.render({ content: { kind: 'catalog', key: '1', facets: facets() }, filters: { tag: 'a' }, latest: null });
     expect(chipOf(scroll, 'tag', 'a')!.getAttribute('aria-pressed')).toBe('true');
@@ -471,7 +473,7 @@ describe('常驻组件', () => {
     expect(scroll.querySelector('[data-nav=""]')!.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('壳挪进标题行的品牌与开合键经重画、换按下态与重排仍是挪进去的那两个节点', async () => {
+  it('The brand and drawer button the shell moves into the title row are still those two nodes across repaints, pressed-state changes, and reflows', async () => {
     const brand = document.createElement('a'), toggle = document.createElement('button');
     const place = () => { document.querySelector('[data-sidebar-scroll] > [data-sidebar-head]')!.append(brand, toggle) };
     const { scroll, store, api, render, press } = await setup(undefined, undefined, place);
@@ -487,7 +489,7 @@ describe('常驻组件', () => {
     expect([...head.children]).toEqual([brand, toggle]);
   });
 
-  it('抛错只卸组件、滚动层还在，批量条照画；之后句柄是空操作、不抛，这一面空到刷新为止，只报一次', async () => {
+  it('On throw only the component unmounts, the scroll layer stays and the batch bar still paints; afterwards the handle is a no-op that does not throw, this face stays empty until refresh, and the error is reported once', async () => {
     const reported = watchReports();
     const { r, drawer, scroll, api, render } = await setup();
     const dockRoot = document.createElement('div');
@@ -500,23 +502,23 @@ describe('常驻组件', () => {
     render({ content: { kind: 'catalog', key: '1', facets: facets() } });
     await act(async () => {});
     expect(reported).toHaveBeenCalledTimes(1);
-    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: '侧栏画不出来' }));
-    expect(scroll.isConnected && scroll.parentElement === drawer, '滚动层是壳的节点，不撤').toBe(true);
-    expect(scroll.childNodes.length, '组件卸掉了').toBe(0);
-    expect(drawer.querySelector('[data-sidebar-glide]'), '玻璃随组件一起卸').toBeNull();
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: 'The sidebar never paints' }));
+    expect(scroll.isConnected && scroll.parentElement === drawer, 'The scroll layer is the shell\'s node and never withdraws').toBe(true);
+    expect(scroll.childNodes.length, 'Component unmounted').toBe(0);
+    expect(drawer.querySelector('[data-sidebar-glide]'), 'The glass unmounts with the component').toBeNull();
     expect(r.managedTaken(scroll)).toBe(false);
-    expect(r.managedEntries().map((entry) => entry.path), '别的面照画').toEqual(['batch-dock']);
+    expect(r.managedEntries().map((entry) => entry.path), 'Other faces still drawn').toEqual(['batch-dock']);
     await act(async () => { dock.render({ count: 2, context: 'catalog', junkDismissed: false }) });
-    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('已选 2 项');
+    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('Selected 2 items');
 
-    /* 壳照旧每次换页都推一份、换按下态：不抛、不重开、不再上报。 */
+    /* The shell still pushes a copy and flips the pressed state on every page change: no throw, no reopen, no further reporting. */
     await act(async () => {
       expect(() => api.render({ content: null, filters: {}, latest: null })).not.toThrow();
       expect(() => api.navChanged()).not.toThrow();
     });
-    expect(reported, '确定性抛错只报那一次').toHaveBeenCalledTimes(1);
+    expect(reported, 'The deterministic throw is reported only once').toHaveBeenCalledTimes(1);
     glyph.broken = false;
     render({ content: null });
-    expect(scroll.childNodes.length, '空到刷新为止，不自愈').toBe(0);
+    expect(scroll.childNodes.length, 'Stays empty until refresh, no self-healing').toBe(0);
   });
 });

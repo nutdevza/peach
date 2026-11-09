@@ -3,12 +3,12 @@ import {after,before,describe,it} from 'node:test';
 import type {Browser} from 'playwright-core';
 import {launch,visit,VIEWPORTS} from './harness.ts';
 
-describe('Toast 操作强调色',()=>{
+describe('Toast action accent color',()=>{
  let browser:Browser;
  before(async()=>{browser=await launch()});
  after(async()=>{await browser.close()});
  for(const viewport of VIEWPORTS)for(const theme of ['light','dark'])for(const accent of ['blue','emerald','rose']){
-  it(`${viewport.name} ${theme} ${accent} 撤销操作`,{timeout:60000},async()=>{
+  it(`${viewport.name} ${theme} ${accent} undo action`,{timeout:60000},async()=>{
    const opened=await visit(browser,'/follow',viewport);
    try{
     const page=opened.page;
@@ -21,7 +21,7 @@ describe('Toast 操作强调色',()=>{
      (window as any).__undoClicked=0;
      const entry='/dist/peach-app.js',ui=await import(entry);
      ui.showToast(document.getElementById('toasts'),{success:'',error:''},'accent-undo',
-      {html:'已加入稍后看',alert:false,timeout:0,action:{label:'撤销',run:()=>{(window as any).__undoClicked++}}});
+      {html:'Added to Watch later',alert:false,timeout:0,action:{label:'Undo',run:()=>{(window as any).__undoClicked++}}});
     },{theme,accent});
     const button=page.locator('#toasts [data-action]').last();await button.waitFor();
     const colours=async(variable:string)=>button.evaluate((e,variable)=>{

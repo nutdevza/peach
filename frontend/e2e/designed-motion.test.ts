@@ -5,12 +5,12 @@ import { openFollowManage } from './design-fixture.ts';
 import { launch, settle, visit, VIEWPORTS } from './harness.ts';
 import { mockJavDetail } from './jav-detail-fixture.ts';
 
-describe('已设计动效的实际触发', () => {
+describe('The designed motion\'s actual trigger', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：换批等待保留箭头并传递描线周期`, async () => {
+    it(`${viewport.name}: shuffle waiting keeps the arrows and passes the stroke cycle`, async () => {
       const opened = await visit(browser, '/', viewport);
       let release!: () => void;
       const gate = new Promise<void>(resolve => { release = resolve });
@@ -19,7 +19,7 @@ describe('已设计动效的实际触发', () => {
         await settle(page);
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         await page.route(/\/api\/items\?/, async route => { await gate; await route.fallback() });
-        const button = page.getByRole('button', { name: '换一批', exact: true });
+        const button = page.getByRole('button', { name: 'Show more', exact: true });
         const icon = await button.locator('svg').elementHandle();
         await button.click();
         await page.waitForFunction(() => document.querySelector('[data-entity-batch]')?.getAttribute('aria-busy') === 'true');
@@ -38,7 +38,7 @@ describe('已设计动效的实际触发', () => {
       } finally { release(); await opened.close() }
     });
 
-    it(`${viewport.name}：排序立即改变方向且两枚箭头原位交接`, async () => {
+    it(`${viewport.name}: the sort flips direction immediately and the two arrows swap in place`, async () => {
       const opened = await openFollowManage(browser, viewport);
       try {
         const { page } = opened;
@@ -70,7 +70,7 @@ describe('已设计动效的实际触发', () => {
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name}：JAV 详情标题与元信息实际播放揭示并清理`, async () => {
+    it(`${viewport.name}: JAV details title and meta reveal on actual playback and clean up`, async () => {
       const opened = await visit(browser, '/works/EXM-001', viewport, async page => {
         await mockJavDetail(page);
         await page.emulateMedia({ reducedMotion: 'no-preference' });

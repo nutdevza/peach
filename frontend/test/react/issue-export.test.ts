@@ -3,8 +3,8 @@ import {exportProcessingIssues} from '../../src/react/library-processing/issue-e
 
 afterEach(()=>vi.unstubAllGlobals());
 
-it('完整导出跨越200条的所有分页，并固定记录版本',async()=>{
-  const rows=Array.from({length:451},(_,asset_id)=>({asset_id,message:`问题 ${asset_id}`}));
+it('Full export walks every page past 200 entries and pins the record version',async()=>{
+  const rows=Array.from({length:451},(_,asset_id)=>({asset_id,message:`Issue ${asset_id}`}));
   const calls:URLSearchParams[]=[];
   vi.stubGlobal('fetch',vi.fn(async(path:string)=>{
     const params=new URL(path,'https://peach.invalid').searchParams;
@@ -18,26 +18,26 @@ it('完整导出跨越200条的所有分页，并固定记录版本',async()=>{
   expect(calls[1].get('revision')).toBe('fixed');
 });
 
-it('同任务恢复或总数变化时拒绝混合导出',async()=>{
+it('Mixed exports are refused when a task resumes or the total changes',async()=>{
   let calls=0;
   vi.stubGlobal('fetch',vi.fn(async()=>{
     calls++;
     return {ok:true,json:async()=>({job_id:'one',revision:calls===1?'first':'changed',offset:(calls-1)*200,
-      total:201,rows:Array.from({length:calls===1?200:1},()=>({asset_id:1,message:'问题'}))})};
+      total:201,rows:Array.from({length:calls===1?200:1},()=>({asset_id:1,message:'Issues'}))})};
   }));
   await expect(exportProcessingIssues({status:'failed',job_id:'one'},new AbortController().signal))
-    .rejects.toThrow('问题记录已变化');
+    .rejects.toThrow('Issue records have changed');
 });
 
-it('分页取消或缺行时不返回半份内容',async()=>{
+it('Canceled pagination or missing rows never return partial content',async()=>{
   const controller=new AbortController();
   vi.stubGlobal('fetch',vi.fn(async()=>{
     controller.abort();
-    return {ok:true,json:async()=>({job_id:'one',revision:'fixed',offset:0,total:1,rows:[{asset_id:1,message:'问题'}]})};
+    return {ok:true,json:async()=>({job_id:'one',revision:'fixed',offset:0,total:1,rows:[{asset_id:1,message:'Issues'}]})};
   }));
   await expect(exportProcessingIssues({status:'failed',job_id:'one'},controller.signal)).rejects.toThrow();
   vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({job_id:'one',revision:'fixed',offset:0,total:2,
-    rows:[{asset_id:1,message:'问题'}]})})));
+    rows:[{asset_id:1,message:'Issues'}]})})));
   await expect(exportProcessingIssues({status:'failed',job_id:'one'},new AbortController().signal))
-    .rejects.toThrow('不完整');
+    .rejects.toThrow('Incomplete');
 });

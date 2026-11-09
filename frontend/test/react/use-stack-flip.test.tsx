@@ -1,14 +1,14 @@
-/* 悬停一叠卡片时逐张翻走：时序、在途请求的丢弃、坏图出队与离开即停。
+/* Hovering a stack of cards flips through them one by one: timing, discarding in-flight requests, dequeuing broken images, and stopping on leave.
  *
- * `Image` 换成可控的替身：赋 `src` 之后由用例决定这一张是解码好了还是坏了，量的是钩子
- * 自己的计时器与状态，不是浏览器的解码。 */
+ * `Image` is replaced with a controllable double: after assigning `src`, the test decides whether that image decoded fine or broke, measuring the hook's own
+ * timers and state, not the browser's decoding. */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MIX_FLIP_LEAD_MS, MIX_FLIP_MS, useStackFlip, type StackFlip } from '../../src/react/components/use-stack-flip';
 import { mount } from './render';
 
-/** 指针停多久才开始，同钩子里的 `MIX_FLIP_ARM_MS`。 */
+/** How long the pointer must dwell before it starts, same as `MIX_FLIP_ARM_MS` in the hook. */
 const ARM_MS = 340;
 
 let decoders: Array<{ url: string; resolve(): void; reject(): void }> = [];
@@ -43,7 +43,7 @@ const enter = () => act(async () => flip.onPointerEnter());
 const leave = () => act(async () => flip.onPointerLeave());
 const onStage = () => flip.faces[flip.current];
 
-describe('悬停翻卡', () => {
+describe('Hover to flip card', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal('Image', FakeImage);
@@ -52,7 +52,7 @@ describe('悬停翻卡', () => {
   });
   afterEach(() => { autoDecode = null });
 
-  it('全部图片解码后才盖住静止封面，离开清掉所有计时器', async () => {
+  it('The static cover is covered only after every image decodes, and leaving clears all timers', async () => {
     autoDecode = null;
     await mount(<Probe load={async () => ['/a.jpg', '/b.jpg']} />);
     await enter();
@@ -69,7 +69,7 @@ describe('悬停翻卡', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('移出再移入时丢弃旧请求，只留一套翻动计时器', async () => {
+  it('On remove and re-insert, old requests are dropped and only one set of flip timers remains', async () => {
     let stale!: (value: string[]) => void;
     const load = vi.fn<() => Promise<readonly string[]>>()
       .mockImplementationOnce(() => new Promise((resolve) => { stale = resolve }))
@@ -90,7 +90,7 @@ describe('悬停翻卡', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('解码失败的那一张不进翻动队列', async () => {
+  it('Images that fail to decode never enter the flip queue', async () => {
     autoDecode = (url) => url !== '/b.jpg';
     await mount(<Probe load={async () => ['/a.jpg', '/b.jpg', '/c.jpg']} />);
     await enter();
@@ -100,7 +100,7 @@ describe('悬停翻卡', () => {
     await leave();
   });
 
-  it('不足两张就不翻；门槛不放行时连图都不取', async () => {
+  it('Under two images it never flips, and when the gate blocks it does not even fetch images', async () => {
     await mount(<Probe load={async () => ['/a.jpg']} />);
     await enter();
     await advance(10_000);

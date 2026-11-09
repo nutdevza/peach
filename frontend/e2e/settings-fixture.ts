@@ -1,7 +1,9 @@
-/* 设置面板（`settings-panel` 岛）的桩与入口：`settings-panel.test.ts` 与设计决定用例（`design-*.test.ts`）共用。
+/* Stubs and entries for the settings panel island (`settings-panel`): shared by `settings-panel.test.ts` and the design
+ * decision cases (`design-*.test.ts`).
  *
- * 跟数据库走的 `/api/settings` 与两份机器状态（`/api/follow/schedule`、`/api/thumbnail-jobs`）各给一份
- * 内存桩：读写都由它接住，好看写进去的是什么，也让「刷新后保持」不依赖临时服务上的状态。 */
+ * `/api/settings`, which follows the database, and the two machine states (`/api/follow/schedule`, `/api/thumbnail-jobs`) each
+ * get an in-memory stub: reads and writes are caught by it, so what was written can be inspected and "persists after refresh"
+ * need not depend on state on a temporary service. */
 import type { Browser, Page, Request } from 'playwright-core';
 
 import { settle, visit, VIEWPORTS, type Viewport, type Visit } from './harness.ts';
@@ -14,7 +16,7 @@ export interface Server {
   settings: Record<string, unknown>;
   schedule: Record<string, unknown>;
   thumbnails: Record<string, unknown>;
-  /** 三个写接口收到的请求体，按到达顺序。 */
+  /** Request bodies the three write endpoints received, in arrival order. */
   posts: { path: string; body: Record<string, unknown> }[];
 }
 
@@ -51,16 +53,16 @@ export async function stubServer(page: Page): Promise<Server> {
   return server;
 }
 
-/** 齿轮打开面板并停在 `section` 那一格。窄屏下齿轮收在抽屉底部，直接派发点击，两种宽度走同一条入口。 */
-export async function openPanel(page: Page, section = '外观与导航'): Promise<void> {
+/** The gear opens the panel and stops on the `section` cell. On narrow screens the gear sits at the bottom of the drawer, so a click is dispatched directly; both widths go through the same entry. */
+export async function openPanel(page: Page, section = 'Appearance & navigation'): Promise<void> {
   await page.locator('#settingsBtn').evaluate((button: HTMLElement) => button.click());
   await page.locator(`${PANEL}:not([hidden])`).waitFor({ timeout: 10_000 });
-  if (section !== '外观与导航') await page.locator(PANEL).getByRole('tab', { name: section, exact: true }).click();
+  if (section !== 'Appearance & navigation') await page.locator(PANEL).getByRole('tab', { name: section, exact: true }).click();
   await page.locator(PANEL).getByRole('tab', { name: section, exact: true })
     .and(page.locator('[aria-selected="true"]')).waitFor({ timeout: 5_000 });
 }
 
-/** 首页挂上桩之后重载一次，桩从第一次取设置起就接住。 */
+/** Reload the home page once after the stubs are attached; the stubs catch everything from the first settings fetch on. */
 export async function openHome(browser: Browser, viewport: Viewport = DESKTOP): Promise<Visit & { server: Server }> {
   const opened = await visit(browser, '/', viewport);
   const server = await stubServer(opened.page);

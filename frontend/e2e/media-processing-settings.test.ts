@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser, Page } from 'playwright-core';
 import { launch, layout, settle, visit, VIEWPORTS } from './harness.ts';
 
-/** 这台机器的媒体处理偏好：页面写进来的值留在这一份里，重新载入读回的就是它。 */
+/** This machine's media processing preferences: values the page writes stay in this copy, and a reload reads back exactly it. */
 function mediaProcessing() {
   const state = { disabled: false, timeline: 'coarse', previewAcceleration: 'auto', playbackAcceleration: 'auto' };
   const writes: unknown[] = [];
@@ -29,24 +29,24 @@ function mediaProcessing() {
   return { state, writes, route };
 }
 
-describe('视频预览设置', () => {
+describe('Video preview settings', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：总开关持久化并控制时间轴设置，重新开启后时间轴由用户选择`, async () => {
+    it(`${viewport.name}: the master switch persists and controls the timeline setting, and after re-enabling the timeline follows the user choice`, async () => {
       const { state, writes, route } = mediaProcessing();
       const opened = await visit(browser, '/settings/library', viewport, route);
       const { page } = opened;
       try {
-        const toggle = page.getByRole('switch', { name: '生成视频预览', exact: true });
+        const toggle = page.getByRole('switch', { name: 'Generate video previews', exact: true });
         const interval = page.locator('#videoThumbnailSetting button');
         await toggle.waitFor();
         await settle(page);
         assert.equal(await toggle.isChecked(), true);
         assert.equal(await interval.isDisabled(), false);
         await page.locator('label').filter({ has: toggle }).click();
-        await page.getByText('已关闭视频预览生成', { exact: true }).waitFor();
+        await page.getByText('Video preview generation disabled', { exact: true }).waitFor();
         assert.equal(await toggle.isChecked(), false);
         assert.equal(await interval.isDisabled(), true);
         await page.reload();
@@ -57,18 +57,18 @@ describe('视频预览设置', () => {
         assert.match(await interval.innerText(), /关闭/);
         await toggle.focus();
         await page.keyboard.press('Space');
-        await page.getByText('已开启视频预览生成', { exact: true }).waitFor();
+        await page.getByText('Video preview generation enabled', { exact: true }).waitFor();
         assert.equal(await interval.isDisabled(), false);
         assert.match(await interval.innerText(), /关闭/);
         assert.deepEqual(writes, [{ metadata_only: true }, { metadata_only: false }]);
         const preview = page.locator('#previewAccelerationSetting button');
         await preview.click();
-        await page.getByRole('option', { name: '软件解码', exact: true }).click();
-        await page.getByText('已保存抽帧解码方式', { exact: true }).waitFor();
+        await page.getByRole('option', { name: 'Software decode', exact: true }).click();
+        await page.getByText('Frame extraction decoder saved', { exact: true }).waitFor();
         assert.equal(state.previewAcceleration, 'software');
         assert.equal(state.playbackAcceleration, 'auto');
         assert.deepEqual(writes.slice(-1), [{ preview_acceleration: 'software' }]);
-        // 播放转码在「应用与维护 → 视频播放」，这一页签里只有抽帧解码方式。
+        // Playback transcoding lives in "Apps and maintenance → Video playback"; this tab holds only the frame extraction decoder option.
         assert.equal(await page.locator('.ui-board-group-active #playbackAccelerationSetting').count(), 0);
         await page.reload();
         await preview.waitFor();
@@ -84,32 +84,32 @@ describe('视频预览设置', () => {
       } finally { await opened.close() }
     });
 
-    it(`${viewport.name}：「应用与维护 → 视频播放」里改转码方式，只写这一项，重新载入读回`, async () => {
+    it(`${viewport.name}: changing the transcode method under "App and maintenance -> Video playback" writes only that item and reads back on reload`, async () => {
       const { state, writes, route } = mediaProcessing();
       const opened = await visit(browser, '/settings/maintenance', viewport, route);
       const { page } = opened;
       try {
-        const section = page.getByRole('region', { name: '视频播放', exact: true });
+        const section = page.getByRole('region', { name: 'Video playback', exact: true });
         const trigger = section.locator('#playbackAccelerationSetting button');
         await trigger.waitFor({ state: 'visible' });
         await page.waitForFunction(() => document.querySelector('#playbackAccelerationSetting button')?.hasAttribute('disabled') === false);
         await settle(page);
         assert.match(await trigger.innerText(), /自动/);
-        /* 这张卡排在首屏以下。先滚到位、等两帧让滚动事件派发完：下拉打开之后再收到触发框所在页面的
-           滚动，React Aria 会把它合上。 */
+        /* This card sits below the first screen. Scroll into place first and wait two frames for the scroll events to finish dispatching: if the page containing the trigger box
+           scrolls after the select opens, React Aria closes it. */
         await trigger.scrollIntoViewIfNeeded();
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         await trigger.click();
-        await page.getByRole('option', { name: '软件编解码', exact: true }).click();
-        await page.getByText('已保存转码方式', { exact: true }).waitFor();
+        await page.getByRole('option', { name: 'Software codecs', exact: true }).click();
+        await page.getByText('Transcode method saved', { exact: true }).waitFor();
         assert.equal(state.playbackAcceleration, 'software');
         assert.equal(state.previewAcceleration, 'auto');
         assert.deepEqual(writes, [{ playback_acceleration: 'software' }]);
-        // 「视频播放」排在「开机自启」之后、「存储空间」之前（没有这两张卡的环境只比相对次序）。
+        // "Video playback" sorts after "launch at startup" and before "storage" (environments without those two cards only compare relative order).
         const order = await page.locator('.ui-board-group-active').evaluate((group) =>
           [...group.querySelectorAll('section[aria-label], form[aria-label]')].map((node) => node.getAttribute('aria-label')));
-        const at = order.indexOf('视频播放');
-        assert.ok(at >= 0 && order.slice(0, at).every((name) => ['检查更新', '自动修复', '自动更新', '开机自启'].includes(name ?? '')), JSON.stringify(order));
+        const at = order.indexOf('Video playback');
+        assert.ok(at >= 0 && order.slice(0, at).every((name) => ['Check for updates', 'Auto repair', 'Auto-update', 'Start at sign-in'].includes(name ?? '')), JSON.stringify(order));
         await page.reload();
         await trigger.waitFor({ state: 'visible' });
         await page.waitForFunction(() => /软件编解码/.test(document.querySelector('#playbackAccelerationSetting button')?.textContent || ''));

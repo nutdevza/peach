@@ -10,8 +10,8 @@ const emptyState = (): SelectionState => ({
 });
 const sets = () => ({ selected: new Set<number>(), followSelected: new Set<number>() });
 
-describe('选择范围与批量计数', () => {
-  it('Shift 连选依照可见目录顺序，保留屏幕外选择', () => {
+describe('Selection range and batch counts', () => {
+  it('Shift range selection follows visible catalog order while keeping off-screen selections', () => {
     const picked = sets();
     picked.selected.add(99);
     let state = toggleSelection(picked, emptyState(), 'catalog', [4, 2, 7, 1], 2);
@@ -24,7 +24,7 @@ describe('选择范围与批量计数', () => {
     expect(state.lastSelectedId).toBe(2);
   });
 
-  it('Shift 起点已不在当前列表时只选择目标，不引入隐藏卡片', () => {
+  it('When the Shift anchor is no longer in the current list, only the target is selected and no hidden cards are pulled in', () => {
     const picked = sets();
     const state = { ...emptyState(), lastSelectedId: 77 };
     const next = toggleSelection(picked, state, 'catalog', [2, 7], 7, true);
@@ -32,7 +32,7 @@ describe('选择范围与批量计数', () => {
     expect(next.lastSelectedId).toBe(7);
   });
 
-  it('关注连选使用单独的选择集与起点', () => {
+  it('Follow range selection uses its own selection set and anchor', () => {
     const picked = sets();
     picked.selected.add(5);
     let state = toggleSelection(picked, emptyState(), 'follow', [3, 5, 8], 8);
@@ -44,7 +44,7 @@ describe('选择范围与批量计数', () => {
     expect(selectionDock(picked, '/follow', '', 'trash')).toEqual({ count: 3, context: 'follow', junkDismissed: false });
   });
 
-  it('目录内部导航沿用选择，跨关注或垃圾文件范围清空常驻 Set', () => {
+  it('Navigation inside a catalog keeps the selection; crossing into follows or junk files scope clears the persistent Set', () => {
     const picked = sets(), catalogSet = picked.selected, followSet = picked.followSelected;
     picked.selected.add(1); picked.followSelected.add(2);
     const state = { ...emptyState(), selectMode: true, selectSurface: 'catalog', lastSelectedId: 1, followLastSelectedId: 2 };
@@ -56,7 +56,7 @@ describe('选择范围与批量计数', () => {
     expect(selectionSurface('/junk-files')).toBe('junk');
   });
 
-  it('关闭模式可保留选择，禁止选择的页面清空模式与两个起点', () => {
+  it('Closing the mode may keep the selection, while pages that forbid selection clear the mode and both anchors', () => {
     const picked = sets(); picked.selected.add(1);
     const state = { ...emptyState(), selectMode: true, selectSurface: 'catalog', lastSelectedId: 1 };
     expect(setSelectionMode(picked, state, 'catalog', false).lastSelectedId).toBe(1);
@@ -65,7 +65,7 @@ describe('选择范围与批量计数', () => {
     expect(picked.selected.size).toBe(0);
   });
 
-  it('回收站与已排除垃圾使用各自批量动作语境', () => {
+  it('Trash and excluded junk use their own bulk-action contexts', () => {
     const picked = sets(); picked.selected.add(4);
     expect(selectionDock(picked, '/trash', '', 'trash')).toEqual({ count: 1, context: 'trash', junkDismissed: false });
     expect(selectionDock(picked, '/junk-files', '?view=dismissed', 'ads'))

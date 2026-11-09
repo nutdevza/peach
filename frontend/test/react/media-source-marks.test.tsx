@@ -10,7 +10,7 @@ vi.mock('@peach/legacy/ui', async (original) => ({
   MEDIA_SOURCE_ICONS: (await import('../../src/ui-kit/media-source-icons')).MEDIA_SOURCE_ICONS,
 }));
 
-it.each(MEDIA_SOURCE_REGISTRY)('$label 的选择项与状态使用同一来源标识', async (source) => {
+it.each(MEDIA_SOURCE_REGISTRY)('The $label options and status use the same source identifier', async (source) => {
   const mark = MEDIA_SOURCE_ICONS[source.id]!;
   if (['115', 'pikpak', 'guangya', 'onedrive'].includes(source.id)) {
     expect(mark).toMatch(/^data:image\/png;base64,/);

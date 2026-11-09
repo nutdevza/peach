@@ -1,4 +1,4 @@
-/* 设计决定：关注详情、作品详情、播放器与侧栏。读 `getComputedStyle` 断言用户定过的外观；共用的桩与浏览器生命周期在 `design-fixture.ts`。 */
+/* Design decisions: video cards, management pages and review. Reads `getComputedStyle` to assert the appearance the user set; shared stubs and browser lifecycle live in `design-fixture.ts`. */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Browser, Page } from 'playwright-core';
@@ -8,11 +8,11 @@ import { muteVideos, openImmerse, pickClips, pinQueue, settledClip } from './imm
 import { ITEM, openItemPage } from './item-fixture.ts';
 import { DESKTOP, MOBILE, tokenColor, installDesignBrowser } from './design-fixture.ts';
 
-describe('设计决定：关注详情、作品详情、播放器与侧栏', () => {
+describe('Design decisions: follow details, video details, player, and sidebar', () => {
   let browser: Browser;
   installDesignBrowser((next) => { browser = next; });
 
-  it('关注详情翻页圆钮固定两侧 11px；桌面 48px、手机 44px，导航条位于画面下方', { timeout: 90_000 }, async () => {
+  it('Follow details pager buttons are pinned 11px from the sides; 48px on desktop and 44px on mobile, with the nav bar below the image', { timeout: 90_000 }, async () => {
     const read = (page: Page) => page.evaluate(() => {
       const frame = document.querySelector<HTMLElement>('#stage [data-follow-detail-media="image"]')!;
       const next = frame.querySelector('[data-follow-image-arrow="next"]')!, style = getComputedStyle(next);
@@ -30,7 +30,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         const image = document.querySelector<HTMLImageElement>('#stage [data-follow-detail-poster]');
         return image?.complete && image.naturalWidth > 0;
       });
-      // 图像解码与布局就绪后读取几何。
+      // Read geometry once the image is decoded and layout is ready.
       await page.evaluate(() => new Promise<void>(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }));
@@ -43,9 +43,9 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       assert.deepEqual(shown.size, [48, 48]);
       assert.equal(shown.background, 'rgba(0, 0, 0, 0.6)');
       assert.equal(shown.blur, 'blur(16px)');
-      assert.ok(Math.abs(shown.inset - 11) <= 1, `箭头内距：${JSON.stringify(shown)}`);
-      assert.ok(Math.abs(shown.indicatorBottom - 8) <= .5, `导航条底部留白 ${shown.indicatorBottom}px`);
-      // 画框比例跟整组图走：换图时详情不忽高忽低。
+      assert.ok(Math.abs(shown.inset - 11) <= 1, `Arrow padding: ${JSON.stringify(shown)}`);
+      assert.ok(Math.abs(shown.indicatorBottom - 8) <= .5, `Nav bottom padding is ${shown.indicatorBottom}px`);
+      // The frame ratio follows the whole image group: details do not jump in height when the image changes.
       assert.equal(shown.framed, true);
       assert.match(shown.ratio, /^0\.75\b/);
       assert.deepEqual(wide.problems, []);
@@ -58,15 +58,15 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       await settlePoster(narrow.page);
       const shown = await read(narrow.page);
       assert.deepEqual(shown.size, [44, 44]);
-      assert.ok(Math.abs(shown.inset - 11) <= 1, `窄屏箭头内距：${JSON.stringify(shown)}`);
-      assert.ok(Math.abs(shown.indicatorBottom - 8) <= .5, `窄屏导航条底部留白 ${shown.indicatorBottom}px`);
+      assert.ok(Math.abs(shown.inset - 11) <= 1, `Narrow-screen arrow padding: ${JSON.stringify(shown)}`);
+      assert.ok(Math.abs(shown.indicatorBottom - 8) <= .5, `Narrow-screen nav bar bottom padding is ${shown.indicatorBottom}px`);
       assert.deepEqual(narrow.problems, []);
     } finally {
       await narrow.close();
     }
   });
 
-  it('关注详情：无预览媒体占 16:9；标签保留来源分类并复用详情标签外观', { timeout: 60_000 }, async () => {
+  it('Follow details: media without a preview fills 16:9; tags keep their source categories and reuse the details tag look', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, `/posts/${DETAIL.bare}`, DESKTOP,
       { ready: '#stage [data-follow-detail-tags]' });
     try {
@@ -104,7 +104,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  it('关注详情标题：来源外链标与标题第一行同心，标题折行时仍贴第一行', { timeout: 60_000 }, async () => {
+  it('Follow details title: the source external-link mark is concentric with the title\'s first line and hugs that line even when the title wraps', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, `/posts/${DETAIL.gallery}`, DESKTOP,
       { ready: '#stage [data-follow-origin]' });
     try {
@@ -116,20 +116,20 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           mark: (mark.top + mark.bottom) / 2 };
       });
       const single = await measure();
-      assert.ok(Math.abs(single.mark - single.line) <= 0.5, `外链标与标题第一行不同心：${JSON.stringify(single)}`);
-      await page.evaluate(() => { document.querySelector('#stage [data-follow-detail-name]')!.textContent = '很长的标题'.repeat(12) });
+      assert.ok(Math.abs(single.mark - single.line) <= 0.5, `The external link icon is not centered on the title's first line: ${JSON.stringify(single)}`);
+      await page.evaluate(() => { document.querySelector('#stage [data-follow-detail-name]')!.textContent = 'A very long title'.repeat(12) });
       const wrapped = await measure();
-      assert.ok(Math.abs(wrapped.mark - wrapped.line) <= 0.5, `标题折行后外链标离开了第一行：${JSON.stringify(wrapped)}`);
+      assert.ok(Math.abs(wrapped.mark - wrapped.line) <= 0.5, `External link icon left the first line after the title wrapped: ${JSON.stringify(wrapped)}`);
     } finally {
       await opened.close();
     }
   });
 
-  /* 作品详情（`item-detail` 岛）。桩数据见 `item-fixture.ts`：普通那一条评了 3 星、两位出演、
-     一个厂牌一个系列，都带实体 id。桩里的片源没有正片，播放器那一条 VIDEOJS 错误不算。 */
+  /* Video details (the `item-detail` island). Stub data in `item-fixture.ts`: the normal entry has a 3-star rating, two cast members,
+     one studio and one series, all with entity ids. The stub's source has no main feature, so the player's VIDEOJS error does not count. */
   const withoutPlayer = (problems: string[]) => problems.filter((line) => !line.includes('VIDEOJS'));
 
-  it('作品详情标题与评分：来源徽标站在标题第一行开头；整排星一种琥珀、评没评只看填不填，悬停预演到指针那一颗', { timeout: 60_000 }, async () => {
+  it('Video details title and rating: the source mark leads the first title line; the star row is one amber whether or not it is rated, and hover previews up to the star under the pointer', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -151,7 +151,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       assert.deepEqual(title, {
         clamp: '2', first: true, badge: { display: 'inline-grid', width: '17px', height: '28px', gap: '8px' },
         centered: true, tools: true,
-      }, '徽标是行内块、与第一行同心、随文字一起被两行折叠裁住；那排键自成一行排在标题下面');
+      }, 'The badge is an inline block, centered on the first line, clipped by the two-line fold along with the text; that row of keys sits on its own line below the title');
 
       const stars = page.locator('#stage [data-rate]');
       const read = () => stars.evaluateAll((nodes) => nodes.map((node) => ({
@@ -160,7 +160,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       const amber = await tokenColor(page, '#stage [data-item-detail]', '--rating');
       await page.mouse.move(0, 0);
       const rest = await read();
-      assert.deepEqual(rest.map((star) => star.color), Array(5).fill(amber), '换色那一档在浅色主题下凑不出两级都成立的灰');
+      assert.deepEqual(rest.map((star) => star.color), Array(5).fill(amber), 'The recolor step cannot produce a gray that works for both levels in the light theme');
       assert.deepEqual(rest.map((star) => star.filled), [true, true, true, false, false]);
       await stars.nth(1).hover();
       const preview = await read();
@@ -170,14 +170,14 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         const box = (selector: string) => document.querySelector(`#stage ${selector}`)!.getBoundingClientRect();
         return { stars: box('[data-rating-stars]').left, title: box('[data-detail-title]').left };
       });
-      assert.equal(edges.stars, edges.title - 4, '26px 命中区里的星形靠右约 4px 起笔，这一排往左让回来');
+      assert.equal(edges.stars, edges.title - 4, 'The star inside the 26px hit area starts about 4px from the right, and the row gives the space back to the left');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情身份区：各组按内容宽并排换行，名字在头像下居中、行框容得下下伸部；系列是整行宽的图标链接，不是标签胶囊', { timeout: 60_000 }, async () => {
+  it('Work detail identity area: each group wraps side by side by content width, the name is centered under the avatar with the row box fitting the descenders; the series is a full-row-width icon link, not a label pill', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -201,11 +201,11 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         };
       });
       assert.deepEqual(shown.primary, ['flex', 'wrap']);
-      assert.equal(shown.narrower, true, '组按内容宽，共演作品不会一组占满一行');
-      assert.ok(shown.name.ratio >= 1.5, `名字行高 ${shown.name.ratio} 倍字号，拉丁字母的下伸部会被省略号那层 overflow 裁掉`);
+      assert.equal(shown.narrower, true, 'Groups size to content width, so group works never fill a whole row');
+      assert.ok(shown.name.ratio >= 1.5, `The name line-height is ${shown.name.ratio} times the font size, so Latin descenders get clipped by the ellipsis layer's overflow`);
       assert.deepEqual([shown.name.overflow, shown.name.align], ['ellipsis', 'center']);
       assert.equal(shown.cursor, 'pointer');
-      assert.notEqual(shown.face, 'rgba(0, 0, 0, 0)', '没图的头像画首字盘');
+      assert.notEqual(shown.face, 'rgba(0, 0, 0, 0)', 'Avatar without image renders an initial disc');
       assert.deepEqual(shown.series, { display: 'flex', wrap: 'anywhere', border: '0px', full: true });
       await page.locator('#stage [data-series-link]').hover();
       const hovered = await page.locator('#stage [data-series-link]').evaluate((node) =>
@@ -218,22 +218,22 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
   });
 
   for (const viewport of VIEWPORTS) {
-    it(`作品详情头像按有尺寸的圆框取景并显示（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The video details avatar frames and renders within the sized circle (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, viewport);
       try {
         const page = opened.page;
         const base = await page.evaluate(() => fetch('/api/item?id=14').then((response) => response.json()));
-        const payload = { ...base, performers: ['取景艺人', '无图艺人'],
+        const payload = { ...base, performers: ['Framed performer', 'Artist without image'],
           entity_refs: { ...base.entity_refs, performer: [
-            { id: 3, name: '取景艺人', has_image: true, image_version: 'face-version',
+            { id: 3, name: 'Framed performer', has_image: true, image_version: 'face-version',
               avatar_focus: { box: { cx: 0.58, cy: 0.49, faceW: 344, imgW: 1000, imgH: 1000 } } },
-            { id: 4, name: '无图艺人', has_image: false },
+            { id: 4, name: 'Artist without image', has_image: false },
           ] } };
         await page.route((url) => url.pathname === '/api/item', (route) => route.fulfill({ json: payload }));
         await page.route('**/entity-image**', (route) => route.fulfill({ contentType: 'image/svg+xml',
           body: '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="#ddd"/></svg>' }));
         await page.goto(new URL('/assets/14', page.url()).href, { waitUntil: 'load' });
-        const face = page.locator('#stage [data-entity-name="取景艺人"] [data-id-face]');
+        const face = page.locator('#stage [data-entity-name="Featured performer"] [data-id-face]');
         await face.scrollIntoViewIfNeeded();
         await page.waitForFunction(() => {
           const image = document.querySelector<HTMLImageElement>('#stage [data-id-cell="performer"] img');
@@ -247,22 +247,22 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
               && pixels.top <= frame.top + 0.5 && pixels.bottom >= frame.bottom - 0.5 };
         });
         assert.deepEqual(geometry, { visible: 'visible', framed: true, direct: true, zoomed: true, covers: true });
-        assert.equal(await page.locator('#stage [data-entity-name="无图艺人"] img').count(), 0);
+        assert.equal(await page.locator('#stage [data-entity-name="Performer without image"] img').count(), 0);
         assert.deepEqual(withoutPlayer(opened.problems), []);
       } finally { await opened.close(); }
     });
   }
 
-  it('作品详情身份区：没实体 id 的格子不给手形，厂牌标识铺满方框', { timeout: 60_000 }, async () => {
+  it('Video details identity area: cells without an entity id get no pointer, and label marks fill their box', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
-      // 先经桩取到原样的那一条；`route.fetch()` 会绕过桩直接打到服务器。
+      // First fetch the untouched response through the stub; `route.fetch()` bypasses the stub and hits the server directly.
       const base = await page.evaluate(() => fetch('/api/item?id=14').then((response) => response.json()));
       const payload = {
-        ...base, performers: ['无名氏'], performer_total: 1, performer_entities: [{ id: 0, has_image: false }], has_studio_logo: true,
+        ...base, performers: ['Unnamed'], performer_total: 1, performer_entities: [{ id: 0, has_image: false }], has_studio_logo: true,
         entity_refs: { ...base.entity_refs,
-          performer: [{ id: 0, name: '无名氏', has_image: false, avatar_focus: null }],
+          performer: [{ id: 0, name: 'Unnamed', has_image: false, avatar_focus: null }],
           studio: [{ id: 50, name: 'Peach Studio', has_image: false, has_logo: true }] },
       };
       await page.route((url) => url.pathname === '/api/item', (route) => route.fulfill({ json: payload }));
@@ -283,37 +283,37 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         };
       });
       assert.deepEqual(shown, { performer: ['SPAN', 'default'], studio: 'pointer', fit: 'cover', filled: true },
-        '标识文件自带边距，页面再补 inset 或换成 contain 就多围出一圈框');
+        'Logo files carry their own padding; adding an inset or switching to contain draws an extra ring around it');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情标签多时先露 20 个，展开键报出剩下几个，展开后能收回', { timeout: 60_000 }, async () => {
+  it('When a work detail has many tags, show 20 first; the expand button reports how many remain, and it collapses again', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       const base = await page.evaluate(() => fetch('/api/item?id=14').then((response) => response.json()));
-      const tags = Array.from({ length: 30 }, (_, index) => ({ k: `折叠标签${String(index).padStart(2, '0')}`, cat: 'scene' }));
+      const tags = Array.from({ length: 30 }, (_, index) => ({ k: `Collapsed label ${String(index).padStart(2, '0')}`, cat: 'scene' }));
       await page.route((url) => url.pathname === '/api/item', (route) => route.fulfill({ json: { ...base, tags } }));
       await page.goto(new URL('/assets/14', page.url()).href, { waitUntil: 'load' });
       const more = page.locator('#stage [data-tags-more]');
       await more.waitFor({ timeout: 15_000 });
       const chips = page.locator('#stage [data-detail-tags] [data-detail-tag]');
-      assert.deepEqual([await chips.count(), (await more.innerText()).trim()], [20, '还有 10 个']);
+      assert.deepEqual([await chips.count(), (await more.innerText()).trim()], [20, '10 more']);
       await more.click();
-      assert.deepEqual([await chips.count(), (await more.innerText()).trim()], [30, '收起']);
+      assert.deepEqual([await chips.count(), (await more.innerText()).trim()], [30, 'Collapse']);
       await more.click();
       assert.equal(await chips.count(), 20);
-      assert.equal(await page.locator('#stage [data-detail-tags] [data-tag-plus]').isVisible(), true, '收起时加号照样在');
+      assert.equal(await page.locator('#stage [data-detail-tags] [data-tag-plus]').isVisible(), true, 'Plus stays put when collapsed');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情标签与反馈键：标签和卡片同一张脸，筛选那半边悬停抬填充；反馈条每一枚悬停都换色', { timeout: 60_000 }, async () => {
+  it('Video details tags and feedback keys: tags share the card face, the filter half lifts its fill on hover, and every feedback pill changes color on hover', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -329,7 +329,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         return { expected, actual: { radius: style.borderTopLeftRadius, line: style.borderTopColor,
           fill: style.backgroundColor, ink: getComputedStyle(tag.querySelector('[data-tag]')!).color } };
       });
-      assert.deepEqual(face.actual, face.expected, '圆角、线、填充与字色都走卡片那颗 `.tg` 的同一组 token');
+      assert.deepEqual(face.actual, face.expected, 'Radius, lines, fill, and text color all come from the one token set on the card\'s `.tg`');
       const filter = page.locator('#stage [data-detail-tag] [data-tag]').first();
       await filter.hover();
       assert.equal(await filter.evaluate((node) => getComputedStyle(node).backgroundColor),
@@ -349,14 +349,14 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         await button.hover();
         if (await color() === rest) unchanged.push(selector);
       }
-      assert.deepEqual(unchanged, [], '漏写配色的那一枚全程停在 --muted，看着像不能点');
+      assert.deepEqual(unchanged, [], 'The swatch missing a color stays at --muted the whole time and looks unclickable');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情喜爱理由框与「接着看」：输入框聚焦画 BoardUI 那枚 2px 内环；接着看和侧栏同底、顶上一条细线', { timeout: 60_000 }, async () => {
+  it('Video details favorite-reason box and Continue watching: the focused input paints the BoardUI 2px inner ring; Continue watching shares the sidebar base with a hairline on top', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -382,17 +382,17 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           row: [row.display, row.overflowX, row.scrollbarWidth],
         };
       });
-      assert.equal(related.fill, related.side, '同一格详情的两块，底色同源，不然整幅宽度上留一道色差');
+      assert.equal(related.fill, related.side, 'The two blocks of the same details cell share one background source, or a color seam runs the full width');
       assert.deepEqual(related.line, ['1px', 'solid', await tokenColor(page, '#stage', '--line-soft')]);
       assert.equal(related.heading, '600');
-      assert.deepEqual(related.row, ['flex', 'auto', 'none'], '那一排横滚，不露系统滚动条');
+      assert.deepEqual(related.row, ['flex', 'auto', 'none'], 'That row scrolls horizontally with no native scrollbar showing');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('作品详情队列与说明块：版次徽章和标题同一行、不斜体；脱盘说明块铺满播放器格', { timeout: 60_000 }, async () => {
+  it('Video details queue and note block: the edition badge shares the title\'s line and is not italic; the off-disc note block fills the player cell', { timeout: 60_000 }, async () => {
     const editions = await openItemPage(browser, `/assets/${ITEM.edition}?editions=${ITEM.edition}`, DESKTOP,
       { ready: '#stage [data-queue-edition]' });
     try {
@@ -409,8 +409,8 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         };
       });
       assert.deepEqual(shown, { head: ['flex', 'row'], badge: ['normal', '1', '50%'], sameRow: true, heading: '600' },
-        '`<i>` 默认斜体，徽章不是强调语气；长版次字样最多占一半宽，番号不被挤没');
-      /* 队列头的按钮是关闭一类的操作，走控件圆角，不是圆形标签。 */
+        '`<i>` is italic by default and the badge is not emphasis; long edition text takes at most half the width, and the code is not squeezed out');
+      /* The queue header button is a close-style action and uses the control corner radius, not a circular chip. */
       const head = await editions.page.evaluate(() => {
         const button = document.querySelector('#stage [data-mix-queue-head] button')!;
         return [getComputedStyle(button).borderTopLeftRadius, getComputedStyle(button).getPropertyValue('--control-radius').trim()];
@@ -431,8 +431,8 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           radius: [getComputedStyle(gate).borderTopLeftRadius, getComputedStyle(cell).borderTopLeftRadius],
         };
       });
-      assert.equal(fit.filled, true, '说明块铺满播放器格，不上下留黑');
-      assert.equal(fit.radius[0], fit.radius[1], '圆角跟着格走');
+      assert.equal(fit.filled, true, 'The note block fills the player box with no black above or below');
+      assert.equal(fit.radius[0], fit.radius[1], 'Corner radius follows the cell');
       assert.notEqual(fit.radius[0], '0px');
       assert.deepEqual(offline.problems, []);
     } finally {
@@ -440,12 +440,12 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  it('作品详情标签选择器用全站下拉面板那一对开合动效，减少动态效果时当场开合', { timeout: 60_000 }, async () => {
+  it('The video details tag picker uses the site-wide dropdown panel\'s open and close motion pair, switching instantly when reduced motion is on', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       const picker = page.locator('#stage [data-tag-picker]');
-      /* 关闭动效只有 150ms，点完再读计算样式会在负载高时读到已收起；改记选择器上真正开播过的动效。 */
+      /* The close animation lasts only 150ms, so reading computed styles after the click can return the collapsed state under load; instead, record the animation that actually started on the selector. */
       await page.evaluate(() => {
         const played: string[] = [];
         (window as unknown as { pickerMotion: string[] }).pickerMotion = played;
@@ -464,7 +464,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         await picker.waitFor({ state: 'hidden' });
         return played();
       };
-      assert.deepEqual(await cycle(), [], '减少动态效果时当场开合，不播动效');
+      assert.deepEqual(await cycle(), [], 'Under reduced motion it opens and closes on the spot without animation');
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       assert.deepEqual(await cycle(), ['board-menu-in', 'board-menu-out']);
       assert.deepEqual(withoutPlayer(opened.problems), []);
@@ -473,8 +473,8 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  /* 舞台与播放器的外观：数值照 YouTube 桌面版 delhi-modern 的播放器与 ytd-miniplayer 实测定下。
-     桩里的片源放不出来，Video.js 停在错误态，控件照样挂着，读的是计算值。 */
+  /* Stage and player appearance: values measured against YouTube desktop delhi-modern's player and ytd-miniplayer.
+     The stub's source cannot play, so Video.js sits in the error state with controls still attached, and computed values are read. */
   const PLAYER_BAR = '#stage .video-js .vjs-control-bar';
   const PLAYER_BLACK = 'rgba(0, 0, 0, 0.6)';
   const styleOf = (page: Page, selector: string, properties: string[], pseudo = '') => page.evaluate(
@@ -487,7 +487,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
   const tokenOf = (page: Page, selector: string, token: string) => page.evaluate(([target, name]) =>
     getComputedStyle(document.querySelector(target)!).getPropertyValue(name).trim(), [selector, token] as const);
 
-  it('详情浮窗：遮罩同一档 --scrim、不带模糊，进出场同设置弹层；关闭键是压在画面上的 40px 黑圆；媒体格只圆左上角，剧场模式圆上面两角、排成单列', { timeout: 60_000 }, async () => {
+  it('Details overlay: the scrim uses the same --scrim tier without blur, enter and exit like the settings popover; the close button is a 40px black circle pressed onto the picture; media cells round only the top-left corner, and theater mode rounds the top two corners and stacks a single column', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP, { settings: { theme: 'light' } });
     try {
       const page = opened.page;
@@ -497,17 +497,17 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       assert.deepEqual(await styleOf(page, '#stage', ['background-color', 'backdrop-filter', 'animation-name'], '::backdrop'),
         { 'background-color': scrim, 'backdrop-filter': 'none', 'animation-name': 'settings-backdrop-in' });
       assert.equal((await styleOf(page, '#stage', ['animation-name']))!['animation-name'], 'board-dialog-in');
-      /* 亮色主题下白底白晕看不出悬停，用户以 YouTube 为参照：播放器上的键在亮色下也是黑底。 */
+      /* In the light theme a white glow on white shows no hover, and users take YouTube as the reference: player keys are black-backed in light mode too. */
       assert.deepEqual(await styleOf(page, '#closeStage', ['width', 'height', 'border-top-left-radius', 'background-color', 'color']),
         { width: '40px', height: '40px', 'border-top-left-radius': '50%', 'background-color': PLAYER_BLACK, color: 'rgb(255, 255, 255)' });
 
       const corners = () => styleOf(page, '#stage [data-stage-media]',
         ['border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius']);
       const wide = (await corners())!;
-      assert.notEqual(wide['border-top-left-radius'], '0px', '媒体格左上角没圆');
+      assert.notEqual(wide['border-top-left-radius'], '0px', 'Media cell top-left corner not rounded');
       assert.deepEqual([wide['border-top-right-radius'], wide['border-bottom-left-radius']], ['0px', '0px'],
-        '媒体格右边贴着侧栏、下面接着「接着看」，只圆左上角');
-      /* `overflow-y:auto` 会把 overflow-x 算成 auto，内容宽出 1px 就冒横向滚动条；侧栏撑满所在那一行，不露半截底色。 */
+        'The media cell hugs the sidebar on the right and Continue watching below, rounding only its top-left corner');
+      /* `overflow-y:auto` makes overflow-x compute to auto, and content 1px wider shows a horizontal scrollbar; the sidebar fills its whole row and never shows a sliver of background. */
       assert.deepEqual(await styleOf(page, '#stage [data-stage-side-content]', ['overflow-x', 'overflow-y']),
         { 'overflow-x': 'hidden', 'overflow-y': 'auto' });
       assert.equal((await styleOf(page, '#stage [data-stage-side]', ['align-self']))!['align-self'], 'stretch');
@@ -515,16 +515,16 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       await page.locator('#stage[data-theater]').waitFor();
       const theater = (await corners())!;
       assert.deepEqual([theater['border-top-right-radius'], theater['border-bottom-left-radius']],
-        [wide['border-top-left-radius'], '0px'], '剧场模式下媒体格圆上面两角');
+        [wide['border-top-left-radius'], '0px'], 'In theater mode the media box rounds its top two corners');
       const columns = (await styleOf(page, '#stage [data-stage-grid]', ['grid-template-columns']))!['grid-template-columns']!;
-      assert.equal(columns.split(' ').length, 1, `剧场模式没排成单列：${columns}`);
+      assert.equal(columns.split(' ').length, 1, `Theater mode did not lay out as a single column: ${columns}`);
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('手机上详情浮窗离屏幕边 8px，滚的是里面那一层，视频格吸在它顶上', { timeout: 60_000 }, async () => {
+  it('On phones the details popover sits 8px from the screen edge, the inner layer scrolls, and the video box sticks to its top', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, MOBILE);
     try {
       const page = opened.page;
@@ -539,8 +539,8 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  it('手机上界面按钮与标签长按不选字、点按不等双击判定；标题、番号这类馆藏数据照常能选中复制', { timeout: 90_000 }, async () => {
-    /* 每个样本取 [touch-action, user-select]；没找到记成 null。 */
+  it('On mobile, UI buttons and tags do not select text on long press and taps do not wait for double-click detection; library data like titles and codes still selects and copies normally', { timeout: 90_000 }, async () => {
+    /* Each sample records [touch-action, user-select]; null when not found. */
     const touchOf = (page: Page, selectors: string[]) => page.evaluate((list) => list.map((selector) => {
       const node = document.querySelector(selector);
       return node ? [getComputedStyle(node).touchAction, getComputedStyle(node).userSelect] : null;
@@ -551,9 +551,9 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     try {
       await stage.page.locator('#stage [data-detail-tag] [data-tag]').first().waitFor({ state: 'attached' });
       assert.deepEqual(await touchOf(stage.page, controls), controls.map(() => ['manipulation', 'none']),
-        `控件顺序：${controls.join('、')}`);
+        `Control order: ${controls.join(', ')}`);
       const [title] = await touchOf(stage.page, ['#stage [data-detail-title]']);
-      assert.notEqual(title?.[1], 'none', '详情标题是内容，不能跟着控件一起关掉选字');
+      assert.notEqual(title?.[1], 'none', 'The details title is content and must not lose text selection along with the controls');
       assert.deepEqual(withoutPlayer(stage.problems), []);
     } finally {
       await stage.close();
@@ -561,15 +561,15 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     const home = await openItemPage(browser, '/', MOBILE, { ready: '#grid [data-media-card] [data-media-title]' });
     try {
       const [card] = await touchOf(home.page, ['#grid [data-media-card] [data-media-title]']);
-      assert.equal(card?.[0], 'manipulation', '作品卡标题是按钮，点按不该等双击判定');
-      assert.notEqual(card?.[1], 'none', '作品卡标题装着番号，长按要能选中复制');
+      assert.equal(card?.[0], 'manipulation', 'Video card titles are buttons and taps must never wait on double-tap detection');
+      assert.notEqual(card?.[1], 'none', 'Video card titles carry the code, so long-press must select and copy');
       assert.deepEqual(home.problems, []);
     } finally {
       await home.close();
     }
   });
 
-  it('播放器控件：40px 黑圆播放键、同一档黑的右侧胶囊与提示、钨丝色进度、页面字体；统计键与加载速度角标压在左上；报错是一张盖在统计上面的卡', { timeout: 60_000 }, async () => {
+  it('Player controls: 40px black round play button, right-side pill and tooltip in the same black tier, tungsten-colored progress, page font; the stats button and load speed badge sit top-left; errors are a card laid over the stats', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -577,16 +577,16 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       assert.deepEqual(await styleOf(page, `${PLAYER_BAR} > .vjs-play-control`, ['width', 'height', 'border-top-left-radius', 'background-color']),
         { width: '40px', height: '40px', 'border-top-left-radius': '50%', 'background-color': PLAYER_BLACK });
       assert.equal((await styleOf(page, '#stage .vjs-peach-right-controls', ['background-color']))!['background-color'], PLAYER_BLACK);
-      /* 错误态下控件条收起、量不到盒子，读它离播放器四边的计算值。 */
+      /* In the error state the control bar collapses and the box cannot be measured; read its computed distances from the player's four edges. */
       assert.deepEqual(await styleOf(page, PLAYER_BAR, ['left', 'right', 'bottom', 'height']),
         { left: '12px', right: '12px', bottom: '8px', height: '59px' });
-      /* 彩条 6px，抓取区 18px，多出来的 12px 全在条上方：往下扩会盖住按钮那一排的顶边。 */
+      /* The color strip is 6px and the grab area 18px, with the extra 12px all above the strip: extending downward would cover the top edge of the button row. */
       assert.deepEqual(await styleOf(page, '#stage .vjs-progress-control', ['height', 'top']), { height: '18px', top: '-12px' });
-      assert.equal((await styleOf(page, '#stage .vjs-progress-holder > media-slider-track', ['height']))!.height, '6px', '彩条本身不变粗');
+      assert.equal((await styleOf(page, '#stage .vjs-progress-holder > media-slider-track', ['height']))!.height, '6px', 'The color bar itself never thickens');
       assert.equal((await styleOf(page, '#stage .vjs-play-progress', ['background-color']))!['background-color'],
         await tokenColor(page, '#stage', '--tungsten'));
       assert.equal((await styleOf(page, '#stage .video-js', ['font-family']))!['font-family'],
-        (await styleOf(page, 'body', ['font-family']))!['font-family'], '播放器里的字用页面字体，不是 Video.js 的 Arial');
+        (await styleOf(page, 'body', ['font-family']))!['font-family'], 'Player text uses the page font, not Video.js\' Arial');
       assert.deepEqual(await styleOf(page, '#stage [data-player-theater] > .vjs-peach-tooltip',
         ['background-color', 'color', 'padding-top', 'padding-left', 'backdrop-filter', 'white-space']),
       { 'background-color': PLAYER_BLACK, color: 'rgb(255, 255, 255)', 'padding-top': '5px', 'padding-left': '9px',
@@ -595,12 +595,12 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         { width: '40px', height: '40px', 'border-top-left-radius': '50%', 'background-color': PLAYER_BLACK });
       assert.deepEqual(await styleOf(page, '#stage [data-player-toolbar]', ['left', 'top', 'flex-wrap']),
         { left: '11px', top: '11px', 'flex-wrap': 'wrap' });
-      /* 音量胶囊和右边那枚同一排，毛玻璃同一档：只有一边磨砂，展开后它就比邻居更透。 */
+      /* The volume capsule shares a row with the one on its right and the same frosted-glass tier: frosted on one side only, it turns more transparent than its neighbor once expanded. */
       assert.equal((await styleOf(page, `${PLAYER_BAR} > .vjs-volume-panel`, ['backdrop-filter']))!['backdrop-filter'], 'blur(16px)');
       assert.deepEqual(await styleOf(page, '#stage #playerNet', ['height', 'white-space']),
-        { height: '40px', 'white-space': 'nowrap' }, '速率断成两行会顶破 40px 的胶囊');
-      /* sprite 里的仪表盘是描边图形，容器不声明就按 SVG 默认填成黑块，压在黑底上等于没有图标。
-         演示库的片子放不出来、角标没有速率可写，量的是临时塞进去的一枚 svg。 */
+        { height: '40px', 'white-space': 'nowrap' }, 'Speed breaking into two lines would burst the 40px pill');
+      /* The dashboard glyph in the sprite is stroked, not filled; without a declaration on the container it fills black by SVG default, and on a black background that means no icon.
+         The demo library's videos cannot play and the badge has no rate to show, so this measures a temporary svg dropped in for the case. */
       const gauge = await page.evaluate(() => {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         document.querySelector('#stage #playerNet')!.append(svg);
@@ -614,33 +614,33 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       const error = (await styleOf(page, '#stage .vjs-error-display .vjs-modal-dialog-content', ['background-color', 'z-index']))!;
       const stats = (await styleOf(page, '#stage #playerStats', ['z-index']))!;
       assert.equal(error['background-color'], 'rgba(2, 4, 8, 0.86)');
-      assert.ok(Number(error['z-index']) > Number(stats['z-index']), `报错卡压在统计面板底下：${error['z-index']} / ${stats['z-index']}`);
+      assert.ok(Number(error['z-index']) > Number(stats['z-index']), `The error card sits under the stats panel: ${error['z-index']} / ${stats['z-index']}`);
       const card = (await page.locator('#stage .vjs-error-display .vjs-modal-dialog-content').boundingBox())!;
       const frame = (await page.locator('#stage .video-js').boundingBox())!;
       assert.ok(Math.abs(card.x + card.width / 2 - (frame.x + frame.width / 2)) < 1
-        && Math.abs(card.y + card.height / 2 - (frame.y + frame.height / 2)) < 1, '报错卡居中在画面里，躲开左上角的速率角标');
+        && Math.abs(card.y + card.height / 2 - (frame.y + frame.height / 2)) < 1, 'The error card is centered in the frame, clear of the rate badge in the top left');
       assert.deepEqual(withoutPlayer(opened.problems), []);
     } finally {
       await opened.close();
     }
   });
 
-  it('播放器的设置面板与右键菜单：同一档黑、浮层圆角、48px 的行；右键菜单悬停抬一层白', { timeout: 60_000 }, async () => {
+  it('The player settings panel and context menu: the same black tier, overlay radius, 48px rows; context menu hover lifts with a layer of white', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
       await page.locator('#stage #playerStatsBtn').waitFor();
       const menu = '#stage .vjs-peach-settings-menu';
-      /* 关闭态不能是 display:none：它没有可过渡的中间态，面板只会瞬间消失。 */
+      /* The closed state cannot be display:none: it has no transitionable intermediate state and the panel would vanish instantly. */
       assert.deepEqual(await styleOf(page, menu, ['display', 'opacity', 'visibility']),
         { display: 'block', opacity: '0', visibility: 'hidden' });
       await page.locator('#stage .vjs-peach-settings-toggle').dispatchEvent('click');
       const floating = await tokenOf(page, menu, '--floating-radius');
       const settings = (await styleOf(page, menu, ['background-color', 'border-top-left-radius', 'width', 'backdrop-filter']))!;
       assert.equal(settings['background-color'], PLAYER_BLACK);
-      assert.equal(settings['backdrop-filter'], 'blur(16px)', '设置面板的毛玻璃没生效');
+      assert.equal(settings['backdrop-filter'], 'blur(16px)', 'The settings panel\'s frosted glass never took effect');
       assert.equal(settings['border-top-left-radius'], floating);
-      assert.ok(parseFloat(settings.width!) <= 274, `设置面板宽 ${settings.width}`);
+      assert.ok(parseFloat(settings.width!) <= 274, `Settings panel width ${settings.width}`);
       assert.equal((await styleOf(page, `${menu} .vjs-peach-menu-row`, ['min-height']))!['min-height'], '48px');
       await page.locator('#stage .vjs-peach-settings-toggle').dispatchEvent('click');
 
@@ -652,7 +652,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       const row = (await styleOf(page, '#playerMenu [data-player-menu]', ['min-height', 'grid-template-columns']))!;
       assert.equal(row['min-height'], '48px');
       const tracks = row['grid-template-columns']!.split(' ');
-      assert.deepEqual([tracks[0], tracks.at(-1)], ['56px', '32px'], `右键菜单行的列：${row['grid-template-columns']}`);
+      assert.deepEqual([tracks[0], tracks.at(-1)], ['56px', '32px'], `Context menu row columns: ${row['grid-template-columns']}`);
       await page.locator('#playerMenu [data-player-menu]').first().hover();
       assert.equal((await styleOf(page, '#playerMenu [data-player-menu]', ['background-color']))!['background-color'],
         'rgba(255, 255, 255, 0.1)');
@@ -663,7 +663,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  it('统计图 20px 高，缓冲那条按健康度换色；小窗照 ytd-miniplayer：固定在右下角 16px、宽 400px、层级在弹层之下，快退快进键 36px', { timeout: 60_000 }, async () => {
+  it('Stats chart 20px tall, the buffering bar changes color by health; the mini player follows ytd-miniplayer: pinned 16px from the bottom-right corner, 400px wide, layered under popovers, rewind and fast-forward keys 36px', { timeout: 60_000 }, async () => {
     const opened = await openItemPage(browser, `/assets/${ITEM.plain}`, DESKTOP);
     try {
       const page = opened.page;
@@ -693,7 +693,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  /** 一组元素的外框，取到小数点后一位。 */
+  /** The bounding box of a set of elements, to one decimal place. */
   const rectsOf = (page: Page, selectors: Record<string, string>) => page.evaluate((entries) => Object.fromEntries(
     Object.entries(entries).map(([name, selector]) => {
       const box = document.querySelector(selector)!.getBoundingClientRect();
@@ -705,7 +705,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     bar: '[data-immerse-bar]', close: '[data-immerse-close]',
   };
 
-  it('沉浸模式桌面照 Shorts 三段：9:16 舞台居中、动作列贴舞台右侧 12px、作者标题在左下；横片换成 16:9，动作列收进框里；浅色主题下仍是深色层', { timeout: 90_000 }, async () => {
+  it('Immersive mode on desktop follows Shorts in three ways: 9:16 stage centered, action column 12px off the stage\'s right edge, author title bottom-left; landscape videos switch to 16:9 with the action column inside the frame; still a dark layer under the light theme', { timeout: 90_000 }, async () => {
     const opened = await visit(browser, '/', DESKTOP);
     try {
       const { page } = opened;
@@ -756,15 +756,15 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         progress: { height: '4px' },
       });
 
-      // 进度：4px 的线贴着 20px 热区的底，走钨丝蓝；指针靠近才变粗。
+      // Progress: a 4px line sits at the bottom of the 20px hit area in tungsten blue, and thickens only when the pointer nears.
       assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-immerse-bar] i')!).backgroundColor),
         await tokenColor(page, '[data-immerse]', '--tungsten'));
       await page.hover('[data-immerse-bar]');
       await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-immerse-bar] i')!).height === '9px');
 
-      // 动作键以底色反馈，悬停与按住保持尺寸；选中使用浅底深字。
+      // Action buttons give feedback through background color and keep their size on hover and press; selection uses a light background with dark text.
       await page.route('**/api/feedback', (route) => route.fulfill({ json: { feedback: 'seen', o_count: 0 } }));
-      const seen = '[data-immerse-actions] button[aria-label="标为看过"]';
+      const seen = '[data-immerse-actions] button[aria-label="Mark as watched"]';
       const resting = await page.locator(seen).boundingBox();
       const background = await page.locator(seen).evaluate(node => getComputedStyle(node).backgroundColor);
       await page.hover(seen);
@@ -801,7 +801,7 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  it('沉浸模式手机铺满视口：舞台不留圆角，动作列贴右、作者标题贴左下，作者那行的时长与序号收起', { timeout: 60_000 }, async () => {
+  it('Immersive mode on mobile fills the viewport: the stage loses its rounded corners, the action column hugs the right and the author title the bottom left, and the duration and index in the author row collapse', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/', MOBILE);
     try {
       const { page } = opened;
@@ -826,9 +826,9 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
     }
   });
 
-  /* ── 侧栏岛（`frontend/src/react/sidebar/sidebar.css`） ── */
+  /* ── Sidebar island (`frontend/src/react/sidebar/sidebar.css`) ── */
 
-  /** 打开首页等侧栏的分组画出来。聚合照演示库真取，只保证时长那一组在（演示库的短片可能凑不出总时长）。 */
+  /** Open the home page and wait for the sidebar groups to paint. Aggregates are genuinely fetched against the demo library; only the duration group is guaranteed to exist (the demo library's shorts may not add up to a total duration). */
   async function openSidebar(viewport: Viewport): Promise<Visit> {
     const opened = await visit(browser, '/', viewport);
     await opened.page.route((url) => url.pathname === '/api/facets', async (route) => {
@@ -836,12 +836,12 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       await route.fulfill({ json: { ...real, stats: { ...real.stats, duration: real.stats?.duration || 540 } } });
     });
     await opened.page.reload({ waitUntil: 'load' });
-    await opened.page.locator('#drawer [data-sidebar-group="时长"]').waitFor({ state: 'attached', timeout: 15_000 });
+    await opened.page.locator('#drawer [data-sidebar-group="Duration"]').waitFor({ state: 'attached', timeout: 15_000 });
     await settle(opened.page);
     return opened;
   }
 
-  it('侧栏当前项自己不铺底，由挂在抽屉上的那块玻璃标出；悬停时玻璃跟过去，离开这一列回到当前项', { timeout: 60_000 }, async () => {
+  it('The current sidebar item has no fill of its own and is marked by the glass panel attached to the drawer; on hover the glass follows the pointer, and leaving the column returns it to the current item', { timeout: 60_000 }, async () => {
     const opened = await openSidebar(DESKTOP);
     try {
       const { page } = opened;
@@ -860,28 +860,28 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         };
       }, key);
       const current = await read('');
-      assert.equal(current.parent, 'drawer', '玻璃没有挂在抽屉上，纵滚时会被滚动层切掉');
-      assert.deepEqual([current.layer, current.radius], ['-1', '10px'], '玻璃要压在字底下、圆角照按钮的 10px');
-      assert.deepEqual(current.glide, current.button, '玻璃没有垫在当前项下面');
-      assert.deepEqual(current.fill, ['rgba(0, 0, 0, 0)', 'none', 'none'], '当前项自己铺了底，静止时就是两层底叠着');
-      assert.equal(current.color, await tokenColor(page, '#drawer', '--glass-text'), '当前项的字色不是玻璃上的字色');
+      assert.equal(current.parent, 'drawer', 'The glass is not mounted on the drawer, so vertical scrolling clips it with the scroll layer');
+      assert.deepEqual([current.layer, current.radius], ['-1', '10px'], 'The glass must sit beneath the text with the button\'s 10px corner radius');
+      assert.deepEqual(current.glide, current.button, 'The glass never sits beneath the current item');
+      assert.deepEqual(current.fill, ['rgba(0, 0, 0, 0)', 'none', 'none'], 'The current item paints its own background, so at rest two backgrounds stack');
+      assert.equal(current.color, await tokenColor(page, '#drawer', '--glass-text'), 'The current item\'s text color is not the on-glass text color');
       const idle = await read('studios');
-      assert.equal(idle.color, await tokenColor(page, '#drawer', '--color-text-secondary'), '未选中项的字色不是次要文字色');
+      assert.equal(idle.color, await tokenColor(page, '#drawer', '--color-text-secondary'), 'Unselected items\' text color is not the secondary text color');
 
       await page.locator('#drawer [data-sidebar-nav] [data-nav="studios"]').hover();
       const hovered = await read('studios');
-      assert.deepEqual(hovered.glide, hovered.button, '悬停时玻璃没有跟到指着的那一项');
-      assert.deepEqual(hovered.fill, ['rgba(0, 0, 0, 0)', 'none', 'none'], '悬停的那一项自己铺了底');
+      assert.deepEqual(hovered.glide, hovered.button, 'On hover the glass did not follow the pointed item');
+      assert.deepEqual(hovered.fill, ['rgba(0, 0, 0, 0)', 'none', 'none'], 'The hovered item paints its own background');
       await page.mouse.move(900, 420);
       const back = await read('');
-      assert.deepEqual(back.glide, back.button, '指针离开这一列之后玻璃没有回到当前项');
+      assert.deepEqual(back.glide, back.button, 'After the pointer leaves the column the glass did not return to the current item');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('侧栏标题行：切换器 32px 圆标识、收起键 20px 高，与导航首项相隔 12px；分组箭头展开时转 90°；收起后只剩 60px 宽的图标列', { timeout: 60_000 }, async () => {
+  it('Sidebar title row: 32px round badge switcher, 20px-tall collapse button, 12px from the first nav item; group arrows rotate 90° when expanded; collapsed leaves only a 60px-wide icon column', { timeout: 60_000 }, async () => {
     const opened = await openSidebar(DESKTOP);
     try {
       const { page } = opened;
@@ -902,12 +902,12 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           closed: groups.filter((group) => !group.open).map(rotation),
         };
       });
-      assert.equal(head.gap, 12, '切换器与导航首项挨得太近，两块底色读起来像压在一起');
-      assert.deepEqual(head.mark, [32, 32, '50%'], '切换器的标识不是 32px 的圆');
-      assert.equal(head.toggle, 20, '收起键不是 20px 高');
-      assert.ok(head.open.length && head.closed.length, `首页的分组没有一开一合可比：${JSON.stringify(head)}`);
-      assert.ok(head.open.every((angle) => angle === 90), `展开的分组箭头没有转到 90°：${head.open}`);
-      assert.ok(head.closed.every((angle) => angle === 0), `收着的分组箭头没有回到 0°：${head.closed}`);
+      assert.equal(head.gap, 12, 'The switcher sits too close to the nav\'s first item, so the two backgrounds read as stacked');
+      assert.deepEqual(head.mark, [32, 32, '50%'], 'The switcher\'s mark is not a 32px circle');
+      assert.equal(head.toggle, 20, 'The collapse button is not 20px tall');
+      assert.ok(head.open.length && head.closed.length, `The home sections have no open and close pair to compare: ${JSON.stringify(head)}`);
+      assert.ok(head.open.every((angle) => angle === 90), `The expanded group arrow did not rotate to 90°: ${head.open}`);
+      assert.ok(head.closed.every((angle) => angle === 0), `The collapsed group arrow did not return to 0°: ${head.closed}`);
 
       await page.locator('#filterBtn').click();
       await page.waitForFunction(() => Math.round(document.querySelector('#drawer')!.getBoundingClientRect().width) === 60,
@@ -921,19 +921,19 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           labels: [...new Set([...drawer.querySelectorAll('[data-sidebar-nav] button span')].map((span) => getComputedStyle(span).maxWidth))],
         };
       });
-      assert.deepEqual(rail, { toggle: [36, 20], groups: ['none'], labels: ['0px'] }, '收起的窄栏不是一列图标');
+      assert.deepEqual(rail, { toggle: [36, 20], groups: ['none'], labels: ['0px'] }, 'The collapsed narrow rail is not one column of icons');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('时长拉条：已选段是 accent 渐变，两端读数常显、推到端点也不越出轨道，刚动过的那枚压在上面', { timeout: 60_000 }, async () => {
+  it('Duration slider: the selected segment is an accent gradient, both readouts stay visible and never leave the track even pushed to the ends, and the handle just moved sits on top', { timeout: 60_000 }, async () => {
     const opened = await openSidebar(DESKTOP);
     try {
       const { page } = opened;
-      await page.locator('#drawer [data-sidebar-group="时长"] > [data-sidebar-toggle]').click();
-      await page.locator('#drawer [data-sidebar-group="时长"] [data-sidebar-collapse]:not([inert])').waitFor({ timeout: 5_000 });
+      await page.locator('#drawer [data-sidebar-group="Duration"] > [data-sidebar-toggle]').click();
+      await page.locator('#drawer [data-sidebar-group="Duration"] [data-sidebar-collapse]:not([inert])').waitFor({ timeout: 5_000 });
       const read = () => page.evaluate(() => {
         const range = document.querySelector('#durationRange')!;
         const bounds = range.getBoundingClientRect();
@@ -952,11 +952,11 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
       const resting = await read();
       const accent = await tokenColor(page, '#drawer', '--color-accent-400');
       assert.ok(resting.fill.startsWith('linear-gradient(90deg') && resting.fill.includes(accent),
-        `已选段不是从 accent-400 起的横向渐变：${resting.fill}`);
+        `The selected segment is not a horizontal gradient starting at accent-400: ${resting.fill}`);
       assert.deepEqual(resting.tips, [
-        { end: 'min', text: '0 分钟', layer: '1', visible: true, inside: true },
-        { end: 'max', text: '不限', layer: '2', visible: true, inside: true },
-      ], '两端读数要常显、贴着轨道两端不越界，没动过时右端那枚在上');
+        { end: 'min', text: '0 min', layer: '1', visible: true, inside: true },
+        { end: 'max', text: 'Any', layer: '2', visible: true, inside: true },
+      ], 'Both end labels stay visible and hug the track ends without crossing them; when untouched the right one sits on top');
 
       await page.locator('#durMin').focus();
       await page.keyboard.press('ArrowRight');
@@ -964,14 +964,14 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
         undefined, { timeout: 5_000 });
       const moved = await read();
       assert.deepEqual(moved.tips.map((tip) => [tip.end, tip.layer, tip.inside]), [['min', '2', true], ['max', '1', true]],
-        '刚动过的那一端没有压到上面');
+        'The just-touched end did not stack on top');
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();
     }
   });
 
-  it('手机侧栏：抽屉开着时遮罩外壳隐形、暗色画在 ::before 上，层级低于抽屉；收起时遮罩退出渲染树', { timeout: 60_000 }, async () => {
+  it('Phone sidebar: while the drawer is open the scrim shell is invisible with its dark layer on ::before, stacked below the drawer; on collapse the scrim leaves the render tree', { timeout: 60_000 }, async () => {
     const opened = await openSidebar(MOBILE);
     try {
       const { page } = opened;
@@ -985,15 +985,15 @@ describe('设计决定：关注详情、作品详情、播放器与侧栏', () =
           fill: getComputedStyle(drawer).getPropertyValue('--glass-fill'),
         };
       });
-      assert.equal((await scrim()).display, 'none', '抽屉收着时遮罩还在渲染树里，iOS 的 Safari 会拿它给状态栏取色');
+      assert.equal((await scrim()).display, 'none', 'While the drawer is closed the scrim stays in the render tree; Safari on iOS uses it to color the status bar');
       await page.locator('#filterBtn').tap();
       await page.waitForFunction(() => document.querySelector('#drawer')?.classList.contains('open'));
       const shown = await scrim();
-      assert.deepEqual([shown.display, shown.visibility], ['block', 'hidden'], '遮罩外壳没有隐形，iOS 的 Safari 会拿它给状态栏取色');
-      assert.equal(shown.dim[0], 'visible', '遮罩的暗色没有画在 ::before 上');
-      assert.notEqual(shown.dim[1], 'rgba(0, 0, 0, 0)', '遮罩的 ::before 是透明的，压不暗身后的页面');
-      assert.ok(shown.layers[0] < shown.layers[1], `遮罩压在抽屉上面，抽屉里就点不动了：${shown.layers}`);
-      assert.ok(shown.fill.replace(/\s/g, '').includes('86%'), `窄屏抽屉的填充没有加厚到 86%：${shown.fill}`);
+      assert.deepEqual([shown.display, shown.visibility], ['block', 'hidden'], 'The scrim shell is not invisible; iOS Safari would sample it for the status bar color');
+      assert.equal(shown.dim[0], 'visible', 'The overlay darkening is not painted on ::before');
+      assert.notEqual(shown.dim[1], 'rgba(0, 0, 0, 0)', 'The scrim\'s ::before is transparent and never darkens the page behind it');
+      assert.ok(shown.layers[0] < shown.layers[1], `With the scrim above the drawer, the drawer cannot be clicked: ${shown.layers}`);
+      assert.ok(shown.fill.replace(/\s/g, '').includes('86%'), `The narrow-screen drawer fill did not thicken to 86%: ${shown.fill}`);
       assert.deepEqual(opened.problems, []);
     } finally {
       await opened.close();

@@ -3,14 +3,14 @@ import { initMiddleTruncate } from '../src/ui-kit/middle-truncate';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-it('截断观察者与复制监听可销毁，重挂同一元素重新观察', () => {
+it('The truncation observer and copy listener can be destroyed, re-observing when the same element remounts', () => {
   vi.useFakeTimers();
   const observers: { observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }[] = [];
   vi.stubGlobal('ResizeObserver', class {
     observe = vi.fn(); disconnect = vi.fn(); unobserve = vi.fn();
     constructor() { observers.push(this); }
   });
-  const root = document.createElement('div'); root.innerHTML = '<span data-middle-truncate>完整文件名</span>';
+  const root = document.createElement('div'); root.innerHTML = '<span data-middle-truncate>Full file name</span>';
   document.body.append(root);
   const remove = vi.spyOn(root, 'removeEventListener');
   const first = initMiddleTruncate(root); first(); first();

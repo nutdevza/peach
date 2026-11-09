@@ -10,15 +10,15 @@ let browser: Browser;
 installDesignBrowser((value) => { browser = value });
 
 const cases = [
-  { name: 'short', html: '已保存配置', label: '' },
-  { name: 'action', html: '已检查 105 个来源：更新 2933 条', label: '查看' },
-  { name: 'long', html: '检查了 105 个来源：更新 2933 条 · 跳过 281 条无资源 · 排除 20 个超大合集 · 跳过 862 条超出首次采集范围的历史内容 · 回查 241 条 · 11 个来源没有更新', label: '查看' },
-  { name: 'undo', html: '已把 12 项移入回收站', label: '撤销' },
-  { name: 'error', html: '检查失败：来源暂时无法连接，请稍后重试。', label: '' },
+  { name: 'short', html: 'Configuration saved', label: '' },
+  { name: 'action', html: 'Checked 105 sources: 2933 updates', label: 'View' },
+  { name: 'long', html: 'Checked 105 sources: 2933 items updated; 281 skipped, no resources; 20 oversized compilations excluded; 862 historical items skipped as out of first-pass scope; 241 rechecked; 11 sources had no updates', label: 'View' },
+  { name: 'undo', html: 'Moved 12 items to trash', label: 'Undo' },
+  { name: 'error', html: 'Check failed: the source cannot be reached right now; please retry later.', label: '' },
 ];
 
 for (const viewport of [...VIEWPORTS, { name: 'narrow', width: 320, height: 844, mobile: true }]) {
-  it(`${viewport.name} 的短回执、长内容与操作按钮都留在视口内`, { timeout: 60_000 }, async () => {
+  it(`${viewport.name} short receipts, long content, and action buttons all stay in the viewport`, { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/follow', viewport);
     try {
       await opened.page.locator('#toasts').waitFor({ state: 'attached' });
@@ -72,8 +72,8 @@ for (const viewport of [...VIEWPORTS, { name: 'narrow', width: 320, height: 844,
 }
 
 for (const viewport of VIEWPORTS) {
-  it(`${viewport.name} 的失败回执自己是红框，停在右下角小窗之上不压住它`, { timeout: 60_000 }, async () => {
-    // 小窗挂在舞台里：进一次详情，那块节点才在。
+  it(`${viewport.name}'s failure receipt has its own red border and sits above the bottom-right mini window without covering it`, { timeout: 60_000 }, async () => {
+    // The mini window is hung in the stage: it only exists once a detail has been entered.
     const opened = await visit(browser, `/assets/${requiredEnv('PEACH_E2E_ITEM')}`, viewport);
     try {
       const mini = opened.page.locator('#miniplayer');
@@ -83,7 +83,7 @@ for (const viewport of VIEWPORTS) {
         const entry = '/dist/peach-app.js';
         const ui = await import(entry);
         ui.showToast(document.getElementById('toasts'), { success: '<svg/>', error: '<svg/>' },
-          'stack-preview', { html: '检查失败：来源暂时无法连接，请稍后重试。', alert: true, timeout: Infinity, action: null });
+          'stack-preview', { html: 'Check failed: the source cannot be reached right now; please retry later.', alert: true, timeout: Infinity, action: null });
       });
       const toast = opened.page.locator('[data-sonner-toast][data-type=error]');
       await toast.waitFor();

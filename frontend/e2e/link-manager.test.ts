@@ -4,23 +4,23 @@ import type { Browser } from 'playwright-core';
 import { launch, visit, settle, VIEWPORTS, layout } from './harness.ts';
 import { verifyColumnContentWidth } from './table-preferences-fixture.ts';
 
-describe('链接检查身份与断链动效', () => {
+describe('Link-check identity and dead-link motion', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
   for (const viewport of VIEWPORTS) {
-    it(`两种结果保留资料入口，断链短线只在检查执行时闪烁（${viewport.name}）`, async () => {
+    it(`Both outcomes keep the profile entry, and the broken-link dash flickers only while the check runs (${viewport.name})`, async () => {
       let phase = 'complete';
       const opened = await visit(browser, '/data-cleanup/links', viewport, async page => {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
-        const row = { id: 1, entity: '示例作者', entity_id: 31, entity_kind: 'performer',
-          face: { id: 31, name: '示例作者', has_image: true }, link_kind: 'official', label: '示例事务所',
+        const row = { id: 1, entity: 'Example author', entity_id: 31, entity_kind: 'performer',
+          face: { id: 31, name: 'Example author', has_image: true }, link_kind: 'official', label: 'Example agency',
           url: `https://example.com/profile/${'long-address-'.repeat(30)}`, note: 'HTTP 404' };
         await page.route('**/api/links/check', route => {
           if (!route.request().postDataJSON()?.status_only) phase = 'running';
           return route.fulfill({ json: {
           status: phase, check_id: 'test', checked: 2, total: 2,
-          gone: [row], unclear: [{ ...row, id: 2, note: 'HTTP 403\n站点拒绝本次访问，暂时无法确认链接是否失效。链接保留，可稍后重试。' }], scope: 'all',
+          gone: [row], unclear: [{ ...row, id: 2, note: 'HTTP 403\nThe site refused this request, so it is unclear yet whether the link is dead. The link is kept and can be retried later.' }], scope: 'all',
         } }); });
         for (const pattern of ['**/entity-image?**', '**/link-mark?**']) {
           await page.route(pattern, route => route.fulfill({ contentType: 'image/svg+xml',
@@ -30,22 +30,22 @@ describe('链接检查身份与断链动效', () => {
       try {
         const { page } = opened;
         await page.locator('[data-link-check-rays]').waitFor();
-        for (const title of ['地址已失效', '本次未访问成功']) {
+        for (const title of ['The address no longer works', 'This visit did not succeed']) {
           const table = page.getByRole('grid', { name: title, exact: true });
           await table.waitFor();
           assert.equal(await table.locator('[data-link-identity]').getAttribute('href'), '/performers/31');
           assert.equal(await table.locator('[data-link-identity] img').count(), 1);
           assert.equal(await table.locator('[data-link-address] img').count(), 1);
           assert.equal(await table.locator('[data-link-name] img').count(), 0);
-          assert.ok((await table.innerText()).includes('Peach 资料'));
-          assert.ok((await table.innerText()).includes('链接名称'));
+          assert.ok((await table.innerText()).includes('Peach profile'));
+          assert.ok((await table.innerText()).includes('Link name'));
           await verifyColumnContentWidth(table, 'url', '[data-link-address]');
           await verifyColumnContentWidth(table, 'note', '[data-link-result]');
         }
         const sections = await page.evaluate(() => {
           const gone = document.querySelector('[data-link-results="gone"]')!;
           const unclear = document.querySelector('[data-link-results="unclear"]')!;
-          const action = [...gone.querySelectorAll('button')].find(node => node.textContent?.includes('条失效链接'))!;
+          const action = [...gone.querySelectorAll('button')].find(node => node.textContent?.includes(' dead links'))!;
           const text = document.querySelector('[data-link-result="unclear"] p')!;
           return { deletionBottom: action.getBoundingClientRect().bottom, unclearTop: unclear.getBoundingClientRect().top,
             textBackground: getComputedStyle(text).backgroundColor,
@@ -57,8 +57,8 @@ describe('链接检查身份与断链动效', () => {
         assert.equal(sections.footerBackground, sections.panelBackground);
         assert.equal(await page.locator('[data-link-results="gone"] [data-link-code]').innerText(), 'HTTP 404');
         assert.equal(await page.locator('[data-link-results="unclear"] [data-link-code]').count(), 0);
-        await page.locator('[data-link-results="unclear"]').getByRole('button', { name: '查看详情', exact: true }).click();
-        await page.getByText('暂时无法确认链接是否失效', { exact: false }).waitFor();
+        await page.locator('[data-link-results="unclear"]').getByRole('button', { name: 'View details', exact: true }).click();
+        await page.getByText('Cannot yet confirm whether the link is dead', { exact: false }).waitFor();
         assert.equal(await page.locator('[data-link-check-rays]').evaluate(node => getComputedStyle(node).animationName), 'none');
         await page.locator('[data-link-check]').click();
         await page.waitForFunction(() => document.querySelector('[data-link-check]')?.getAttribute('aria-busy') === 'true');
@@ -92,10 +92,10 @@ describe('链接检查身份与断链动效', () => {
       } finally { await opened.close(); }
     });
 
-    it(`默认头像与两类 HTTP 结果在明暗主题均可辨识（${viewport.name}）`, async () => {
+    it(`The default avatar and both HTTP outcomes are distinguishable in light and dark themes (${viewport.name})`, async () => {
       const opened = await visit(browser, '/data-cleanup/links', viewport, async page => {
-        const row = { id: 1, entity: '示例作者', entity_id: 31, entity_kind: 'performer',
-          face: { has_image: false }, link_kind: 'social', label: '示例站点', url: 'https://example.com', note: 'HTTP 404' };
+        const row = { id: 1, entity: 'Example author', entity_id: 31, entity_kind: 'performer',
+          face: { has_image: false }, link_kind: 'social', label: 'Example site', url: 'https://example.com', note: 'HTTP 404' };
         await page.route('**/api/links/check', route => route.fulfill({ json: { status: 'complete', check_id: 'contrast',
           gone: [row], unclear: [{ ...row, id: 2, note: 'HTTP 502' }], checked: 2, total: 2 } }));
         await page.route('**/link-mark?**', route => route.fulfill({ contentType: 'image/svg+xml',
@@ -136,13 +136,13 @@ describe('链接检查身份与断链动效', () => {
       } finally { await opened.close() }
     });
 
-    it(`关注列表空状态有背景边框且添加入口位于框内（${viewport.name}）`, async () => {
+    it(`The follows list empty state has a bordered background with the add entry inside the frame (${viewport.name})`, async () => {
       const opened = await visit(browser, '/subscriptions', viewport, async page => {
         await page.route('**/api/follow?summary=1', route => route.fulfill({ json: { sources: [] } }));
       });
       try {
         const { page } = opened;
-        const empty = page.locator('[data-empty-state]').filter({ hasText: '还没有关注来源' });
+        const empty = page.locator('[data-empty-state]').filter({ hasText: 'No follow sources yet' });
         await empty.waitFor();
         const face = await empty.evaluate(node => {
           const style = getComputedStyle(node);
@@ -150,14 +150,14 @@ describe('链接检查身份与断链动效', () => {
             action: node.querySelector('button')?.textContent };
         });
         assert.notEqual(face.background, 'rgba(0, 0, 0, 0)');
-        assert.equal(face.border, '1px'); assert.equal(face.action, '添加关注');
+        assert.equal(face.border, '1px'); assert.equal(face.action, 'Add follow');
         await settle(page);
         const geometry = await layout(page);
         assert.ok(geometry.scrollWidth <= geometry.viewportWidth);
         assert.deepEqual(geometry.offenders, []); assert.deepEqual(opened.problems, []);
         const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-        await empty.getByRole('button', { name: '添加关注', exact: true }).click();
-        await page.getByRole('textbox', { name: '来源链接、名字或 id', exact: true }).waitFor();
+        await empty.getByRole('button', { name: 'Add follow', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Source link, name or id', exact: true }).waitFor();
         assert.equal(new URL(page.url()).searchParams.get('tab'), 'add');
         assert.equal(await page.evaluate(() => performance.timeOrigin), timeOrigin);
       } finally { await opened.close(); }

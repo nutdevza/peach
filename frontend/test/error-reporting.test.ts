@@ -6,7 +6,7 @@ function reports(transport: { mock: { calls: unknown[][] } }): [string, { body: 
   return transport.mock.calls.filter(call => JSON.parse(String((call[1] as RequestInit).body)).kind !== 'context') as [string, { body: string }][];
 }
 
-it('页面启动记录一次环境，原生媒体失败带能力与状态且不携带媒体地址', async () => {
+it('Page start records the environment once; native media failures carry capability and status and never the media URL', async () => {
   const listeners = new Map<string, (event: unknown) => void>();
   vi.spyOn(document, 'addEventListener').mockImplementation((name, callback) => {
     listeners.set(name, callback as (event: unknown) => void);
@@ -32,16 +32,16 @@ it('页面启动记录一次环境，原生媒体失败带能力与状态且不�
   for (const privateValue of ['private.example', 'private.mp4', 'private-token']) expect(body).not.toContain(privateValue);
 });
 
-it('诊断头编码 Unicode 环境且能力探测失败保留空值', async () => {
+it('Diagnostic headers encode the Unicode environment, and failed capability probes keep empty values', async () => {
   const { browserDiagnostics, diagnosticHeaders } = await import('../src/browser-diagnostics');
   vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation(() => { throw new Error('blocked') });
-  vi.spyOn(navigator, 'platform', 'get').mockReturnValue('测试平台');
+  vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Test platform');
   expect(browserDiagnostics().native_codecs.h264).toBeNull();
   const bytes = Uint8Array.from(atob((await diagnosticHeaders())['X-Peach-Browser-Diagnostics']!), value => value.charCodeAt(0));
-  expect(JSON.parse(new TextDecoder().decode(bytes)).platform).toBe('测试平台');
+  expect(JSON.parse(new TextDecoder().decode(bytes)).platform).toBe('Test platform');
 });
 
-it('客户端提示保存浏览器完整版本，受限平台不阻断环境快照', async () => {
+it('Client hints preserve the browser\'s full version, and restricted platforms never block the environment snapshot', async () => {
   vi.stubGlobal('navigator', { userAgent: 'fixture-agent', userAgentData: {
     getHighEntropyValues: async () => ({ fullVersionList: [{ brand: 'Google Chrome', version: '150.0.1.2' }],
       platformVersion: '19.0.0', architecture: 'x86', bitness: '64', wow64: false }),
@@ -50,7 +50,7 @@ it('客户端提示保存浏览器完整版本，受限平台不阻断环境快�
   expect((await detailedBrowserDiagnostics()).client_hints.fullVersionList?.[0]?.version).toBe('150.0.1.2');
 });
 
-it('客户端提示被拒绝时导出仍包含基本环境', async () => {
+it('When client hints are denied the export still includes basic environment info', async () => {
   vi.stubGlobal('navigator', { userAgent: 'fixture-agent', userAgentData: {
     getHighEntropyValues: async () => { throw new DOMException('blocked', 'NotAllowedError') },
   } });
@@ -58,7 +58,7 @@ it('客户端提示被拒绝时导出仍包含基本环境', async () => {
   expect(await detailedBrowserDiagnostics()).toMatchObject({ user_agent: 'fixture-agent', client_hints: { status: 'unavailable' } });
 });
 
-it('HLS 引擎错误保留声明片源，原生视频尚未挂载也能取证', async () => {
+it('An HLS engine error keeps the declared source, and evidence works even before the native video mounts', async () => {
   let onError: ((event: unknown) => void) | undefined;
   vi.spyOn(document, 'addEventListener').mockImplementation((name, callback) => {
     if (name === 'error') onError = callback as (event: unknown) => void;
@@ -76,7 +76,7 @@ it('HLS 引擎错误保留声明片源，原生视频尚未挂载也能取证', 
   expect(body).not.toContain('private-session');
 });
 
-it('浏览器异常有上限、去重，网络失败不会触发递归上报', async () => {
+it('Browser exceptions cap and dedupe, and network failures never trigger recursive reporting', async () => {
   const listeners = new Map<string, (event: unknown) => void>();
   vi.spyOn(window, 'addEventListener').mockImplementation((name, callback) => {
     listeners.set(name, callback as (event: unknown) => void);
@@ -102,7 +102,7 @@ it('浏览器异常有上限、去重，网络失败不会触发递归上报', a
   expect(reports(fetch)).toHaveLength(10);
 });
 
-it('主动取消请求不生成错误记录，真实异常保留类型', async () => {
+it('Actively canceling a request creates no error record, and real exceptions keep their type', async () => {
   const listeners = new Map<string, (event: unknown) => void>();
   vi.spyOn(window, 'addEventListener').mockImplementation((name, callback) => {
     listeners.set(name, callback as (event: unknown) => void);
@@ -120,7 +120,7 @@ it('主动取消请求不生成错误记录，真实异常保留类型', async (
   expect(JSON.parse(reports(fetch)[0]![1].body)).toMatchObject({ error_name: 'TypeError' });
 });
 
-it('正式 bundle 只上报固定文件名与有效 Debug ID，异常类型不携带自定义名称', async () => {
+it('The release bundle reports only fixed file names and valid Debug IDs, and exception types carry no custom names', async () => {
   const listeners = new Map<string, (event: unknown) => void>();
   vi.spyOn(window, 'addEventListener').mockImplementation((name, callback) => {
     listeners.set(name, callback as (event: unknown) => void);
@@ -149,7 +149,7 @@ it('正式 bundle 只上报固定文件名与有效 Debug ID，异常类型不�
   for (const secret of ['private-host', 'private-token', 'other.js', 'private-name', 'private-value']) expect(body).not.toContain(secret);
 });
 
-it('按页拆出的 chunk 也带文件名与 Debug ID 上报，查询串与主机不出本机', async () => {
+it('Per-page chunks also report file name and Debug ID; query strings and hosts never leave the machine', async () => {
   const listeners = new Map<string, (event: unknown) => void>();
   vi.spyOn(window, 'addEventListener').mockImplementation((name, callback) => {
     listeners.set(name, callback as (event: unknown) => void);
@@ -172,7 +172,7 @@ it('按页拆出的 chunk 也带文件名与 Debug ID 上报，查询串与主�
   for (const secret of ['private-host', 'private-token']) expect(body).not.toContain(secret);
 });
 
-it('每分钟窗口恢复上报额度', async () => {
+it('The per-minute window restores reporting quota', async () => {
   let callback: ((event: unknown) => void) | undefined;
   vi.spyOn(window, 'addEventListener').mockImplementation((name, listener) => {
     if (name === 'unhandledrejection') callback = listener as (event: unknown) => void;

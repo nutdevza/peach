@@ -9,7 +9,7 @@ const box = (target: Locator) => target.evaluate(node => {
   return { x, y, width, height };
 });
 type Box = Awaited<ReturnType<typeof box>>;
-/** 找节点与量矩形在页面里的同一次同步调用里做：骨架会被同一副几何的新节点换下，分两步量会量到已脱离文档的旧节点。 */
+/** Finding the nodes and measuring their rects happen in the same synchronous call inside the page: the skeleton is swapped for new nodes with the same geometry, and a two-step measure would hit nodes already out of the document. */
 const liveBox = async (page: Page, selector: string): Promise<Box> => {
   const found = await page.waitForFunction(sel => {
     const node = document.querySelector(sel);
@@ -22,19 +22,19 @@ const liveBox = async (page: Page, selector: string): Promise<Box> => {
 const aligned = (waiting: Box, ready: Box, keys: readonly (keyof Box)[] = ['x', 'y', 'width', 'height']) => {
   for (const key of keys) assert.ok(Math.abs(waiting[key] - ready[key]) <= 1, `${key}: ${waiting[key]} / ${ready[key]}`);
 };
-/* 冷启动时壳层的过渡（`body` 的 padding-left、侧栏宽度等）还在走，整页正文跟着它横移；机器一忙，
-   这段过渡会拖得更长。量骨架前先等全部 CSS 过渡落定：这里比的是骨架与接管后的落位，不是量的那一刻
-   过渡走到了哪儿。骨架的循环闪光是 CSS 动画，不在等待之列。 */
+/* On cold start the shell layer's transitions (`body`'s padding-left, sidebar width, etc.) are still running, and the whole page body shifts sideways with them; a busy machine
+   drags this out longer. Before measuring the skeleton, wait for all CSS transitions to settle: what is compared here is the skeleton's and the takeover's final positions, not where
+   the transition was at measuring time. The skeleton's cycling shimmer is a CSS animation and is excluded from the wait. */
 const transitionsSettled = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations()
   .filter((motion) => motion instanceof CSSTransition)
   .map((motion) => motion.finished.catch(() => undefined))));
 
-describe('管理页面容器与骨架', () => {
+describe('Admin page container and skeleton', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
   for (const reducedMotion of ['no-preference', 'reduce'] as const) {
-    it(`管理菜单拖动显示插入位置并保存顺序（${reducedMotion}）`, { timeout: 60_000 }, async () => {
+    it(`Manage menu dragging shows the insertion point and saves the order (${reducedMotion})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/data-cleanup', VIEWPORTS.find(viewport => !viewport.mobile)!);
       const { page } = opened;
       try {
@@ -55,7 +55,7 @@ describe('管理页面容器与骨架', () => {
         await page.mouse.move(target.x + 2, target.y + target.height / 2, { steps: 10 });
         assert.equal(await picked.getAttribute('data-dragging'), '');
         const line = menu.locator('[data-manage-drop-line]');
-        assert.ok(await line.isVisible(), '插入线应显示在目标位置');
+        assert.ok(await line.isVisible(), 'The insertion line should appear at the target position');
         assert.notEqual(await line.locator('span').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
         assert.equal(await neighbor.evaluate(node => node.style.getPropertyValue('--sidebar-nudge')), '10px');
         assert.equal(await menu.locator('[data-manage="cleanup"]').evaluate(node => node.style.getPropertyValue('--sidebar-delay')), '24ms');
@@ -66,7 +66,7 @@ describe('管理页面容器与骨架', () => {
           assert.equal(await picked.evaluate(node => {
             const rect = node.getBoundingClientRect();
             return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[data-dragging]') === node;
-          }), true, '拾起项移出菜单行后仍应完整可见');
+          }), true, 'A picked-up item moved out of the menu row should remain fully visible');
         } else {
           assert.equal(await neighbor.evaluate(node => getComputedStyle(node).translate), 'none');
           assert.equal(await picked.evaluate(node => getComputedStyle(node).position), 'static');
@@ -80,7 +80,7 @@ describe('管理页面容器与骨架', () => {
         assert.deepEqual(server.posts.find(post => 'manageOrder' in post.body)?.body.manageOrder, expected);
         assert.equal(await menu.locator('[data-dragging],[data-manage-drop-line]').count(), 0);
         assert.equal(await menu.evaluate(node => getComputedStyle(node).overflowY), 'hidden');
-        assert.equal(await page.locator('[data-manage-bar] .ov-y:not([hidden])').count(), 0, '放下后菜单右侧应清除纵向滚动条');
+        assert.equal(await page.locator('[data-manage-bar] .ov-y:not([hidden])').count(), 0, 'After dropping, the menu right side should have no vertical scrollbar');
         assert.equal(new URL(page.url()).pathname, '/data-cleanup');
         await page.reload({ waitUntil: 'load' });
         await settle(page);
@@ -91,12 +91,12 @@ describe('管理页面容器与骨架', () => {
     });
   }
   for (const viewport of VIEWPORTS) {
-    it(`扫描和链接操作位于分隔底栏（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Scan and link actions sit in the divided footer bar (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/data-cleanup', viewport);
       try {
         await settle(opened.page);
-        for (const name of ['扫描与采集', '链接管理']) {
-          if (name === '链接管理') await opened.page.goto(new URL('/data-cleanup/links', opened.page.url()).href);
+        for (const name of ['Scan and scrape', 'Link management']) {
+          if (name === 'Link management') await opened.page.goto(new URL('/data-cleanup/links', opened.page.url()).href);
           const card = opened.page.locator('section').filter({ has: opened.page.getByRole('heading', { name, exact: true }) }).last();
           const geometry = await card.evaluate(node => {
             const children = Array.from(node.children);
@@ -112,12 +112,12 @@ describe('管理页面容器与骨架', () => {
         }
       } finally { await opened.close(); }
     });
-    it(`统计读数和库存图在接管时对齐（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Stats counts and the inventory chart align at takeover (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/stats', viewport);
       let release = () => {};
       try {
         const page = opened.page;
-        await page.getByRole('tablist', { name: '统计视图' }).waitFor();
+        await page.getByRole('tablist', { name: 'Stats view' }).waitFor();
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         const cpu = await page.context().newCDPSession(page);
         await cpu.send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -131,10 +131,10 @@ describe('管理页面容器与骨架', () => {
           const frames: { inventory: boolean; ranking: boolean; metricsY: number; dimensionsY: number }[] = [];
           (window as unknown as { statsPaintFrames: typeof frames }).statsPaintFrames = frames;
           const sample = () => {
-            const metrics = document.querySelector('[role="tablist"][aria-label="统计视图"]');
-            const dimensions = document.querySelector('[role="tablist"][aria-label="统计维度"]');
+            const metrics = document.querySelector('[role="tablist"][aria-label="Stats view"]');
+            const dimensions = document.querySelector('[role="tablist"][aria-label="Stats dimensions"]');
             if (metrics && dimensions) frames.push({
-              inventory: !!document.querySelector('[role="img"][aria-label="网盘与本地"]'),
+              inventory: !!document.querySelector('[role="img"][aria-label="Cloud drives and local"]'),
               ranking: !!document.querySelector('[role="tabpanel"][id$="tags"]'),
               metricsY: metrics.getBoundingClientRect().y,
               dimensionsY: dimensions.getBoundingClientRect().y,
@@ -151,24 +151,24 @@ describe('管理页面容器与骨架', () => {
         const chart = await box(skeleton.locator('[data-stats-chart]').first());
         const waitingLayout = await layout(page);
         release();
-        await page.getByRole('tablist', { name: '统计视图' }).waitFor();
+        await page.getByRole('tablist', { name: 'Stats view' }).waitFor();
         await settle(page);
-        aligned(metrics, await box(page.getByRole('tablist', { name: '统计视图' })));
-        aligned(chart, await box(page.getByRole('img', { name: '网盘与本地', exact: true }).locator('..')), ['x', 'y', 'width']);
+        aligned(metrics, await box(page.getByRole('tablist', { name: 'Stats view' })));
+        aligned(chart, await box(page.getByRole('img', { name: 'Cloud drives and local', exact: true }).locator('..')), ['x', 'y', 'width']);
         await page.waitForFunction(() => (window as unknown as { statsPaintFrames: unknown[] }).statsPaintFrames.length >= 12);
         const frames = await page.evaluate(() => (window as unknown as {
           statsPaintFrames: { inventory: boolean; ranking: boolean; metricsY: number; dimensionsY: number }[];
         }).statsPaintFrames);
-        assert.ok(frames.every(frame => frame.inventory && frame.ranking), '统计首个可见帧缺少选中页签内容');
+        assert.ok(frames.every(frame => frame.inventory && frame.ranking), 'Stats\' first visible frame lacks the selected tab\'s content');
         for (const frame of frames) {
-          assert.ok(Math.abs(frame.metricsY - frames[0]!.metricsY) <= 1, '读数卡加载完成后发生位移');
-          assert.ok(Math.abs(frame.dimensionsY - frames[0]!.dimensionsY) <= 1, '统计维度加载完成后发生位移');
+          assert.ok(Math.abs(frame.metricsY - frames[0]!.metricsY) <= 1, 'Layout shifts after stat cards load');
+          assert.ok(Math.abs(frame.dimensionsY - frames[0]!.dimensionsY) <= 1, 'Layout shifts after the stats dimensions finish loading');
         }
         assert.ok(waitingLayout.scrollWidth <= waitingLayout.viewportWidth);
         assert.deepEqual(opened.problems, []);
       } finally { release(); await opened.close(); }
     });
-    it(`重复文件汇总与文件行使用正文尺寸（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`Duplicate summaries and file rows use body type sizes (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/duplicates', viewport);
       let release = () => {};
       try {
@@ -198,7 +198,7 @@ describe('管理页面容器与骨架', () => {
         assert.ok(dimensions.scrollWidth <= dimensions.viewportWidth);
       } finally { release(); await opened.close(); }
     });
-    it(`高清版骨架与落地同一副几何，摘要在两种主题下都和页面底色分得开（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The HD skeleton has the same geometry as the landed content, and the summary separates from the page background in both themes (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/quality-goals', viewport);
       let release = () => {};
       try {
@@ -222,7 +222,7 @@ describe('管理页面容器与骨架', () => {
         await settle(page);
         aligned(summary, await box(page.locator('#stats [data-collection-summary]')));
         aligned(card, await box(first));
-        // 浅色下 primary 就是页面底色：摘要取 primary 的话整块化进页面，看不出那是一块面。
+        // In light mode primary is the page background itself: if the summary took primary, the whole block would melt into the page with no visible surface.
         const faces = await page.evaluate(() => {
           const root = document.documentElement;
           const before = { theme: root.dataset.theme, dark: root.classList.contains('dark') };
@@ -239,11 +239,11 @@ describe('管理页面容器与骨架', () => {
           return result;
         });
         for (const [theme, [face, ground]] of Object.entries(faces)) {
-          assert.notEqual(face, ground, `${theme} 主题下高清版摘要和页面同一个底色：${face}`);
+          assert.notEqual(face, ground, `Under the ${theme} theme the HD summary shares the page background: ${face}`);
         }
       } finally { release(); await opened.close(); }
     });
-    it(`垃圾卡骨架与落地同一副几何（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The junk card skeleton matches the settled geometry (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/junk-files', viewport);
       let release = () => {};
       try {
@@ -252,7 +252,7 @@ describe('管理页面容器与骨架', () => {
         await page.route('**/api/ads?**', async route => {
           await pending;
           await route.fulfill({ json: { total: 2, all_total: 2, dismissed_total: 0, counts: { video: 2 },
-            items: [1, 2].map(id => ({ id, name: `推广-${id}.mp4`, junk_kind: 'video', why: '文件名像推广',
+            items: [1, 2].map(id => ({ id, name: `promo-${id}.mp4`, junk_kind: 'video', why: 'Filename looks like promo',
               size: 1048576, location: 'local', cost: '' })) } });
         });
         await page.reload({ waitUntil: 'load' });
@@ -265,7 +265,7 @@ describe('管理页面容器与骨架', () => {
         aligned(card, await liveBox(page, '#grid [data-junk-card]'));
       } finally { release(); await opened.close(); }
     });
-    it(`回收站网格与标题、汇总栏同宽（${viewport.name}）`, { timeout: 60_000 }, async () => {
+    it(`The trash grid matches the title and summary bar widths (${viewport.name})`, { timeout: 60_000 }, async () => {
       const opened = await visit(browser, '/trash', viewport);
       try {
         await opened.page.locator('[data-manage-lede] [data-lede-text]').waitFor();
@@ -281,14 +281,14 @@ describe('管理页面容器与骨架', () => {
   }
 });
 
-describe('管理页在极端内容下不撑出视口', () => {
+describe('Manage pages never overflow the viewport even with extreme content', () => {
   const narrow = { name: 'narrow', width: 320, height: 720, mobile: true };
-  const LONG_PATH = `R:/media/${'很长的没有空格的目录名'.repeat(12)}/FC2-PPV-4728193.mp4`;
+  const LONG_PATH = `R:/media/${'a-very-long-directory-name-without-spaces'.repeat(12)}/FC2-PPV-4728193.mp4`;
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
 
-  it('复核页骨架在窄屏上不越过视口，数据到了以后侧栏仍收着', { timeout: 60_000 }, async () => {
+  it('The review skeleton never leaves the viewport on narrow screens, and the sidebar stays collapsed after data arrives', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/review', narrow);
     let release = () => {};
     try {
@@ -302,8 +302,8 @@ describe('管理页在极端内容下不撑出视口', () => {
         workspace: document.querySelector('[data-skeleton="review"]')!.getBoundingClientRect().width,
         page: document.documentElement.scrollWidth,
       }));
-      assert.ok(skeleton.workspace <= narrow.width, `骨架宽 ${skeleton.workspace}`);
-      assert.ok(skeleton.page <= narrow.width, `页面宽 ${skeleton.page}`);
+      assert.ok(skeleton.workspace <= narrow.width, `Skeleton width ${skeleton.workspace}`);
+      assert.ok(skeleton.page <= narrow.width, `Page width ${skeleton.page}`);
       release();
       await page.locator('[data-skeleton="review"]').waitFor({ state: 'detached' });
       await settle(page);
@@ -311,7 +311,7 @@ describe('管理页在极端内容下不撑出视口', () => {
     } finally { release(); await opened.close(); }
   });
 
-  it('高清版的判定原因是一长串路径时在卡内折行，不把页面撑宽', { timeout: 60_000 }, async () => {
+  it('When the HD edition\'s verdict reason is a long path it wraps inside the card instead of widening the page', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/quality-goals', narrow);
     try {
       const page = opened.page;
@@ -324,9 +324,9 @@ describe('管理页在极端内容下不撑出视口', () => {
       await card.waitFor();
       await settle(page);
       const right = (await box(card)).x + (await box(card)).width;
-      assert.ok(right <= narrow.width, `卡片右缘 ${right}`);
+      assert.ok(right <= narrow.width, `Card right edge ${right}`);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth) <= narrow.width);
-      assert.equal(await page.locator('#stats [data-collection-summary] strong').textContent(), '1,234,567 部作品');
+      assert.equal(await page.locator('#stats [data-collection-summary] strong').textContent(), '1,234,567 videos');
       assert.match(await page.locator('#stats').textContent() ?? '', /显示前 1 部，共 1,234,567 部。/);
     } finally { await opened.close(); }
   });

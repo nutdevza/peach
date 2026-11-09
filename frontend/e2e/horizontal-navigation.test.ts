@@ -1,4 +1,4 @@
-/* 横向导航的溢出提示：方向跟随滚动位置，容器伸缩后重算，原生滚动条不占位。 */
+/* The horizontal nav's overflow hints: direction follows scroll position, recomputed after the container resizes, with the native scrollbar taking no space. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import type { Browser, Locator } from 'playwright-core';
@@ -20,14 +20,14 @@ async function edges(row: Locator, left: boolean, right: boolean) {
     bar: getComputedStyle(node).scrollbarWidth,
     mask: getComputedStyle(node).maskImage,
   }));
-  assert.equal(style.bar, 'none', '横向导航露出了原生滚动条');
-  assert.equal(style.mask.includes('linear-gradient'), left || right, '边缘提示与可滚动方向不一致');
+  assert.equal(style.bar, 'none', 'Horizontal navigation shows a native scrollbar');
+  assert.equal(style.mask.includes('linear-gradient'), left || right, 'Edge hints do not match the scrollable directions');
   await row.evaluate(node => node.removeAttribute('data-scroll-test'));
 }
 
 async function scrollPositions(row: Locator) {
   const range = await row.evaluate(node => node.scrollWidth - node.clientWidth);
-  assert.ok(range > 10, `夹具没有产生横向溢出：${range}`);
+  assert.ok(range > 10, `The fixture produced no horizontal overflow: ${range}`);
   await row.evaluate(node => { node.scrollLeft = 0 });
   await edges(row, false, true);
   await row.evaluate(node => { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2 });
@@ -36,21 +36,21 @@ async function scrollPositions(row: Locator) {
   await edges(row, true, false);
 }
 
-describe('横向导航提示', () => {
+describe('Horizontal navigation hint', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
-  it('复核分类在窄屏横滚，桌面分类列不保留横滚提示', { timeout: 60_000 }, async () => {
+  it('Review categories scroll horizontally on narrow screens, and the desktop category column keeps no scroll hint', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/review', MOBILE);
     try {
-      const row = opened.page.getByRole('tablist', { name: '复核分类' });
+      const row = opened.page.getByRole('tablist', { name: 'Review classification' });
       await row.waitFor();
       await settle(opened.page);
       await scrollPositions(row);
       await opened.page.setViewportSize({ width: 1280, height: 844 });
       await opened.page.waitForFunction(() => {
-        const node = document.querySelector('[role="tablist"][aria-label="复核分类"]');
+        const node = document.querySelector('[role="tablist"][aria-label="Review categories"]');
         return node?.getAttribute('aria-orientation') === 'vertical';
       });
       assert.equal(await row.evaluate(node => getComputedStyle(node).maskImage), 'none');
@@ -65,36 +65,36 @@ describe('横向导航提示', () => {
         const host = node.getBoundingClientRect();
         return selected.left >= host.left - 1 && selected.right <= host.right + 1;
       });
-      assert.ok(geometry, '键盘选中的分类没有进入可见范围');
+      assert.ok(geometry, 'The keyboard-selected category never entered the visible range');
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close() }
   });
 
-  it('标签类型和首字导航都显示左右提示，放宽后取消首字提示', { timeout: 60_000 }, async () => {
+  it('Tag types and initial navigation both show horizontal hints, and the initial hint drops once there is room', { timeout: 60_000 }, async () => {
     const opened = await visit(browser, '/tags', MOBILE, async page => {
       await page.route('**/api/index?**', route => route.fulfill({ json: {
-        items: Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (letter, at) => ({ k: `${letter}标签`, n: at + 1, cat: 'general' })),
+        items: Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (letter, at) => ({ k: `${letter} tags`, n: at + 1, cat: 'general' })),
         categories: { meta: 3, relationship: 3, role: 3, appearance: 3, scene: 3, story: 3, position: 3, general: 5 },
         has_more: false,
       } }));
     });
     try {
       const page = opened.page;
-      const row = page.getByRole('group', { name: '标签类型' });
+      const row = page.getByRole('group', { name: 'Tag kinds' });
       await row.waitFor();
       await settle(page);
       await scrollPositions(row);
-      const alphabet = page.getByRole('navigation', { name: '按首字跳转' });
+      const alphabet = page.getByRole('navigation', { name: 'Jump by initial' });
       await scrollPositions(alphabet);
       await page.setViewportSize({ width: 1600, height: 900 });
       await edges(alphabet, false, false);
-      await alphabet.getByRole('button').last().evaluate(node => { node.textContent = '很长的分类名称'.repeat(40) });
+      await alphabet.getByRole('button').last().evaluate(node => { node.textContent = 'A very long category name'.repeat(40) });
       await edges(alphabet, false, true);
       assert.deepEqual(opened.problems, []);
     } finally { await opened.close() }
   });
 
-  it('关注图片视图的下排操作支持横滚和边缘提示', { timeout: 60_000 }, async () => {
+  it('The bottom action row of the follow image view supports horizontal scrolling and edge hints', { timeout: 60_000 }, async () => {
     const opened = await openFollowFeed(browser, '/follow?media=images', MOBILE);
     try {
       await scrollPositions(opened.page.locator('[data-follow-filter-glass] > [data-filter-row="bottom"]'));

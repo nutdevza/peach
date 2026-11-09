@@ -22,8 +22,8 @@ function mounted() {
   return { video, player, media };
 }
 
-describe('Video.js 10 播放会话', () => {
-  it('普通 HTTP 的随机源为无 ID 的视频创建独立播放器', () => {
+describe('10 Video.js playback sessions', () => {
+  it('The plain HTTP random source creates a separate player for videos without an ID', () => {
     vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) });
     const first = mounted().player;
     const second = mounted().player;
@@ -33,13 +33,13 @@ describe('Video.js 10 播放会话', () => {
     } finally { first.dispose(); second.dispose() }
   });
 
-  it('片源交给异步 adapter 后立即播放，原生 play 使用已挂载的片源', async () => {
+  it('Playback starts immediately once the source is handed to the async adapter; native play uses the mounted source', async () => {
     const { video, player, media } = mounted();
     Object.defineProperty(media, 'source', { set: (value: { src: string }) => {
       queueMicrotask(() => { video.src = value.src });
     } });
     const play = vi.spyOn(video, 'play').mockImplementation(() => video.getAttribute('src')
-      ? Promise.resolve() : Promise.reject(new DOMException('没有可播放的片源', 'NotSupportedError')));
+      ? Promise.resolve() : Promise.reject(new DOMException('No playable source', 'NotSupportedError')));
     player.src({ src: '/example.mp4', type: 'video/mp4' });
     await expect(player.play()).resolves.toBeUndefined();
     expect(play).toHaveBeenCalledOnce();
@@ -47,7 +47,7 @@ describe('Video.js 10 播放会话', () => {
     player.dispose();
   });
 
-  it.each(['pause', 'source', 'dispose'] as const)('排队播放期间 %s 会取消该请求', async action => {
+  it.each(['pause', 'source', 'dispose'] as const)('While playback queues, %s cancels that request', async action => {
     const { video, player } = mounted();
     const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
     const pending = player.play();
@@ -59,17 +59,17 @@ describe('Video.js 10 播放会话', () => {
     player.dispose();
   });
 
-  it('媒体错误可补充来源状态文案，展示错误不会再次触发错误处理', () => {
+  it('Media errors can append source status text, and showing the error never re-triggers error handling', () => {
     const { player, media } = mounted();
-    const callback = vi.fn(() => player.error({ code: 2, message: '媒体目录无法访问' }));
+    const callback = vi.fn(() => player.error({ code: 2, message: 'The media folder is unreachable' }));
     player.on('error', callback);
     media.dispatchEvent(new Event('error'));
     expect(callback).toHaveBeenCalledOnce();
-    expect(player.error()).toEqual({ code: 2, message: '媒体目录无法访问' });
+    expect(player.error()).toEqual({ code: 2, message: 'The media folder is unreachable' });
     player.dispose();
   });
 
-  it('固定清晰度和自动码率使用同一条 HLS 引擎，带宽读取实际估计', async () => {
+  it('Fixed quality and auto bitrate share one HLS engine, and bandwidth reads the actual estimate', async () => {
     const { player, media } = mounted();
     player.src({ src: '/example.m3u8', type: 'application/vnd.apple.mpegurl' });
     const levels = player.qualityLevels!();
@@ -84,7 +84,7 @@ describe('Video.js 10 播放会话', () => {
     player.dispose();
   });
 
-  it('清晰度选择排队后切换片源或销毁，不再写入旧引擎', async () => {
+  it('After quality selection queues, switching sources or destroying never writes to the old engine', async () => {
     const { player, media } = mounted();
     player.src({ src: '/first.m3u8', type: 'application/vnd.apple.mpegurl' });
     const levels = player.qualityLevels!();
@@ -96,13 +96,13 @@ describe('Video.js 10 播放会话', () => {
     await Promise.resolve(); expect(media.engine.currentLevel).toBe(-1);
   });
 
-  it('HLS 与 DASH 切源保留原生视频和字幕，销毁停播并解除事件', () => {
+  it('Switching HLS and DASH sources keeps the native video and subtitles; teardown stops playback and removes events', () => {
     const { video, player, media } = mounted();
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
     const load = vi.spyOn(video, 'load').mockImplementation(() => {});
     const played = vi.fn(); player.on('play', played);
     video.dispatchEvent(new Event('play')); expect(played).toHaveBeenCalledOnce();
-    const track = document.createElement('track'); track.label = '中文'; video.append(track);
+    const track = document.createElement('track'); track.label = 'Chinese'; video.append(track);
     player.src({ src: '/example.mpd', type: 'application/dash+xml' });
     expect(media.adapter.destroy).toHaveBeenCalledOnce();
     expect(player.el().querySelector('dash-video > video')).toBe(video);

@@ -1,6 +1,8 @@
-/* 侧栏配色卡与它底下那枚配色钮：两组球画什么、点下去写什么，光晕关掉之后卡上剩什么，设置面板那一格改了
- * 配色这里当场跟上，以及卡作为常驻组件（`RESIDENT_ROUTES['glow-picker']`）由路由树直接画成 `#boardGlowMenu`
- * 的子节点。卡的锚定、开合、玻璃材质与球的像素在真浏览器里量（`e2e/design-*.test.ts`）。 */
+/* The sidebar color card and the color button under it: what the two ball groups paint and what clicks write, what remains
+ * on the card once glow is off, the settings panel's group following on the spot when the scheme changes here, and the card
+ * as a resident component (`RESIDENT_ROUTES['glow-picker']`) rendered by the route tree directly as `#boardGlowMenu`'s child.
+ * The card's anchoring, open/close, glass material and the balls' pixels are measured in a real browser
+ * (`e2e/design-*.test.ts`). */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +15,7 @@ import type { ShellActions } from '../../src/react/router/shell-actions';
 import { createSettingsStore } from '../../src/settings-store';
 import { click } from './render';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口。
+// The first import compiles the whole page subtree the route table pulls in, and the compile wait uses its own bounded window.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 async function load() {
@@ -25,7 +27,7 @@ async function load() {
 }
 let r: Awaited<ReturnType<typeof load>>;
 
-/* 壳启动时的顺序：先画路由树，再接上取数。整个文件共用这一棵，每条用例开自己的那张卡、结束时收掉。 */
+/* Shell startup order: paint the route tree first, then wire up fetching. The whole file shares this tree; each case opens its own card and closes it at the end. */
 beforeAll(async () => {
   r = await load();
   const root = createRoot(document.createElement('div'), r.ROUTER_ROOT_OPTIONS);
@@ -38,7 +40,7 @@ afterEach(() => {
   for (const menu of opened.splice(0)) act(() => { r.releaseManagedRoute(menu) });
 });
 
-/** 照壳的 `loadGlowPicker` 接上：壳建的那张卡交进来，路由树把内容画成它的子节点。 */
+/** Wire up along the shell's `loadGlowPicker`: the card the shell builds is handed in, and the route tree renders the content as its children. */
 async function setup(patch: Partial<GlowSettings['homeGlow']> = {}, accent = 'blue') {
   document.body.innerHTML = '<div class="glowlayer"></div><button id="boardGlowBtn"></button>';
   const root = document.createElement('div');
@@ -57,12 +59,12 @@ const pressed = (root: ParentNode, selector: string) =>
 
 beforeEach(() => {
   localStorage.clear();
-  /* 当场跑完那一帧；回 0，模块里那枚「已排过一帧」的记号也就跟着清零。 */
+  /* Run that frame on the spot; it returns 0, which also clears the module's "frame already scheduled" flag. */
   vi.stubGlobal('requestAnimationFrame', (run: FrameRequestCallback) => { run(0); return 0 });
 });
 
-describe('常驻组件', () => {
-  it('内容直接是 #boardGlowMenu 的子节点，不包 .peach-react；收起只卸内容，卡留在文档里', async () => {
+describe('Resident components', () => {
+  it('The content is a direct child of #boardGlowMenu with no .peach-react wrapper; collapsing unmounts only the content and the card stays in the document', async () => {
     const { root } = await setup();
     expect([...root.children].map((child) => child.tagName.toLowerCase())).toEqual(['header', 'div', 'p', 'div', 'footer']);
     expect(root.querySelector('.peach-react')).toBeNull();
@@ -72,20 +74,20 @@ describe('常驻组件', () => {
   });
 });
 
-describe('两组球', () => {
-  it('上面一组是光晕预设，下面一组是十二档强调色，各自按下当前那一档', async () => {
+describe('Two sets of balls', () => {
+  it('The top group is glow presets and the bottom group is twelve accent colors, each pressing the currently active one', async () => {
     const { root } = await setup({ preset: 'ash' }, 'teal');
     const grids = [...root.querySelectorAll('[role="group"]')].map((grid) => grid.getAttribute('aria-label'));
-    expect(grids).toEqual(['光晕', '强调色']);
-    expect([...root.querySelectorAll('[data-glow-head]')].map((head) => head.textContent)).toEqual(['光晕重置', '强调色']);
-    expect(pressed(root, '[data-glow-preset]')).toEqual(['灰雾']);
+    expect(grids).toEqual(['Glow', 'Accent color']);
+    expect([...root.querySelectorAll('[data-glow-head]')].map((head) => head.textContent)).toEqual(['Glow reset', 'Accent color']);
+    expect(pressed(root, '[data-glow-preset]')).toEqual(['Mist gray']);
     expect([...root.querySelectorAll('[data-accent]')].map((chip) => chip.getAttribute('data-accent')))
       .toEqual(ACCENTS.map(([key]) => key));
     expect(root.querySelector('[data-accent="teal"] [data-accent-ball="teal"]')).not.toBeNull();
     expect(pressed(root, '[data-accent]')).toEqual([ACCENTS.find(([key]) => key === 'teal')![1]]);
   });
 
-  it('「玻璃原色」那一格的球不带颜色，交给样式表按主题取；其余每格带一份 conic 填充', async () => {
+  it('The ball in the "glass original color" cell carries no color and lets the stylesheet pick per theme; every other cell carries a conic fill', async () => {
     const { root } = await setup();
     const native = root.querySelector<HTMLElement>('[data-glow-preset="native"] [data-glow-ball]')!;
     expect([native.hasAttribute('data-glow-native'), native.style.getPropertyValue('--glow-chip')]).toEqual([true, '']);
@@ -93,14 +95,14 @@ describe('两组球', () => {
     expect(ash.style.getPropertyValue('--glow-chip')).toMatch(/^conic-gradient\(/);
   });
 
-  it('「自定义」只在真手调过颜色之后才占一格', async () => {
+  it('"Custom" takes a slot only after colors were genuinely hand-tuned', async () => {
     expect((await setup()).root.querySelector('[data-glow-preset="custom"]')).toBeNull();
     expect((await setup({ preset: 'custom' })).root.querySelector('[data-glow-preset="custom"]')).not.toBeNull();
   });
 });
 
-describe('点下去写什么', () => {
-  it('换一档光晕连强调色一起换，并把光晕、玻璃面与强调色写到页面上', async () => {
+describe('What pressing writes', () => {
+  it('Switching a glow tier also switches the accent color and writes the glow, glass surface, and accent onto the page', async () => {
     const { root, store } = await setup({ preset: 'ash' });
     await click(root.querySelector('[data-glow-preset="amber"]'));
     expect(store.value.homeGlow).toMatchObject({ preset: 'amber', ...glowPalette('amber') });
@@ -108,45 +110,45 @@ describe('点下去写什么', () => {
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!).homeGlow.preset).toBe('amber');
     expect(document.documentElement.dataset.accent).toBe(glowAccent('amber'));
     expect(document.querySelector<HTMLElement>('.glowlayer')!.style.getPropertyValue('--glow-strength')).not.toBe('');
-    expect(pressed(root, '[data-glow-preset]')).toEqual(['钨丝暖阁']);
+    expect(pressed(root, '[data-glow-preset]')).toEqual(['Filament warmth']);
   });
 
-  it('单点强调色只改强调色，不动光晕', async () => {
+  it('A single accent pick changes only the accent, never the glow', async () => {
     const { root, store } = await setup({ preset: 'ash' });
     await click(root.querySelector('[data-accent="rose"]'));
     expect([store.value.accent, store.value.homeGlow.preset, document.documentElement.dataset.accent]).toEqual(['rose', 'ash', 'rose']);
   });
 
-  it('「重置」把配色与强调色收回默认，强度这类参数不动', async () => {
+  it('"Reset" returns palette and accent to defaults while parameters like intensity stay put', async () => {
     const { root, store } = await setup({ preset: 'amber', strength: 40 }, 'rose');
     await click(root.querySelector('[data-glow-preset-reset]'));
     expect(store.value.homeGlow).toMatchObject({ preset: 'ash', strength: 40, ...glowPalette('ash') });
     expect(store.value.accent).toBe(DEFAULT_ACCENT);
   });
 
-  it('「详细设置」交回壳去开设置面板', async () => {
+  it('Detailed settings hands back to the shell to open the settings panel', async () => {
     const { root, openDetails } = await setup();
     await click(root.querySelector('[data-glow-detail]'));
     expect(openDetails).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('与别处同步', () => {
-  it('光晕关掉之后只剩强调色那一组，标题与「重置」一起收起', async () => {
+describe('Synced with elsewhere', () => {
+  it('With glow off only the accent group remains, and the title collapses together with "Reset"', async () => {
     const { root } = await setup({ on: false });
     expect([root.querySelector<HTMLElement>('[data-glow-presets]')!.hidden, root.querySelector<HTMLElement>('[data-glow-grid]')!.hidden,
       root.querySelector<HTMLElement>('[data-accent-grid]')!.hidden]).toEqual([true, true, false]);
   });
 
-  it('设置面板那一格选一档，卡里同一枚当场按下，焦点所在那一枚还是同一个节点', async () => {
+  it('Choosing a tier in the settings panel presses the same one in the card on the spot, and the focused one is still the same node', async () => {
     const { root, store } = await setup({ preset: 'ash' });
     const amber = root.querySelector('[data-glow-preset="amber"]');
     act(() => chooseGlowPreset('amber', store));
-    expect(pressed(root, '[data-glow-preset]')).toEqual(['钨丝暖阁']);
+    expect(pressed(root, '[data-glow-preset]')).toEqual(['Filament warmth']);
     expect(root.querySelector('[data-glow-preset="amber"]')).toBe(amber);
   });
 
-  it('配色钮上那枚点报第一枚光晕色，原色那一档挂标记，光晕关掉之后改报强调色', async () => {
+  it('The dot on the palette button reports the first glow color, the native tier adds a marker, and after glow is off it reports the accent color', async () => {
     const { store } = await setup({ preset: 'ash' });
     const button = document.querySelector<HTMLElement>('#boardGlowBtn')!;
     wireGlowButton(button, store);

@@ -5,11 +5,11 @@ import type { Browser } from 'playwright-core';
 import { launch, settle, visit, VIEWPORTS } from './harness.ts';
 import { JAV_DETAIL, mockJavDetail } from './jav-detail-fixture.ts';
 
-describe('图片导航固定位置与悬停', () => {
+describe('Image navigation\'s fixed position and hover', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：横竖图箭头固定在媒体区边缘`, { timeout: 60000 }, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: arrows for landscape and portrait images stay pinned to the media area edge`, { timeout: 60000 }, async () => {
     const opened = await visit(browser, '/', viewport);
     const { page } = opened;
     try {

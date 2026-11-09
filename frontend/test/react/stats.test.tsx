@@ -1,9 +1,9 @@
-/* 统计页的行为：一屏读的是不是同一份数、四张卡当页签切到哪一层、几个空态去哪、
- * 点内容标签交回给壳的是哪个键、图表的分档怎么折算。
+/* The stats page's behavior: whether one screen reads one copy of data, which layer each of the four tab-cards opens, where
+ * the empty states go, which key clicking a content tag hands back to the shell, and how the charts' binning reduces.
  *
- * 外观（卡片间距、阴影）是设计决定，由 `frontend/e2e/design-*.test.ts` 读
- * `getComputedStyle` 断言；这里只看结构、文字与请求。Recharts 在这里量不到容器尺寸，
- * 画不出图形本身，图的读数从图例、页头与纯函数上验。 */
+ * Looks (card spacing, shadows) are design decisions asserted by `frontend/e2e/design-*.test.ts` reading `getComputedStyle`;
+ * this file covers only structure, text and requests. Recharts cannot measure container sizes here and cannot draw the shapes
+ * themselves, so chart readouts are verified from legends, headers and pure functions. */
 import { act } from 'react';
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -21,20 +21,20 @@ import { StatsPage } from '../../src/react/stats/stats-page';
 
 import { actionOrder, buttonNamed, click, mount, mountRoot } from './render';
 
-// 客户端是模块级的单例（所有 React 根共用一个），用例之间不清就互相喂数据。
+// The client is a module-level singleton (all React roots share one); without clearing between test cases they feed each other data.
 afterEach(() => queryClient.clear());
 
-/* Query 派发更新用的是它自己抓住的那个真 `setTimeout(0)`，假时钟推不动它：推完时钟
-   断言到的还是上一帧的 DOM。用例里改成当场派发。 */
+/* Query dispatches updates through the real `setTimeout(0)` it captured itself, which the fake clock cannot advance: after advancing the clock
+   the assertions still see the previous frame's DOM. The case dispatches immediately instead. */
 notifyManager.setScheduler((notify) => notify());
 
 const payload = (overrides: Partial<StatsData> = {}): StatsData => ({
   by_loc: [{ k: 'local', n: 3, bytes: 3221225472, videos: 3 },
     { k: '115', n: 1, bytes: 1073741824, videos: 1 }],
   by_medium: [{ k: 'video', n: 4, bytes: 4294967296 }, { k: 'image', n: 6, bytes: 1048576 }],
-  by_library: [{ k: 'main', name: '主库', icon: 'film', videos: 4, bytes: 4294967296 }],
-  by_length: [{ k: '速食', n: 1 }, { k: '短', n: 3 }, { k: '中', n: 0 }, { k: '长', n: 0 }],
-  by_quality: [{ k: '4K', n: 0 }, { k: '2K', n: 0 }, { k: '1080P', n: 4 }, { k: '720P', n: 0 }, { k: '低画质', n: 0 }],
+  by_library: [{ k: 'main', name: 'Main library', icon: 'film', videos: 4, bytes: 4294967296 }],
+  by_length: [{ k: 'Quick picks', n: 1 }, { k: 'short', n: 3 }, { k: 'medium', n: 0 }, { k: 'long', n: 0 }],
+  by_quality: [{ k: '4K', n: 0 }, { k: '2K', n: 0 }, { k: '1080P', n: 4 }, { k: '720P', n: 0 }, { k: 'Low quality', n: 0 }],
   play_activity: {
     timezone: 'UTC+08:00',
     days: [{ date: '2026-09-20', count: 1 }, { date: '2026-09-22', count: 1 }],
@@ -50,7 +50,7 @@ const payload = (overrides: Partial<StatsData> = {}): StatsData => ({
     o_total: 5, liked: 1, dislike: 1, seen: 2, trash: 0, skimmed: 1,
   },
   recent: [{
-    id: 42, name: 'one.mp4', creator: '甲', play_seconds: 600,
+    id: 42, name: 'one.mp4', creator: 'Alpha', play_seconds: 600,
     duration: 1200, max_reached: 0.9, o_count: 0, kind: 'library',
   }],
   storage_volumes: [{
@@ -61,13 +61,13 @@ const payload = (overrides: Partial<StatsData> = {}): StatsData => ({
   ...overrides,
 });
 
-/** 遗留层交出来的那几个助手，换成可辨认的最小实现。 */
+/** The helpers handed over by the legacy layer, replaced with a recognizable minimal implementation. */
 const legacyProps = () => ({
-  tagLabel: (key: string) => `标签 ${key}`,
+  tagLabel: (key: string) => `Tag ${key}`,
   onTag: vi.fn<(key: string) => void>(),
 });
 
-/** 依次回这几份数据，最后一份之后一直回它。`null` 那一份回 500。 */
+/** Returns these responses in order, repeating the last one forever after. The `null` entry returns 500. */
 function serve(...responses: (StatsData | null)[]) {
   let at = 0;
   const fetcher = vi.fn(async (_input: string, _init?: RequestInit) => {
@@ -75,13 +75,13 @@ function serve(...responses: (StatsData | null)[]) {
     at += 1;
     return body
       ? { ok: true, status: 200, json: async () => body }
-      : { ok: false, status: 500, json: async () => ({ message: '数据库当前只能浏览' }) };
+      : { ok: false, status: 500, json: async () => ({ message: 'Database is currently browse-only' }) };
   });
   vi.stubGlobal('fetch', fetcher);
   return fetcher;
 }
 
-/** 走完真实的首屏路径：先 prefetch 落进缓存，再挂载。 */
+/** Runs the real first-screen path: prefetch lands in the cache first, then mount. */
 async function open(data: StatsData | null = payload(), props = legacyProps()) {
   const fetcher = serve(data);
   await prefetchStats(new AbortController().signal).catch(() => {});
@@ -93,61 +93,61 @@ async function open(data: StatsData | null = payload(), props = legacyProps()) {
 const tabNamed = (root: ParentNode, name: string) =>
   [...root.querySelectorAll<HTMLElement>('[role=tab]')].find((tab) => tab.textContent?.includes(name)) ?? null;
 
-it('整页一个请求：四张卡和下面三个面板读的是同一份快照', async () => {
+it('One request for the whole page: the four cards and the three panels below read the same snapshot', async () => {
   const { fetcher, host } = await open();
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0]?.[0]).toBe(STATS_URL);
   expect(host.querySelectorAll('[role=tablist]')).toHaveLength(2);
   expect([...host.querySelectorAll('[role=tablist]')[0]!.querySelectorAll('[role=tab]')]
     .map((tab) => tab.querySelector('b')?.textContent))
-    .toEqual(['4', '2', '50%', '1 个卷']);
+    .toEqual(['4', '2', '50%', '1 volume']);
 });
 
-it('四张卡就是页签：点「看过」换到看过那一层，其余的收起来', async () => {
+it('The four cards are tabs: clicking "Watched" switches to that layer and the others collapse', async () => {
   const { host } = await open();
-  await click(tabNamed(host, '看过'));
-  expect(tabNamed(host, '看过')?.getAttribute('aria-selected')).toBe('true');
-  expect(tabNamed(host, '馆藏视频')?.getAttribute('aria-selected')).toBe('false');
+  await click(tabNamed(host, 'Watched'));
+  expect(tabNamed(host, 'Watched')?.getAttribute('aria-selected')).toBe('true');
+  expect(tabNamed(host, 'Library videos')?.getAttribute('aria-selected')).toBe('false');
   const panel = host.querySelector('[role=tabpanel]')!;
-  expect(panel.textContent).toContain('个作品有播放记录');
-  expect(panel.textContent).toContain('高潮计数');
-  expect(panel.textContent).not.toContain('已抽帧');
+  expect(panel.textContent).toContain('videos have play records');
+  expect(panel.textContent).toContain('Climax count');
+  expect(panel.textContent).not.toContain('Frames extracted');
 });
 
-/** 库存那一层的两张径向图：图形那一块以图的标题为名。 */
+/** The two radial charts in the stock layer: the chart block is named after the chart's title. */
 const radialCharts = (root: ParentNode) =>
   [...root.querySelectorAll<HTMLElement>('[role=tabpanel] div[role=img]')];
 
-it('库存那一层每个来源一圈，图例用来源的界面名称', async () => {
+it('The inventory layer draws one ring per source, with the legend using the source\'s UI name', async () => {
   const { host } = await open();
   const charts = radialCharts(host);
-  expect(charts.map((chart) => chart.getAttribute('aria-label'))).toEqual(['网盘与本地', '媒体库']);
+  expect(charts.map((chart) => chart.getAttribute('aria-label'))).toEqual(['Cloud drives and local', 'Media library']);
   const tiles = [...charts[0]!.closest('section')!.querySelectorAll('button')];
-  expect(tiles.map((tile) => tile.querySelector('span')?.textContent)).toEqual(['本地', '115']);
+  expect(tiles.map((tile) => tile.querySelector('span')?.textContent)).toEqual(['Local', '115']);
   expect(tiles.map((tile) => tile.querySelector('b')?.textContent)).toEqual(['3', '1']);
   expect(tiles[1]!.querySelector('svg use')?.getAttribute('href')).toBe(`#i-${MEDIA_SOURCE_ICONS['115']}`);
   expect(charts[1]!.closest('section')!.querySelector('button svg use')?.getAttribute('href')).toBe('#i-film');
 });
 
-it('满圈是最长那段的 1.1 倍，圈数越多每圈越细', () => {
+it('A full circle is 1.1x the longest segment; the more rings, the thinner each ring', () => {
   expect(radialCeiling([10, 5])).toBeCloseTo(11);
   expect(radialCeiling([])).toBeCloseTo(1.1);
   expect([2, 12, 40].map(radialBarSize)).toEqual([14, 8, 4]);
 });
 
-it('指到垫到最小弧长的那一段，浮层读原始数，不读画图用的弧长', async () => {
-  // 拿掉 `ResizeObserver` 让 Recharts 按初始尺寸画；声明减少动态效果，圈直接是终态。
+it('Pointing at a segment padded to the minimum arc length, the overlay reads the raw number, not the drawing arc length', async () => {
+  // Remove ResizeObserver so Recharts draws at its initial size; declare reduced motion, and the ring goes straight to its final state.
   vi.stubGlobal('ResizeObserver', undefined);
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('reduce'), media: query, addEventListener() {}, removeEventListener() {},
   }));
-  // 满圈 3023 × 1.1，最小弧长是它的 2%：66.506，比欧美剧情的 36 大，那一段画的是垫高的弧。
+  // Full circle 3023 × 1.1, the minimum arc length is 2% of it: 66.506, larger than the 36 for Western dramas, so that segment draws a raised arc.
   const rows = [
-    { name: '单人剧情', value: 3023 }, { name: '共演剧情', value: 128 },
-    { name: '欧美剧情', value: 36 }, { name: '写真', value: 198 },
+    { name: 'Solo story', value: 3023 }, { name: 'Co-starring story', value: 128 },
+    { name: 'Western story', value: 36 }, { name: 'Photobook', value: 198 },
   ];
-  const host = await mount(<RadialCard title="媒体库" rows={rows} empty="" />);
-  // 每圈的底色扇区：路径头一段是 `M cx,cy-外径`，第二段弧是内径，取中间那条半径指上去。
+  const host = await mount(<RadialCard title="Media library" rows={rows} empty="" />);
+  // The base-color sector of each ring: the path's first segment is M cx,cy-outerRadius, the second arc is the inner radius, take the middle radius and point up to it.
   const rings = [...host.querySelectorAll('path.recharts-radial-bar-background-sector')].map((path) => {
     const [outer, inner] = [...(path.getAttribute('d') ?? '').matchAll(/A ([\d.]+),/g)].map(([, r]) => Number(r));
     return { cx: Number(path.getAttribute('cx')), cy: Number(path.getAttribute('cy')), r: (outer! + inner!) / 2 };
@@ -163,11 +163,11 @@ it('指到垫到最小弧长的那一段，浮层读原始数，不读画图用�
     const tip = host.querySelector('.recharts-tooltip-wrapper')!;
     return [...tip.querySelectorAll('span')].map((span) => span.textContent);
   };
-  expect(await tipFor(2)).toEqual(['欧美剧情', '36']);
-  expect(await tipFor(0)).toEqual(['单人剧情', '3,023']);
+  expect(await tipFor(2)).toEqual(['Western story', '36']);
+  expect(await tipFor(0)).toEqual(['Solo story', '3,023']);
 });
 
-it('点图例把那一段钉住，读数跟着换；再点一次放开', async () => {
+it('Clicking the legend pins that segment and the count follows; clicking again releases it', async () => {
   const { host } = await open();
   const card = radialCharts(host)[0]!.closest('section')!;
   const tile = [...card.querySelectorAll('button')].find((button) => button.textContent?.startsWith('115'))!;
@@ -178,22 +178,22 @@ it('点图例把那一段钉住，读数跟着换；再点一次放开', async (
   expect(card.querySelector('header b')?.textContent).toBe('1');
   await click(tile);
   expect(tile.getAttribute('aria-pressed')).toBe('false');
-  expect(card.querySelector('h3')?.textContent).toBe('网盘与本地');
+  expect(card.querySelector('h3')?.textContent).toBe('Cloud drive and local');
 });
 
-it('库存那一层按时长、画质、文件类型各出一张分布图，页头读合计', async () => {
+it('The stock layer renders one distribution chart each for duration, quality, and file type; the page header reads the totals', async () => {
   const { host } = await open();
   const panel = host.querySelector('[role=tabpanel]')!;
   const bars = [...panel.querySelectorAll('section[aria-label]')];
   expect(bars.map((bar) => [bar.getAttribute('aria-label'), bar.querySelector('header b')?.textContent]))
-    .toEqual([['时长', '4'], ['画质', '4'], ['文件类型', '10']]);
+    .toEqual([['Duration', '4'], ['Quality', '4'], ['File types', '10']]);
 });
 
-it('分布图的分档：时长换成分钟区间，文件类型多的在前，播放次数长尾并档', () => {
-  expect(lengthRows([{ k: '速食', n: 1 }, { k: '长', n: 2 }, { k: '超长', n: 3 }]))
-    .toEqual([{ name: '<5 分钟', value: 1 }, { name: '>40 分钟', value: 2 }, { name: '超长', value: 3 }]);
+it('Distribution buckets: duration becomes minute ranges, file types sort most-first, and the play-count long tail is merged into buckets', () => {
+  expect(lengthRows([{ k: 'Quick picks', n: 1 }, { k: 'long', n: 2 }, { k: 'Extra long', n: 3 }]))
+    .toEqual([{ name: '<5 min', value: 1 }, { name: '40 min and up', value: 2 }, { name: 'Extra long', value: 3 }]);
   expect(mediumRows([{ k: 'video', n: 4, bytes: 0 }, { k: 'account', n: 9, bytes: 0 }, { k: 'x', n: 1, bytes: 0 }]))
-    .toEqual([{ name: '账号', value: 9 }, { name: '视频', value: 4 }, { name: 'x', value: 1 }]);
+    .toEqual([{ name: 'Account', value: 9 }, { name: 'Videos', value: 4 }, { name: 'x', value: 1 }]);
   expect(replayRows([{ k: 1, n: 52 }, { k: 2, n: 13 }, { k: 4, n: 6 }, { k: 7, n: 1 }, { k: 9, n: 1 }, { k: 12, n: 2 }]))
     .toEqual([
       { name: '1', value: 52 }, { name: '2', value: 13 }, { name: '3', value: 0 },
@@ -202,29 +202,29 @@ it('分布图的分档：时长换成分钟区间，文件类型多的在前，�
     ]);
 });
 
-it('看过那一层有播放时间的两张热力图，指到一格读数换成那一格', async () => {
+it('The watched layer has two play-time heatmaps, and pointing at a cell swaps the reading to that cell', async () => {
   const { host } = await open();
-  await click(tabNamed(host, '看过'));
+  await click(tabNamed(host, 'Watched'));
   const panel = host.querySelector('[role=tabpanel]')!;
   const heats = [...panel.querySelectorAll('svg[role=img]')];
-  expect(heats.map((heat) => heat.getAttribute('aria-label'))).toEqual(['播放时间', '每日播放']);
+  expect(heats.map((heat) => heat.getAttribute('aria-label'))).toEqual(['Play time', 'Daily plays']);
   const card = heats[0]!.closest('section')!;
   expect(card.querySelector('header b')?.textContent).toBe('2');
   expect(card.querySelector('footer')?.textContent).toContain('UTC+08:00');
-  const cell = card.querySelector<SVGRectElement>('rect[aria-label="周一 23:00，1 个作品"]')!;
+  const cell = card.querySelector<SVGRectElement>('rect[aria-label="Mon 23:00, 1 video"]')!;
   await act(async () => { cell.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); });
-  expect(card.querySelector('header small')?.textContent).toBe('周一 23:00');
+  expect(card.querySelector('header small')?.textContent).toBe('Mon 23:00');
   expect(card.querySelector('header b')?.textContent).toBe('1');
   await act(async () => { cell.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
   expect(card.querySelector('header b')?.textContent).toBe('2');
-  expect(panel.querySelector('section[aria-label="播放次数"] header b')?.textContent).toBe('2');
-  const liked = [...panel.querySelectorAll('span')].find((term) => term.textContent === '喜欢');
+  expect(panel.querySelector('section[aria-label="Play count"] header b')?.textContent).toBe('2');
+  const liked = [...panel.querySelectorAll('span')].find((term) => term.textContent === 'Like');
   expect(liked?.nextElementSibling?.textContent).toBe('1');
 });
 
-it('一张热力图只占一个 Tab 停靠点，方向键在格子之间挪', async () => {
+it('One heatmap takes a single Tab stop; arrow keys move between cells', async () => {
   const { host } = await open();
-  await click(tabNamed(host, '看过'));
+  await click(tabNamed(host, 'Watched'));
   const card = host.querySelector('[role=tabpanel] svg[role=img]')!.closest('section')!;
   const stops = () => [...card.querySelectorAll<SVGRectElement>('rect[tabindex="0"]')];
   expect(card.querySelectorAll('rect').length).toBe(168);
@@ -237,33 +237,33 @@ it('一张热力图只占一个 Tab 停靠点，方向键在格子之间挪', as
   expect(document.activeElement?.getAttribute('data-cell')).toBe('24');
   expect(stops().map((cell) => cell.dataset.cell)).toEqual(['24']);
   expect(card.querySelector('header small')?.textContent).toBe(
-    document.activeElement?.getAttribute('aria-label')?.split('，')[0]);
+    document.activeElement?.getAttribute('aria-label')?.split(', ')[0]);
   await act(async () => {
     document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
   });
   expect(document.activeElement?.getAttribute('data-cell')).toBe('47');
 });
 
-it('没有播放时间记录时看过那一层不出热力图，留一张说明卡', async () => {
+it('Without play-time records the watched layer draws no heatmap, leaving one note card', async () => {
   const { host } = await open(payload({ play_activity: { timezone: 'UTC+08:00', days: [], hours: [] } }));
-  await click(tabNamed(host, '看过'));
+  await click(tabNamed(host, 'Watched'));
   expect(host.querySelector('[role=tabpanel] svg[role=img]')).toBeNull();
-  expect(host.querySelector('[role=tabpanel] section[aria-label="播放时间"] p')?.textContent)
-    .toBe('开始播放后，这里会显示播放落在一周的哪些时段。');
+  expect(host.querySelector('[role=tabpanel] section[aria-label="Playback time"] p')?.textContent)
+    .toBe('Once playback starts, this shows which weekday hours your plays land in.');
 });
 
-it('全是 0 的分布图与没有分段的径向图都换成说明卡', async () => {
+it('All-zero distributions and segment-less radial charts both swap to note cards', async () => {
   const { host } = await open(payload({
     by_library: [],
     by_quality: [{ k: '4K', n: 0 }, { k: '1080P', n: 0 }],
   }));
   const panel = host.querySelector('[role=tabpanel]')!;
-  expect(panel.querySelector('section[aria-label="媒体库"] p')?.textContent)
-    .toBe('把媒体目录归进媒体库后，这里会按库显示视频数。');
-  expect(panel.querySelector('section[aria-label="画质"] p')?.textContent).toBe('探测画质后，这里会显示画质分布。');
+  expect(panel.querySelector('section[aria-label="Library"] p')?.textContent)
+    .toBe('Once media folders join libraries, this shows video counts per library.');
+  expect(panel.querySelector('section[aria-label="Quality"] p')?.textContent).toBe('After quality is probed, the quality distribution shows here.');
 });
 
-it('计数取不到时读「未取得」，不白屏也不读成 NaN', async () => {
+it('An unavailable count reads "Unavailable" — never a blank screen or NaN', async () => {
   const { host } = await open(payload({
     tag_cov: null,
     attribution: { videos: 4, creator: null, code: null, studio: null, thumb: null, duration: null },
@@ -273,80 +273,80 @@ it('计数取不到时读「未取得」，不白屏也不读成 NaN', async () 
     },
   }));
   const cards = [...host.querySelectorAll('[role=tablist]')[0]!.querySelectorAll('[role=tab]')];
-  expect(cards.map((tab) => tab.querySelector('b')?.textContent)).toEqual(['4', '未取得', '未取得', '1 个卷']);
+  expect(cards.map((tab) => tab.querySelector('b')?.textContent)).toEqual(['4', 'Not fetched', 'Not fetched', '1 volume']);
   expect(host.textContent).not.toContain('NaN');
 });
 
-it('计数加千分位，百分比夹在 0 到 100，有一点就不读 0%', () => {
+it('Counts get thousands separators, percentages clamp to 0 through 100, and any fraction means it never reads 0%', () => {
   expect(fmtCount(1234567)).toBe((1234567).toLocaleString());
-  expect(fmtCount(null)).toBe('未取得');
+  expect(fmtCount(null)).toBe('Not fetched');
   expect([percentOf(150, 100), percentOf(-3, 100), percentOf(5, 0), percentOf(null, 10)]).toEqual([100, 0, 0, 0]);
   expect([percentText(1, 1000), percentText(0, 1000), percentText(1, 2)]).toEqual(['<1%', '0%', '50%']);
 });
 
-it('播放时长：不到一小时读分钟，不到 48 小时读小时，再往上读天', () => {
+it('Playback duration: under one hour reads minutes, under 48 hours reads hours, and beyond that reads days', () => {
   expect([playedFor(1800), playedFor(7200), playedFor(48 * 3600), playedFor(-5), playedFor(null)])
-    .toEqual(['30 分钟', '2.0 小时', '2 天', '0 分钟', '未取得']);
+    .toEqual(['30 min', '2.0 hours', '2 days', '0 min', 'Not fetched']);
 });
 
-it('径向图超过六段并掉尾部，体积跟着合计；负数与非有限值不画', () => {
-  const rows = Array.from({ length: 8 }, (_, at) => ({ name: `库${at}`, value: 80 - at * 10, bytes: 1 }));
-  const slices = radialSlices([...rows, { name: '坏', value: -1 }, { name: '空', value: Number.NaN }]);
-  expect(slices.map((row) => row.name)).toEqual(['库0', '库1', '库2', '库3', '库4', '其余 3 项']);
-  expect(slices.at(-1)).toEqual({ name: '其余 3 项', value: 30 + 20 + 10, bytes: 3 });
+it('The radial chart merges the tail past six segments with volume following the sum; negatives and non-finite values never paint', () => {
+  const rows = Array.from({ length: 8 }, (_, at) => ({ name: `lib${at}`, value: 80 - at * 10, bytes: 1 }));
+  const slices = radialSlices([...rows, { name: 'broken', value: -1 }, { name: 'empty', value: Number.NaN }]);
+  expect(slices.map((row) => row.name)).toEqual(['lib0', 'lib1', 'lib2', 'lib3', 'lib4', '3 more items']);
+  expect(slices.at(-1)).toEqual({ name: '3 more items', value: 30 + 20 + 10, bytes: 3 });
 });
 
-it('不为 0 的段至少画满圈的 2%，0 仍是 0', () => {
+it('Non-zero segments render at least 2% of the full circle; zero stays 0', () => {
   expect(radialArc(1, 1000)).toBe(20);
   expect(radialArc(500, 1000)).toBe(500);
   expect(radialArc(0, 1000)).toBe(0);
 });
 
-it('柱端读数十万以上换成万、亿', () => {
+it('Bar tip counts from 100k up switch to 10k and 100M units', () => {
   expect([shortCount(99999), shortCount(123456), shortCount(1_234_567_890)])
-    .toEqual([(99999).toLocaleString(), '12.3万', '12.3亿']);
+    .toEqual([(99999).toLocaleString(), '123K', '1.23B']);
 });
 
-it('类别名放不下就截断加省略号，轴宽跟着最长的名字走并封顶', () => {
-  expect(fitLabel('短名', 60)).toBe('短名');
-  const long = '一个特别长的类别名字';
+it('Category names truncate with an ellipsis when tight, and the axis width follows the longest name with a cap', () => {
+  expect(fitLabel('Short n…', 60)).toBe('Short n…');
+  const long = 'A particularly long category name';
   const cut = fitLabel(long, 60);
   expect(cut).toMatch(/^一个.*…$/);
   expect(long.startsWith(cut.slice(0, -1))).toBe(true);
   expect(labelWidth(cut)).toBeLessThanOrEqual(60);
   expect(categoryAxisWidth(['ab'])).toBe(36);
-  expect(categoryAxisWidth(['一个特别长的类别名字一个特别长的类别名字'])).toBe(104);
+  expect(categoryAxisWidth(['A particularly long category name a particularly long category name'])).toBe(104);
 });
 
-it('覆盖率那一层的每条进度用同一对分子分母，不另算一遍', async () => {
+it('Every progress bar in the coverage layer shares the same numerator/denominator pair without recomputing', async () => {
   const { host } = await open();
-  await click(tabNamed(host, '内容标签'));
+  await click(tabNamed(host, 'Content tags'));
   const bars = [...host.querySelectorAll('[role=meter]')];
   expect(bars.map((bar) => bar.getAttribute('aria-label'))).toEqual([
-    '有创作者：3 / 4', '有番号：2 / 4', '有厂牌：1 / 4', '已抽帧：4 / 4', '已探测时长：4 / 4',
+    'With creator: 3 / 4', 'With code: 2 / 4', 'With label: 1 / 4', 'Frames extracted: 4 / 4', 'Durations probed: 4 / 4',
   ]);
 });
 
-it('取不到容量的卷不画使用率，只说取不到', async () => {
+it('Volumes without capacity draw no usage, stating only that it is unavailable', async () => {
   const { host } = await open(payload({
     storage_volumes: [{ kind: 'media', label: 'B:', root: null, online: true, free: null, used: null, total: null }],
     storage_summary: { volumes: 1, online: 1, measured: 0, free: 0, used: 0, total: 0 },
   }));
-  await click(tabNamed(host, '使用空间'));
+  await click(tabNamed(host, 'Space usage'));
   const panel = host.querySelectorAll('[role=tabpanel]')[0]!;
-  expect(panel.textContent).toContain('容量未取得');
-  expect(panel.textContent).toContain('未映射');
+  expect(panel.textContent).toContain('Capacity not fetched');
+  expect(panel.textContent).toContain('Unmapped');
   expect(panel.querySelector('[role=meter]')).toBeNull();
 });
 
-it('按字节计的卷在百格画布上按真实比例画出已用那一段，读屏值仍是字节', async () => {
+it('Byte-based volumes draw the used segment at true proportion on the hundred-cell canvas, and the screen-reader value stays in bytes', async () => {
   const total = 2_031_179_788_288;
   const used = 1_828_061_809_459;
   const { host } = await open(payload({
-    storage_volumes: [{ kind: 'system', label: '系统盘', root: 'C:\\', online: true, free: total - used, used, total }],
+    storage_volumes: [{ kind: 'system', label: 'System drive', root: 'C:\\', online: true, free: total - used, used, total }],
     storage_summary: { volumes: 1, online: 1, measured: 1, free: total - used, used, total },
   }));
-  await click(tabNamed(host, '使用空间'));
+  await click(tabNamed(host, 'Space usage'));
   const bar = host.querySelectorAll('[role=tabpanel]')[0]!.querySelector('[role=meter]')!;
   expect(bar.getAttribute('aria-valuemax')).toBe(String(total));
   expect(bar.getAttribute('aria-valuenow')).toBe(String(used));
@@ -355,11 +355,11 @@ it('按字节计的卷在百格画布上按真实比例画出已用那一段，�
   expect(host.querySelectorAll('[role=tabpanel]')[0]!.textContent).toContain('90%');
 });
 
-it('排行收起时后两项不可交互，箭头原地展开并能收回', async () => {
+it('When the ranking is collapsed the last two items are not interactive; the arrow expands in place and can collapse back', async () => {
   const tags = Array.from({ length: 12 }, (_, index) => ({ k: `tag:${index}`, n: 12 - index, cat: 'genre' }));
   const { host } = await open(payload({ top_tags: tags }));
   const rows = host.querySelectorAll('ol li');
-  const expand = host.querySelector<HTMLButtonElement>('button[aria-label="展开更多排名"]');
+  const expand = host.querySelector<HTMLButtonElement>('button[aria-label="Show more ranking"]');
   expect(rows).toHaveLength(12);
   expect(rows[10]?.hasAttribute('inert')).toBe(true);
   expect(expand?.querySelector('svg')).not.toBeNull();
@@ -367,72 +367,72 @@ it('排行收起时后两项不可交互，箭头原地展开并能收回', asyn
   await click(expand);
   expect(rows[10]?.hasAttribute('inert')).toBe(false);
   expect(host.querySelector('[data-expandable-ranking]')?.hasAttribute('data-animating')).toBe(true);
-  await click(host.querySelector('button[aria-label="收起排名"]'));
+  await click(host.querySelector('button[aria-label="Collapse ranking"]'));
   expect(rows[10]?.hasAttribute('inert')).toBe(true);
 });
 
-it('点一个内容标签把键交回给壳，页面自己不跳转', async () => {
+it('Clicking a content tag returns the key to the shell; the page does not navigate itself', async () => {
   const { host, props } = await open();
   await click(host.querySelector('ol li button'));
   expect(props.onTag.mock.calls).toEqual([['tag:a']]);
 });
 
-it('快进扫过和正常看完是两回事，一行里分得出来', async () => {
+it('Fast-forwarded skimming and a full watch are different things, distinguishable in one row', async () => {
   expect(watchNote({
     id: 1, name: '', creator: null, play_seconds: 100, duration: 1000, max_reached: 0.9, o_count: 0, kind: 'library',
-  })).toBe('快进扫过');
+  })).toBe('Seek-skipped');
   const { host } = await open();
-  await click(tabNamed(host, '最近看过'));
+  await click(tabNamed(host, 'Recently watched'));
   const entry = host.querySelector('[role=tabpanel] article')!;
   expect(entry.querySelector('a')?.getAttribute('href')).toBe('/assets/42');
-  expect(entry.textContent).toContain('真实 50% · 到达 90%');
+  expect(entry.textContent).toContain('Actual 50% · reached 90%');
 });
 
-it('空馆藏提供添加媒体入口，链到媒体库设置', async () => {
+it('An empty library offers an add-media entry linked to library settings', async () => {
   const { host } = await open(payload({ by_loc: [], by_library: [] }));
-  expect(host.querySelector('h3')?.textContent).toBe('还没有视频');
+  expect(host.querySelector('h3')?.textContent).toBe('No videos yet');
   expect(radialCharts(host)).toEqual([]);
   expect(host.querySelector('[role=tabpanel] section[aria-label]')).toBeNull();
-  expect(buttonNamed('添加媒体', host)).toBeNull();
-  expect(linkNamed(host, '添加媒体')?.getAttribute('href')).toBe('/settings/library');
+  expect(buttonNamed('Add media', host)).toBeNull();
+  expect(linkNamed(host, 'Add media')?.getAttribute('href')).toBe('/settings/library');
 });
 
-it('媒体配置与添加关注是两个独立去向，次要的添加关注在左', async () => {
+it('Media configuration and add follows are two separate destinations, with secondary add-follows on the left', async () => {
   const props = legacyProps();
   const { host } = await open(payload({ by_loc: [], by_library: [] }), props);
-  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['添加关注', '添加媒体']);
-  expect(linkNamed(host, '添加关注')?.getAttribute('href')).toBe('/subscriptions?tab=add');
-  expect(looksLikeButton(linkNamed(host, '添加关注'))).toBe(true);
+  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['Add follow', 'Add media']);
+  expect(linkNamed(host, 'Add follow')?.getAttribute('href')).toBe('/subscriptions?tab=add');
+  expect(looksLikeButton(linkNamed(host, 'Add follow'))).toBe(true);
 });
 
-/** 空态里的去处画成次级实底按钮（白底、发丝边框），不是一行带下划线的文字链接。 */
+/** Empty-state destinations render as secondary solid buttons (white fill, hairline border), not a row of underlined text links. */
 const looksLikeButton = (link: Element | null) =>
   !!link && link.className.includes('border-border-button-default') && !link.className.includes('hover:underline');
 const linkNamed = (root: ParentNode, name: string) =>
   [...root.querySelectorAll('a')].find((a) => a.textContent === name) ?? null;
 
-it('没有内容标签时空态给一枚「补全资料」按钮，去数据整理页', async () => {
+it('With no content tags the empty state offers a "Complete details" button into the data organization page', async () => {
   const { host } = await open(payload({ top_tags: [] }));
-  const link = linkNamed(host, '补全资料');
+  const link = linkNamed(host, 'Complete details');
   expect(link?.getAttribute('href')).toBe('/data-cleanup');
   expect(looksLikeButton(link)).toBe(true);
 });
 
-it('首屏取数就失败时只剩一条错误，不画空看板', async () => {
+it('When the first-screen fetch fails only one error shows and no empty board paints', async () => {
   const { host } = await open(null);
   const alert = host.querySelector('[role=alert]');
-  // 文案走遗留层的 `requestErrorMessage`：服务端给了中文原因就用它，页面不另说一遍。
-  expect(alert?.textContent).toContain('读取失败');
-  expect(alert?.textContent).toContain('数据库当前只能浏览');
+  // Copy goes through the legacy layer's `requestErrorMessage`: when the server supplies a reason message, use it; the page does not say it a second time.
+  expect(alert?.textContent).toContain('Reading library stats failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(alert?.textContent).toContain('Reading library stats failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
   expect(host.querySelector('[role=tablist]')).toBeNull();
 });
 
-it('重新进这一页会重取：这一页的刷新就是重新进来一次，不吃缓存', async () => {
+it('Re-entering this page refetches: refresh on this page is a fresh re-entry and never reads the cache', async () => {
   const first = await open();
   expect(first.fetcher).toHaveBeenCalledTimes(1);
   await first.unmount();
 
-  // 壳再次打开这一页：`openManagedRoute` 先 prefetch 再画。
+  // The shell opens this page again: `openManagedRoute` prefetches first, then paints.
   await prefetchStats(new AbortController().signal);
   expect(first.fetcher).toHaveBeenCalledTimes(2);
   const host = await mount(
@@ -441,11 +441,11 @@ it('重新进这一页会重取：这一页的刷新就是重新进来一次，�
   expect(host.querySelector('[role=tablist]')).not.toBeNull();
 });
 
-it('卸载之后不再敲库：这一页没有轮询，也不该留下别的定时器', async () => {
+it('After unmount nothing touches the database: this page has no polling and should leave no other timers', async () => {
   vi.useFakeTimers();
   const { fetcher, unmount } = await open();
   expect(fetcher).toHaveBeenCalledTimes(1);
   await unmount();
   await vi.advanceTimersByTimeAsync(60_000);
-  expect(fetcher, '卸载之后还在取数').toHaveBeenCalledTimes(1);
+  expect(fetcher, 'Fetching continued after unmount').toHaveBeenCalledTimes(1);
 });

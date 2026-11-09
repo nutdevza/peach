@@ -1,7 +1,7 @@
-/* 资料卡岛：名字下面那一行、资料表、外链怎么排；点下去交给壳的是什么；订阅开关成与不成时
- * 留下什么；新作那一行的两枚键；「+N」浮层的开合。
+/* Profile card island: the row under the name, the profile table, how external links arrange; what clicks hand to the shell; what remains when the subscribe switch succeeds or fails;
+ * the two keys on the new releases row; the open/close of the "+N" overlay.
  *
- * 外观（圆框几何、人脸放大、窄屏单列、浮层位置）由 `frontend/e2e/design-*.test.ts` 读计算样式断言。 */
+ * Appearance (round frame geometry, face zoom, narrow-screen single column, overlay position) is asserted by `frontend/e2e/design-*.test.ts` reading computed styles. */
 import { act } from 'react';
 import { notifyManager, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,9 +20,9 @@ beforeEach(() => { registerNameWritings([]); setNameLanguage('zh-CN') });
 notifyManager.setScheduler((notify) => notify());
 
 const performer = (extra: Partial<EntityHeroData> = {}): EntityHeroData => ({
-  id: 7792, canonical_name: '葵つかさ', aliases: ['葵司'], asset_count: 1234,
+  id: 7792, canonical_name: '葵つかさ', aliases: ['Tsukasa Aoi'], asset_count: 1234,
   agency: { canonical_name: 'New Actor eXperience' },
-  name_groups: { reading: 'あおいつかさ', shown: ['葵司'], total: 1, groups: [] },
+  name_groups: { reading: 'あおいつかさ', shown: ['Tsukasa Aoi'], total: 1, groups: [] },
   related_performers: [{ id: 1, k: '三上悠亜' }, { id: 2, k: '河北彩花' }],
   feed: { following: false },
   ...extra,
@@ -55,10 +55,10 @@ async function open(initial: EntityHeroProps) {
   return host;
 }
 
-describe('排版用的纯函数', () => {
-  it('语言切换保留所选艺名，名称菜单使用原始值提交统一名称', async () => {
+describe('Pure functions for layout', () => {
+  it('Language switches keep the chosen stage name, and the name menu submits the canonical name with raw values', async () => {
     registerNameWritings([{ id: 7792, kind: 'performer', canonical_name: '枫花恋', zh_cn: '枫花恋', ja: '楓カレン' }]);
-    const given = props({ name: '枫花恋', helpers: helpers({ portraitImg: () => '<img src="/avatar" alt="枫花恋">' }),
+    const given = props({ name: '枫花恋', helpers: helpers({ portraitImg: () => '<img src="/avatar" alt="Kaede Karen">' }),
       entity: performer({ canonical_name: '枫花恋', aliases: ['楓カレン', '田中柠檬'],
       name_display: { choices: {
         'zh-CN': [{ value: '枫花恋', label: '枫花恋' }, { value: '田中柠檬', label: '田中柠檬' }],
@@ -77,81 +77,81 @@ describe('排版用的纯函数', () => {
     expect(given.actions.chooseName).toHaveBeenCalledWith('田中柠檬');
     expect(given.entity.canonical_name).toBe('枫花恋');
   });
-  it('厂牌与事务所显示独立的公司资料，不显示来源悬浮说明', async () => {
+  it('Labels and agencies show standalone company profiles without the source hover note', async () => {
     const host = await open(props({ kind: 'studio', name: 'Brand', entity: {
       id: 1, canonical_name: 'Brand', asset_count: 3,
       company_profile: {
         founded: { value: '2002-05', source_url: 'https://brand.example/company' },
         launched: { value: '2003', source_url: 'https://brand.example/company' },
-        operator: { value: 'Brand株式会社', source_url: 'https://brand.example/company' },
+        operator: { value: 'Brand Co., Ltd.', source_url: 'https://brand.example/company' },
       },
     } }));
     const facts = host.querySelector('[data-entity-facts]')!;
-    expect(facts.textContent).toContain('公司成立2002-05');
-    expect(facts.textContent).toContain('品牌启动2003');
-    expect(facts.textContent).toContain('运营公司Brand株式会社');
+    expect(facts.textContent).toContain('Company founded2002-05Brand launched2003Operating companyBrand Co., Ltd.');
+    expect(facts.textContent).toContain('Company founded2002-05Brand launched2003Operating companyBrand Co., Ltd.');
+    expect(facts.textContent).toContain('Company founded2002-05Brand launched2003Operating companyBrand Co., Ltd.');
     expect(facts.querySelector('[title]')).toBeNull();
   });
-  it('真人账号与女优共用资料、别名和图标行', async () => {
+  it('Real accounts and performers share the profile, alias, and mark rows', async () => {
     const host = await open(props({ kind: 'creator', name: 'RiaKurumi', entity: performer({
-      canonical_name: 'RiaKurumi', identity_labels: ['女优','网黄博主'],
+      canonical_name: 'RiaKurumi', identity_labels: ['Performers','Adult web creators'],
       profile: { height: 149 }, name_groups: { shown: ['Ria Kurumi', '百田くるみ'], total: 2 },
     }) }));
     expect(host.querySelector('[data-entity-facts]')?.textContent).toContain('T149');
     expect(host.querySelector('[data-alias-names]')?.textContent).toContain('百田くるみ');
-    expect(host.querySelector('[data-meta-item][title="视频"] use')?.getAttribute('href')).toBe('#i-film');
+    expect(host.querySelector('[data-meta-item][title="Video"] use')?.getAttribute('href')).toBe(undefined);
   });
-  it('厂牌视频数与别名各自带图标，资料不填人物字段', async () => {
+  it('Label video count and aliases each carry an icon; profiles leave person fields empty', async () => {
     const host = await open(props({ kind: 'studio', name: 'MOODYZ', entity: performer({
       canonical_name: 'MOODYZ', display_aliases: ['ムーディーズ'], agency: undefined,
     }) }));
-    expect(host.querySelector('[data-meta-item][title="视频"] use')?.getAttribute('href')).toBe('#i-film');
+    expect(host.querySelector('[data-meta-item][title="Video"] use')?.getAttribute('href')).toBe(undefined);
     expect(host.querySelector('[data-company-names] use')?.getAttribute('href')).toBe('#i-id-card');
     expect(host.querySelector('[data-company-names]')?.textContent).toBe('ムーディーズ');
     expect(host.querySelector('[data-entity-facts]')).toBeNull();
   });
-  it('分类带图标位于身份行最左侧，资料保留跨角色身份入口', async () => {
+  it('The iconed category sits leftmost on the identity row, and details keep the cross-role identity entry', async () => {
     const given = props({ entity: performer({
-      identity_labels: ['女优','西方'],
-      related_identities: [{ id: 2, kind: 'creator', canonical_name: '本人账号', relation: 'operates_account' }],
+      identity_labels: ['Performers','Western'],
+      related_identities: [{ id: 2, kind: 'creator', canonical_name: 'Their own account', relation: 'operates_account' }],
     }) });
     const host = await open(given);
     const classification = host.querySelector('[data-identity-classification]')!;
-    expect(classification.textContent).toBe('女优 · 西方');
+    expect(classification.textContent).toBe('Performers · Western');
     expect(classification.querySelector('use')?.getAttribute('href')).toBe('#i-user-round');
     expect(classification.hasAttribute('title')).toBe(false);
     expect(host.querySelector('[data-entity-alias]')?.firstElementChild).toBe(classification);
     await click(host.querySelector('[data-entity-identity] button.underline'));
-    expect(given.actions.openEntity).toHaveBeenCalledWith('creator', '本人账号');
+    expect(given.actions.openEntity).toHaveBeenCalledWith('creator', 'Their own account');
   });
-  it('名字下面那一行：读音在最前，余下的收进「+N」；什么都没有就不出这一项', () => {
-    expect(nameLine({ reading: 'あおい', shown: ['葵司', 'Tsukasa Aoi'], total: 5 }))
-      .toEqual({ names: ['あおい', '葵司', 'Tsukasa Aoi'], rest: 3, total: 5 });
+  it('The line under the name: readings first, the rest folded into "+N"; when there is nothing, the row does not render', () => {
+    expect(nameLine({ reading: 'あおい', shown: ['Tsukasa Aoi', 'Tsukasa Aoi'], total: 5 }))
+      .toEqual({ names: ['あおい', 'Tsukasa Aoi', 'Tsukasa Aoi'], rest: 3, total: 5 });
     expect(nameLine({ shown: [], total: 0 })).toBeNull();
     expect(nameLine(null)).toBeNull();
   });
 
-  it('标签只列前四个；只多出一个时直接列出来', () => {
+  it('Tags list the first four; with only one extra it lists it directly', () => {
     expect(shownTags(['a', 'b', 'c', 'd', 'e'])).toEqual({ shown: ['a', 'b', 'c', 'd', 'e'], rest: 0 });
     expect(shownTags(['a', 'b', 'c', 'd', 'e', 'f'])).toEqual({ shown: ['a', 'b', 'c', 'd'], rest: 2 });
   });
 
-  it('资料表有哪项画哪项，仍在活跃的写「至今」，出道片名单独截断', () => {
+  it('The profile table renders only the rows it has; still-active ones read "present", and the debut work truncates separately', () => {
     const rows = factRows({
       birth_date: '1990-08-14', age: 36, height: 163, bust: 88, cup: 'E',
-      debut_date: '2012-03-01', debut_title: '很长的出道片名', active: { from: '2012', ongoing: true }, tags: ['巨乳'],
+      debut_date: '2012-03-01', debut_title: 'A very long debut title', active: { from: '2012', ongoing: true }, tags: ['Big breasts'],
     });
-    expect(rows.map((row) => row.label)).toEqual(['生日', '身材', '出道', '生涯', '标签']);
-    // 一枚字形只代表一个意思：标签那一项与标签页同一枚。
+    expect(rows.map((row) => row.label)).toEqual(['Birthday', 'Figure', 'Debut', 'Career', 'Tags']);
+    // One glyph means one thing: the tags item and the tags page share the same glyph.
     expect(rows.map((row) => row.glyph)).toEqual(['cake', 'ruler', 'flag', 'calendar-range', 'tags']);
-    expect(rows[1]?.parts.map((part) => part.text)).toEqual(['T163 · B88', '· E 罩杯']);
-    expect(rows[2]?.clip).toBe('很长的出道片名');
-    expect(rows[3]?.parts[0]?.text).toBe('2012 – 至今');
-    expect(factRows({ cup: 'C' })[0]?.parts).toEqual([{ text: 'C 罩杯', tone: 'sub' }]);
+    expect(rows[1]?.parts.map((part) => part.text)).toEqual(['T163 · B88', '· E cup']);
+    expect(rows[2]?.clip).toBe('A very long debut title');
+    expect(rows[3]?.parts[0]?.text).toBe('2012 – present');
+    expect(factRows({ cup: 'C' })[0]?.parts).toEqual([{ text: 'C cup', tone: 'sub' }]);
     expect(factRows(null)).toEqual([]);
   });
 
-  it('外链：外部入口排最前；女优页连官网也是图标，链回她所属事务所的写「官方资料」；失效与私人来源不可点', () => {
+  it('External links: external entries come first; on the performer page even the official site is an icon, the one linking back to her agency reads "Official profile", and dead and private sources are not clickable', () => {
     const links = heroLinks(performer({
       entry_links: [
         { site: 'minnano', label: 'minnano-av', slot: 'pill', mark: 'minnano', url: 'https://www.minnano-av.com/x' },
@@ -160,70 +160,70 @@ describe('排版用的纯函数', () => {
       links: [
         { link_id: 3, link_kind: 'official', clickable: true, label: 'New Actor eXperience', url: 'https://www.nax.co.jp/talent/aoi' },
         { link_id: 4, link_kind: 'social', clickable: true, label: 'X', url: 'https://x.com/aoi' },
-        { link_id: 5, gone: true, retired_year: 2024, label: '旧博客', url: 'https://old.example' },
-        { link_id: 6, clickable: false, label: '私人记录' },
+        { link_id: 5, gone: true, retired_year: 2024, label: 'Old blog', url: 'https://old.example' },
+        { link_id: 6, clickable: false, label: 'Private records' },
       ],
     }), 'performer');
     expect(links).toEqual([
       { type: 'icon', url: 'https://www.minnano-av.com/x', title: 'minnano-av', mark: { brand: 'minnano' } },
-      { type: 'icon', url: 'https://www.nax.co.jp/talent/aoi', title: 'New Actor eXperience 官方资料', mark: { site: '/link-mark?id=3' } },
+      { type: 'icon', url: 'https://www.nax.co.jp/talent/aoi', title: 'New Actor eXperience official profile', mark: { site: '/link-mark?id=3' } },
       { type: 'icon', url: 'https://x.com/aoi', title: 'X', mark: { brand: 'brand-x' } },
-      { type: 'gone', title: '旧博客 · 已于 2024 年隐退' },
-      { type: 'private', label: '私人记录' },
+      { type: 'gone', title: 'Legacy blog · Retired in 2024' },
+      { type: 'private', label: 'Private records' },
     ]);
   });
 
-  it('生日写了而年龄没下发时只写生日，不拼出「undefined 岁」', () => {
+  it('With a birthday present but no age delivered, only the birthday shows and "undefined years old" is never composed', () => {
     const [birth] = factRows({ birth_date: '1990-08-14' });
     expect(birth?.parts.map((part) => part.text)).toEqual(['1990-08-14']);
   });
 
-  it('两处以上不公开来源合并成一枚排在末尾，各处名字留给 title；只有一处照旧', () => {
+  it('Two or more hidden sources merge into one entry at the end with each name kept in the title; a single one stays as before', () => {
     const links = heroLinks(performer({ links: [
-      { link_id: 1, clickable: false, label: '私人记录' },
+      { link_id: 1, clickable: false, label: 'Private records' },
       { link_id: 2, link_kind: 'social', clickable: true, label: 'X', url: 'https://x.com/aoi' },
-      { link_id: 3, clickable: false, label: '论坛帖' },
-      { link_id: 4, clickable: false, label: '群聊截图' },
+      { link_id: 3, clickable: false, label: 'Forum post' },
+      { link_id: 4, clickable: false, label: 'Group chat screenshots' },
     ] }), 'performer');
     expect(links.map((link) => link.type)).toEqual(['icon', 'private']);
-    expect(links[1]).toEqual({ type: 'private', label: '3 个不公开来源', sources: ['私人记录', '论坛帖', '群聊截图'] });
-    expect(heroLinks(performer({ links: [{ link_id: 1, clickable: false, label: '私人记录' }] }), 'performer'))
-      .toEqual([{ type: 'private', label: '私人记录' }]);
+    expect(links[1]).toEqual({ type: 'private', label: '3 private sources', sources: ['Private records', 'Forum post', 'Group chat screenshots'] });
+    expect(heroLinks(performer({ links: [{ link_id: 1, clickable: false, label: 'Private records' }] }), 'performer'))
+      .toEqual([{ type: 'private', label: 'Private records' }]);
   });
 
-  it('公司页的官网保留名字，指回自家的写「官方网站」', () => {
+  it('Company pages keep official-site names, with self-referencing ones reading "Official site"', () => {
     const [site] = heroLinks({
       id: 1, canonical_name: 'S1 NO.1 STYLE', asset_count: 1,
       links: [{ link_id: 9, link_kind: 'official', clickable: true, label: 'S1', url: 'https://www.s1s1s1.com/' }],
     }, 'studio');
-    expect(site).toEqual({ type: 'url', url: 'https://www.s1s1s1.com/', title: 'S1', text: '官方网站', mark: { site: '/link-mark?id=9' } });
+    expect(site).toEqual({ type: 'url', url: 'https://www.s1s1s1.com/', title: 'S1', text: 'Official site', mark: { site: '/link-mark?id=9' } });
   });
 
-  it('没有语言投影时保留已有别名与原始值，统称排第一并去重去空', () => {
-    expect(nameChoices({ id: 1, canonical_name: '葵つかさ', asset_count: 0, aliases: ['葵司', 'Tsukasa Aoi', '葵司', ''] }))
-      .toEqual(['葵つかさ', '葵司', 'Tsukasa Aoi'].map(value => ({ value, label: value })));
+  it('Without a language projection, existing aliases and original values are kept; the unified name sorts first with duplicates and blanks removed', () => {
+    expect(nameChoices({ id: 1, canonical_name: '葵つかさ', asset_count: 0, aliases: ['Tsukasa Aoi', 'Tsukasa Aoi', 'Tsukasa Aoi', ''] }))
+      .toEqual(['葵つかさ', 'Tsukasa Aoi', 'Tsukasa Aoi'].map(value => ({ value, label: value })));
   });
 });
 
-describe('画出什么', () => {
-  it('公司页名字行写展示别名，不写身份契约里的全部别名；事务所页数的是人，不画同台艺人，也不加类别名', async () => {
+describe('What paints', () => {
+  it('The company page name line shows the display alias, not every alias in the identity contract; the agency page counts people, draws no co-performers, and adds no category names', async () => {
     const studio = await open(props({ kind: 'studio', name: 'S1', entity: {
-      id: 3, canonical_name: 'S1', asset_count: 9, aliases: ['検索用の旧表記'], display_aliases: ['エスワン'],
+      id: 3, canonical_name: 'S1', asset_count: 9, aliases: ['Legacy search notation'], display_aliases: ['エスワン'],
     } }));
     const line = studio.querySelector('[data-entity-alias]')?.textContent ?? '';
     expect(line).toContain('エスワン');
-    expect(line).not.toContain('検索用の旧表記');
+    expect(line).not.toContain('Legacy search notation');
     const agency = await open(props({ kind: 'agency', name: 'NAX', entity: {
       id: 4, canonical_name: 'NAX', asset_count: 30, member_count: 12, related_performers: [{ id: 1, k: '三上悠亜' }],
     } }));
-    expect(agency.querySelector('[data-entity-alias]')?.textContent).toContain('12 位艺人');
+    expect(agency.querySelector('[data-entity-alias]')?.textContent).toContain('12 artists');
     expect(agency.querySelector('[data-entity-foot]')).toBeNull();
     const performerLine = (await open(props())).querySelector('[data-entity-alias]')?.textContent ?? '';
-    expect(performerLine).not.toContain('事务所');
+    expect(performerLine).not.toContain('Agency');
   });
 
-  it('公司别名先列三个，余下的收进「+N」，浮层里一个名字一行', async () => {
-    const names = Array.from({ length: 30 }, (_, at) => `旧レーベル${at + 1}`);
+  it('Company aliases list the first three and fold the rest into "+N", one name per line in the popover', async () => {
+    const names = Array.from({ length: 30 }, (_, at) => `Old label ${at + 1}`);
     const host = await open(props({ kind: 'studio', name: 'S1', entity: {
       id: 3, canonical_name: 'S1', asset_count: 9, display_aliases: names,
     } }));
@@ -234,17 +234,17 @@ describe('画出什么', () => {
     expect(pop.querySelectorAll('[data-pop-name]')).toHaveLength(30);
   });
 
-  it('合并后的不公开来源写个数，各处名字一行一个放进 title', async () => {
+  it('Merged private sources show a count, with each name on its own line inside the title attribute', async () => {
     const host = await open(props({ entity: performer({ links: [
-      { link_id: 1, clickable: false, label: '私人记录' },
-      { link_id: 3, clickable: false, label: '论坛帖' },
+      { link_id: 1, clickable: false, label: 'Private records' },
+      { link_id: 3, clickable: false, label: 'Forum post' },
     ] }) }));
     const chip = host.querySelector('[data-link="private"]');
-    expect(chip?.textContent).toContain('2 个不公开来源');
-    expect(chip?.getAttribute('title')).toBe('私人记录\n论坛帖');
+    expect(chip?.textContent).toContain('2 hidden sources');
+    expect(chip?.getAttribute('title')).toBe('Private records\nForum post');
   });
 
-  it('纯图标外链的名字在 title 与读屏名称里；站点圆标由本机给、不带来源页地址，取不到时交兜底链撤掉；官网写字', async () => {
+  it('Icon-only external links carry their name in title and the accessible name; site roundels come from this machine with no source-page address, falling back to a plain link when unavailable; the official site shows text', async () => {
     const host = await open(props({ entity: performer({ links: [
       { link_id: 3, link_kind: 'official', clickable: true, label: 'New Actor eXperience', url: 'https://www.nax.co.jp/talent/aoi' },
     ] }) }));
@@ -258,10 +258,10 @@ describe('画出什么', () => {
       id: 3, canonical_name: 'S1 NO.1 STYLE', asset_count: 9,
       links: [{ link_id: 9, link_kind: 'official', clickable: true, label: 'S1', url: 'https://www.s1s1s1.com/' }],
     } }));
-    expect(studio.querySelector('a[data-link="url"] [data-link-label]')?.textContent).toBe('官方网站');
+    expect(studio.querySelector('a[data-link="url"] [data-link-label]')?.textContent).toBe('Official site');
   });
 
-  it('看片那一行照服务端下发的地址与序号排；MISSAV 没有图形标识，排字', async () => {
+  it('The watch row follows the address and index the server sends; MISSAV has no icon, so it sorts by text', async () => {
     const host = await open(props({ entity: performer({ entry_links: [
       { site: 'javdb', label: 'JavDB', slot: 'mark', mark: 'mark-javdb', url: 'https://javdb.com/actors/NPD3' },
       { site: 'missav', label: 'MISSAV', slot: 'mark', mark: '', ordinal: '2', url: 'https://missav.ws/actresses/x' },
@@ -273,7 +273,7 @@ describe('画出什么', () => {
     expect(marks[1]?.querySelector('[data-entry-ordinal]')?.textContent).toBe('2');
   });
 
-  it('只剩一个名字的人也有名字菜单：一行统称，末尾那项是添别名', async () => {
+  it('People with only one name still get a name menu: one row for the unified name, with add alias as the last item', async () => {
     const host = await open(props({ entity: performer({ aliases: [] }) }));
     await click(host.querySelector('[data-namepick-toggle]'));
     expect([...document.querySelectorAll('[data-namepick-name]')].map((item) => item.getAttribute('data-namepick-name')))
@@ -281,7 +281,7 @@ describe('画出什么', () => {
     expect(document.querySelector('[data-namepick-alias]')?.getAttribute('role')).toBe('menuitem');
   });
 
-  it('外链与同台艺人那两行交给壳接拖动与滚轮', async () => {
+  it('The external-links and co-stars rows hand dragging and wheel handling to the shell', async () => {
     const help = helpers();
     const host = await open(props({ helpers: help, entity: performer({ links: [
       { link_id: 4, link_kind: 'social', clickable: true, label: 'X', url: 'https://x.com/aoi' },
@@ -291,7 +291,7 @@ describe('画出什么', () => {
     expect(wired).toContain(host.querySelector('[data-related-people]'));
   });
 
-  it('同台艺人装了实体图才出图，地址带上换图版本；没装的只有首字母', async () => {
+  it('Co-performers show images only when a real image is installed, with the image version in the URL; otherwise just an initial', async () => {
     const host = await open(props({ entity: performer({ related_performers: [
       { id: 1, k: '三上悠亜', has_image: true, image_version: '1727800000' }, { id: 2, k: '河北彩花' },
     ] }) }));
@@ -301,11 +301,11 @@ describe('画出什么', () => {
   });
 });
 
-describe('点下去交给壳', () => {
-  it('同台艺人与事务所走站内跳转，事务所链接不整页刷新', async () => {
+describe('Clicking hands over to the shell', () => {
+  it('Co-stars and agencies use in-site jumps, and agency links never full-page refresh', async () => {
     const acts = actions();
     const host = await open(props({ actions: acts }));
-    await click(host.querySelector('[data-related-performer="河北彩花"]'));
+    await click(host.querySelector('[data-related-performer="Kawakita Saika"]'));
     expect(acts.openEntity).toHaveBeenLastCalledWith('performer', '河北彩花');
     const agency = host.querySelector<HTMLAnchorElement>('a[data-agency]');
     expect(agency?.getAttribute('href')).toBe('/agencies/New%20Actor%20eXperience');
@@ -315,17 +315,17 @@ describe('点下去交给壳', () => {
     expect(acts.openEntity).toHaveBeenLastCalledWith('agency', 'New Actor eXperience');
   });
 
-  it('事务所没有对应实体时只写名字；片商页带上母公司的去处', async () => {
-    const host = await open(props({ entity: performer({ agency: null, metadata: { agency: { name: '无名事务所' } } }) }));
+  it('Agencies without a matching entity show the name only, and studio pages carry the parent company\'s destination', async () => {
+    const host = await open(props({ entity: performer({ agency: null, metadata: { agency: { name: 'Unnamed agency' } } }) }));
     expect(host.querySelector('a[data-agency]')).toBeNull();
-    expect(host.querySelector('[data-entity-alias]')?.textContent).toContain('无名事务所');
+    expect(host.querySelector('[data-entity-alias]')?.textContent).toContain('Unnamed agency');
     const studio = await open(props({
       kind: 'studio', name: 'MOODYZ', entity: { id: 2, canonical_name: 'MOODYZ', asset_count: 9, maker: { name: 'WILL' } },
     }));
     expect(studio.querySelector('a[data-studio-link="WILL"]')?.getAttribute('href')).toBe('/studios/WILL');
   });
 
-  it('名字下拉：挑另一个写法交给壳换统称，挑当前那个不动，末尾那项是添别名', async () => {
+  it('Name dropdown: picking another spelling asks the shell to change the canonical name, picking the current one does nothing, and the last entry adds an alias', async () => {
     const acts = actions();
     const host = await open(props({ actions: acts }));
     await click(host.querySelector('[data-namepick-toggle]'));
@@ -333,39 +333,39 @@ describe('点下去交给壳', () => {
     expect(acts.chooseName).not.toHaveBeenCalled();
     await click(host.querySelector('[data-namepick-toggle]'));
     await click(document.querySelector('[data-namepick-name="葵司"]'));
-    expect(acts.chooseName).toHaveBeenCalledWith('葵司');
+    expect(acts.chooseName).toHaveBeenCalledWith('Tsukasa Aoi');
     await click(host.querySelector('[data-namepick-toggle]'));
     await click(document.querySelector('[data-namepick-alias]'));
     expect(acts.addAlias).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('关注里的来源', () => {
+describe('Sources among follows', () => {
   const creator = (follow: EntityHeroData['follow']): EntityHeroData => ({
     id: 51, canonical_name: 'Auxtasy', asset_count: 0, follow,
   });
   const held = { key: 'name:auxtasy', name: 'Auxtasy', providers: ['Kemono', 'Patreon'], n: 37, links: [] };
 
-  it('绑了来源的创作者写还没入库的更新数，点开交给壳去关注页筛这一位', async () => {
+  it('Creators with a bound source show the count of updates not yet added to library; opening one hands off to the shell to filter the follows page to that person', async () => {
     const acts = actions();
     const host = await open(props({ kind: 'creator', name: 'Auxtasy', actions: acts, entity: creator({
       key: 'entity:51', n: 12, providers: ['Kemono'], avatar: '', avatar_fallback: '', held: [] }) }));
     const link = host.querySelector<HTMLAnchorElement>('[data-entity-follow] a')!;
-    expect(link.textContent).toBe('12 项更新');
+    expect(link.textContent).toBe('12 updates');
     await click(link);
     expect(acts.openFollowAuthor).toHaveBeenCalledWith('entity:51');
     expect(host.querySelector('[data-entity-held]')).toBeNull();
   });
 
-  it('同名的那组只问不绑：按下「是同一个人」才交给壳，等的这一下键上是等待态', async () => {
+  it('The same-name group asks without binding: only pressing "Same person" hands it to the shell, and the button waits in its busy state', async () => {
     let finish: () => void = () => {};
     const acts = actions({ confirmFollowAuthor: vi.fn(() => new Promise<void>((resolve) => { finish = resolve })) });
     const host = await open(props({ kind: 'creator', name: 'Auxtasy', actions: acts, entity: creator({
       key: '', n: 0, providers: [], avatar: '', avatar_fallback: '', held: [held] }) }));
     expect(host.querySelector('[data-entity-follow]')).toBeNull();
     const note = host.querySelector('[data-entity-held]')!;
-    expect(note.textContent).toContain('关注里有同名作者 Auxtasy');
-    expect(note.textContent).toContain('Kemono · Patreon · 37 项更新');
+    expect(note.textContent).toContain('Follows contain a same-named author AuxtasyKemono · Patreon · 37 updates. and Auxtasy the same person?Is the same person');
+    expect(note.textContent).toContain('Kemono · Patreon · 37 updates');
     const button = note.querySelector('button')!;
     await click(button);
     expect(acts.confirmFollowAuthor).toHaveBeenCalledWith('name:auxtasy', 'Auxtasy');
@@ -375,10 +375,10 @@ describe('关注里的来源', () => {
   });
 });
 
-describe('订阅新作', () => {
+describe('Subscribe to new releases', () => {
   const toggle = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[data-entity-feed]')!;
 
-  it('写回成功才拨过去，发带撤销的回执并等这一轮拉取；撤销是另一次写回', async () => {
+  it('The toggle flips only after the write succeeds, sends a receipt with undo and waits for this fetch round; undo is another write', async () => {
     const acts = actions();
     const help = helpers();
     const host = await open(props({ actions: acts, helpers: help }));
@@ -388,13 +388,13 @@ describe('订阅新作', () => {
     expect(toggle(host).checked).toBe(true);
     expect(acts.refreshFeedAfterCheck).toHaveBeenCalledTimes(1);
     const [message, options] = vi.mocked(help.receipt).mock.calls[0]!;
-    expect(message).toBe('已订阅新作');
+    expect(message).toBe('Subscribed new releases');
     await act(async () => { await options?.undo?.() });
     expect(acts.follow).toHaveBeenLastCalledWith(false);
     expect(toggle(host).checked).toBe(false);
   });
 
-  it('写回失败时开关留在原位，不发回执', async () => {
+  it('On write failure the switch stays put without a receipt', async () => {
     const acts = actions({ follow: vi.fn(async () => { throw new Error('502') }) });
     const help = helpers();
     const host = await open(props({ actions: acts, helpers: help }));
@@ -406,12 +406,12 @@ describe('订阅新作', () => {
   });
 });
 
-describe('新作那一行', () => {
+describe('The new release row', () => {
   const row = '<div class="feednewrow">'
-    + '<div data-feed-id="11"><button data-feed-action="ignore">不想看</button></div>'
-    + '<div data-feed-id="12"><button data-feed-action="read">已看过</button></div></div>';
+    + '<div data-feed-id="11"><button data-feed-action="ignore">Not interested</button></div>'
+    + '<div data-feed-id="12"><button data-feed-action="read">Watched</button></div></div>';
 
-  it('一条都没有就整块不出', async () => {
+  it('Whole block hidden when there are none', async () => {
     const feedHost = document.createElement('section');
     document.body.append(feedHost);
     await open(props({ feedHost, feedNew: { items: [], html: '' } }));
@@ -419,7 +419,7 @@ describe('新作那一行', () => {
     expect(feedHost.querySelector('[data-feed-id]')).toBeNull();
   });
 
-  it('忽略的当场消失，已看过的留在原位变淡，全部收完整块藏起', async () => {
+  it('Ignored ones vanish on the spot, watched ones fade in place, and dismissing the whole block hides everything', async () => {
     const feedHost = document.createElement('section');
     feedHost.hidden = true;
     document.body.append(feedHost);
@@ -444,29 +444,29 @@ describe('新作那一行', () => {
     expect(feedHost.hidden).toBe(true);
   });
 
-  it('想要是开关：同一颗键在想要与取消想要之间换，卡片不收也不变淡', async () => {
+  it('Want is a toggle: the same button flips between want and unwant, and the card neither shrinks nor fades', async () => {
     const feedHost = document.createElement('section');
     document.body.append(feedHost);
     const acts = actions();
     const html = '<div class="feednewrow"><div data-feed-id="13">'
-      + '<button data-feed-action="want" aria-pressed="false" title="想要">想要</button></div></div>';
+      + '<button data-feed-action="want" aria-pressed="false" title="Want">Want</button></div></div>';
     await open(props({ feedHost, actions: acts, feedNew: { items: [{ id: 13 }], html } }));
     const key = () => feedHost.querySelector<HTMLElement>('[data-feed-id="13"] button')!;
     await click(key());
     await settle();
     expect(acts.feedAction).toHaveBeenLastCalledWith(13, 'want');
-    expect([key().dataset.feedAction, key().getAttribute('aria-pressed'), key().title]).toEqual(['unwant', 'true', '取消想要']);
+    expect([key().dataset.feedAction, key().getAttribute('aria-pressed'), key().title]).toEqual(['unwant', 'true', 'Remove from wants']);
     await click(key());
     await settle();
     expect(acts.feedAction).toHaveBeenLastCalledWith(13, 'unwant');
-    expect([key().dataset.feedAction, key().getAttribute('aria-pressed'), key().title]).toEqual(['want', 'false', '想要']);
+    expect([key().dataset.feedAction, key().getAttribute('aria-pressed'), key().title]).toEqual(['want', 'false', 'Want']);
     expect(feedHost.querySelector('[data-feed-id="13"]')?.classList.contains('isread')).toBe(false);
     expect(feedHost.hidden).toBe(false);
   });
 });
 
-describe('「+N」浮层', () => {
-  /* happy-dom 没有原生 popover：顶层开合记在一个属性上，`:popover-open` 读它。 */
+describe('The "+N" popover', () => {
+  /* happy-dom has no native popover: top-layer open state is recorded in an attribute, which `:popover-open` reads. */
   beforeEach(() => {
     const proto = HTMLElement.prototype as HTMLElement & Record<string, unknown>;
     const matches = Element.prototype.matches;
@@ -482,15 +482,15 @@ describe('「+N」浮层', () => {
     delete proto.hidePopover;
   });
 
-  it('点一下钉住，再点收起；Escape 也收起', async () => {
+  it('Click to pin, click again to collapse; Escape also collapses', async () => {
     const host = await open(props({ entity: performer({
-      name_groups: { shown: ['葵司'], total: 4, groups: [{ label: '旧名', names: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] }] },
+      name_groups: { shown: ['Tsukasa Aoi'], total: 4, groups: [{ label: 'Old name', names: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] }] },
     }) }));
     const more = host.querySelector<HTMLButtonElement>('[data-hero-more="alias"]')!;
     expect(more.textContent).toBe('+3');
-    expect(more.getAttribute('aria-label')).toBe('另外 3 个别名');
+    expect(more.getAttribute('aria-label')).toBe('3 more aliases');
     const pop = document.getElementById('entityAliasPop')!;
-    expect(pop.querySelector('[data-hero-pop-head]')?.textContent).toBe('4 个别名');
+    expect(pop.querySelector('[data-hero-pop-head]')?.textContent).toBe('4 aliases');
     await click(more);
     expect(more.getAttribute('aria-expanded')).toBe('true');
     await click(more);

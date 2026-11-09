@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest';
 import { resourceSize } from '../../src/react/wants/resource-display';
 
-it('没有单位的来源大小以未知呈现', () => {
-  for (const value of ['4219', '4,219', '4219.5']) expect(resourceSize(value)).toBe('大小未知');
+it('Source sizes without units present as unknown', () => {
+  for (const value of ['4219', '4,219', '4219.5']) expect(resourceSize(value)).toBe('Unknown size');
   expect(resourceSize('3 GB')).toBe('3 GB');
   expect(resourceSize('4219 MB')).toBe('4219 MB');
-  expect(resourceSize('')).toBe('大小未知');
+  expect(resourceSize('')).toBe('Unknown size');
 });
 
-it('来源没给大小字段时以未知呈现', () => {
-  expect(resourceSize(undefined)).toBe('大小未知');
-  expect(resourceSize(null)).toBe('大小未知');
+it('When the source gives no size field, show it as unknown', () => {
+  expect(resourceSize(undefined)).toBe('Unknown size');
+  expect(resourceSize(null)).toBe('Unknown size');
 });

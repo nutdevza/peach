@@ -19,14 +19,14 @@ async function open(state: LibraryProcessingData) {
   await mount(<QueryClientProvider client={queryClient}><LibraryProcessingDock toast={vi.fn()} /></QueryClientProvider>);
 }
 
-it('页面打开时历史失败留在数据管理，不自动弹出任务卡', async () => {
+it('Historical failures on page open stay in data management without auto-popping a task card', async () => {
   await open({ status: 'failed', job_id: 'old', issue_count: 7276,
-    completed_at: Date.now() / 1000 - 4 * 86400, error: '7276 项需要处理' });
+    completed_at: Date.now() / 1000 - 4 * 86400, error: '7276 items need processing' });
   expect(sonner.custom).not.toHaveBeenCalled();
   expect(sonner.dismiss).not.toHaveBeenCalled();
 });
 
-it('任务状态回来之前不发收起；画出过的任务卡在任务结束时才收', async () => {
+it('No collapse is sent before task status returns; a task card that has painted collapses only when its task ends', async () => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
   await mount(<QueryClientProvider client={queryClient}><LibraryProcessingDock toast={vi.fn()} /></QueryClientProvider>);
   expect(sonner.dismiss).not.toHaveBeenCalled();
@@ -37,7 +37,7 @@ it('任务状态回来之前不发收起；画出过的任务卡在任务结束�
   expect(sonner.dismiss).toHaveBeenCalledWith('peach-library-processing');
 });
 
-it('本次观察到的任务失败持续显示，关闭后保持收起', async () => {
+it('Task failures observed this session stay visible and remain collapsed after being dismissed', async () => {
   await open({ status: 'running', job_id: 'current' });
   sonner.custom.mockClear();
   const failed = { status: 'failed', job_id: 'current', completed_at: Date.now() / 1000 - 600 };
@@ -50,12 +50,12 @@ it('本次观察到的任务失败持续显示，关闭后保持收起', async (
   expect(sonner.custom).not.toHaveBeenCalled();
 });
 
-it('刚刚失败的短任务仍可显示', async () => {
+it('A just failed short task can still be shown', async () => {
   await open({ status: 'failed', job_id: 'fresh', completed_at: Date.now() / 1000 - 10 });
   expect(sonner.custom).toHaveBeenCalled();
 });
 
-it('运行任务隐藏后状态更新保持隐藏，恢复时显示当前进度', async () => {
+it('Hidden running tasks keep status updates hidden, showing current progress on restore', async () => {
   await open({ status: 'running', job_id: 'hide-current', checked: 1 });
   const options = sonner.custom.mock.calls.at(-1)?.[1] as { onDismiss(): void; dismissible: boolean };
   expect(options.dismissible).toBe(false);
@@ -71,7 +71,7 @@ it('运行任务隐藏后状态更新保持隐藏，恢复时显示当前进度'
   expect(sonner.custom).toHaveBeenCalled();
 });
 
-it('页面挂载时读取当前任务的隐藏选择，新任务正常显示', async () => {
+it('On mount it reads current tasks\' hidden choices, while new tasks display normally', async () => {
   setProcessingNoticeVisible('saved', false);
   await open({ status: 'running', job_id: 'saved' });
   expect(sonner.custom).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ it('页面挂载时读取当前任务的隐藏选择，新任务正常显示', a
   expect(sonner.custom).toHaveBeenCalled();
 });
 
-it('隐藏任务完成后仍给一次完成回执', async () => {
+it('Hidden tasks still give one completion receipt when they finish', async () => {
   const receipt = vi.fn();
   const state = { status: 'running', job_id: 'hidden-completion' };
   queryClient.setQueryData(LIBRARY_PROCESSING_KEY, state);

@@ -28,25 +28,25 @@ function setup() {
     location: (path: string, query = '') => { pathname = path; search = query }, live: (value: boolean) => { live = value } };
 }
 
-describe('关注域地址与会话控制', () => {
-  it('单值维度按第一项读取，标签去重，非法状态和时长归不限，随机种子用无符号值', () => {
+describe('Follow domain URL and session control', () => {
+  it('Single-value dimensions read the first item, tags dedupe, invalid states and durations become unbounded, and random seeds use unsigned values', () => {
     const roll = vi.fn(() => 29);
-    const actual = readFollowView('?author=甲,乙&provider=a,b&work=w,x&tag=t,t,u&status=seen&dur_min=-1&dur_max=bad&sort=rand&seed=-1', 7, roll);
-    expect(actual).toMatchObject({ author: '甲', provider: 'a', work: 'w', tags: ['t', 'u'], status: '',
+    const actual = readFollowView('?author=foo,bar&provider=a,b&work=w,x&tag=t,t,u&status=seen&dur_min=-1&dur_max=bad&sort=rand&seed=-1', 7, roll);
+    expect(actual).toMatchObject({ author: 'Alpha', provider: 'a', work: 'w', tags: ['t', 'u'], status: '',
       durMin: 0, durMax: 0, sort: 'rand', seed: 4294967295 });
     expect(roll).not.toHaveBeenCalled();
     expect(readFollowView('', 0, roll).seed).toBe(29);
     expect(readFollowView('?seed=0&status=all&sort=bad', 17, roll)).toEqual(view({ seed: 17 }));
   });
 
-  it('默认地址精简，中文、空格与斜杠可往返，随机地址保留种子', () => {
+  it('Default addresses compress down; Chinese, spaces, and slashes round-trip; and random addresses keep the seed', () => {
     expect(followViewPath(view())).toBe('/follow');
-    const target = view({ author: '甲 / 乙', tags: ['中文', 'a b'], work: 'set:1', media: 'images', status: 'saved',
+    const target = view({ author: 'A / B', tags: ['Chinese', 'a b'], work: 'set:1', media: 'images', status: 'saved',
       durMin: 30, sort: 'rand', seed: 91, dir: 'asc' });
     expect(readFollowView(followViewPath(target).split('?')[1]!, 0, () => 1)).toEqual(target);
   });
 
-  it('筛选提交不提前定位，props 动作身份固定且选择快照独立', () => {
+  it('Filter submits do not navigate early, the props action identity stays fixed, and the selection snapshot is independent', () => {
     const { controller, ports, selected } = setup();
     const first = controller.props();
     controller.route(view({ media: 'images' }));
@@ -59,7 +59,7 @@ describe('关注域地址与会话控制', () => {
     expect([...first.selected]).toEqual([13]);
   });
 
-  it('换一批共同推进列表种子与发现种子，未挂载宿主不接受 props', () => {
+  it('Refreshing advances both the list seed and the discovery seed; an unmounted host accepts no props', () => {
     const { controller, ports, live } = setup();
     controller.shuffle();
     expect(ports.view()).toEqual(view({ sort: 'rand', seed: 31 }));
@@ -71,7 +71,7 @@ describe('关注域地址与会话控制', () => {
     expect(ports.push).not.toHaveBeenCalled();
   });
 
-  it('普通进入保留会话与滚动，主动重新进入才换种子并推进代次', () => {
+  it('A normal entry keeps the session and scrolling; only an explicit re-entry swaps the seed and advances the generation', () => {
     const { controller, ports, location, live } = setup();
     controller.route(view({ author: 'one' }));
     location('/performers');
@@ -88,7 +88,7 @@ describe('关注域地址与会话控制', () => {
     expect(ports.openPage).toHaveBeenLastCalledWith('/follow');
   });
 
-  it('refresh 按 URL 恢复筛选，当前宿主复用原有代次', () => {
+  it('refresh restores filters from the URL and the current host reuses the original generation', () => {
     const { controller, ports, location, live } = setup();
     location('/follow', '?tag=one&media=images');
     live(false);
@@ -102,7 +102,7 @@ describe('关注域地址与会话控制', () => {
     expect(ports.scrollTop).not.toHaveBeenCalled();
   });
 
-  it('索引作者重置题材，在线标签保持题材，资料页在线卡不接管页级操作', () => {
+  it('Indexing the author resets genre, online tags keep genre, and the profile page online card never takes over page-level actions', () => {
     const selected = view({ work: 'topic', author: 'old', provider: 'old', tags: ['old'], durMin: 8 });
     expect(followAuthorView(selected, 'new')).toEqual(view({ author: 'new' }));
     expect(followTagView(selected, 'new')).toEqual(view({ work: 'topic', tags: ['new'] }));
@@ -112,7 +112,7 @@ describe('关注域地址与会话控制', () => {
     expect(actions.setPhotoLayout).toBe(controller.actions.setPhotoLayout);
   });
 
-  it('管理页非法页码和页签归默认，重新进入保持页签并清排序', () => {
+  it('Manage pages clamp bad page numbers and tabs to defaults; re-entry keeps the tab and clears sorting', () => {
     expect(followManageParams('?page=-4&tab=invalid')).toEqual({ tab: 'list', page: 1, sort: '', dir: '' });
     expect(followManageParams('?page=3.9&tab=feeds&sort=added&dir=asc')).toEqual({ tab: 'list', page: 3, sort: 'added', dir: 'asc' });
     expect(followManageEntry('?tab=feeds')).toBe('/subscriptions');
@@ -123,7 +123,7 @@ describe('关注域地址与会话控制', () => {
     expect(followManageEntry('?tab=wants', 'add')).toBe('/subscriptions?tab=add');
   });
 
-  it('详情标签先写返回路径再关闭，组内换条保留来处，题材标志按可用性出图', () => {
+  it('Details tags write the return path before closing, switching items in a group keeps the origin, and genre marks render by availability', () => {
     let current = view({ tags: ['one'] });
     const calls: string[] = [];
     const ports = { view: () => current, adoptView: (next: FollowView) => { current = next },
@@ -136,11 +136,11 @@ describe('关注域地址与会话控制', () => {
     expect(ports.open).toHaveBeenCalledWith(17, 2, true);
     actions.openAuthor('Kou');
     expect(ports.openAuthor).toHaveBeenCalledWith('Kou');
-    const item = { id: 3, title: '新作预告', tags: [] } as unknown as Parameters<typeof actions.present>[0];
+    const item = { id: 3, title: 'New-release trailers', tags: [] } as unknown as Parameters<typeof actions.present>[0];
     actions.present(item, 'video');
     expect(ports.presented).toHaveBeenCalledWith(item);
-    expect(followWorkMark(['none', '甲乙丙', 1])).toBe('甲乙');
-    const host = document.createElement('div'); host.innerHTML = followWorkMark(['a/b', '甲', 1, 11]);
+    expect(followWorkMark(['none', 'A, B, C', 1])).toBe('A,');
+    const host = document.createElement('div'); host.innerHTML = followWorkMark(['a/b', 'Alpha', 1, 11]);
     expect(new URL(host.querySelector('img')!.src).searchParams.get('work')).toBe('a/b');
   });
 });

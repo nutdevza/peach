@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiGet, apiSend } from '../src/api';
 import { api } from '../src/core';
 
-describe('媒体库查询范围', () => {
+describe('Library query scope', () => {
   const fetchMock = vi.fn(async (_url: string, _options?: RequestInit) => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
   beforeEach(() => {
     sessionStorage.clear();
@@ -11,11 +11,11 @@ describe('媒体库查询范围', () => {
   });
   afterEach(() => { sessionStorage.clear(); vi.unstubAllGlobals() });
 
-  for (const [name, get] of [['React', apiGet], ['应用', api]] as const) {
-    it(`${name}：目录、搜索和筛选逐次读取当前媒体库`, async () => {
-      sessionStorage.setItem('peach.library', '本地 & A');
+  for (const [name, get] of [['React', apiGet], ['App', api]] as const) {
+    it(`${name}: catalog, search, and filters read the current library on every pass`, async () => {
+      sessionStorage.setItem('peach.library', 'Local & A');
       await get('/api/items?q=影片&offset=48#results');
-      expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/items?q=影片&offset=48&library=%E6%9C%AC%E5%9C%B0%20%26%20A#results');
+      expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/items?q=影片&offset=48&library=Local%20%26%20A#results');
       sessionStorage.setItem('peach.library', 'cloud');
       await get('/api/facets?');
       expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/facets?library=cloud');
@@ -24,7 +24,7 @@ describe('媒体库查询范围', () => {
       expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/items?limit=1');
     });
 
-    it(`${name}：显式范围和其他端点保留调用方参数`, async () => {
+    it(`${name}: explicit ranges and other endpoints preserve caller params`, async () => {
       sessionStorage.setItem('peach.library', 'selected');
       for (const path of ['/api/items?library=other', '/api/items?library=', '/api/facets?%6cibrary=other',
         '/api/item?id=1', '/api/items-extra', '/api/libraries', 'https://example.test/api/items']) {
@@ -34,7 +34,7 @@ describe('媒体库查询范围', () => {
     });
   }
 
-  it('写操作保留调用方范围与请求体', async () => {
+  it('Write operations preserve the caller\'s scope and request body', async () => {
     sessionStorage.setItem('peach.library', 'selected');
     await api('/api/items', { method: 'POST', body: '{}' });
     await apiSend('/api/items', { id: 1 });
@@ -45,13 +45,13 @@ describe('媒体库查询范围', () => {
   });
 });
 
-describe('响应体读取期间取消请求', () => {
+describe('Cancels the request while the body is being read', () => {
   afterEach(() => { vi.unstubAllGlobals() });
 
   for (const method of ['GET', 'POST'] as const) {
-    it(`${method} 保留取消原因`, async () => {
+    it(`${method} preserves the cancellation reason`, async () => {
       const controller = new AbortController();
-      const cancelled = new DOMException('已中止', 'AbortError');
+      const cancelled = new DOMException('Aborted', 'AbortError');
       let rejectBody!: (reason: unknown) => void;
       const body = new Promise<never>((_resolve, reject) => { rejectBody = reject });
       vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: () => body })));

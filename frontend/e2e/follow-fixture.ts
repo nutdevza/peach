@@ -1,9 +1,11 @@
-/* 关注页与关注详情两个岛的桩数据：`follow-feed.test.ts`、`follow-detail.test.ts` 与设计决定用例（`design-*.test.ts`）共用。
+/* Stub data for the follows page and follow detail islands: shared by `follow-feed.test.ts`, `follow-detail.test.ts` and the
+ * design decision cases (`design-*.test.ts`).
  *
- * 演示库没有关注来源，这里按 `_source_payload`、`_group_payload`（`src/peach/web_follow.py`）造
- * 六位创作者、一页视频与图片、第二页续页，外加详情那几种形态。关注来源的真实抓取一次都不发：`/api/follow/check`
- * 的 POST 由桩接住，写接口（状态、稍后看）也只落在桩里。进页掷的取样种子换成定种子的序列，
- * 两排的次序每次一样。 */
+ * The demo library has no follow sources, so this builds, per `_source_payload` and `_group_payload`
+ * (`src/peach/web_follow.py`), six creators, a page of videos and images, a second continuation page, plus the details'
+ * several shapes. Not one real fetch to follow sources is sent: `/api/follow/check`'s POST is caught by the stub, and write
+ * endpoints (status, Watch later) also land only in stubs. The sampling seed rolled on page entry is swapped for a seeded
+ * sequence, so the two rows come out in the same order every time. */
 import type { Page, Route } from 'playwright-core';
 
 import { settle, visit, type Viewport, type Visit } from './harness.ts';
@@ -31,7 +33,7 @@ const item = (id: number, at: number, extra: Record<string, unknown> = {}) => {
   const tags = [TAGS[at % TAGS.length]!, TAGS[(at * 3 + 1) % TAGS.length]!];
   return {
     id, provider: from.provider, provider_label: from.provider_label, resource_provider: from.provider,
-    source_id: from.id, source_label: from.label, external_id: String(id), title: `演示更新 ${id}`,
+    source_id: from.id, source_label: from.label, external_id: String(id), title: `Demo update ${id}`,
     author: from.author_name, summary: null, url: `https://example.invalid/${id}`, thumb_url: `/stub-thumb/${id}`,
     published_at: `2026-09-${String(20 - (at % 18)).padStart(2, '0')}T08:20:00Z`, published_precision: 'exact',
     version: null, duration: 30 + at * 17, variant_kind: 'main', variant_label: null, status: 'new', asset_id: null,
@@ -49,52 +51,52 @@ const group = (primary: ReturnType<typeof item>) => ({
   is_release: false, newest_at: primary.published_at, stack: null,
 });
 
-/** 第一页：前 12 条是视频，后 6 条是图片。 */
+/** Page one: the first 12 entries are videos, the last 6 are images. */
 export const FIRST = [
   ...Array.from({ length: 12 }, (_, at) => group(item(1000 + at, at))),
   ...Array.from({ length: 6 }, (_, at) => group(imageItem(2000 + at, at))),
 ];
-/** 续页那一批视频。 */
+/** The batch of videos from the next page. */
 export const MORE = Array.from({ length: 4 }, (_, at) => group(item(3000 + at, at + 3)));
 
-/* ── 详情那几种形态 ──
-   只经单条取数（`/api/follow?item=`）交回、不进列表页：列表那几条按 FIRST 数卡，不受影响。 */
+/* ── Details variants ──
+   Returned only via the single-item fetch (`/api/follow?item=`) and never entering the list page: the list counts cards by FIRST, unaffected. */
 const still = (id: number, index: number) => ({
   index, media_kind: 'image', thumb_url: `/stub-thumb/${id}-${index}`, name: `${index}.jpg`, width: 600, height: 800,
   media_type: 'image/jpeg',
 });
 const clip = (id: number, index: number) => ({
-  index, media_kind: 'video', thumb_url: `/stub-thumb/${id}v${index}`, name: `片段 ${index}.mp4`, width: 1280, height: 720,
+  index, media_kind: 'video', thumb_url: `/stub-thumb/${id}v${index}`, name: `clip ${index}.mp4`, width: 1280, height: 720,
   media_type: 'video/mp4',
 });
 const gallery = (id: number, count: number, title: string) => item(id, 1, {
   title, media_kind: 'image', thumb_url: `/stub-thumb/${id}-0`, duration: null, media_type: 'image/jpeg', width: 600,
   height: 800, media_items: Array.from({ length: count }, (_, index) => still(id, index)),
 });
-/** 多图轮播、视频合集（另一版加另一站的同一条）、一帖多媒体、带两张已隐藏图的帖子、一条
- *  没有任何预览、标签六种类型各一枚的帖子，以及摘要、标题与媒体报错都是不换行长串的帖子。 */
+/** Multi-image carousels, a video compilation (another edition plus the same entry from another site), a multi-media post, a post with two hidden images, an entry
+ *  with no preview at all, a post with one tag of each of six types, and posts whose summary, title and media errors are long unbreakable strings. */
 export const DETAIL = { gallery: 5001, largeGallery: 5002, collection: 5101, media: 5201, hidden: 5301, bare: 5401, long: 5501 } as const;
 const UNBROKEN = 'abcdef0123456789'.repeat(12);
 const TYPED_TAGS = { ow: 'copyright', tracer: 'character', kou: 'artist', solo: 'general', animated: 'metadata', odd: 'unknown' };
 const DETAIL_GROUPS = [
-  group(gallery(5001, 3, '三张图的帖子 5001')),
-  group(gallery(5002, 21, '二十一张图的帖子 5002')),
+  group(gallery(5001, 3, 'Three-image post 5001')),
+  group(gallery(5002, 21, 'Post 5002 with 21 images')),
   {
-    ...group(item(5101, 0, { title: '合集主条目 5101' })), providers: ['kemono', 'rule34xxx'],
-    variants: [item(5102, 0, { title: '合集另一版 5102', variant_kind: 'alt', variant_label: '4K',
+    ...group(item(5101, 0, { title: 'Compilation main entry 5101' })), providers: ['kemono', 'rule34xxx'],
+    variants: [item(5102, 0, { title: 'Compilation other edition 5102', variant_kind: 'alt', variant_label: '4K',
       published_at: '2026-09-19T08:20:00Z' })],
-    duplicates: [item(5103, 1, { title: '另一站的同一条 5103', published_at: '2026-09-18T08:20:00Z' })],
+    duplicates: [item(5103, 1, { title: 'The same entry on another site, 5103', published_at: '2026-09-18T08:20:00Z' })],
   },
-  group(item(5201, 0, { title: '多媒体帖子 5201', media_items: [clip(5201, 0), still(5201, 1), clip(5201, 2)] })),
-  group(gallery(5301, 5, '有隐藏图的帖子 5301')),
+  group(item(5201, 0, { title: 'Multimedia post 5201', media_items: [clip(5201, 0), still(5201, 1), clip(5201, 2)] })),
+  group(gallery(5301, 5, 'Post 5301 with hidden images')),
   group(item(5401, 0, {
-    title: '只有文字的帖子 5401', thumb_url: null, has_media: false, media_kind: 'external', playable: false,
+    title: 'Post 5401 with text only', thumb_url: null, has_media: false, media_kind: 'external', playable: false,
     media_type: null, duration: null, tags: Object.keys(TYPED_TAGS), detail_tags: Object.keys(TYPED_TAGS),
     tag_types: TYPED_TAGS,
   })),
   group(item(5501, 0, {
-    title: `长串帖子_${UNBROKEN}`,
-    summary: [...Array.from({ length: 20 }, (_, at) => `第 ${at + 1} 段说明文字。`), `下载：https://example.invalid/${UNBROKEN}`].join('\n'),
+    title: `long-post_${UNBROKEN}`,
+    summary: [...Array.from({ length: 20 }, (_, at) => `Caption paragraph ${at + 1}.`), `Download: https://example.invalid/${UNBROKEN}`].join('\n'),
     media_error: `403 Forbidden: https://n1.example.invalid/data/${UNBROKEN}.mp4`,
   })),
 ];
@@ -102,7 +104,7 @@ const members = (row: (typeof DETAIL_GROUPS)[number]) => [row.primary, ...row.va
 const detailMediaKind = (id: number, index: number) => DETAIL_GROUPS.flatMap(members)
   .find((member) => member.id === id)?.media_items.find((media) => media.index === index)?.media_kind;
 
-/** 单条取数：状态与隐藏按桩里记下的写，隐藏的图从媒体清单挪到 `hidden_media`，同服务端投影。 */
+/** Single-entry fetch: state and hidden are written as recorded in the stub, and hidden images move from the media list into `hidden_media`, matching the server projection. */
 const detailPayload = (id: number, statuses: Map<number, string>, hidden: Map<number, Set<number>>) => {
   const row = DETAIL_GROUPS.find((candidate) => members(candidate).some((member) => member.id === id));
   if (!row) return null;
@@ -118,7 +120,7 @@ const detailPayload = (id: number, statuses: Map<number, string>, hidden: Map<nu
   return { ok: true, sources: SOURCES, author_aliases: [], groups };
 };
 
-/** 写成功的状态记在这里，重读时读得到，同服务端。 */
+/** A successful write's status is recorded here, readable on re-read, in sync with the server. */
 const payload = (url: URL, statuses: Map<number, string>, bindAuthors = false) => {
   const offset = Number(url.searchParams.get('offset') || 0);
   const groups = (offset ? MORE : FIRST).map((row) => statuses.has(row.primary.id)
@@ -144,9 +146,9 @@ const svg = (key: string, width: number, height: number) => {
 };
 
 export interface FollowStub {
-  /** 桩收到的写请求：地址与请求体，按到达顺序。 */
+  /** Write requests the stub received: URLs and bodies, in arrival order. */
   writes: { url: string; body: unknown }[];
-  /** 返回 true 的列表请求一直挂着，画面停在等待态；`release()` 放行挂着的那些。 */
+  /** When this returns true, list requests stay pending and the view sits in its waiting state; `release()` lets the pending ones through. */
   hold: ((url: URL) => boolean) | null;
   release(): Promise<void>;
 }
@@ -175,7 +177,7 @@ async function stub(page: Page, bindAuthors = false): Promise<FollowStub> {
   });
   await page.route('**/api/follow/credentials', (route) => route.fulfill({ json: { providers: [] } }));
   await page.route('**/api/tag-management**', route => route.fulfill({ json: { items: [], total:0, categories:{}, duplicate_groups: [] } }));
-  // 起过一趟之后 GET 一直报「在跑」：画面停在忙态，量得到两枚键一起忙。
+  // After one run, GET keeps reporting "running": the screen stays in the busy state, and both buttons can be measured as busy together.
   let started = false;
   await page.route('**/api/follow/check', (route) => {
     if (route.request().method() === 'POST') {
@@ -211,7 +213,7 @@ async function stub(page: Page, bindAuthors = false): Promise<FollowStub> {
     hidden.set(body.item, off);
     return route.fulfill({ json: { ok: true } });
   });
-  // 图按原图代理给一张画出来的图；视频不给正片，播放器报的那一条 VIDEOJS 错误由各条自己滤掉。
+  // Images are proxied at original size to a rendered image; videos get no real footage, and the one VIDEOJS error the player reports is filtered out by each item itself.
   await page.route('**/follow-stream**', (route) => {
     const url = new URL(route.request().url());
     const kind = detailMediaKind(Number(url.searchParams.get('id')), Number(url.searchParams.get('media')));
@@ -227,7 +229,7 @@ export interface FollowVisit extends Visit {
   stub: FollowStub;
 }
 
-/** 打开关注页：导航前装好桩与定种子，等到岛的卡片画出来、等待态结束。 */
+/** Opens the follows page: install stubs and fix the seed before navigating, then wait for the island's cards to render and the pending state to end. */
 export async function openFollowFeed(browser: import('playwright-core').Browser, path: string, viewport: Viewport,
   { settings = {}, ready = '[data-follow-list] > [data-follow-item]', bindAuthors = false }: {
     settings?: Record<string, unknown>; ready?: string; bindAuthors?: boolean;

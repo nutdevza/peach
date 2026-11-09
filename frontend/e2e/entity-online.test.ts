@@ -1,16 +1,16 @@
-/* 创作者在线视图：纯图片作者、页内筛选和详情返回，在两个视口下守住同一组行为。 */
+/* The creator online view: image-only authors, in-page filtering and detail return, holding the same behavior across both viewports. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { FIRST, openFollowFeed } from './follow-fixture.ts';
 import { launch, layout, settle, VIEWPORTS } from './harness.ts';
 
-describe('创作者在线视图', () => {
+describe('The creator\'s online view', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 纯图片作者显示在线图片，详情返回保留筛选与滚动`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} image-only authors show online images; returning from details keeps filters and scroll`, { timeout: 60_000 }, async () => {
       const opened = await openFollowFeed(browser, '/follow?media=images', viewport);
       const page = opened.page;
       try {

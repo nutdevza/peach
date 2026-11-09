@@ -1,4 +1,4 @@
-/* 卡片悬停预览：起不起、什么时候进入长悬停、怎么收掉。 */
+/* Card hover preview: whether to start, when long hover begins, and how to wind it down. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureHoverPreview, releaseHover, releaseHoverPreviews, wireHover } from '../../src/card-art/hover';
@@ -31,8 +31,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe('悬停放大设置', () => {
-  it('关闭时不启动计时，开启后按延迟放大', () => {
+describe('Hover zoom setting', () => {
+  it('Off, no timer starts; on, it enlarges after the delay', () => {
     const el = card();
     wireHover(el, { id: 7, location: 'pikpak', has_thumb: true });
     enter(el);
@@ -53,7 +53,7 @@ describe('悬停放大设置', () => {
     expect(el.hasAttribute('data-longhover')).toBe(false);
   });
 
-  it('计时中关闭后不进入放大状态：延时到点时再读一次设置', () => {
+  it('Closing during the countdown never enters the enlarged state: the setting is read again when the timer fires', () => {
     settings.hoverDelaySeconds = 3;
     const el = card();
     wireHover(el, { id: 7, location: 'pikpak', has_thumb: true });
@@ -65,8 +65,8 @@ describe('悬停放大设置', () => {
   });
 });
 
-describe('远端源只扫接触印相', () => {
-  it('叠一层扫视图，不碰封面那张图；移开就撤掉', () => {
+describe('Remote source only scans contact prints', () => {
+  it('It overlays a scanning view without touching the cover image, withdrawing when the pointer moves off', () => {
     const el = card();
     el.querySelector('[data-media-pic]')!.innerHTML = '<img class="poster cover" src="/cover?code=A">';
     wireHover(el, { id: 7, location: 'pikpak', has_thumb: true });
@@ -82,7 +82,7 @@ describe('远端源只扫接触印相', () => {
     expect(el.querySelector('img.ui-hvframes')).toBeNull();
   });
 
-  it('下一格先拉到手再换上去；没到手就停在当前这格，取图失败也放开闸', () => {
+  it('The next cell loads its image before swapping in; if not loaded it stays on the current cell, and the gate opens on image failure too', () => {
     const preloads: HTMLImageElement[] = [];
     const RealImage = globalThis.Image;
     vi.stubGlobal('Image', class { constructor() { const img = new RealImage(); preloads.push(img); return img; } });
@@ -108,14 +108,14 @@ describe('远端源只扫接触印相', () => {
     vi.unstubAllGlobals();
   });
 
-  it('没有接触印相就不挂预览', () => {
+  it('Without a contact sheet no preview mounts', () => {
     const el = card();
     wireHover(el, { id: 7, location: 'pikpak', has_thumb: false });
     enter(el);
     expect(el.querySelector('img.ui-hvframes')).toBeNull();
   });
 
-  it('首图失败撤掉图层和倒计时，保留封面；重新进入可以再取图', () => {
+  it('When the first image fails it removes the layer and countdown and keeps the cover; re-entering can fetch again', () => {
     settings.hoverDelaySeconds = 3;
     const el = card();
     el.querySelector('[data-media-pic]')!.innerHTML = '<img class="cover" src="/cover?id=7">';
@@ -131,7 +131,7 @@ describe('远端源只扫接触印相', () => {
     expect(el.querySelector('img.ui-hvframes')).not.toBeNull();
   });
 
-  it('卡片换资源后撤掉旧图层、计时与监听，只请求当前资源', () => {
+  it('After a card changes resources it removes the old layer, timer and listeners and requests only the current resource', () => {
     settings.hoverDelaySeconds = 3;
     const el = card();
     wireHover(el, { id: 7, location: '115', has_thumb: true });
@@ -148,7 +148,7 @@ describe('远端源只扫接触印相', () => {
     expect(el.querySelector('img.ui-hvframes')?.getAttribute('src')).toBe('/poster?id=9&c=4');
   });
 
-  it('多选或遮挡时不起', () => {
+  it('Never fires during multi-select or overlays', () => {
     const el = card();
     wireHover(el, { id: 7, location: 'pikpak', has_thumb: true });
     settings.selecting = true;
@@ -161,8 +161,8 @@ describe('远端源只扫接触印相', () => {
   });
 });
 
-describe('本地文件拉真视频', () => {
-  it('停 340 ms 才起一段静音视频，同一时间只留一个', () => {
+describe('Local files pull the real video', () => {
+  it('It waits 340ms before starting a muted video, keeping only one at a time', () => {
     const first = card();
     const second = card();
     wireHover(first, { id: 1, location: 'local' });
@@ -181,7 +181,7 @@ describe('本地文件拉真视频', () => {
     expect(second.querySelector('video.hv')).not.toBeNull();
   });
 
-  it('预览视频取得首帧后才覆盖封面', () => {
+  it('The cover is replaced only after the preview video\'s first frame arrives', () => {
     const el = card();
     wireHover(el, { id: 1, location: 'local' });
     enter(el);
@@ -199,7 +199,7 @@ describe('本地文件拉真视频', () => {
     expect(el.querySelector('video')).toBeNull();
   });
 
-  it('滚动中划过的卡不起；到点时正在滚动也不放', () => {
+  it('Cards scrolled past never trigger, and a fire time during scrolling holds', () => {
     const scrolling = window as unknown as { __scrolling?: boolean };
     const el = card();
     wireHover(el, { id: 1, location: 'local' });
@@ -215,7 +215,7 @@ describe('本地文件拉真视频', () => {
     delete scrolling.__scrolling;
   });
 
-  it('遮挡在防抖期间打开，到点也不放', () => {
+  it('An overlay opened during the debounce window never releases at fire time', () => {
     const el = card();
     wireHover(el, { id: 1, location: 'local' });
     enter(el);
@@ -225,8 +225,8 @@ describe('本地文件拉真视频', () => {
   });
 });
 
-describe('收掉预览', () => {
-  it('releaseHover 收掉这张卡自己的预览；releaseHoverPreviews 留下 except 那张', () => {
+describe('Withdraw the preview', () => {
+  it('releaseHover clears the own preview of this card; releaseHoverPreviews keeps every card except the given one', () => {
     const kept = card();
     const dropped = card();
     wireHover(kept, { id: 1, location: 'pikpak', has_thumb: true });
@@ -240,7 +240,7 @@ describe('收掉预览', () => {
     expect(kept.querySelector('img.ui-hvframes')).toBeNull();
   });
 
-  it('卡片重画过、回调跟着旧元素走了，留在画面上的扫视图照样收掉', () => {
+  it('The card repainted and the callback followed the old element, yet the sweep view left on screen still collapses', () => {
     const el = card();
     el.querySelector('[data-media-pic]')!.innerHTML = '<img class="ui-hvframes" src="/poster?id=1&c=4">';
     releaseHoverPreviews();

@@ -1,6 +1,6 @@
-/* 首页筛选条岛：空馆藏与首屏等待时两排、标签条摆什么。
+/* Home filter bar island: the two rows when the library is empty and during first-screen waiting, and what the tag bar holds.
  *
- * 点选、续页、排序、版式与详情往返要真的取数和量布局，由 `frontend/e2e/catalog-filter.test.ts` 在真浏览器里走。 */
+ * Selection, continuation pages, sorting, layout, and details round trips need real fetching and layout measurement, exercised by `frontend/e2e/catalog-filter.test.ts` in a real browser. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CatalogFilterPage } from '../../src/react/catalog-filter/catalog-filter-page';
@@ -13,7 +13,7 @@ import { mount, mountRoot, pending, settle } from './render';
 function props(patch: Partial<CatalogFilterProps> = {}): CatalogFilterProps {
   return {
     tiers: { key: 'k', performers: [], studios: [] }, tiersPending: false, empty: false, tags: [], tagFirst: 0,
-    views: [{ k: '', label: '全部', href: '/' }], state: '', count: { total: 0, shown: 0 }, trash: false,
+    views: [{ k: '', label: 'All', href: '/' }], state: '', count: { total: 0, shown: 0 }, trash: false,
     sorts: [], layout: null, refreshing: false, offscreen: false, combo: [], comboHidden: true, comboHost: null,
     actions: {
       openEntity: vi.fn(), setView: vi.fn(), toggleTag: vi.fn(), clearFilter: vi.fn(), clearAll: vi.fn(),
@@ -26,8 +26,8 @@ function props(patch: Partial<CatalogFilterProps> = {}): CatalogFilterProps {
 
 const count = (host: HTMLElement, selector: string) => host.querySelectorAll(selector).length;
 
-describe('空馆藏', () => {
-  it('两排头像与标签条各铺一行静止占位，不挂忙态、不接指针也不进读屏', async () => {
+describe('Empty library', () => {
+  it('Two avatar rows and the tag bar each lay a static placeholder row: no busy state, no pointer handlers, and excluded from screen readers', async () => {
     const host = await mount(<CatalogFilterPage {...props({ empty: true })} />);
     for (const kind of ['performer', 'studio']) {
       expect(count(host, `[data-catalog-placeholder="${kind}"]`)).toBe(EMPTY_SLOTS);
@@ -35,23 +35,23 @@ describe('空馆藏', () => {
     expect(count(host, '[data-catalog-placeholder="tag"] > span')).toBe(EMPTY_SLOTS);
     expect([...host.querySelectorAll('[data-catalog-placeholder]')].every((node) => node.getAttribute('aria-hidden') === 'true'))
       .toBe(true);
-    // 空馆藏说的是「这里将来会有东西」，不是「正在取」：没有微光。
+    // An empty library says 'something will live here eventually', not 'fetching now': no shimmer.
     expect(host.querySelector('[data-loading]')).toBeNull();
     expect(host.querySelector('[data-catalog-tier] [aria-busy="true"]')).toBeNull();
   });
 
-  it('收起时两排头像照留，浮层那两排不画', async () => {
+  it('When collapsed the two avatar rows stay and the popover\'s two rows never paint', async () => {
     const host = await mount(<CatalogFilterPage {...props({ empty: true, offscreen: true })} />);
     expect(count(host, '[data-catalog-placeholder="performer"]')).toBe(EMPTY_SLOTS);
     expect(host.querySelector('[data-catalog-frame]')).toBeNull();
   });
 });
 
-describe('首屏等待两排头像', () => {
+describe('The first screen waits on two avatar rows', () => {
   beforeEach(() => localStorage.clear());
   const rows = (host: HTMLElement) => [...host.querySelectorAll('[data-catalog-tier]')].map((row) => row.getAttribute('data-catalog-tier'));
 
-  it('本机没有记录或记录坏了时两排都铺占位，壳在取数时整块挂忙态', async () => {
+  it('With no local record or a broken one, both rows lay placeholders and the shell busy-states the whole block while fetching', async () => {
     for (const saved of [null, 'broken', 'null']) {
       if (saved !== null) localStorage.setItem(TIERS_SHAPE_KEY, saved);
       const host = await mount(<CatalogFilterPage {...props({ tiers: null, tiersPending: true })} />);
@@ -61,7 +61,7 @@ describe('首屏等待两排头像', () => {
     }
   });
 
-  it('不取头像的页面与收起的筛选条不挂忙态：没有一趟取数会来撤它', async () => {
+  it('Pages that never fetch avatars and collapsed filter bars carry no busy state: no fetch pass would ever come to clear it', async () => {
     for (const patch of [{ tiersPending: false }, { tiersPending: true, offscreen: true }]) {
       const host = await mount(<CatalogFilterPage {...props({ tiers: null, ...patch })} />);
       expect(host.querySelector('[data-catalog-tiers]')?.hasAttribute('aria-busy'), JSON.stringify(patch)).toBe(false);
@@ -69,7 +69,7 @@ describe('首屏等待两排头像', () => {
     }
   });
 
-  it('照上次画好时的结构铺：上次没人的那排不画，两排都没人时整块不占位', async () => {
+  it('Lays out by the last painted structure: an empty row from last time is not drawn, and with both rows empty the whole block takes no space', async () => {
     rememberTiers({ performers: false, studios: true });
     const studiosOnly = await mount(<CatalogFilterPage {...props({ tiers: null })} />);
     expect(rows(studiosOnly)).toEqual(['studios']);
@@ -80,7 +80,7 @@ describe('首屏等待两排头像', () => {
     expect(none.querySelector<HTMLElement>('[data-catalog-tiers]')?.hidden).toBe(true);
   });
 
-  it('取回后撤掉忙态，并记下这次画了哪几排；空馆藏两排占位都算画了', async () => {
+  it('Busy state clears after fetch, noting which rows painted this time; with an empty library both placeholder rows count as painted', async () => {
     const { host, rerender } = await mountRoot(<CatalogFilterPage {...props({ tiers: null, tiersPending: true })} />);
     await rerender(<CatalogFilterPage {...props({ tiers: { key: 'k', performers: [], studios: [{ name: 'S1', logo: '', fallback: 'S1' }] } })} />);
     expect(host.querySelector('[data-catalog-tiers]')?.hasAttribute('aria-busy')).toBe(false);
@@ -90,10 +90,10 @@ describe('首屏等待两排头像', () => {
     expect(rememberedTiers()).toEqual({ performers: true, studios: true });
   });
 
-  it('岛挂上之前的壳骨架读同一份记录', () => {
+  it('The shell skeleton before the island mounts reads the same record', () => {
     const skeleton = () => {
       const host = document.createElement('div');
-      host.innerHTML = catalogFilterSkeletonHtml([{ k: '', label: '全部', href: '/' }], '');
+      host.innerHTML = catalogFilterSkeletonHtml([{ k: '', label: 'All', href: '/' }], '');
       return host;
     };
     expect(rows(skeleton())).toEqual(['performers', 'studios']);
@@ -106,8 +106,8 @@ describe('首屏等待两排头像', () => {
   });
 });
 
-describe('读数', () => {
-  it('取数期间是一条微光；这一趟失败时收起，不留着一直转的微光', async () => {
+describe('Count', () => {
+  it('A shimmer shows while fetching; it collapses when the run fails, never leaving a shimmer spinning forever', async () => {
     const waiting = await mount(<CatalogFilterPage {...props({ count: null })} />);
     expect(count(waiting, '[data-skeleton="count"]')).toBe(1);
     document.body.innerHTML = '';
@@ -119,30 +119,30 @@ describe('读数', () => {
   });
 });
 
-describe('续页', () => {
-  it('上一份名单要的那页还在路上时换了名单，新名单照样续页，旧的那页回来不进这一排', async () => {
-    // 一排一枚铺不满一行：没溢出就一直停在右端，每次画完都要下一页。
+describe('Continuation', () => {
+  it('Switching lists while the previous list\'s requested page is still in flight: the new list keeps paginating, and the old page does not enter the row once back', async () => {
+    // One item per row never fills a line: with no overflow it keeps resting at the right end, and every draw asks for the next page.
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000);
     vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(1000);
     const stale = pending<TierPerformer[]>();
     const moreTops = vi.fn<CatalogFilterProps['actions']['moreTops']>()
       .mockReturnValueOnce(stale.answer)
-      .mockResolvedValueOnce([{ name: '新二', ringHtml: '' }])
+      .mockResolvedValueOnce([{ name: 'New two', ringHtml: '' }])
       .mockResolvedValue([]);
     const tiers = (key: string, name: string) => ({ key, performers: [{ name, ringHtml: '' }], studios: [] });
     const base = props();
     const page = (key: string, name: string) =>
       <CatalogFilterPage {...base} tiers={tiers(key, name)} actions={{ ...base.actions, moreTops }} />;
-    const { host, rerender } = await mountRoot(page('旧', '旧一'));
+    const { host, rerender } = await mountRoot(page('old', 'Old one'));
     expect(moreTops).toHaveBeenCalledTimes(1);
 
-    await rerender(page('新', '新一'));
+    await rerender(page('new', 'New one'));
     await settle();
-    await stale.release([{ name: '旧二', ringHtml: '' }]);
+    await stale.release([{ name: 'Old two', ringHtml: '' }]);
     await settle();
 
     const names = [...host.querySelectorAll('[data-tier-performer]')].map((node) => node.getAttribute('data-entity-name'));
-    expect(names).toEqual(['新一', '新二']);
+    expect(names).toEqual(['New one', 'New two']);
     expect(moreTops).toHaveBeenCalledTimes(3);
   });
 });

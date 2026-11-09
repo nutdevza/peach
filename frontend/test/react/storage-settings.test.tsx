@@ -1,5 +1,5 @@
-/* 「存储空间」：勾选几类一起清理或全部清理，不能清理的写明原因；统计中按上次的文件数报进度；
- * 容器部署给出宿主机上的迁移步骤。 */
+/* "Storage space": check several categories to clean together or clean all, stating the reason for what cannot be cleaned; progress is reported by the last file count during statistics;
+ * container deployments give the migration steps on the host machine. */
 import { expect, it, vi } from 'vitest';
 import * as legacyUi from '@peach/legacy/ui';
 
@@ -9,18 +9,18 @@ import { buttonNamed, click, fetchMock, mount, sentBody, settle, submit, type } 
 
 const category = (key: string, label: string, bytes: number, reclaimable: number, cleanable: boolean,
                   note: string): StorageCategory =>
-  ({ key, label, description: `${label}是什么`, note, cleanable, bytes, files: 1, reclaimable });
+  ({ key, label, description: `What is ${label}`, note, cleanable, bytes, files: 1, reclaimable });
 
 const measured: StorageState = {
   data_root: 'C:\\peach-data', free_bytes: 100 * 2 ** 30, total_bytes: 1000 * 2 ** 30, system_drive: true,
   usage: {
     measured_at: 1_790_000_000, total_bytes: 6 * 2 ** 30, total_files: 300,
     categories: [
-      category('database', '数据库', 2 ** 30, 0, false, 'Peach 的全部资料都在这里'),
-      category('backups', '数据库备份', 2 ** 30, 2 ** 29, true, '更早的无法再恢复'),
-      category('playback', '播放缓存', 2 ** 30, 2 ** 30, true, '再次播放时重新转码'),
-      category('previews', '预览图', 2 ** 30, 0, false, '重建要重新读取整部影片'),
-      category('logs', '日志', 2 ** 20, 0, true, '只清理已归档的日志'),
+      category('database', 'Database', 2 ** 30, 0, false, 'All of Peach\'s data lives here'),
+      category('backups', 'Database backup', 2 ** 30, 2 ** 29, true, 'Older ones can never be restored'),
+      category('playback', 'Playback cache', 2 ** 30, 2 ** 30, true, 'Re-transcode when played again'),
+      category('previews', 'Preview image', 2 ** 30, 0, false, 'Rebuilding would re-read the whole video'),
+      category('logs', 'Logs', 2 ** 20, 0, true, 'Only clean archived logs'),
     ],
   },
   job: { state: 'idle', message: '' },
@@ -42,7 +42,7 @@ function confirmWith(answer: boolean) {
 const box = (host: HTMLElement, key: string) =>
   host.querySelector<HTMLInputElement>(`[data-category="${key}"] input[type="checkbox"]`)!;
 
-it('首次打开维护页自动统计，已有结果时复用统计', async () => {
+it('Opening the maintenance page the first time measures automatically; with results already present it reuses them', async () => {
   const fetcher = fetchMock(200, measured);
   vi.stubGlobal('fetch', fetcher);
   await mount(<StorageSettings initial={{ ...measured, usage: null }} receipt={vi.fn()} />);
@@ -54,7 +54,7 @@ it('首次打开维护页自动统计，已有结果时复用统计', async () =
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it('只读教程经过维护页不启动占用统计，正常访问仍可统计', async () => {
+it('The read-only tutorial passing through the maintenance page starts no usage measurement; normal visits still measure', async () => {
   const fetcher = fetchMock(200, measured);
   vi.stubGlobal('fetch', fetcher);
   document.body.classList.add('peach-guiding');
@@ -70,22 +70,22 @@ it('只读教程经过维护页不启动占用统计，正常访问仍可统计'
   expect(fetcher.mock.calls[0]?.[0]).toBe('/api/configuration/storage/measure');
 });
 
-it('不能清理的勾选框禁用并写明原因，勾几类一起清，全部清理只发可清理的那几类', async () => {
+it('Uncleanable checkboxes are disabled with the reason stated; checking clears those categories together, and clear all sends only the cleanable ones', async () => {
   const seen = confirmWith(true);
   const fetcher = fetchMock(200, { ...measured, job: { state: 'cleaning', category: 'playback', message: '' } });
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<StorageSettings initial={measured} receipt={vi.fn()} />);
 
   expect(box(host, 'database').disabled).toBe(true);
-  expect(host.querySelector('[data-category="previews"]')!.textContent).toContain('不能清理：重建要重新读取整部影片');
+  expect(host.querySelector('[data-category="previews"]')!.textContent).toContain('Preview imageWhat is Preview imageCannot clean: Rebuilding would re-read the whole video1.0 GB');
   expect(box(host, 'logs').disabled).toBe(true);
-  expect(host.querySelector('[data-category="logs"]')!.textContent).toContain('没有可以清理的文件');
-  expect(host.querySelector('[data-category="playback"]')!.textContent).toContain('清理后再次播放时重新转码');
-  expect(buttonNamed('清理所选', host)!.disabled).toBe(true);
+  expect(host.querySelector('[data-category="logs"]')!.textContent).toContain('No files to clean up');
+  expect(host.querySelector('[data-category="playback"]')!.textContent).toContain('Playback cacheWhat is Playback cacheAfter cleanup, Re-transcode when played again1.0 GBReleasable 1.0 GB');
+  expect(buttonNamed('Clear selected', host)!.disabled).toBe(true);
 
   await click(box(host, 'playback'));
-  expect(host.textContent).toContain('已选 1 类，可释放 1.0 GB');
-  await click(buttonNamed('清理所选', host));
+  expect(host.textContent).toContain('1 category selected, 1.0 GB releasable');
+  await click(buttonNamed('Clear selected', host));
   await settle();
   expect(seen[0]!.danger).toBe(false);
   expect(sentBody(fetcher)).toEqual({ categories: ['playback'] });
@@ -94,15 +94,15 @@ it('不能清理的勾选框禁用并写明原因，勾几类一起清，全部�
   const again = await mount(<StorageSettings initial={measured} receipt={vi.fn()} />);
   const all = fetchMock(200, measured);
   vi.stubGlobal('fetch', all);
-  await click(buttonNamed('全部清理', again));
+  await click(buttonNamed('Clear all', again));
   await settle();
-  // 备份在里面时确认框是危险样式；正文逐类写清理后会怎样。
+  // When a backup is inside, the confirm dialog uses the danger style; the body spells out per category what cleanup does.
   expect(seen[1]!.danger).toBe(true);
-  expect(String(seen[1]!.body)).toContain('数据库备份 512 MB（清理后更早的无法再恢复）');
+  expect(String(seen[1]!.body)).toContain('Database backup 512 MB (older ones cannot be restored after cleanup)');
   expect(sentBody(all)).toEqual({ categories: ['backups', 'playback'] });
 });
 
-it('统计中按上次的文件数画进度，读数是已走过的文件与大小', async () => {
+it('Stats draw progress from the last file count, and readings show files and bytes covered', async () => {
   vi.stubGlobal('fetch', fetchMock(200, measured));
   const measuring: StorageState = {
     ...measured, job: { state: 'measuring', message: '', files: 120, bytes: 2 ** 30, expected_files: 300 },
@@ -110,38 +110,38 @@ it('统计中按上次的文件数画进度，读数是已走过的文件与大�
   const host = await mount(<StorageSettings initial={measuring} receipt={vi.fn()} />);
   const bar = host.querySelector('[role="progressbar"]')!;
   expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-valuemax')]).toEqual(['120', '300']);
-  expect(host.textContent).toContain('已统计 120 个文件 · 1.0 GB，上次共 300 个');
-  expect(buttonNamed('全部清理', host)!.disabled).toBe(true);
+  expect(host.textContent).toContain('Counted 120 files · 1.0 GB; 300 total last time');
+  expect(buttonNamed('Clear all', host)!.disabled).toBe(true);
 });
 
-it('容器部署不给更改位置，列出在宿主机上迁移的几步', async () => {
+it('Container deployments offer no location change; list the steps to migrate on the host machine', async () => {
   vi.stubGlobal('fetch', fetchMock(200, measured));
   const docker: StorageState = {
     ...measured,
     relocation: {
-      available: false, message: '容器的数据目录是宿主机上的数据卷', last: null,
-      steps: [{ text: '停止 Peach', command: 'docker compose down' }, { text: '再启动', command: 'docker compose up -d' }],
+      available: false, message: 'The container\'s data directory is a volume on the host', last: null,
+      steps: [{ text: 'Stop Peach', command: 'docker compose down' }, { text: 'Restart', command: 'docker compose up -d' }],
     },
   };
   const host = await mount(<StorageSettings initial={docker} receipt={vi.fn()} />);
-  expect(buttonNamed('更改位置', host)!.disabled).toBe(true);
-  const steps = host.querySelector('ol[aria-label="在宿主机上迁移"]')!;
+  expect(buttonNamed('Change location', host)!.disabled).toBe(true);
+  const steps = host.querySelector('ol[aria-label="Migrate on the host machine"]')!;
   expect([...steps.querySelectorAll('code')].map((node) => node.textContent))
     .toEqual(['docker compose down', 'docker compose up -d']);
 });
 
-it('容量字段带 GiB 单位，保存整数上限及留空的不设限，并保留占比与分类清理', async () => {
+it('Capacity fields carry the GiB unit, saves integer limits and leaves-empty means no limit, and keeps the share and category cleanup', async () => {
   const policy = { enabled: true, minimum_free_gib: 0, data_max_gib: 0, cache_max_gib: 0, auto_clean: true,
     external_cache_path: '/cache', external_cache_max_gib: 0 };
   const storage = { ...measured, budget: { policy, last_check: null, error: '' } };
   const fetcher = fetchMock(200, storage);
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<StorageSettings initial={storage} receipt={vi.fn()} />);
-  const field = host.querySelector<HTMLInputElement>('input[aria-label="Peach 数据上限（GiB）"]');
+  const field = host.querySelector<HTMLInputElement>('input[aria-label="Peach data limit (GiB)"]');
   expect(field?.value).toBe('');
   expect([...host.querySelectorAll('[aria-hidden="true"]')].filter(node => node.textContent === 'GiB')).toHaveLength(4);
   expect(host.querySelector('[data-storage-result]')).not.toBeNull();
-  expect(buttonNamed('清理所选', host)).not.toBeNull();
+  expect(buttonNamed('Clear selected', host)).not.toBeNull();
   await type(field, '80');
   await submit(host.querySelector('#storageBudgetSettings'));
   await settle();
@@ -149,23 +149,23 @@ it('容量字段带 GiB 单位，保存整数上限及留空的不设限，并�
   expect(sentBody(fetcher)).toEqual({ ...policy, data_max_gib: 80 });
 });
 
-it('关闭容量保护隐藏限制并保存开关，重新开启保留原设置', async () => {
+it('Turning capacity protection off hides the limits and saves the switch; turning it on again keeps the original settings', async () => {
   const policy = { enabled: true, minimum_free_gib: 8, data_max_gib: 80, cache_max_gib: 20,
     auto_clean: true, external_cache_path: '/cache', external_cache_max_gib: 100 };
   const storage = { ...measured, budget: { policy, last_check: null, error: '' } };
   const fetcher = fetchMock(200, storage);
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<StorageSettings initial={storage} receipt={vi.fn()} />);
-  await click(host.querySelector('[aria-label="启用容量保护"]'));
-  expect(host.querySelector('input[aria-label="Peach 数据上限（GiB）"]')).toBeNull();
+  await click(host.querySelector('[aria-label="Enable capacity protection"]'));
+  expect(host.querySelector('input[aria-label="Peach data limit (GiB)"]')).toBeNull();
   await submit(host.querySelector('#storageBudgetSettings'));
   await settle();
   expect(sentBody(fetcher)).toEqual({ ...policy, enabled: false });
-  await click(host.querySelector('[aria-label="启用容量保护"]'));
-  expect(host.querySelector<HTMLInputElement>('input[aria-label="Peach 数据上限（GiB）"]')?.value).toBe('80');
+  await click(host.querySelector('[aria-label="Enable capacity protection"]'));
+  expect(host.querySelector<HTMLInputElement>('input[aria-label="Peach data limit (GiB)"]')?.value).toBe('80');
 });
 
-it('空目录自动读取 CloudDrive，填入表单后由保存写入设置', async () => {
+it('An empty directory reads CloudDrive automatically; filling the form and saving writes the setting', async () => {
   const policy = { enabled: true, minimum_free_gib: 0, data_max_gib: 0, cache_max_gib: 0,
     auto_clean: true, external_cache_path: '', external_cache_max_gib: 0 };
   const storage = { ...measured, budget: { policy, last_check: null, error: '' } };
@@ -175,7 +175,7 @@ it('空目录自动读取 CloudDrive，填入表单后由保存写入设置', as
   const host = await mount(<StorageSettings initial={storage} receipt={vi.fn()} />);
   await settle();
   const directory = [...host.querySelectorAll('input')].find(input =>
-    [...(input.labels ?? [])].some(label => label.textContent === '外部缓存目录'));
+    [...(input.labels ?? [])].some(label => label.textContent === 'External cache directory'));
   expect(directory?.value).toBe('/detected-cache');
   expect(fetcher).toHaveBeenCalledTimes(1);
   await submit(host.querySelector('#storageBudgetSettings'));

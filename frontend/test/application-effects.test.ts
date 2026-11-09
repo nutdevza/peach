@@ -3,7 +3,7 @@ import { ApplicationEffects } from '../src/application/effects';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-it('暂停与销毁隔断监听，恢复保留监听目标身份', () => {
+it('Pause and destroy detach listeners, while resume keeps the listener targets\' identity', () => {
   const effects = new ApplicationEffects(), target = new EventTarget();
   const seen: unknown[] = [];
   effects.listen(target, 'sample', function (this: EventTarget) { seen.push(this); });
@@ -15,7 +15,7 @@ it('暂停与销毁隔断监听，恢复保留监听目标身份', () => {
   expect(effects.signal.aborted).toBe(true);
 });
 
-it('属性处理器保留 this，清理只恢复自己拥有的属性', () => {
+it('The attribute handler keeps `this`, and cleanup restores only the properties it owns', () => {
   const effects = new ApplicationEffects(), previous = vi.fn();
   const target = { onclick: previous };
   const seen: unknown[] = [];
@@ -27,7 +27,7 @@ it('属性处理器保留 this，清理只恢复自己拥有的属性', () => {
   next.dispose(); expect(target.onclick).toBe(replacement);
 });
 
-it('已完成调度释放句柄，销毁取消未完成定时与帧', () => {
+it('Completed schedules release handles; destroy cancels unfinished timers and frames', () => {
   vi.useFakeTimers();
   const effects = new ApplicationEffects(), called = vi.fn();
   effects.delay(called, 10); vi.advanceTimersByTime(10);
@@ -36,7 +36,7 @@ it('已完成调度释放句柄，销毁取消未完成定时与帧', () => {
   vi.runAllTimers(); expect(called).toHaveBeenCalledTimes(1);
 });
 
-it('观察者销毁后不能再次观察，晚到回调不发布', () => {
+it('A destroyed observer cannot observe again, and late callbacks never publish', () => {
   const observe = vi.fn(), disconnect = vi.fn(), changed = vi.fn();
   let fire = () => {};
   vi.stubGlobal('MutationObserver', class {
@@ -50,9 +50,9 @@ it('观察者销毁后不能再次观察，晚到回调不发布', () => {
   expect(changed).toHaveBeenCalledTimes(1);
 });
 
-it('清理异常仍释放其他资源，晚交资源立即释放一次', () => {
+it('On cleanup error the other resources are still released; late-committed resources are released once immediately', () => {
   const effects = new ApplicationEffects(), first = vi.fn(), last = vi.fn(), late = vi.fn();
-  effects.own(first); effects.own(() => { throw new Error('清理失败'); }); effects.own(last);
+  effects.own(first); effects.own(() => { throw new Error('Cleanup failed'); }); effects.own(last);
   expect(() => effects.dispose()).toThrow(AggregateError);
   expect(first).toHaveBeenCalledTimes(1); expect(last).toHaveBeenCalledTimes(1);
   const release = effects.own(late); release(); effects.dispose();

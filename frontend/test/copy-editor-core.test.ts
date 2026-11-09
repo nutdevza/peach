@@ -7,34 +7,34 @@ const core = (globalThis as unknown as { PeachCopyEditorCore: {
   applyDrafts(root: Node, edits: Record<string, string>, originals: WeakMap<Node, string>, skip?: string): void;
 } }).PeachCopyEditorCore;
 
-describe('原位改字核心', () => {
-  it('读取 JSON 成功结果与服务端失败原因', async () => {
+describe('In-place text edit core', () => {
+  it('Reads the JSON success result and the server\'s failure reason', async () => {
     await expect(core.readJson(new Response('{"ok":true,"text":""}'))).resolves.toEqual({ ok: true, text: '' });
-    await expect(core.readJson(new Response('{"error":"保存失败"}', { status: 500 }))).rejects.toThrow('保存失败');
+    await expect(core.readJson(new Response('{"error":"save failed"}', { status: 500 }))).rejects.toThrow('Save failed');
   });
-  it('成功响应缺少 JSON 时保留未确认状态', async () => {
+  it('A success response without JSON keeps the unconfirmed state', async () => {
     await expect(core.readJson(new Response(''))).rejects.toMatchObject({ unconfirmed: true });
     await expect(core.readJson(new Response('<html>error</html>', { status: 502 }))).rejects.toMatchObject({ unconfirmed: false });
     await expect(core.readJson(new Response('null'))).rejects.toMatchObject({ unconfirmed: true });
   });
-  it('连续修改、删除与循环映射都能终止', () => {
-    expect(core.resolveDraft({ 甲: '乙', 乙: '' }, '甲')).toBe('');
-    expect(core.resolveDraft({ 甲: '乙', 乙: '甲' }, '甲')).toBe('甲');
-    expect(core.resolveDraft(null, '甲')).toBe('甲');
+  it('Continuous edits, deletions, and cyclic mappings all terminate', () => {
+    expect(core.resolveDraft({ 甲: 'Beta', 乙: 'Alpha' }, 'Alpha')).toBe('');
+    expect(core.resolveDraft({ 甲: 'Beta', 乙: 'Alpha' }, 'Alpha')).toBe('Alpha');
+    expect(core.resolveDraft(null, 'Alpha')).toBe('Alpha');
   });
-  it('删除草稿保留文本节点身份并跳过编辑器和脚本', () => {
+  it('Deleting a draft keeps text node identity and skips the editor and scripts', () => {
     const root = document.createElement('main');
-    root.innerHTML = '<p>  说明  </p><script>说明</script><span data-copy-editor>说明</span>';
+    root.innerHTML = '<p>  Description  </p><script>Description</script><span data-copy-editor>Description</span>';
     const node = root.querySelector('p')!.firstChild!;
     const originals = new WeakMap<Node, string>();
     core.applyDrafts(root, { 说明: '' }, originals);
-    expect(node.textContent).toBe('    ');
+    expect(node.textContent).toBe('  Description  ');
     expect(root.querySelector('p')!.firstChild).toBe(node);
-    expect(root.querySelector('script')!.textContent).toBe('说明');
-    expect(root.querySelector('span')!.textContent).toBe('说明');
+    expect(root.querySelector('script')!.textContent).toBe('Description');
+    expect(root.querySelector('span')!.textContent).toBe('Note');
     core.applyDrafts(root, { 说明: '' }, originals);
     expect(node.textContent).toBe('    ');
-    core.applyDrafts(root, { 说明: '恢复' }, originals);
-    expect(node.textContent).toBe('  恢复  ');
+    core.applyDrafts(root, { 说明: 'Restore' }, originals);
+    expect(node.textContent).toBe('  Restore  ');
   });
 });

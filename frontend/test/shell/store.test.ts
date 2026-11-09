@@ -1,5 +1,5 @@
-/* 壳的内存状态单例（`src/shell/`）：活绑定、整体换引用与原地改字段两种写法、`barsContext.filters` 与
- * `state` 的别名、两个常驻的选择集，以及订阅与版本号。每个用例拿一份新加载的模块，初值互不干扰。 */
+/* The shell's in-memory state singleton (`src/shell/`): live bindings, whole-object swap versus in-place field mutation, `barsContext.filters` and
+ * `state` aliases, two resident selection sets, and subscriptions with version numbers. Each test loads a fresh module copy so initial values do not interfere. */
 import { beforeEach, expect, it, vi } from 'vitest';
 
 type Shell = typeof import('../../src/shell');
@@ -11,7 +11,7 @@ beforeEach(async () => {
 
 const home = (filters: Record<string, string>) => ({ type: 'home' as const, filters });
 
-it('初值与壳启动之前一致：口径还没写入，来处指向首页与关注页', () => {
+it('Initial values match pre-shell-startup: the convention is not written yet, and origins point at home and follows', () => {
   expect(shell.state).toBeUndefined();
   expect(shell.barsContext).toBeUndefined();
   expect(shell.detailReturnBarsContext).toBeNull();
@@ -24,7 +24,7 @@ it('初值与壳启动之前一致：口径还没写入，来处指向首页与�
   expect(shell.shellVersion()).toBe(0);
 });
 
-it('writeShell 只换补丁里出现的项，值是 undefined 也照写，每次调用通知一次', () => {
+it('writeShell replaces only the keys present in the patch, writes even when the value is undefined, and notifies once per call', () => {
   const heard: number[] = [];
   shell.subscribeShell(() => heard.push(shell.shellVersion()));
   shell.writeShell({ detailReturnPath: '/stats', selectMode: true, selectSurface: 'catalog' });
@@ -36,13 +36,13 @@ it('writeShell 只换补丁里出现的项，值是 undefined 也照写，每次
   expect(heard).toEqual([1, 2, 3]);
 });
 
-it('整体重建 state 不碰 barsContext：语境仍指旧对象，直到写点把它指回新的那一份', () => {
+it('Rebuilding state wholesale does not touch barsContext: the context still points at the old object until a write site points it back at the new one', () => {
   const first = { loc: 'local', tag: '' };
   shell.writeShell({ state: first });
   shell.writeShell({ barsContext: home(shell.state!) });
   expect(shell.barsContext!.filters).toBe(shell.state);
 
-  shell.writeShell({ state: { ...shell.state!, tag: '剧情' } });
+  shell.writeShell({ state: { ...shell.state!, tag: 'Drama' } });
   expect(shell.state).not.toBe(first);
   expect(shell.barsContext!.filters).toBe(first);
   expect(first.tag).toBe('');
@@ -51,7 +51,7 @@ it('整体重建 state 不碰 barsContext：语境仍指旧对象，直到写点
   expect(shell.barsContext!.filters).toBe(shell.state);
 });
 
-it('原地改字段时语境与 state 是同一个对象，两边同时看见；notifyShell 让版本号加一', () => {
+it('When fields are mutated in place, the context and state are the same object visible to both sides at once; notifyShell bumps the version by one', () => {
   shell.writeShell({ state: { loc: 'local', sort: 'seed' } });
   shell.writeShell({ barsContext: home(shell.state!) });
   const before = shell.shellVersion();
@@ -61,7 +61,7 @@ it('原地改字段时语境与 state 是同一个对象，两边同时看见；
   expect(shell.shellVersion()).toBe(before + 1);
 });
 
-it('打开详情时记下的首页语境关掉后原样还原，filters 仍是那份 state', () => {
+it('The home context recorded when details opened is restored as-is on close, and filters are still that same state', () => {
   shell.writeShell({ state: { loc: 'local' } });
   shell.writeShell({ barsContext: home(shell.state!) });
   const opened = shell.barsContext!;
@@ -75,7 +75,7 @@ it('打开详情时记下的首页语境关掉后原样还原，filters 仍是�
   expect(shell.barsContext!.filters).toBe(shell.state);
 });
 
-it('两个选择集是常驻实例：增删、清空都在同一个 Set 上', () => {
+it('The two selection sets are resident instances: adds, removals, and clears all hit the same Set', () => {
   const { selected, followSelected } = shell;
   selected.add(1);
   selected.add(2);
@@ -90,7 +90,7 @@ it('两个选择集是常驻实例：增删、清空都在同一个 Set 上', ()
   expect(shell.lastSelectedId).toBeNull();
 });
 
-it('退订之后不再收到通知；版本号单调递增', () => {
+it('Unsubscribing stops notifications; version numbers increase monotonically', () => {
   const listener = vi.fn();
   const stop = shell.subscribeShell(listener);
   shell.notifyShell();
@@ -101,10 +101,10 @@ it('退订之后不再收到通知；版本号单调递增', () => {
   expect(shell.shellVersion()).toBe(3);
 });
 
-it('共享 shell 入口交出同一份活绑定：从入口写，状态模块当场读到', async () => {
+it('The shared shell entry hands over the same live binding: writing from the entry, the state module reads it on the spot', async () => {
   const sharedShell = await import('@peach/shell');
-  sharedShell.writeShell({ configurationRequestedSection: '网络与访问' });
-  expect(shell.configurationRequestedSection).toBe('网络与访问');
+  sharedShell.writeShell({ configurationRequestedSection: 'Network & access' });
+  expect(shell.configurationRequestedSection).toBe('Network & access');
   expect(sharedShell.selected).toBe(shell.selected);
-  expect(sharedShell.configurationRequestedSection).toBe('网络与访问');
+  expect(sharedShell.configurationRequestedSection).toBe('Network & access');
 });

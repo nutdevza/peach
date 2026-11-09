@@ -1,10 +1,12 @@
-/* 由路由画的那几页（`src/history/managed.ts` 与 `src/react/router/`；管理区画进 `#stats`，索引页画进
- * `#index`）：壳的骨架留到首屏取齐，换成整页落在同一个任务里；冷启动不论 Router 先挂还是先打开都只取一次；
- * 每次打开都重取，壳的开关就地合进去不重挂；两个容器互不相收；详情舞台压在上面时页面留着，壳下一次认领
- * 表面才收；管理区几页之间的跳转走 React Router，别的交壳。
+/* The pages rendered by the router (`src/history/managed.ts` and `src/react/router/`; management renders into `#stats`, index
+ * into `#index`): the shell's skeleton survives until the first screen is fetched, and the swap to the full page lands in the
+ * same task; a cold start fetches once whether the Router mounts first or opens first; every open refetches, and the shell's
+ * toggles merge in place without remounting; the two containers never tear each other down; with the details stage stacked on
+ * top the page stays, torn down only when the shell next claims a surface; jumps between management pages go through React
+ * Router, the rest to the shell.
  *
- * 历史对象与各容器的登记都是模块级的，和页面上只有一份一致，所以每条用例重新装载
- * `src/history` 与 `src/react/router`。 */
+ * The history object and each container's registration are module-level, matching the single instance on the page, so every
+ * case reloads `src/history` and `src/react/router`. */
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { NavigateFunction } from 'react-router';
@@ -17,7 +19,7 @@ import type {
 import type { ShellActions } from '../../src/react/router/shell-actions';
 import type { DiagnosticsProps } from '../../src/react/diagnostics/diagnostics-page';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,7 +36,7 @@ async function load(path = '/') {
     import('../../src/history'), import('../../src/react/router/router'), import('../../src/react/router/managed-routes'),
     import('../../src/react/router/route-chunk'),
   ]);
-  // 下面有用例直接调 `page()` 读 props，不经首屏取数；低频页的代码先装上。
+  // Below, tests call `page()` directly to read props without going through the first-screen fetch; the low-traffic page's code mounts first.
   await chunks.loadRouteChunks();
   return { ...history, ...router, ...routes };
 }
@@ -69,17 +71,17 @@ async function mount(r: Loaded, actions = shellActions()) {
   return actions;
 }
 
-/** 管理区正文的容器，里面是壳铺好的骨架。 */
+/** The admin area body container, holding the skeleton the shell laid down. */
 function surface() {
   const stats = document.createElement('section');
   stats.id = 'stats';
-  stats.innerHTML = '<div class="geist-skeleton" data-skeleton="activity">正在读取</div>';
+  stats.innerHTML = '<div class="geist-skeleton" data-skeleton="activity">Reading</div>';
   document.body.append(stats);
   return { stats, skeleton: stats.firstElementChild! };
 }
 
-/** 活动页首屏那一份 `/api/tasks`：只有一轮刚跑完的，名字用来认出画的是哪一次取回来的。 */
-const tasks = (label = '追更检查') => ({
+/** The first-screen `/api/tasks` copy for the activity page: only the round that just finished, and its name tells which fetch this render came from. */
+const tasks = (label = 'Update check') => ({
   available: true, running: [], skipped: [],
   finished: [{
     id: 1, task_key: 'follow-check', task_label: label, trigger: 'manual', status: 'succeeded', host: 'desk',
@@ -92,7 +94,7 @@ const DOWNLOADS = { available: true, providers: [], tasks: [] };
 type Reply = { ok: boolean; status: number; json(): Promise<unknown> };
 const reply = (body: unknown): Reply => ({ ok: true, status: 200, json: async () => body });
 
-/** 活动页的取数：`/api/tasks` 手动兑现（首屏等的就是它），云下载段另取的 `/api/downloads` 当场回空表。 */
+/** The activity page's fetches: `/api/tasks` fulfilled manually (the first screen waits for exactly it), while the cloud download section's separate `/api/downloads` returns an empty table on the spot. */
 function tasksFetch(body: unknown = tasks(), { deferred = true } = {}) {
   const pending: Array<() => void> = [];
   let signal: AbortSignal | undefined;
@@ -102,7 +104,7 @@ function tasksFetch(body: unknown = tasks(), { deferred = true } = {}) {
     if (!deferred) return Promise.resolve(reply(body));
     return new Promise<Reply>((resolve, reject) => {
       pending.push(() => resolve(reply(body)));
-      signal?.addEventListener('abort', () => { reject(new DOMException('已中止', 'AbortError')) });
+      signal?.addEventListener('abort', () => { reject(new DOMException('Aborted', 'AbortError')) });
     });
   });
   const taskCalls = () => fetched.mock.calls.filter(([input]) => input.startsWith('/api/tasks')).length;
@@ -114,8 +116,8 @@ function tasksFetch(body: unknown = tasks(), { deferred = true } = {}) {
   };
 }
 
-/** 每一批 DOM 变化交付时容器里的样子：骨架还在不在、整页画出来没有。 */
-function watch(stats: Element, skeleton: Element, label = '追更检查') {
+/** What the container looks like as each batch of DOM changes lands: whether the skeleton is still there, whether the full page has rendered. */
+function watch(stats: Element, skeleton: Element, label = 'Update check') {
   const batches: Array<{ skeleton: boolean; painted: boolean }> = [];
   const observer = new MutationObserver(() => {
     batches.push({ skeleton: stats.contains(skeleton), painted: Boolean(stats.textContent?.includes(label)) });
@@ -130,17 +132,17 @@ async function until(ok: () => boolean, what: string): Promise<void> {
     if (ok()) return;
     await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
   }
-  throw new Error(`一直没等到：${what}`);
+  throw new Error(`Timed out waiting for: ${what}`);
 }
 
-/* 这里直接调打开管线：用例把地址落在首页或不交壳的动作，管理区的页面元素不打开（元素怎么打开见
-   `pages/managed.test.tsx`）。 */
+/* The open pipeline is called directly here: the test drops the address on the home page or on actions that bypass the shell; managed-area page elements do not open (for how elements open, see
+   `pages/managed.test.tsx`). */
 const open = (r: Loaded, stats: Element, isCurrent = () => true) =>
   r.openManagedRoute('/tasks', {}, { container: stats, isCurrent });
-/** 页面画出来的那一块（宿主里的第一个元素）：重挂之后就换成另一个。 */
+/** The block the page renders (the host's first element): after a remount it is a different one. */
 const painted = (stats: Element) => stats.querySelector(':scope > .peach-react > *');
 
-it('冷启动深链，Router 先挂上：壳画的骨架留到首屏取齐，换成整页在同一批变化里', async () => {
+it('Cold start deep link, Router mounts first: the shell-drawn skeleton stays until the first screen completes, and the swap to full page happens in the same batch of changes', async () => {
   const r = await load('/');
   const { stats, skeleton } = surface();
   await mount(r);
@@ -149,17 +151,17 @@ it('冷启动深链，Router 先挂上：壳画的骨架留到首屏取齐，换
   fetch.install();
   let opened: Promise<boolean> | undefined;
   await act(async () => { opened = open(r, stats) });
-  await until(() => fetch.taskCalls() > 0, '首屏取数发出去');
-  expect(stats.firstElementChild, '取齐之前骨架原样留着').toBe(skeleton);
+  await until(() => fetch.taskCalls() > 0, 'First-screen fetch sent out');
+  expect(stats.firstElementChild, 'Skeleton kept as-is until data lines up').toBe(skeleton);
   const batches = watch(stats, skeleton);
   fetch.resolve();
   await act(async () => { expect(await opened).toBe(true) });
   expect(fetch.taskCalls()).toBe(1);
-  expect(batches[0], '骨架撤下的那一批变化里整页已经画好，中间没有空白的一帧').toEqual({ skeleton: false, painted: true });
-  expect(stats.querySelector(':scope > .peach-react')?.textContent).toContain('追更检查');
+  expect(batches[0], 'Within the batch that removes the skeleton the full page is already painted, with no blank frame between').toEqual({ skeleton: false, painted: true });
+  expect(stats.querySelector(':scope > .peach-react')?.textContent).toContain('Update check');
 });
 
-it('冷启动深链，壳先打开、Router 后挂上：包到了才取数，骨架同样留到换成整页', async () => {
+it('Cold start deep link, shell opens first and Router mounts after: data fetches only once the bundle arrives, and the skeleton likewise stays until the full-page swap', async () => {
   const r = await load('/');
   const { stats, skeleton } = surface();
   let arrive: (prefetch: typeof r.prefetchManagedRoute) => void = () => {};
@@ -172,7 +174,7 @@ it('冷启动深链，壳先打开、Router 后挂上：包到了才取数，骨
   expect(fetch.fetched).not.toHaveBeenCalled();
   expect(stats.firstElementChild).toBe(skeleton);
   await act(async () => { arrive(r.prefetchManagedRoute) });
-  await until(() => fetch.taskCalls() > 0, '首屏取数发出去');
+  await until(() => fetch.taskCalls() > 0, 'First-screen fetch sent out');
   expect(stats.firstElementChild).toBe(skeleton);
   const batches = watch(stats, skeleton);
   fetch.resolve();
@@ -181,33 +183,33 @@ it('冷启动深链，壳先打开、Router 后挂上：包到了才取数，骨
   expect(batches[0]).toEqual({ skeleton: false, painted: true });
 });
 
-it('应用内切页：在途那一次被收起时不动容器，壳留着的同一张骨架等到下一次打开才换掉', async () => {
+it('In-app navigation: when the in-flight one is collapsed the container is untouched; the skeleton the shell kept is only swapped at the next open', async () => {
   const r = await load('/tasks');
   const { stats, skeleton } = surface();
   await mount(r);
   r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute));
-  const first = tasksFetch(tasks('第一次'));
+  const first = tasksFetch(tasks('First time'));
   first.install();
   const firstOpen = open(r, stats);
-  await until(() => first.taskCalls() > 0, '第一次取数发出去');
-  // 壳认领表面（`claimSurface`）：在途的首屏取数中止，这一次不画。
+  await until(() => first.taskCalls() > 0, 'The first fetch went out');
+  // The shell claims the surface (`claimSurface`): the in-flight first-screen fetch aborts, and this round is not drawn.
   act(() => { r.releaseManagedRoute(stats) });
   expect(first.signal()?.aborted).toBe(true);
   await act(async () => { expect(await firstOpen).toBe(false) });
-  expect(stats.firstElementChild, '收起在途那一次不碰壳的骨架').toBe(skeleton);
-  const second = tasksFetch(tasks('第二次'));
+  expect(stats.firstElementChild, 'The in flight collapse does not touch the shell skeleton').toBe(skeleton);
+  const second = tasksFetch(tasks('Second time'));
   second.install();
   const secondOpen = open(r, stats);
-  await until(() => second.taskCalls() > 0, '第二次取数发出去');
+  await until(() => second.taskCalls() > 0, 'The second fetch went out');
   expect(stats.firstElementChild).toBe(skeleton);
-  const batches = watch(stats, skeleton, '第二次');
+  const batches = watch(stats, skeleton, 'Second time');
   second.resolve();
   await act(async () => { expect(await secondOpen).toBe(true) });
   expect(batches[0]).toEqual({ skeleton: false, painted: true });
-  expect(stats.textContent).not.toContain('第一次');
+  expect(stats.textContent).not.toContain('First time');
 });
 
-it('取数期间壳换了页就不画，骨架留给下一页', async () => {
+it('If the shell changed pages during the fetch nothing paints, leaving the skeleton to the next page', async () => {
   const r = await load('/tasks');
   const { stats, skeleton } = surface();
   await mount(r);
@@ -216,7 +218,7 @@ it('取数期间壳换了页就不画，骨架留给下一页', async () => {
   fetch.install();
   let current = true;
   const opening = open(r, stats, () => current);
-  await until(() => fetch.taskCalls() > 0, '取数发出去');
+  await until(() => fetch.taskCalls() > 0, 'Fetch request sent');
   current = false;
   fetch.resolve();
   await act(async () => { expect(await opening).toBe(false) });
@@ -224,7 +226,7 @@ it('取数期间壳换了页就不画，骨架留给下一页', async () => {
   expect(r.managedEntry(stats)).toBeNull();
 });
 
-it('同一路径再打开一次就重取：每次打开领一个新代次，页面重挂', async () => {
+it('Opening the same path again refetches: each open takes a new generation and the page remounts', async () => {
   const r = await load('/tasks');
   const { stats } = surface();
   await mount(r);
@@ -235,7 +237,7 @@ it('同一路径再打开一次就重取：每次打开领一个新代次，页�
   const page = painted(stats);
   const revision = r.managedEntry(stats)?.revision;
   act(() => { r.releaseManagedRoute(stats) });
-  expect(stats.querySelector('.peach-react'), '收起时宿主跟着撤掉').toBeNull();
+  expect(stats.querySelector('.peach-react'), 'Host unmounts along with the collapse').toBeNull();
   await act(async () => { await open(r, stats) });
   expect(fetch.taskCalls()).toBe(2);
   expect(r.managedEntry(stats)?.revision).not.toBe(revision);
@@ -243,7 +245,7 @@ it('同一路径再打开一次就重取：每次打开领一个新代次，页�
   expect(painted(stats)).not.toBe(page);
 });
 
-it('详情舞台压在上面时页面留着，地址回来也不重挂；壳下一次认领表面才收', async () => {
+it('With the details stage on top the page stays, and the address returning does not remount it; it collapses only when the shell next claims the surface', async () => {
   const r = await load('/');
   const { stats } = surface();
   await mount(r);
@@ -252,17 +254,17 @@ it('详情舞台压在上面时页面留着，地址回来也不重挂；壳下�
   await act(async () => { await open(r, stats) });
   const page = painted(stats);
   expect(page).not.toBeNull();
-  // 详情由壳推 `/assets/:id`，不认领表面。
+  // Details are pushed by the shell to `/assets/:id` without claiming the surface.
   await act(async () => { r.shellNavigate('/assets/7') });
-  expect(painted(stats), '舞台下面那一页不许跟着地址卸掉').toBe(page);
-  // 关掉详情：壳把地址写回列表那一页。
+  expect(painted(stats), 'The page under the stage must never unmount with the address').toBe(page);
+  // Closing details: the shell writes the address back to the list page.
   await act(async () => { r.shellNavigate('/') });
   expect(painted(stats)).toBe(page);
   act(() => { r.releaseManagedRoute(stats) });
   expect(stats.children).toHaveLength(0);
 });
 
-it('壳直接改写了容器再收起也不报错：页面画在自己的宿主里', async () => {
+it('The shell rewriting the container directly then collapsing raises no error: the page paints inside its own host', async () => {
   const r = await load('/tasks');
   const { stats } = surface();
   await mount(r);
@@ -270,23 +272,23 @@ it('壳直接改写了容器再收起也不报错：页面画在自己的宿主�
   tasksFetch(tasks(), { deferred: false }).install();
   const errors = vi.spyOn(console, 'error');
   await act(async () => { await open(r, stats) });
-  stats.innerHTML = '<p>别的页面</p>';
+  stats.innerHTML = '<p>Another page</p>';
   act(() => { r.releaseManagedRoute(stats) });
   expect(errors).not.toHaveBeenCalled();
-  expect(stats.innerHTML).toBe('<p>别的页面</p>');
+  expect(stats.innerHTML).toBe('<p>Another page</p>');
   expect(r.managedEntry(stats)).toBeNull();
 });
 
-it('路由树没装载就打开：容器先归路由树、不取数，装载之后才取首屏、才画', async () => {
+it('Opening before the route tree loads: the container goes to the route tree first without fetching; the first screen fetches and paints only after it loads', async () => {
   const r = await load('/tasks');
   const { stats, skeleton } = surface();
   const fetch = tasksFetch(tasks(), { deferred: false });
   fetch.install();
   const opening = open(r, stats);
   await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) });
-  expect(fetch.taskCalls(), '没装载时不取数').toBe(0);
+  expect(fetch.taskCalls(), 'No fetching when not mounted').toBe(0);
   expect(stats.firstElementChild).toBe(skeleton);
-  expect(r.managedTaken(stats), '等着的那一次已经占了容器，壳不再重开').toBe(true);
+  expect(r.managedTaken(stats), 'The waiting attempt already holds the container, so the shell never reopens').toBe(true);
 
   await mount(r);
   r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute));
@@ -295,11 +297,11 @@ it('路由树没装载就打开：容器先归路由树、不取数，装载之�
   expect(painted(stats)).not.toBeNull();
 });
 
-it('包取不回来时，等着的那一页跟着失败', async () => {
+it('When the bundle cannot come back the waiting page fails with it', async () => {
   const r = await load('/tasks');
   const { stats, skeleton } = surface();
-  r.connectManagedRoutes(Promise.reject(new Error('取不回 peach-react.js')));
-  await expect(open(r, stats)).rejects.toThrow('取不回 peach-react.js');
+  r.connectManagedRoutes(Promise.reject(new Error('Could not fetch peach-react.js')));
+  await expect(open(r, stats)).rejects.toThrow('Could not fetch peach-react.js');
   expect(stats.firstElementChild).toBe(skeleton);
 });
 
@@ -309,9 +311,9 @@ const configuration = {
   peach_proxy: { mode: 'environment', proxy_saved: false, needs_selection: false },
 };
 
-/* 壳打开返回的那一刻就按 `#peachProxy` 滚过去，所以页签条与交进来的那一组的选中态要在同一次提交里画好。
-   分区自己怎么排、页签怎么走在 `configuration.test.tsx`。 */
-it('配置页打开返回的那一刻，页签条已经在容器里，选中的是交进来的那一组', async () => {
+/* The shell scrolls to `#peachProxy` the moment it opens in return, so the tab bar's and the handed-in group's selected states must paint in the same commit.
+   How sections arrange and tabs behave is in `configuration.test.tsx`. */
+it('The moment the configuration page opens and returns, the tab strip is already in the container with the handed-in group selected', async () => {
   const r = await load('/settings/library');
   const { stats } = surface();
   await mount(r);
@@ -324,10 +326,10 @@ it('配置页打开返回的那一刻，页签条已经在容器里，选中的�
     return { mode: 'off', status: 'idle' };
   } })));
   await act(async () => {
-    const open = { section: '网络与访问' };
+    const open = { section: 'Network & access' };
     expect(await r.openManagedRoute('/settings/library', open, { container: stats, isCurrent: () => true })).toBe(true);
     const tabs = [...stats.querySelectorAll('.ui-configpage [role="tablist"] > [role="tab"]')];
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['媒体库与入库', '来源与订阅', '网络与访问', '应用与维护', '系统诊断']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Library and imports', 'Sources and subscriptions', 'Network & access', 'App and maintenance', 'System diagnostics']);
     expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true', 'false', 'false']);
     const active = stats.querySelector('.ui-board-group-active');
     expect(active?.id).toBe(tabs[2].getAttribute('aria-controls'));
@@ -335,7 +337,7 @@ it('配置页打开返回的那一刻，页签条已经在容器里，选中的�
   });
 });
 
-it('这几页之间的跳转交给 React Router，别的路径交壳', async () => {
+it('Navigation between these pages goes through React Router; other paths go to the shell', async () => {
   const r = await load('/');
   const actions = shellActions();
   const navigate = vi.fn();
@@ -347,7 +349,7 @@ it('这几页之间的跳转交给 React Router，别的路径交壳', async () 
   expect(vi.mocked(actions.navigate).mock.calls).toEqual([['/'], ['/trash']]);
 });
 
-it('页面里的跳转：只领一个页面打开序号、历史只多一条', async () => {
+it('In-page jumps: claim exactly one page-open counter and add exactly one history entry', async () => {
   const r = await load('/sources');
   await mount(r);
   const epoch = r.peachHistory.navigation.openEpoch;
@@ -357,13 +359,13 @@ it('页面里的跳转：只领一个页面打开序号、历史只多一条', a
   expect([r.peachHistory.navigation.openEpoch - epoch, location.pathname, window.history.length - before]).toEqual([1, '/tasks', 1]);
 });
 
-/** 一页的元素与它拿到的 props，不画。 */
+/** A page's element and the props it received, without rendering. */
 function element<P>(path: keyof Loaded['MANAGED_ROUTES'], r: Loaded, open: object, actions: ShellActions, go: (path: string) => void) {
   return (r.MANAGED_ROUTES[path].page as (open: object, actions: ShellActions, go: (path: string) => void) => ReactElement<P>)(
     open, actions, go).props;
 }
 
-it('诊断页的作品交给共享入口，各项去处由页内链接承担、不调用 go', async () => {
+it('Videos on the diagnostics page go through the shared entry; each destination is handled by in-page links and never calls go', async () => {
   const r = await load();
   const actions = shellActions();
   const go = vi.fn();
@@ -374,16 +376,16 @@ it('诊断页的作品交给共享入口，各项去处由页内链接承担、�
   expect(go).not.toHaveBeenCalled();
 });
 
-it('统计页：点标签交壳回目录', async () => {
+it('Stats page: clicking a tag hands back to the shell catalog', async () => {
   const r = await load();
   const actions = shellActions();
   const props = element<StatsProps>('/stats', r, {}, actions, vi.fn());
-  props.onTag('痴女');
-  expect(vi.mocked(actions.openTag).mock.calls).toEqual([['痴女']]);
-  expect(props.tagLabel('JK制服')).toBe('JK制服');
+  props.onTag('Nympho');
+  expect(vi.mocked(actions.openTag).mock.calls).toEqual([['Nympho']]);
+  expect(props.tagLabel('JK uniform')).toBe('JK uniform');
 });
 
-it('口味页：总结里的下一步按路径走 go', async () => {
+it('Taste page: the summary\'s next-step routes through go', async () => {
   const r = await load();
   const go = vi.fn();
   const props = element<TasteProps>('/taste', r, { onboarding: true }, shellActions(), go);
@@ -393,7 +395,7 @@ it('口味页：总结里的下一步按路径走 go', async () => {
   expect(props.onboarding).toBe(true);
 });
 
-it('数据管理页：复核、高清版与重复文件走 go，垃圾文件与回收站交壳', async () => {
+it('Data management page: review, HD versions, and duplicates use go, while junk files and trash go to the shell', async () => {
   const r = await load();
   const actions = shellActions();
   const go = vi.fn();
@@ -401,18 +403,18 @@ it('数据管理页：复核、高清版与重复文件走 go，垃圾文件与�
   for (const section of ['review', 'quality', 'duplicates', 'ads', 'trash'] as const) props.open(section);
   expect(go.mock.calls).toEqual([['/review'], ['/quality-goals'], ['/duplicates']]);
   expect(vi.mocked(actions.openManage).mock.calls).toEqual([['ads'], ['trash']]);
-  props.toast('做完了', { warning: true });
-  props.toast('做完了');
-  expect(vi.mocked(actions.toast).mock.calls).toEqual([[{ text: '做完了' }, { sound: 'warning' }]]);
-  expect(vi.mocked(actions.receipt).mock.calls).toEqual([['做完了']]);
+  props.toast('Done', { warning: true });
+  props.toast('Done');
+  expect(vi.mocked(actions.toast).mock.calls).toEqual([[{ text: 'Done' }, { sound: 'warning' }]]);
+  expect(vi.mocked(actions.receipt).mock.calls).toEqual([['Done']]);
 });
 
-it('复核页与关注管理页把地址写回壳，不重开', async () => {
+it('Review and follow-management pages write the address back to the shell without reopening', async () => {
   const r = await load();
   const actions = shellActions();
   const go = vi.fn();
   const review = element<ReviewProps>('/review', r,
-    { category: 'name', readOnly: true, readOnlyMessage: '只读', writerUrl: '' }, actions, go);
+    { category: 'name', readOnly: true, readOnlyMessage: 'Read-only', writerUrl: '' }, actions, go);
   expect([review.route, review.category, review.readOnly]).toEqual([actions.routeReview, 'name', true]);
   const follow = element<FollowManageProps>('/subscriptions', r, {
     tab: 'list', page: 2, sort: '', dir: '', pageSize: 20, layout: 'default', readOnly: false, readOnlyMessage: '', writerUrl: '',
@@ -421,7 +423,7 @@ it('复核页与关注管理页把地址写回壳，不重开', async () => {
     .toEqual([actions.routeFollowManage, actions.saveFollowPreference, actions.openFollow, 2]);
 });
 
-it('回执、打开作品与资料页都交回壳：都走过去时回执', async () => {
+it('Receipts, opening videos, and profile pages all hand back to the shell: receipts when navigating to them', async () => {
   const r = await load();
   const actions = shellActions();
   const undo = async () => {};
@@ -429,60 +431,60 @@ it('回执、打开作品与资料页都交回壳：都走过去时回执', asyn
   const goals = element<QualityGoalsProps>('/quality-goals', r, {}, actions, go);
   goals.openItem(3);
   expect(goals.srcBadge).toBe(actions.srcBadge);
-  expect(goals.javDisplayName({ name: 'ABC-123 片名.mp4' } as never)).toContain('ABC-123');
+  expect(goals.javDisplayName({ name: 'ABC-123 title.mp4' } as never)).toContain('ABC-123');
   expect(goals.javTitleHtml({ name: '<b>.mp4' } as never)).not.toContain('<b>');
-  goals.toast('已提交离线下载');
+  goals.toast('Offline download submitted');
   const duplicates = element<DuplicatesProps>('/duplicates', r, {}, actions, vi.fn());
-  duplicates.toast('已删除', { undo });
-  duplicates.toast('已保留');
-  duplicates.failure('删除', 'boom');
-  const configuration = element<ConfigurationProps>('/settings/library', r, { section: '媒体库与入库' }, actions, vi.fn());
-  configuration.receipt('已保存配置');
-  expect([configuration.reopenTutorial, configuration.section]).toEqual([actions.reopenTutorial, '媒体库与入库']);
+  duplicates.toast('Deleted', { undo });
+  duplicates.toast('Kept');
+  duplicates.failure('Delete', 'boom');
+  const configuration = element<ConfigurationProps>('/settings/library', r, { section: 'Library and imports' }, actions, vi.fn());
+  configuration.receipt('Configuration saved');
+  expect([configuration.reopenTutorial, configuration.section]).toEqual([actions.reopenTutorial, 'Library and imports']);
   const review = element<ReviewProps>('/review', r,
     { category: '', readOnly: false, readOnlyMessage: '', writerUrl: '' }, actions, vi.fn());
-  review.openEntity('performer', '某人');
-  review.toast('已判定');
+  review.openEntity('performer', 'Someone');
+  review.toast('Decided');
   expect(review.revealSource).toBe(actions.revealSource);
   element<FollowManageProps>('/subscriptions', r, {
     tab: 'list', page: 1, sort: '', dir: '', pageSize: 20, layout: 'default', readOnly: false, readOnlyMessage: '', writerUrl: '',
-  }, actions, vi.fn()).toast('已添加 1 个关注来源');
+  }, actions, vi.fn()).toast('Added 1 follow source');
   const taste = element<TasteProps>('/taste', r, { onboarding: false }, actions, vi.fn());
-  taste.onSignal('tag', '痴女');
-  taste.toast('已导入');
+  taste.onSignal('tag', 'Nympho');
+  taste.toast('Imported');
   expect(vi.mocked(actions.openItem).mock.calls).toEqual([[3]]);
-  expect(vi.mocked(actions.openEntity).mock.calls).toEqual([['performer', '某人']]);
-  expect(vi.mocked(actions.openTasteSignal).mock.calls).toEqual([['tag', '痴女']]);
-  expect(vi.mocked(actions.failure).mock.calls).toEqual([['删除', 'boom']]);
+  expect(vi.mocked(actions.openEntity).mock.calls).toEqual([['performer', 'Someone']]);
+  expect(vi.mocked(actions.openTasteSignal).mock.calls).toEqual([['tag', 'Nympho']]);
+  expect(vi.mocked(actions.failure).mock.calls).toEqual([['Delete', 'boom']]);
   expect(actions.toast).not.toHaveBeenCalled();
   expect(vi.mocked(actions.receipt).mock.calls).toEqual([
-    ['已提交离线下载'], ['已删除', { undo }], ['已保留', {}], ['已保存配置'], ['已判定'], ['已添加 1 个关注来源'], ['已导入'],
+    ['Offline download submitted'], ['Deleted', { undo }], ['Kept', {}], ['Configuration saved'], ['Decided'], ['Added 1 follow source'], ['Imported'],
   ]);
 });
 
-it('采集页的提示走全站 Toast 原样', async () => {
+it('The scrape page\'s notes use the site-wide toast as-is', async () => {
   const r = await load();
   const actions = shellActions();
-  element<ScrapingProps>('/sources', r, {}, actions, vi.fn()).toast('已保存');
-  expect(vi.mocked(actions.toast).mock.calls).toEqual([['已保存']]);
+  element<ScrapingProps>('/sources', r, {}, actions, vi.fn()).toast('Saved');
+  expect(vi.mocked(actions.toast).mock.calls).toEqual([['Saved']]);
   expect(actions.receipt).not.toHaveBeenCalled();
 });
 
-/** 索引页与资料页共用的容器，里面是壳铺好的骨架。 */
+/** The container shared by the index page and the profile page, holding the skeleton the shell laid down. */
 function indexSurface() {
   const index = document.createElement('section');
   index.id = 'index';
-  index.innerHTML = '<div class="geist-skeleton" data-skeleton="index">正在读取</div>';
+  index.innerHTML = '<div class="geist-skeleton" data-skeleton="index">Loading</div>';
   document.body.append(index);
   return { index, skeleton: index.firstElementChild! };
 }
 
-const TAGS = { items: [{ k: '痴女', n: 1, cat: 'role' }], has_more: false };
+const TAGS = { items: [{ k: 'Nympho', n: 1, cat: 'role' }], has_more: false };
 const tagsOpen = (selectMode = false) => ({
   kind: 'tags', q: '', scope: 'local', view: 'alphabet', category: 'all', layout: 'big', selectMode, configurable: false,
 });
 
-/** 索引页的取数：`/api/index` 按需手动兑现，其余当场回空表。 */
+/** The index page's fetches: `/api/index` resolves manually on demand, everything else returns an empty table on the spot. */
 function indexFetch(body: unknown = TAGS, { deferred = true } = {}) {
   const pending: Array<() => void> = [];
   const fetched = vi.fn((input: string, init?: RequestInit) => {
@@ -490,7 +492,7 @@ function indexFetch(body: unknown = TAGS, { deferred = true } = {}) {
     if (!deferred) return Promise.resolve(reply(body));
     return new Promise<Reply>((resolve, reject) => {
       pending.push(() => resolve(reply(body)));
-      init?.signal?.addEventListener('abort', () => { reject(new DOMException('已中止', 'AbortError')) });
+      init?.signal?.addEventListener('abort', () => { reject(new DOMException('Aborted', 'AbortError')) });
     });
   });
   return {
@@ -501,7 +503,7 @@ function indexFetch(body: unknown = TAGS, { deferred = true } = {}) {
   };
 }
 
-it('冷启动深链索引页：壳画的骨架留到首屏取齐，换成整页在同一批变化里', async () => {
+it('Cold-start deep link to the index page: the shell\'s skeleton holds until the first screen completes, and the full page swap lands in the same batch', async () => {
   const r = await load('/tags');
   const { index, skeleton } = indexSurface();
   await mount(r);
@@ -510,19 +512,19 @@ it('冷启动深链索引页：壳画的骨架留到首屏取齐，换成整页�
   fetch.install();
   let opened: Promise<boolean> | undefined;
   await act(async () => { opened = r.openManagedRoute('/tags', tagsOpen(), { container: index, isCurrent: () => true }) });
-  await until(() => fetch.indexCalls() > 0, '首屏取数发出去');
-  expect(index.firstElementChild, '取齐之前骨架原样留着').toBe(skeleton);
-  const batches = watch(index, skeleton, '痴女');
+  await until(() => fetch.indexCalls() > 0, 'First-screen fetch sent out');
+  expect(index.firstElementChild, 'Skeleton kept as-is until data lines up').toBe(skeleton);
+  const batches = watch(index, skeleton, 'Nympho');
   fetch.resolve();
   await act(async () => { expect(await opened).toBe(true) });
   expect(fetch.indexCalls()).toBe(1);
-  expect(batches[0], '骨架撤下的那一批变化里整页已经画好').toEqual({ skeleton: false, painted: true });
+  expect(batches[0], 'Within the batch removing the skeleton the full page is already painted').toEqual({ skeleton: false, painted: true });
   expect(index.querySelector(':scope > .peach-react [data-index-search]')).not.toBeNull();
 });
 
-/* 壳那枚选择键关掉时经 `updateManagedRoute` 把新值推进画着的那一页：只合并这一项，其余 props 照旧，
-   代次不变、不重挂也不重取——重挂会把页头连同过滤框里打了一半的字一起换掉。 */
-it('就地更新：合并进画着的那一页，不重挂、不重取，代次不变', async () => {
+/* When the shell's select key closes, it pushes the new value via `updateManagedRoute` into the painted page: only this item merges, other props stay,
+   generation unchanged, no remount and no refetch; remounting would swap the page header along with the half-typed filter box text. */
+it('In-place update: merged into the painted page without remounting, refetching, or changing the epoch', async () => {
   const r = await load('/tags');
   const { index } = indexSurface();
   const actions = await mount(r);
@@ -533,21 +535,21 @@ it('就地更新：合并进画着的那一页，不重挂、不重取，代次�
   const revision = r.managedEntry(index)?.revision;
   const calls = fetch.fetched.mock.calls.length;
   const input = index.querySelector('[data-index-search] input');
-  const tag = () => index.querySelector<HTMLElement>('[data-alpha-tag][data-k="痴女"]')!;
+  const tag = () => index.querySelector<HTMLElement>('[data-alpha-tag][data-k="Nympho"]')!;
   await act(async () => { tag().click() });
   expect(tag().getAttribute('aria-pressed')).toBe('true');
   await act(async () => { r.updateManagedRoute(index, { selectMode: false }) });
-  expect(tag().getAttribute('aria-pressed'), '关掉选择键时所选要跟着清空').toBe('false');
-  expect(index.querySelector('[data-index-search] input'), '推新值不许重挂').toBe(input);
+  expect(tag().getAttribute('aria-pressed'), 'Turning off the selection toggle clears the selection').toBe('false');
+  expect(index.querySelector('[data-index-search] input'), 'Pushing a new value must not remount').toBe(input);
   expect(r.managedEntry(index)?.revision).toBe(revision);
   expect(r.managedEntry(index)?.props).toMatchObject({ kind: 'tags', selectMode: false, layout: 'big' });
-  expect(fetch.fetched.mock.calls.length, '推新值不许重取').toBe(calls);
+  expect(fetch.fetched.mock.calls.length, 'Pushing a new value must not refetch').toBe(calls);
   await act(async () => { tag().click() });
-  expect(vi.mocked(actions.showIndexTags), '其余 props 照旧：不在选择模式时点一枚直接回目录')
-    .toHaveBeenCalledWith(['痴女'], 'all');
+  expect(vi.mocked(actions.showIndexTags), 'Everything else stays: outside select mode clicking one goes straight back to the catalog')
+    .toHaveBeenCalledWith(['Nympho'], 'all');
 });
 
-it('就地更新在容器里没有画着的页面时是空操作：还在取首屏时交进去的那一份照旧', async () => {
+it('In-place update is a no-op when the page is not painted in the container: the copy submitted while the first screen is still loading stays as-is', async () => {
   const r = await load('/tags');
   const { index } = indexSurface();
   await mount(r);
@@ -557,16 +559,16 @@ it('就地更新在容器里没有画着的页面时是空操作：还在取首�
   r.updateManagedRoute(index, { selectMode: true });
   expect(r.managedEntry(index)).toBeNull();
   const opening = r.openManagedRoute('/tags', tagsOpen(), { container: index, isCurrent: () => true });
-  await until(() => fetch.indexCalls() > 0, '首屏取数发出去');
+  await until(() => fetch.indexCalls() > 0, 'First-screen fetch sent out');
   r.updateManagedRoute(index, { selectMode: true });
   fetch.resolve();
   await act(async () => { expect(await opening).toBe(true) });
   expect(r.managedEntry(index)?.props).toMatchObject({ selectMode: false });
 });
 
-/* 资料页画进 `#index` 时管理区那一页只是被壳藏起来：两个容器各记各的，收一个不动另一个；
-   一次点名两个容器就一起收。 */
-it('`#stats` 与 `#index` 各画一页，互不相收；点名两个容器时一起收', async () => {
+/* When a profile page renders into `#index`, the managed-area page is merely hidden by the shell: the two containers keep their own state, hiding one leaves the other;
+   naming both containers in one call hides them together. */
+it('`#stats` and `#index` each render their own page and never collapse each other; naming both containers collapses them together', async () => {
   const r = await load('/tasks');
   const { stats } = surface();
   const { index } = indexSurface();
@@ -579,17 +581,17 @@ it('`#stats` 与 `#index` 各画一页，互不相收；点名两个容器时一
   await act(async () => { await open(r, stats) });
   const page = painted(stats);
   await act(async () => { await r.openManagedRoute('/tags', tagsOpen(), { container: index, isCurrent: () => true }) });
-  expect(painted(stats), '在 `#index` 里打开一页不收 `#stats` 那一页').toBe(page);
+  expect(painted(stats), 'Opening a page in `#index` does not close the `#stats` page').toBe(page);
   expect(r.managedEntries().map((entry) => entry.path)).toEqual(['/tasks', '/tags']);
   act(() => { r.releaseManagedRoute(index) });
   expect(index.querySelector('.peach-react')).toBeNull();
-  expect(painted(stats), '收 `#index` 不动 `#stats`').toBe(page);
+  expect(painted(stats), 'Collapsing `#index` leaves `#stats` untouched').toBe(page);
   await act(async () => { await r.openManagedRoute('/tags', tagsOpen(), { container: index, isCurrent: () => true }) });
   act(() => { r.releaseManagedRoute(stats, index) });
   expect([stats.children.length, index.children.length, r.managedEntries().length]).toEqual([0, 0, 0]);
 });
 
-it('索引页：页内写地址、存版式、头像与去处都接到壳的那一组上', async () => {
+it('Index page: in-page URL writing, layout persistence, avatars, and destinations all hook into the same shell set', async () => {
   const r = await load();
   const actions = shellActions();
   const props = (r.INDEX_ROUTES['/performers'].page(
@@ -599,10 +601,10 @@ it('索引页：页内写地址、存版式、头像与去处都接到壳的那�
     actions.routeIndex, actions.savePeopleLayout, actions.exitSelectMode, actions.personAvatar, actions.authorAvatar,
     actions.openEntity, actions.showIndexTags, actions.openFollowAuthor, actions.openFollowTag]);
   expect([props.kind, props.layout, props.selectMode, props.configurable]).toEqual(['performers', 'big', false, false]);
-  expect((props.tagLabel as (tag: string) => string)('JK制服')).toBe('JK制服');
+  expect((props.tagLabel as (tag: string) => string)('JK uniform')).toBe('JK uniform');
 });
 
-it('索引页的路径不经 React Router 的 navigate：同页换 search 与跨页进来都交壳写地址', async () => {
+it('Index page paths bypass React Router navigate: same-page search changes and cross-page entries both hand the address to the shell', async () => {
   const r = await load('/');
   const actions = shellActions();
   const navigate = vi.fn();

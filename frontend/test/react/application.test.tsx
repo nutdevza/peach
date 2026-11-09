@@ -56,7 +56,7 @@ function actions(): ShellActions {
   };
 }
 
-it('同宿主重复挂载沿用实际 Application，一次后退只打开一次覆盖', async () => {
+it('Remounting on the same host reuses the live Application, and one back navigation opens the overlay only once', async () => {
   const r = runtime, node = host(), capabilities = actions();
   boot.initialize.mockImplementation(() => { void r.residents.loadRouter(capabilities); });
   let first!: Root, second!: Root;
@@ -71,7 +71,7 @@ it('同宿主重复挂载沿用实际 Application，一次后退只打开一次�
   expect(vi.mocked(capabilities.openOverlay).mock.calls).toEqual([[{ kind: 'item', id: 7 }]]);
 });
 
-it('实际卸载后立即重挂同宿主重新初始化，旧资源信号已取消', async () => {
+it('A real unmount followed by an immediate remount on the same host reinitializes, with old resource signals canceled', async () => {
   const r = runtime, node = host();
   const remove = vi.spyOn(window, 'removeEventListener'), menus: ReturnType<typeof openNativeMenu>[] = [];
   boot.initialize.mockImplementation(() => { menus.push(openNativeMenu(r.menus)); });
@@ -97,7 +97,7 @@ it('实际卸载后立即重挂同宿主重新初始化，旧资源信号已取�
   expect(remove.mock.calls.filter(([type, callback, capture]) => type === 'scroll' && callback === newMenu!.scroll && capture === true)).toHaveLength(1);
 });
 
-it('StrictMode 诊断重取仅初始化一次，最终卸载移除监听和调度', async () => {
+it('StrictMode diagnostics refetch initializes once, and the final unmount removes the listener and scheduling', async () => {
   vi.useFakeTimers();
   const r = runtime, node = host(), heard = vi.fn(), timer = vi.fn();
   const remove = vi.spyOn(window, 'removeEventListener');

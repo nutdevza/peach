@@ -9,130 +9,130 @@ import { buttonNamed, click, fetchMock, linkNamed, mount, settle, type } from '.
 notifyManager.setScheduler(notify => notify());
 afterEach(() => queryClient.clear());
 
-it('刮削导出按番号启动任务并保留服务端失败原因', async () => {
+it('Scrape export starts a task by code and keeps the server failure reason', async () => {
   const fetch = vi.fn(async (_url: string, options?: RequestInit) => options?.method === 'POST'
-    ? new Response(JSON.stringify({ detail: '请填写有效番号，单次最多 20 个' }), { status: 400 })
+    ? new Response(JSON.stringify({ detail: 'Enter valid codes, up to 20 at a time' }), { status: 400 })
     : new Response(JSON.stringify({ status: 'idle' })));
   vi.stubGlobal('fetch', fetch);
   const host = await mount(<QueryClientProvider client={queryClient}><ScrapingExport /></QueryClientProvider>);
   const input = host.querySelector('input')!;
   await type(input, 'ABC-123, DEF-456');
-  await click(buttonNamed('导出刮削记录', host)!);
+  await click(buttonNamed('Export scrape records', host)!);
   await settle();
   const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(request[0]).toBe('/api/diagnostics/exports');
   expect(JSON.parse(String(request[1]?.body))).toEqual({ kind: 'scraping', codes: 'ABC-123, DEF-456' });
-  expect(host.textContent).toContain('请填写有效番号，单次最多 20 个');
-  expect(buttonNamed('导出刮削记录', host)?.getAttribute('aria-busy')).not.toBe('true');
+  expect(host.textContent).toContain('Scrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsThe submission was invalid; check the input and retry.');
+  expect(buttonNamed('Export scrape records', host)?.getAttribute('aria-busy')).not.toBe('true');
 });
 
-it('刮削记录显示后台进度并支持取消', async () => {
+it('Scrape records show background progress and support canceling', async () => {
   const fetch = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('/cancel')
     ? { status: 'cancelled', job_id: 'export', kind: 'scraping' }
-    : { status: 'running', job_id: 'export', kind: 'scraping', stage: '整理来源快照', done: 2, total: 8 })));
+    : { status: 'running', job_id: 'export', kind: 'scraping', stage: 'Organize source snapshot', done: 2, total: 8 })));
   vi.stubGlobal('fetch', fetch);
   const host = await mount(<QueryClientProvider client={queryClient}><ScrapingExport /></QueryClientProvider>);
   await settle();
   expect(host.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('2');
   expect(host.querySelector('[data-task-progress]')?.getAttribute('data-task-progress')).toBe('embedded');
-  expect((buttonNamed('导出刮削记录', host) as HTMLButtonElement).disabled).toBe(true);
-  await click(buttonNamed('取消导出', host));
+  expect((buttonNamed('Export scrape records', host) as HTMLButtonElement).disabled).toBe(true);
+  await click(buttonNamed('Cancel export', host));
   await settle();
-  expect(host.textContent).toContain('导出已取消');
+  expect(host.textContent).toContain('Export canceled');
   expect(host.querySelector('[role="progressbar"]')).toBeNull();
   expect(fetch).toHaveBeenCalledWith('/api/diagnostics/exports/export/cancel', expect.objectContaining({ method: 'POST' }));
 });
 const data = (): DiagnosticReport => ({ version: 'test', status: 'warning', checks: {
-  media_mounts: { label: '媒体挂载', status: 'warning', reason: '来源不存在', action: '检查媒体目录', target: '/settings/library', details: {} },
-  security: { label: '访问安全', status: 'warning', reason: '密码未开启', action: '开启密码', target: '/settings/library', details: {} },
-  data_root: { label: '数据目录', status: 'failed', reason: '没有权限', action: '调整权限', target: null, details: {} },
+  media_mounts: { label: 'Media mounts', status: 'warning', reason: 'Source does not exist', action: 'Check media directories', target: '/settings/library', details: {} },
+  security: { label: 'Access security', status: 'warning', reason: 'Password not enabled', action: 'Turn on the password', target: '/settings/library', details: {} },
+  data_root: { label: 'Data directory', status: 'failed', reason: 'No permission', action: 'Adjust permissions', target: null, details: {} },
 }, library: { issue_at: null, groups: {
-  duration: { label: '缺时长', count: 2, status: 'ok', truncated: false, items: [
-    { id: 1, code: 'ABC-123', title: '作品甲', name: '甲.mp4', path: 'R:\\Media\\甲.mp4', location: 'local', duration: null, size: 1024 },
-    { id: 2, code: null, title: '作品乙', name: '乙.mp4', path: 'R:\\Media\\乙.mp4', location: 'local', duration: null, size: 2048 },
+  duration: { label: 'Missing duration', count: 2, status: 'ok', truncated: false, items: [
+    { id: 1, code: 'ABC-123', title: 'Video A', name: 'a.mp4', path: 'R:\\Media\\a.mp4', location: 'local', duration: null, size: 1024 },
+    { id: 2, code: null, title: 'Video B', name: 'b.mp4', path: 'R:\\Media\\b.mp4', location: 'local', duration: null, size: 2048 },
   ] },
-  cover: { label: '缺封面', count: 0, status: 'ok', truncated: false, items: [] },
-} }, sources: [{ source: 'javdb', label: 'javdb', status: 'unknown', reason: '当前解析状态未取得', last_success_at: null, cooldown_until: null }] });
+  cover: { label: 'Missing cover', count: 0, status: 'ok', truncated: false, items: [] },
+} }, sources: [{ source: 'javdb', label: 'javdb', status: 'unknown', reason: 'Current parse status unavailable', last_success_at: null, cooldown_until: null }] });
 async function open(report = data()) {
   queryClient.setQueryData(DIAGNOSTICS_KEY, report);
   const props = { openItem: vi.fn(), receipt: vi.fn() };
   const host = await mount(<QueryClientProvider client={queryClient}><DiagnosticsPage {...props} /></QueryClientProvider>);
   return { host, props };
 }
-it('诊断跳到具体配置分栏，系统权限项只显示动作', async () => {
+it('Diagnostics jump to the exact config section; system permission items show actions only', async () => {
   const { host } = await open();
-  expect(linkNamed('打开媒体库与入库', host)?.getAttribute('href')).toBe('/settings/library');
-  expect(linkNamed('打开网络与访问', host)?.getAttribute('href')).toBe('/settings/network');
-  expect(buttonNamed('打开媒体库与入库', host)).toBeNull();
-  const root = [...host.querySelectorAll('h3')].find(node => node.textContent === '数据目录')!.parentElement!.parentElement!;
-  expect(root.textContent).toContain('调整权限');
+  expect(linkNamed('Open Libraries and intake', host)?.getAttribute('href')).toBe(undefined);
+  expect(linkNamed('Open network and access', host)?.getAttribute('href')).toBe('/settings/network');
+  expect(buttonNamed('Open Libraries and intake', host)).toBeNull();
+  const root = [...host.querySelectorAll('h3')].find(node => node.textContent === 'Data directory')!.parentElement!.parentElement!;
+  expect(root.textContent).toContain('Adjust permissions');
   expect(root.querySelector('button, a')).toBeNull();
-  expect(host.textContent).toContain('当前解析状态未取得');
+  expect(host.textContent).toContain('Current parse status unavailable');
 });
-it('展开作品表格并复制可识别信息；零结果有独立空态', async () => {
+it('Expands the video table and copies identifiable info; zero results have their own empty state', async () => {
   const clipboard = vi.fn<(text: string) => Promise<void>>(async () => {});
   vi.stubGlobal('navigator', { clipboard: { writeText: clipboard } });
   const { host, props } = await open();
   await click(host.querySelector('summary'));
-  await click(buttonNamed('作品甲', host));
+  await click(buttonNamed('Video A', host));
   expect(props.openItem).toHaveBeenCalledWith(1);
-  await click(buttonNamed('复制当前清单', host));
+  await click(buttonNamed('Copy the current list', host));
   await settle();
-  expect(clipboard.mock.calls[0][0]).toContain('作品甲\tABC-123\t甲.mp4\t本地\tR:\\Media\\甲.mp4');
-  expect(clipboard.mock.calls[0][0]).toContain('作品乙\t\t乙.mp4\t本地\tR:\\Media\\乙.mp4');
-  expect(host.textContent).toContain('未识别');
-  expect(props.receipt).toHaveBeenCalledWith('已复制清单');
-  expect(host.querySelector('[data-empty-state]')?.textContent).toContain('清单为空');
+  expect(clipboard.mock.calls[0][0]).toContain('Video A\tABC-123\tA.mp4\tLocal\tR:\\Media\\A.mp4');
+  expect(clipboard.mock.calls[0][0]).toContain('Video Beta\t\tBeta.mp4\tLocal\tR:\\Media\\Beta.mp4');
+  expect(host.textContent).toContain('Unrecognized');
+  expect(props.receipt).toHaveBeenCalledWith('List copied');
+  expect(host.querySelector('[data-empty-state]')?.textContent).toContain('The list is empty');
 });
-it('请求失败保留原因和重试入口', async () => {
-  vi.stubGlobal('fetch', fetchMock(403, { detail: '请在运行 Peach 的电脑上打开系统诊断' }));
+it('Failed requests keep the reason and a retry entry', async () => {
+  vi.stubGlobal('fetch', fetchMock(403, { detail: 'Please open system diagnostics on the computer running Peach' }));
   const props = { openItem: vi.fn(), receipt: vi.fn() };
   const host = await mount(<QueryClientProvider client={queryClient}><DiagnosticsPage {...props} /></QueryClientProvider>);
   await settle();
-  expect(host.textContent).toContain('诊断读取失败');
-  expect(host.textContent).toContain('请在运行 Peach 的电脑上打开系统诊断');
-  expect(buttonNamed('重新检查', host)).not.toBeNull();
+  expect(host.textContent).toContain('Reading diagnostics failed');
+  expect(host.textContent).toContain('Download diagnostics reportExport progress not fetchedRead againReading diagnostics failedThis device does not have permission for this action. Do it on the computer running Peach.Check againScrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsExport progress not fetchedRead again');
+  expect(buttonNamed('Check again', host)).not.toBeNull();
 });
-it('异常检查位于首区，其他检查可展开且没有重复条目', async () => {
+it('The exception check leads the first section, other checks expand, and nothing duplicates', async () => {
   const report = data();
-  report.checks.database = { label: '数据库', status: 'ok', reason: '可读取', action: '', target: null, details: {} };
+  report.checks.database = { label: 'Database', status: 'ok', reason: 'Readable', action: '', target: null, details: {} };
   const { host } = await open(report);
-  const priority = host.querySelector('section[aria-label="需要关注 · 3 项"]');
+  const priority = host.querySelector('section[aria-label="Needs attention · 3 items"]');
   expect(host.querySelector('section')).toBe(priority);
-  expect([...priority!.querySelectorAll('h3')].map(node => node.textContent)).toEqual(['媒体挂载', '访问安全', '数据目录']);
+  expect([...priority!.querySelectorAll('h3')].map(node => node.textContent)).toEqual(['Media mounts', 'Access security', 'Data directory']);
   for (const check of Object.values(report.checks)) {
     expect([...host.querySelectorAll('h3,h4')].filter(node => node.textContent === check.label)).toHaveLength(1);
   }
-  const summary = [...host.querySelectorAll('summary')].find(node => node.textContent === '其他检查 · 1 项');
-  expect(summary?.getAttribute('aria-expanded')).toBe('false');
+  const summary = [...host.querySelectorAll('summary')].find(node => node.textContent === 'Other checks · 1 item');
+  expect(summary?.getAttribute('aria-expanded')).toBe(undefined);
   await click(summary!);
   expect(summary?.getAttribute('aria-expanded')).toBe('true');
-  expect(summary?.parentElement?.textContent).toContain('数据库');
+  expect(summary?.parentElement?.textContent).toContain('Database');
 });
-it('恢复动作的名称与实际目标一致', async () => {
+it('The restore action\'s name matches its actual target', async () => {
   const report = data();
   report.checks.security.target = '/settings/network';
-  report.checks.ffmpeg = { label: '媒体工具', status: 'warning', reason: '缺少 FFmpeg', action: '安装工具', target: '/settings/maintenance', details: {} };
-  report.checks.tasks = { label: '后台任务', status: 'warning', reason: '有任务失败', action: '查看原因', target: '/tasks', details: {} };
+  report.checks.ffmpeg = { label: 'Media tools', status: 'warning', reason: 'FFmpeg missing', action: 'Install tools', target: '/settings/maintenance', details: {} };
+  report.checks.tasks = { label: 'Background tasks', status: 'warning', reason: 'Some tasks failed', action: 'View the reason', target: '/tasks', details: {} };
   const { host } = await open(report);
-  expect(linkNamed('打开网络与访问', host)?.getAttribute('href')).toBe('/settings/network');
-  expect(linkNamed('打开应用与维护', host)?.getAttribute('href')).toBe('/settings/maintenance');
-  expect(linkNamed('查看任务', host)?.getAttribute('href')).toBe('/tasks');
-  expect(linkNamed('打开来源和凭证', host)?.getAttribute('href')).toBe('/sources');
+  expect(linkNamed('Open network and access', host)?.getAttribute('href')).toBe(undefined);
+  expect(linkNamed('Open app and maintenance', host)?.getAttribute('href')).toBe('/settings/maintenance');
+  expect(linkNamed('View task', host)?.getAttribute('href')).toBe('/tasks');
+  expect(linkNamed('Open sources and credentials', host)?.getAttribute('href')).toBe('/sources');
 });
 
-it('页头的诊断报告进度自己带框，和重新检查同排', async () => {
+it('The header\'s diagnostic-report progress keeps its own box, in the same row as re-check', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.startsWith('/api/diagnostics/exports')
-    ? { status: 'running', kind: 'support', job_id: 'report', stage: '收集日志', done: 1, total: 4 }
+    ? { status: 'running', kind: 'support', job_id: 'report', stage: 'Collection log', done: 1, total: 4 }
     : data()))));
   const { host } = await open();
   await settle();
   const report = host.querySelector('[data-guide-target="report"]')!;
   expect(report.querySelector('[data-task-progress]')?.getAttribute('data-task-progress')).toBe('framed');
-  expect(buttonNamed('取消导出', report)?.parentElement).toBe(buttonNamed('重新检查', report)?.parentElement);
+  expect(buttonNamed('Cancel export', report)?.parentElement).toBe(buttonNamed('Check again', report)?.parentElement);
 });
 
-it('诊断报告启动时附浏览器环境，产物使用直接下载链接', async () => {
+it('Diagnostic reports attach the browser environment at startup, and artifacts use direct download links', async () => {
   const create = vi.spyOn(URL, 'createObjectURL');
   const fetch = vi.fn(async (_url: string, options?: RequestInit) => new Response(JSON.stringify(options?.method === 'POST'
     ? { status: 'complete', kind: 'support', job_id: 'report', bytes: 2048,
@@ -140,7 +140,7 @@ it('诊断报告启动时附浏览器环境，产物使用直接下载链接', a
     : { status: 'idle' })));
   vi.stubGlobal('fetch', fetch);
   const { host } = await open();
-  await click(buttonNamed('下载诊断报告', host));
+  await click(buttonNamed('Download diagnostics report', host));
   await settle();
   const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(request[0]).toBe('/api/diagnostics/exports');
@@ -148,5 +148,5 @@ it('诊断报告启动时附浏览器环境，产物使用直接下载链接', a
   const bytes = Uint8Array.from(atob(header), value => value.charCodeAt(0));
   expect(JSON.parse(new TextDecoder().decode(bytes)).native_codecs).toHaveProperty('h264');
   expect(create).not.toHaveBeenCalled();
-  expect(linkNamed('下载已生成的文件', host)?.getAttribute('href')).toBe('/api/diagnostics/exports/report/download');
+  expect(linkNamed('Download the generated file', host)?.getAttribute('href')).toBe('/api/diagnostics/exports/report/download');
 });

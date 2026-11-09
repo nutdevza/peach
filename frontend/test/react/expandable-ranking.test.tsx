@@ -9,17 +9,17 @@ beforeEach(() => {
 
 const rows = (count: number) => Array.from(
   { length: count },
-  (_value, index) => <li key={index}>{`第 ${index + 1} 名`}</li>,
+  (_value, index) => <li key={index}>{`Rank ${index + 1}`}</li>,
 );
 
-it('行数没超过预览档时不标可展开，也不画展开键', async () => {
+it('When rows do not exceed the preview limit, no expandable mark and no expand button are drawn', async () => {
   const host = await mount(<ExpandableRanking previewCount={5}>{rows(5)}</ExpandableRanking>);
   const frame = host.querySelector('[data-expandable-ranking]')!;
   expect(frame.hasAttribute('data-expandable')).toBe(false);
   expect(host.querySelector('[data-ranking-toggle]')).toBeNull();
 });
 
-it('行数超过预览档时标出可展开，展开键切换方向', async () => {
+it('When rows exceed the preview limit, mark expandable and the expand button toggles direction', async () => {
   const host = await mount(<ExpandableRanking previewCount={5}>{rows(9)}</ExpandableRanking>);
   const frame = host.querySelector('[data-expandable-ranking]')!;
   expect(frame.hasAttribute('data-expandable')).toBe(true);

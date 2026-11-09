@@ -14,14 +14,14 @@ async function setup() {
   return { managed, queryClient, bar };
 }
 
-/* 首屏取数卡在闸门上，`release` 放行。 */
+/* First-screen fetches wait on a gate; `release` lets them through. */
 function gated() {
   let release = () => {};
   const gate = new Promise<void>(resolve => { release = resolve; });
   return { gate, release: () => release() };
 }
 
-it('换页首屏取数超过 200ms 才亮，取齐后至少亮满 400ms 再淡出', async () => {
+it('The pagination first-screen loader only lights up when fetching takes over 200ms; once complete it stays lit for at least 400ms before fading out', async () => {
   const { managed, bar } = await setup();
   const { gate, release } = gated();
   managed.connectManagedRoutes(Promise.resolve(() => gate));
@@ -40,7 +40,7 @@ it('换页首屏取数超过 200ms 才亮，取齐后至少亮满 400ms 再淡�
   expect(bar.dataset.state).toBeUndefined();
 });
 
-it('200ms 内画完的换页与页面内组件的取数都不亮', async () => {
+it('Page switches and in-page component fetches drawn within 200ms do not flash', async () => {
   const { managed, bar } = await setup();
   const { gate, release } = gated();
   managed.connectManagedRoutes(Promise.resolve((path: string) => path === 'search' ? new Promise<void>(() => {}) : gate));
@@ -55,7 +55,7 @@ it('200ms 内画完的换页与页面内组件的取数都不亮', async () => {
   expect(bar.dataset.state).toBeUndefined();
 });
 
-it('换到另一页时上一趟被中止，进度条接着亮、不从头再等', async () => {
+it('When switching to another page, the previous run is aborted and the progress bar keeps running; it does not wait from scratch', async () => {
   const { managed, bar } = await setup();
   const { gate, release } = gated();
   managed.connectManagedRoutes(Promise.resolve(() => gate));
@@ -68,7 +68,7 @@ it('换到另一页时上一趟被中止，进度条接着亮、不从头再等'
   release(); await second;
 });
 
-it('屏上组件等第一份数据时亮；已有数据的重取、失败后的轮询和没人看的预取都不亮', async () => {
+it('On-screen components light up while waiting for the first data; refetches where data already exists, polling after failure, and unwatched prefetches don\'t light up', async () => {
   const { queryClient, bar } = await setup();
   const hold = () => new Promise(() => {});
 

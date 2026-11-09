@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { MeasuredReading } from '../../src/react/follow-manage/measured-reading';
 import { mountRoot } from './render';
 
-it('未取得的读数保持不可交互骨架，已取得的相邻读数先显示', async () => {
+it('Readings that were not obtained keep a non-interactive skeleton; adjacent obtained readings show first', async () => {
   const { host, rerender } = await mountRoot(<>
     <MeasuredReading field="creators" figure={26} />
     <MeasuredReading field="subscriptions" figure={undefined} />
@@ -21,15 +21,15 @@ it('未取得的读数保持不可交互骨架，已取得的相邻读数先显�
     <MeasuredReading field="subscriptions" figure={0} />
   </>);
   expect(host.querySelector('[aria-busy="true"]')).toBeNull();
-  expect(host.querySelector('[data-measured-reading="subscriptions"] [data-follow-reading]')?.textContent).toBe('0 位');
+  expect(host.querySelector('[data-measured-reading="subscriptions"] [data-follow-reading]')?.textContent).toBe('0 people');
 });
 
-it('首次读取失败显示未取得，后台重读失败保留已有数值', async () => {
+it('A first read failure shows Not obtained; a background re-read failure keeps the existing value', async () => {
   const { host, rerender } = await mountRoot(<MeasuredReading field="updates" figure={undefined} failed />);
-  expect(host.textContent).toContain('未取得');
+  expect(host.textContent).toContain('Unwatched updates未取得');
   expect(host.querySelector('[aria-busy="true"]')).toBeNull();
   await rerender(<MeasuredReading field="updates" figure={1250} failed />);
   expect(host.textContent).toContain((1250).toLocaleString());
-  expect(host.textContent).not.toContain('未取得');
+  expect(host.textContent).not.toContain('Not fetched');
   expect(host.querySelector('[aria-busy="true"]')).toBeNull();
 });

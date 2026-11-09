@@ -260,7 +260,7 @@ describe('资源同步', () => {
     });
     const host = await wrap(<ResourceSyncCard toast={toast} />);
     await settle();
-    expect(host.textContent).toContain('本地磁盘');
+    expect(host.textContent).toContain('资源同步核对馆藏记录与盘上的文件，列出文件已不在的记录、空文件夹和闲置缓存。重新扫描Local disk可访问4 项找不到文件 · 共 120 项 · 空文件夹 3 个115离线—馆藏中有 30 项 · 本次已跳过待永久删除4 项文件已不在盘上，含回收站将标为已消失0 项带个人记录，记录留着空文件夹3 个保留来源根目录可清理的缓存2 个5 MB清理内容将永久删除 4 条文件已不在的记录和 3 个空文件夹，并清理 2 个闲置缓存。这一步不可撤销。清理失效条目');
     expect(host.querySelector('[data-connection-tone="warning"]')?.textContent).toBe('离线');
     expect(host.textContent).toContain('本次已跳过');
     expect(host.textContent).toContain('馆藏中有 30 项');
@@ -289,7 +289,7 @@ describe('资源同步', () => {
     serve({ '/api/resource-sync/scan': state, '/api/resource-sync/apply': { status: 'idle' } });
     const host = await wrap(<ResourceSyncCard toast={vi.fn()} />);
     await settle();
-    expect(host.textContent).toContain('本地磁盘');
+    expect(host.textContent).toContain('资源同步核对馆藏记录与盘上的文件，列出文件已不在的记录、空文件夹和闲置缓存。已扫描 1/2 个来源扫描中Local disk可访问4 项找不到文件 · 共 120 项 · 空文件夹 3 个');
     expect(host.textContent).toContain('空文件夹 3 个');
     expect(buttonNamed('清理失效条目', host)).toBeNull();
     expect(host.textContent).not.toContain('可清理的缓存');
@@ -704,7 +704,7 @@ describe('整理', () => {
     await click(buttonNamed('执行整理', host));
     await settle();
     expect(seen.map((options) => options.title)).toEqual(['整理文件']);
-    expect(seen[0]!.body).toContain('「本地」上的全部文件');
+    expect(seen[0]!.body).toContain('将按模板整理「Local」上的全部文件，可整批回滚。');
     expect(server.posts('/api/organize/apply')).toEqual([
       { location: 'local', path: '', file_template: '{code}', dir_template: '', confirm: true },
     ]);

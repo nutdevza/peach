@@ -1,11 +1,11 @@
-/* 真浏览器冒烟的夹具：打开页面、收集运行期问题、测布局几何。
+/* Fixtures for real-browser smoke tests: open pages, collect runtime problems, measure layout geometry.
  *
- * 只用 playwright-core 驱动本机已装的 Chrome，不下载浏览器；路径由
- * `tests/test_web_e2e.py` 探测后经 PEACH_E2E_CHROME 传进来。服务、数据库和演示库
- * 也归 Python 那一侧准备，这里只认 PEACH_E2E_ORIGIN。
+ * Only playwright-core driving the machine's installed Chrome, no browser downloads; the path is probed by
+ * `tests/test_web_e2e.py` and passed in via PEACH_E2E_CHROME. The service, database and demo library are also prepared on the
+ * Python side; this only accepts PEACH_E2E_ORIGIN.
  *
- * 用例只写语义断言（没有横向溢出、等待态会结束、控制台无错误），不做截图比对：
- * 单人部署里维护基线图的成本高于它能拦住的问题。 */
+ * Cases write only semantic assertions (no horizontal overflow, wait states end, no console errors) and do no screenshot
+ * comparison: in a single-person deployment, maintaining baseline images costs more than it catches. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -27,7 +27,7 @@ export const VIEWPORTS: readonly Viewport[] = [
 
 export interface Visit {
   page: Page;
-  /** 页面异常、console.error、同源 4xx/5xx 与失败请求，按发生顺序。 */
+  /** Page exceptions, console.error, same-origin 4xx/5xx, and failed requests, in the order they happened. */
   problems: string[];
   close(): Promise<void>;
 }
@@ -35,13 +35,13 @@ export interface Visit {
 export interface Layout {
   viewportWidth: number;
   scrollWidth: number;
-  /** 右边缘越出视口、且没有被任何祖先横向裁切的可见元素，最多列 5 个。 */
+  /** Visible elements whose right edge crosses the viewport and that no ancestor clips horizontally, at most 5 listed. */
   offenders: string[];
 }
 
 export function requiredEnv(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} 未设置：用 \`tests/test_web_e2e.py\` 起服务后再跑`);
+  if (!value) throw new Error(`${name} not set: start the server with \`tests/test_web_e2e.py\` and run again`);
   return value;
 }
 
@@ -55,18 +55,18 @@ export async function launch(): Promise<Browser> {
     mkdirSync(networkLogs, { recursive: true });
     const filename = `network-${process.pid}-${randomUUID()}.json`;
     args.push(`--log-net-log=${join(networkLogs, filename)}`, '--net-log-capture-mode=HeavilyRedacted');
-    console.info(`浏览器网络事件日志：${filename}`);
+    console.info(`Browser network event log: ${filename}`);
   }
   return chromium.launch({
     headless: true,
     executablePath: requiredEnv('PEACH_E2E_CHROME'),
     args,
-    // Windows 首次加载浏览器与系统组件使用独立的启动预算，页面等待由各用例限定。
+    // Windows gives first-time browser and system component loads a separate startup budget; page waits are bounded by each test.
     timeout: 60_000,
   });
 }
 
-/** 失败时保留焦点、输入和弹层现场；成功路径不额外查询页面。 */
+/** On failure, keep the focus, input and popover scene intact; the success path makes no extra page query. */
 export async function withPageDiagnostics<T>(page: Page, where: string | (() => string), action: () => Promise<T>): Promise<T> {
   try {
     return await action();
@@ -83,24 +83,29 @@ export async function withPageDiagnostics<T>(page: Page, where: string | (() => 
       busy: [...document.querySelectorAll('[aria-busy="true"],[data-skeleton]')]
         .filter(node => !node.closest('[data-content-skeleton][aria-hidden="true"]'))
         .slice(0, 12).map(node => ({ tag: node.tagName, id: node.id, label: node.getAttribute('aria-label') })),
-    })).catch(() => '未取得');
-    const tree = await page.locator('body').ariaSnapshot({ timeout: 2000 }).catch(() => '未取得');
-    throw new Error(`${typeof where === 'function' ? where() : where}：${String(error)}\n页面现场：${JSON.stringify(state)}\n无障碍树：\n${tree.slice(0, 4000)}`,
+    })).catch(() => 'Not fetched');
+    const tree = await page.locator('body').ariaSnapshot({ timeout: 2000 }).catch(() => 'Not fetched');
+    throw new Error(`${typeof where === 'function' ? where() : where}: ${String(error)}
+Page state: ${JSON.stringify(state)}
+Accessibility tree:
+${tree.slice(0, 4000)}`,
       { cause: error });
   }
 }
 
-/** 等待态以 `aria-busy="true"` 与 `data-skeleton` 为准；超时就是等待态卡住了。
- * 两个标记由页面自己写：island、遗留模板和 React 子树都得发出，这里才等得到。
+/** Wait states are judged by `aria-busy="true"` and `data-skeleton`; a timeout means a wait state is stuck.
+ * Both markers are written by the page itself: islands, legacy templates and React subtrees must all emit them for this to
+ * see anything.
  *
- * 它只证明「没有东西在等」，证明不了页面画出来了：主体完全没渲染时同样立刻成立。
- * 所以调用方先等到目标页面自己的主体出现，再调它。
+ * It only proves "nothing is waiting", not that the page rendered: it also holds immediately when the body rendered nothing
+ * at all. So callers wait for the target page's own body to appear first, then call this.
  *
- * `except` 是用例自己压住、永远不会结束的那一处等待（例如故意不回的下一页），按选择器排除。 */
+ * `except` is a wait the case itself pins and that will never end (a next page intentionally not answered, for example),
+ * excluded by selector. */
 export async function settle(page: Page, scope = 'body', { except = '' }: { except?: string } = {}): Promise<void> {
-  /* 活动页和馆藏页会持续轮询任务状态，本来就不保证进入 `networkidle`。页面导航由
-     `visit()` 等到 load，主体由调用方的 `expectBody()` 验证；这里只等 Peach 自己公开的
-     等待态结束。 */
+  /* The activity page and library page keep polling task status and never guarantee entering `networkidle`. Navigation is awaited by
+     `visit()` until load, and the body is verified by the caller's `expectBody()`; here we only wait for Peach's own
+     public waiting states to end. */
   try {
     await page.waitForFunction(
       ({ selector, except }) => {
@@ -124,32 +129,32 @@ export async function settle(page: Page, scope = 'body', { except = '' }: { exce
           label: node.getAttribute('aria-label'), scope: node.closest('dialog')?.id || 'page',
           width: box.width, height: box.height };
       });
-    }, { selector: scope, except }).catch(() => '未取得');
-    throw new Error(`页面等待态未结束：${JSON.stringify(pending)}\n${(error as Error).message}`);
+    }, { selector: scope, except }).catch(() => 'Not fetched');
+    throw new Error(`Page waiting state did not finish: ${JSON.stringify(pending)}\n${(error as Error).message}`);
   }
 }
 
-/** 等目标页面自己的主体出现：每个定位器都要可见，之后才轮到 `settle`。
- * 等不到就带上此刻 `#main` 的无障碍树失败：CI 上只有这段输出，看得出停在骨架、
- * 空态换了文案还是整块没画。 */
+/** Wait for the target page's own body to appear: every locator must be visible before `settle` gets its turn.
+ * On timeout, fail with the accessibility tree of the current `#main`: on CI this output is all there is, showing whether it stuck on skeleton,
+ * an empty state's changed copy, or a block that never painted. */
 export async function expectBody(page: Page, where: string, body: readonly Locator[], problems: readonly string[] = []): Promise<void> {
   for (const locator of body) {
     try {
       await locator.waitFor({ state: 'visible', timeout: 15_000 });
     } catch (error) {
-      const snapshot = await page.locator('#main').ariaSnapshot({ timeout: 5_000 }).catch(() => '未取得');
-      assert.fail(`${where}：页面主体没有出现，等不到 ${locator}\n${(error as Error).message}\n`
-        + `页面：${page.url()}；已关闭：${page.isClosed()}；运行期问题：${JSON.stringify(problems)}\n`
-        + `#main 当时的无障碍树：\n${snapshot.slice(0, 3000)}`);
+      const snapshot = await page.locator('#main').ariaSnapshot({ timeout: 5_000 }).catch(() => 'Not fetched');
+      assert.fail(`${where}: the page body never appeared, timed out waiting for ${locator}\n${(error as Error).message}\n`
+        + `Page: ${page.url()}; closed: ${page.isClosed()}; runtime problems: ${JSON.stringify(problems)}\n`
+        + `The accessibility tree of #main at that moment:\n${snapshot.slice(0, 3000)}`);
     }
   }
 }
 
-/** Peach 配置页的主体：标题与默认的媒体库分区。 */
+/** The Peach config page body: the title and the default library section. */
 export function configurationBody(page: Page): Locator[] {
   return [
-    page.locator('#main').getByRole('heading', { name: 'Peach 配置', exact: true }),
-    page.locator('#stats').getByRole('tab', { name: '媒体库与入库' }),
+    page.locator('#main').getByRole('heading', { name: 'Peach configuration', exact: true }),
+    page.locator('#stats').getByRole('tab', { name: 'Library and imports' }),
   ];
 }
 
@@ -162,7 +167,7 @@ export async function visit(browser: Browser, path: string, viewport: Viewport,
     hasTouch: viewport.mobile,
     reducedMotion: 'reduce',
   });
-  // 详情页默认自动播放；这台机器旁边有人，冒烟不出声。
+  // Detail pages autoplay by default; someone sits next to this machine, so the smoke test stays silent.
   await context.addInitScript(() => {
     localStorage.setItem('peach.settings.v1', JSON.stringify({ detailAutoplay: false }));
   });
@@ -183,14 +188,14 @@ export async function visit(browser: Browser, path: string, viewport: Viewport,
       problems.push(`failed ${request.url().slice(origin.length)} ${reason}`);
     }
   });
-  /* 桩回调里的 `route.fetch`、`route.continue` 可能在关上下文时还没返回，之后会以
-   * 「Request context disposed」失败；没人等它，就成了整个文件的 unhandledRejection。
-   * `ignoreErrors` 先撤掉全部桩，让还在路上的那几趟失败时静默返回。 */
+  /* `route.fetch` and `route.continue` in stub callbacks may not have returned by the time the context is closed; afterwards they fail with
+   * "Request context disposed"; nobody is awaiting them, so it becomes a whole-file unhandledRejection.
+   * `ignoreErrors` first removes all the stubs, so the few in-flight ones silently return when they fail. */
   const close = async () => {
     if (!page.isClosed()) await page.unrouteAll({ behavior: 'ignoreErrors' });
     await context.close();
   };
-  // 只打开到 load：等哪块主体、何时 settle 由用例决定，见 `settle` 的说明。
+  // Opens only up to load: which body to wait for and when to settle is up to the test case, see the `settle` docs.
   try {
     await prepare?.(page);
     await page.goto(origin + path, { waitUntil: 'load' });
@@ -201,8 +206,8 @@ export async function visit(browser: Browser, path: string, viewport: Viewport,
   return { page, problems, close };
 }
 
-/** 时间轴预览的桩：`/api/timeline` 回固定间隔的自有接触印相，`/timeline` 回合成的 10×10 拼图，
- *  每格写「页-格」序号，截图里看得出取的是哪一格。返回每页被请求的次数。 */
+/** Stubs for the timeline preview: `/api/timeline` returns self-captured contact sheets at a fixed interval, and `/timeline` returns a composited 10×10 grid,
+ * each cell labeled with its "page-cell" index, so a screenshot shows which cell was fetched. Returns the number of requests per page. */
 export async function stubTimelineSheets(page: Page, { frames, interval }: { frames: number; interval: number }) {
   const requested = new Map<number, number>();
   await page.route((url) => url.pathname === '/api/timeline', (route) => route.fulfill({
@@ -223,10 +228,10 @@ export async function stubTimelineSheets(page: Page, { frames, interval }: { fra
   return requested;
 }
 
-/* 越界名单只报根因：页面一旦被撑宽，移动视口跟着变宽，`fixed` 的顶栏、Toast 会一起
- * 伸出去，按文档顺序截前几个就只剩这些症状。所以跳过 `fixed` 及其后代，并且只留
- * 父元素自己没越界的那一层。 */
-/** 检查实际可滚动的区域是否由统一滑块或横向手势接管。 */
+/* The overflow list reports root causes only: once a page is stretched wide, the mobile viewport widens with it, and `fixed` top bars and Toasts stretch out
+ *  together; truncating the first few in document order would leave only symptoms. So skip `fixed` and its descendants, keeping only
+ *  layers whose parent itself does not overflow. */
+/** Check whether actually scrollable areas are taken over by the unified slider or a horizontal gesture. */
 export async function unmanagedScrollers(page: Page): Promise<string[]> {
   return page.evaluate(() => [...document.querySelectorAll<HTMLElement>('body *')].flatMap(node => {
     if (!(node instanceof HTMLElement) || node.closest('.ovtrack,.ui-ov-edges,[data-skeleton],[inert]')) return [];

@@ -5,12 +5,12 @@ import { launch, layout, VIEWPORTS } from './harness.ts';
 import { FAILED_JOB } from './design-fixture.ts';
 import { ITEM, openItemPage } from './item-fixture.ts';
 
-describe('问题清单详情返回', () => {
+describe('Issue list, details and back', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name}：退出详情保留数据管理页、展开的清单与来源地址`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name}: leaving details keeps the data management page, expanded lists, and the source URL`, { timeout: 60_000 }, async () => {
       const opened = await openItemPage(browser, '/', viewport, { ready: '#grid [data-media-card]' });
       const { page } = opened;
       try {
@@ -28,12 +28,12 @@ describe('问题清单详情返回', () => {
         const sourceScroll = await page.evaluate(() => scrollY);
         await link.click();
         await page.locator('#stage[open] [data-item-side]').waitFor();
-        assert.deepEqual(requests, [], '站内打开详情保持当前文档');
+        assert.deepEqual(requests, [], 'Opening details in place keeps the current document');
         await page.locator('#closeStage').click();
         await page.waitForFunction(expected => location.pathname + location.search + location.hash === expected, source);
         await link.waitFor({ state: 'visible' });
         assert.equal(await summary.getAttribute('aria-expanded'), 'true');
-        assert.ok(Math.abs(await page.evaluate(() => scrollY) - sourceScroll) < 2, '关闭详情保留原来的滚动位置');
+        assert.ok(Math.abs(await page.evaluate(() => scrollY) - sourceScroll) < 2, 'Closing details keeps the original scroll position');
         await link.evaluate(element => { element.setAttribute('href', element.getAttribute('href') + '?t=1') });
         await link.click();
         await page.waitForFunction(() => location.search === '?t=1');

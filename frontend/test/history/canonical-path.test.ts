@@ -3,7 +3,7 @@ import { canonicalPath } from '../../src/history/canonical-path';
 import { overlayTarget } from '../../src/history/overlay';
 import { entityLinkId, entityLinkName, registerResponseEntities } from '../../src/core/entity-links';
 
-it('三类对象与队列兼容地址保留筛选和播放位置', () => {
+it('The three object kinds and queue-compatible addresses keep filters and playback positions', () => {
   expect(canonicalPath('/item/12?t=93')).toBe('/assets/12?t=93');
   expect(canonicalPath('/follow/item/7?media=images')).toBe('/posts/7?media=images');
   expect(canonicalPath('/jav/movie/abp-968?q=x')).toBe('/works/ABP-968?q=x');
@@ -20,7 +20,7 @@ it('三类对象与队列兼容地址保留筛选和播放位置', () => {
   }
 });
 
-it('规范名优先于同名别名，歧义别名交给服务器解析', () => {
+it('Canonical names take precedence over same-named aliases; ambiguous aliases are left to the server', () => {
   registerResponseEntities('/api/entity/shapes', { entities: [
     { kind: 'performer', id: 801, names: ['Canonical Alice', 'Shared Alias'] },
     { kind: 'performer', id: 802, names: ['Canonical Bob', 'Canonical Alice', 'Shared Alias'] },
@@ -30,30 +30,30 @@ it('规范名优先于同名别名，歧义别名交给服务器解析', () => {
   expect(entityLinkName('performer', 802)).toBe('Canonical Bob');
 });
 
-it('实体别名与改名沿用同一个 ID，非实体响应不参与地址登记', () => {
-  registerResponseEntities('/api/entity?kind=studio&id=91', { id: 91, kind: 'studio', canonical_name: '新厂牌', aliases: ['旧厂牌'] });
-  expect(entityLinkId('studio', '旧厂牌')).toBe(91);
-  expect(entityLinkName('studio', 91)).toBe('新厂牌');
+it('Entity aliases and renames keep the same ID; non-entity responses take no part in URL registration', () => {
+  registerResponseEntities('/api/entity?kind=studio&id=91', { id: 91, kind: 'studio', canonical_name: 'New label', aliases: ['Old label'] });
+  expect(entityLinkId('studio', 'Old label')).toBe(91);
+  expect(entityLinkName('studio', 91)).toBe('New label');
   expect(() => registerResponseEntities('/api/links', { entities: 210, total: 719 })).not.toThrow();
-  expect(entityLinkId('studio', '不存在')).toBeUndefined();
+  expect(entityLinkId('studio', 'Does not exist')).toBeUndefined();
 });
 
-it('无效与冲突队列参数使用普通资产详情', () => {
+it('Invalid and conflicting queue params use plain asset details', () => {
   for (const query of ['?parts=bad', '?parts=0', '?parts=2&playlist=3']) {
     expect(overlayTarget('/assets/22', query)).toEqual({ kind: 'item', id: 22 });
   }
   expect(overlayTarget('/assets/0')).toBeNull();
 });
 
-it('头像条、筛选与搜索补全沿用已取得的实体 ID', () => {
-  registerResponseEntities('/api/tops', { performers: [{ id: 991, k: '头像条人物' }] });
-  registerResponseEntities('/api/facets', { studios: [{ entity_id: 992, k: '筛选厂牌' }] });
+it('The avatar strip, filters, and search completion reuse the entity ID already fetched', () => {
+  registerResponseEntities('/api/tops', { performers: [{ id: 991, k: 'Avatar strip people' }] });
+  registerResponseEntities('/api/facets', { studios: [{ entity_id: 992, k: 'Filter labels' }] });
   registerResponseEntities('/api/suggest?q=test', { groups: [
-    { kind: 'creator', items: [{ entity_id: 993, value: '补全作者' }] },
-    { kind: 'asset', items: [{ id: 1, value: '示例视频' }] },
+    { kind: 'creator', items: [{ entity_id: 993, value: 'Complete the author' }] },
+    { kind: 'asset', items: [{ id: 1, value: 'Example video' }] },
   ] });
-  expect(entityLinkId('performer', '头像条人物')).toBe(991);
-  expect(entityLinkId('studio', '筛选厂牌')).toBe(992);
-  expect(entityLinkId('creator', '补全作者')).toBe(993);
-  expect(entityLinkId('asset', '示例视频')).toBeUndefined();
+  expect(entityLinkId('performer', 'Avatar strip people')).toBe(991);
+  expect(entityLinkId('studio', 'Filter labels')).toBe(992);
+  expect(entityLinkId('creator', 'Complete the author')).toBe(993);
+  expect(entityLinkId('asset', 'Example video')).toBeUndefined();
 });

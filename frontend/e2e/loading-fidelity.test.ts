@@ -3,35 +3,35 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, requiredEnv, VIEWPORTS } from './harness.ts';
 
-describe('页面等待态的结构', () => {
+describe('Structure of the page loading state', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
   for (const viewport of VIEWPORTS) {
-    it(`${viewport.name} 新作封面抓取显示进度并在完成后换成图片`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} new release cover fetching shows progress and swaps to the image when done`, { timeout: 60_000 }, async () => {
       const context = await browser.newContext({ viewport });
       try {
         const page = await context.newPage();
         let completed = false;
         await page.route('**/api/entity/shapes', route => route.fulfill({ json: { ok: true, entities: [], home: { feed: true } } }));
         await page.route(/\/api\/feeds\/discoveries\?/, route => route.fulfill({ json: { ok: true, items: [
-          { id: 1, code: 'EXM-001', title: '示例新作', has_cover: completed, cover_state: completed ? null : 'fetching' },
+          { id: 1, code: 'EXM-001', title: 'Example new release', has_cover: completed, cover_state: completed ? null : 'fetching' },
         ] } }));
         await page.route(/\/cover\?code=EXM-001/, route => route.fulfill({ contentType: 'image/svg+xml', body:
           '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480"><rect width="320" height="480" fill="#ddd"/></svg>' }));
         await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + '/', { waitUntil: 'load' });
         const pending = page.locator('#feedNew [data-feed-cover-state="fetching"]');
         await pending.waitFor();
-        assert.equal(await pending.innerText(), '抓取中');
+        assert.equal(await pending.innerText(), 'Fetching');
         const color = await pending.evaluate(node => getComputedStyle(node.closest('.pic')!).backgroundColor);
-        assert.notEqual(color, 'rgb(0, 0, 0)', '抓取中封面仍是黑底');
+        assert.notEqual(color, 'rgb(0, 0, 0)', 'Cover stays black while fetching');
         completed = true;
         await page.locator('#feedNew img.cover').waitFor({ timeout: 10_000 });
         assert.equal(await pending.count(), 0);
       } finally { await context.close() }
     });
 
-    it(`${viewport.name} 首页筛选控件立即显示，浮层保留最终材质`, { timeout: 60_000 }, async () => {
+    it(`${viewport.name} home filter controls show immediately; overlays keep the final material`, { timeout: 60_000 }, async () => {
       const context = await browser.newContext({ viewport });
       let release = () => {};
       const held = new Promise<void>(resolve => { release = resolve });
@@ -42,16 +42,16 @@ describe('页面等待态的结构', () => {
         await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + '/', { waitUntil: 'load' });
         const frame = page.locator('[data-catalog-frame]');
         await frame.waitFor();
-        assert.ok(await frame.locator('[data-entity-layout]').count(), '版式键没有立即显示');
-        assert.ok(await frame.locator('[data-entity-sort]').count(), '排序键没有立即显示');
+        assert.ok(await frame.locator('[data-entity-layout]').count(), 'Layout key not shown immediately');
+        assert.ok(await frame.locator('[data-entity-sort]').count(), 'Sort key not shown immediately');
         const styles = await frame.evaluate(node => ({ filter: getComputedStyle(node).backdropFilter,
           background: getComputedStyle(node).backgroundColor }));
-        assert.notEqual(styles.filter, 'none', '筛选框等待时失去了玻璃材质');
+        assert.notEqual(styles.filter, 'none', 'The filter box loses its glass material while waiting');
         assert.notEqual(styles.background, 'rgba(0, 0, 0, 0)');
       } finally { release(); await context.close() }
     });
 
-    for (const jav of [false, true]) it(`${viewport.name} ${jav ? 'JAV' : '普通'}艺人等待态遵循作品语境`, { timeout: 60_000 }, async () => {
+    for (const jav of [false, true]) it(`${viewport.name} ${jav ? 'JAV' : 'regular'} performer waiting state follows the video context`, { timeout: 60_000 }, async () => {
       const context = await browser.newContext({ viewport });
       let release = () => {};
       const held = new Promise<void>(resolve => { release = resolve });
@@ -62,20 +62,20 @@ describe('页面等待态的结构', () => {
           await route.fulfill({ response });
         });
         await page.route('**/api/entity/shapes', route => route.fulfill({ json: { ok: true, entities: [
-          { id: 90001, kind: 'performer', names: ['演示艺人'], parts: ['costars', 'facts', ...(jav ? ['jav'] : [])] },
+          { id: 90001, kind: 'performer', names: ['Demo artist'], parts: ['costars', 'facts', ...(jav ? ['jav'] : [])] },
         ] } }));
-        await page.route(/\/api\/entity\?/, async route => { await held; await route.fulfill({ json: { error: '未取得' } }) });
+        await page.route(/\/api\/entity\?/, async route => { await held; await route.fulfill({ json: { error: 'Not fetched' } }) });
         await page.goto(requiredEnv('PEACH_E2E_ORIGIN') + '/performers/90001', { waitUntil: 'load' });
         const root = page.locator('[data-skeleton="entity/performer"]');
         await root.waitFor();
-        assert.ok(await root.locator('[data-entity-foot]').count(), '数字地址漏了相关艺人');
-        assert.ok(await root.locator('[data-entity-facts]').count(), '数字地址漏了资料表');
-        assert.ok(await root.locator('[data-entity-state]').count(), '观看状态被画成了占位');
-        assert.ok(await root.locator('[data-entity-sort]').count(), '排序控件被画成了占位');
-        assert.equal(await root.locator('[aria-label="JAV 卡片版式"]').count() > 0, jav, '卡片版式开关误用了艺人类型');
+        assert.ok(await root.locator('[data-entity-foot]').count(), 'The numeric address omits related artists');
+        assert.ok(await root.locator('[data-entity-facts]').count(), 'Numeric URL missing the profile table');
+        assert.ok(await root.locator('[data-entity-state]').count(), 'Watch states painted as placeholders');
+        assert.ok(await root.locator('[data-entity-sort]').count(), 'Sort controls painted as placeholders');
+        assert.equal(await root.locator('[aria-label="JAV card layout"]').count() > 0, jav, 'The card layout toggle wrongly uses the performer type');
         const ratio = await root.locator('[style*="--skeleton-card-ratio"]').first().evaluate(node =>
           Number((node as HTMLElement).style.getPropertyValue('--skeleton-card-ratio')));
-        assert.equal(ratio, jav ? .75 : 16 / 9, '等待态封面比例与作品语境不一致');
+        assert.equal(ratio, jav ? .75 : 16 / 9, 'The waiting state\'s cover ratio disagrees with the video context');
       } finally { release(); await context.close() }
     });
   }

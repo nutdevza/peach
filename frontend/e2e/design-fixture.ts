@@ -1,9 +1,9 @@
-/* 设计决定用例（`design-*.test.ts`）共用的桩数据、打开页面的入口与浏览器生命周期。
+/* Stub data, page-opening entries and browser lifecycle shared by the design decision cases (`design-*.test.ts`).
  *
- * 设计决定按浏览器里的计算值断言，不绑定 CSS 源码的写法。页面迁到 React 时，旧的源码字符串
- * 断言按 ADR-0031 分三类：设计决定落在 `design-*.test.ts` 或 lint 规则，行为落在 vitest，
- * 布局与运行期问题归 `smoke.test.ts`。每条用例守一个决定，读的是 `getComputedStyle`，
- * 类名或样式写法换了照样成立。 */
+ * Design decisions are asserted against computed styles in the browser, not bound to how the CSS source is written. When
+ * pages migrated to React, the old source-string assertions were sorted three ways per ADR-0031: design decisions into
+ * `design-*.test.ts` or lint rules, behavior into vitest, layout and runtime problems into `smoke.test.ts`. Each case guards
+ * one decision, reads `getComputedStyle`, and holds even when class names or style spellings change. */
 import assert from 'node:assert/strict';
 import { after, before, beforeEach } from 'node:test';
 import type { Browser, Locator, Page } from 'playwright-core';
@@ -14,7 +14,7 @@ import {
 export const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 export const MOBILE = VIEWPORTS.find((viewport) => viewport.mobile)!;
 
-/** 在 `scope` 里解析一个颜色 token：临时挂一个元素读背景色，读完就移除。 */
+/** Resolve one color token inside `scope`: mount a temporary element, read its background color, and remove it. */
 export async function tokenColor(page: Page, scope: string, token: string): Promise<string> {
   return page.evaluate(([selector, name]) => {
     const probe = document.createElement('div');
@@ -26,28 +26,28 @@ export async function tokenColor(page: Page, scope: string, token: string): Prom
   }, [scope, token] as const);
 }
 
-/** 配置页「网络与访问」下的访问密码分区。演示库没有 access.json，分区处于系统口令状态。
- * 与冒烟同一口径：先等配置页主体，再 settle、再切分区。 */
+/** The access password section under "Network and access" on the configuration page. The demo library has no access.json, so the section is in system-passphrase state.
+ *  Same sequence as the smoke tests: wait for the configuration page body, settle, then switch sections. */
 export async function openAccess(browser: Browser): Promise<Visit & { form: Locator }> {
   const opened = await visit(browser, '/settings/library', DESKTOP);
   await expectBody(opened.page, '/settings/library', configurationBody(opened.page));
   await settle(opened.page);
-  await opened.page.getByRole('tab', { name: '网络与访问' }).click({ timeout: 5_000 });
+  await opened.page.getByRole('tab', { name: 'Network & access' }).click({ timeout: 5_000 });
   await settle(opened.page);
-  const form = opened.page.locator('form[aria-label="访问密码"]');
+  const form = opened.page.locator('form[aria-label="Access password"]');
   await form.waitFor({ timeout: 10_000 });
   return { ...opened, form };
 }
 
-/** 一轮跑完的任务。字段以 `/api/tasks`（`src/peach/routes_tasks.py`）为准。 */
+/** A finished task run. Fields follow `/api/tasks` (`src/peach/routes_tasks.py`). */
 export const settledRun = (id: number, status: string, label: string) => ({
   id, task_key: `task-${id}`, task_label: label, trigger: 'manual', status, host: 'desk',
   started_at: '2026-09-11T10:00:00Z', finished_at: '2026-09-11T10:01:00Z', elapsed_seconds: 60,
   progress_current: null, progress_total: null, progress_label: '',
-  result_summary: {}, error: status === 'failed' ? 'RuntimeError: 上游挡回来了' : '',
+  result_summary: {}, error: status === 'failed' ? 'RuntimeError: rejected upstream' : '',
 });
 
-/** 活动页按给定的一份 `/api/tasks` 打开：演示库里凑不齐失败、被挡下和成功三种状态。 */
+/** The activity page opens from a given `/api/tasks` copy: the demo library cannot produce the three states of failed, blocked, and succeeded at once. */
 export async function openActivity(browser: Browser, runs: unknown[]): Promise<Visit> {
   const opened = await visit(browser, '/tasks', DESKTOP);
   await opened.page.route('**/api/tasks', (route) => route.fulfill({
@@ -61,24 +61,24 @@ export async function openActivity(browser: Browser, runs: unknown[]): Promise<V
   return opened;
 }
 
-/** 一条待升级的目标。字段以 `/api/quality-goals`（`src/peach/web_contract.py`）为准。 */
+/** One quality upgrade goal. Fields follow `/api/quality-goals` (`src/peach/web_contract.py`). */
 export const qualityGoal = (id: number, name: string) => ({
   id, name, code: null, location: 'local', size: 2147483648, duration: 3725,
-  reason: '只有 720p', cost: 'free', has_thumb: true, has_cover: false,
+  reason: 'Only 720p', cost: 'free', has_thumb: true, has_cover: false,
 });
 
-/** 1×1 的透明 PNG，够让 `<img>` 走完一次加载。 */
+/** A 1x1 transparent PNG, enough for an `<img>` to complete one load. */
 export const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-/** 口味页浏览器画像的五个维度：头一个是其余的十倍，和真实馆藏的分布一样。 */
-export const TASTE_CATEGORIES = [['剧情', 657], ['写真', 68], ['素人', 56], ['偶像', 4], ['企划', 1]]
+/** The five dimensions of the taste page's browser profile: the first is ten times the rest, matching the real library's distribution. */
+export const TASTE_CATEGORIES = [['Drama', 657], ['Photobook', 68], ['Amateur', 56], ['Idol', 4], ['Planning', 1]]
   .map(([name, score]) => ({ name, score }));
 
-/** 一张全身站姿照的人脸框：脸落在画面上半截的一小块里，小圆框要放大好几倍才看得清。 */
+/** The face box on a full-body standing photo: the face sits in a small patch in the upper part of the frame, and the small round avatar needs several times magnification to read. */
 export const TASTE_FACE = { cx: .439, cy: .224, faceW: 67, imgW: 640, imgH: 960 };
 
-/** 口味页按改写过的 `/api/taste` 打开：演示库没有浏览记录，也没有带人脸框的实体图。
- * 字段以 `src/peach/taste_history.py` 与 `src/peach/web_stats.py` 为准；实体图换成与人脸框同尺寸的纯色图。 */
+/** The taste page opens against a rewritten `/api/taste`: the demo library has no watch history and no face-framed entity images.
+ * Fields defer to `src/peach/taste_history.py` and `src/peach/web_stats.py`; entity images are swapped for flat-color images the size of the face frames. */
 export async function openTaste(browser: Browser, viewport: typeof DESKTOP): Promise<Visit> {
   const opened = await visit(browser, '/taste', viewport);
   const face = (id: number, name: string) => ({
@@ -88,8 +88,8 @@ export async function openTaste(browser: Browser, viewport: typeof DESKTOP): Pro
     const json = await (await route.fetch()).json();
     await route.fulfill({ json: { ...json, rankings: { ...json.rankings,
       browser_categories: TASTE_CATEGORIES,
-      peach_performers: [face(901, '演示女优')],
-      peach_creators: [face(902, '演示创作者')],
+      peach_performers: [face(901, 'Demo performer')],
+      peach_creators: [face(902, 'Demo creator')],
     } } });
   });
   await opened.page.route(/\/entity-image\?/, (route) => route.fulfill({
@@ -99,12 +99,12 @@ export async function openTaste(browser: Browser, viewport: typeof DESKTOP): Pro
   }));
   await opened.page.reload({ waitUntil: 'load' });
   await expectBody(opened.page, '/taste', [
-    opened.page.locator('#stats').getByRole('tab', { name: '浏览器记录', exact: true }),
+    opened.page.locator('#stats').getByRole('tab', { name: 'Browser data', exact: true }),
   ]);
   return opened;
 }
 
-/** 高清版目标页按给定的一份 `/api/quality-goals` 打开：演示库里凑不齐很长的标题。 */
+/** The HD target page opens against a given copy of `/api/quality-goals`: the demo library cannot muster very long titles. */
 export async function openQualityGoals(browser: Browser, items: unknown[]): Promise<Visit> {
   const opened = await visit(browser, '/quality-goals', DESKTOP);
   await opened.page.route('**/api/quality-goals?limit=200', (route) => route.fulfill({
@@ -112,8 +112,8 @@ export async function openQualityGoals(browser: Browser, items: unknown[]): Prom
     contentType: 'application/json',
     body: JSON.stringify({ total: items.length, items, offset: 0, has_more: false }),
   }));
-  /* 这几条目标是造出来的，演示库里没有对应的抽帧，预览图会 404——而失败请求本身是另一
-     条判据。这一条量的是封面那块的几何，给它一张能加载完的图就够。 */
+  /* These targets are fabricated; the demo library has no matching frame grabs, so previews would 404, and the failed request is itself a separate
+     criterion. This case measures the cover block's geometry, so an image that loads is enough. */
   await opened.page.route('**/poster**', (route) => route.fulfill({
     status: 200, contentType: 'image/png', body: Buffer.from(PIXEL, 'base64'),
   }));
@@ -123,46 +123,46 @@ export async function openQualityGoals(browser: Browser, items: unknown[]): Prom
   return opened;
 }
 
-/** 一个采集来源。字段以 `/api/scraping`（`src/peach/web_scraping.py`）为准。 */
+/** One scraping source. Fields follow `/api/scraping` (`src/peach/web_scraping.py`). */
 export const scrapingSource = (source: string, label: string, cookie: boolean) => ({
   source, label, login: `https://${source}.example/login`,
   accepts_cookie: cookie, network: 'peach', cookie_saved: cookie,
 });
 
-/** 来源和凭证页按给定的一份 `/api/scraping` 打开：演示库里未必同时有收 Cookie 和不收的来源。
+/** The sources and credentials page opens against a given `/api/scraping`: the demo library will not necessarily have both cookie-collecting and non-collecting sources.
  *
- * 站标走服务端的 `/site-mark`，而这几个来源是造出来的，那一趟必然取不到；那是另一条判据，
- * 这里给它一张能加载完的图，免得运行期问题名单里混进与本条无关的失败。 */
+ * Site marks go through the server's `/site-mark`, and these sources are fabricated, so that fetch necessarily fails; that is another criterion,
+ * and here it gets an image that loads, so unrelated failures do not pollute the runtime issues list. */
 export async function openScraping(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/sources', DESKTOP);
   await opened.page.route('**/api/scraping', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      sources: [scrapingSource('demoa', '演示来源甲', true), scrapingSource('demob', '演示来源乙', false)],
+      sources: [scrapingSource('demoa', 'Demo source Alpha', true), scrapingSource('demob', 'Demo source Beta', false)],
     }),
   }));
   await opened.page.route('**/site-mark**', (route) => route.fulfill({
     status: 200, contentType: 'image/png', body: Buffer.from(PIXEL, 'base64'),
   }));
   await opened.page.reload({ waitUntil: 'load' });
-  await opened.page.locator('form[aria-label="演示来源甲"]').waitFor({ timeout: 15_000 });
+  await opened.page.locator('form[aria-label="Demo source Alpha"]').waitFor({ timeout: 15_000 });
   await settle(opened.page);
   return opened;
 }
 
-/** 一行等人判的元数据候选。字段以 `src/peach/web_review.py` 的 `_review_rows` 为准。 */
+/** One row of metadata candidates awaiting human review. Fields follow `_review_rows` in `src/peach/web_review.py`. */
 export const REVIEW_ROW = {
   item_key: 'metadata_fields:ABC-123:studio',
   field: 'studio',
-  field_label: '厂牌',
+  field_label: 'Labels',
   code: 'ABC-123',
   query: 'ABC-123',
-  evidence: '当前值：尚无；1 个匹配资产；2 个资料来源',
-  candidates: [{ candidate_key: 'javdb:studio', source: 'javdb', display_value: '示例厂牌' }],
+  evidence: 'Current value: none yet; 1 matching asset; 2 profile sources',
+  candidates: [{ candidate_key: 'javdb:studio', source: 'javdb', display_value: 'Example label' }],
 };
 
-/** 人工复核页按一行造出来的队列打开：演示库里这一格未必正好有候选，而队列空了就没有卡。 */
+/** The manual review page opens with a queue fabricated from one row: the demo library may not have candidates for this cell, and an empty queue has no cards. */
 export async function openReview(browser: Browser, rows = [REVIEW_ROW], viewport = DESKTOP): Promise<Visit> {
   const opened = await visit(browser, '/review', viewport);
   await opened.page.route('**/api/review', (route) => route.fulfill({
@@ -179,8 +179,8 @@ export async function openReview(browser: Browser, rows = [REVIEW_ROW], viewport
   return opened;
 }
 
-/** CIE L*。一条 1px 的线看不看得见跟的是明度差，不是对比度比值：同样 1.48:1，浅色底上
- *  是一条灰线，深色底上两头的绝对亮度都贴着 0，什么都看不出来。 */
+/** CIE L*. Whether a 1px line is visible tracks lightness difference, not the contrast ratio: at the same 1.48:1, on a light background
+ *  it is a gray line, while on a dark background both endpoints sit near absolute brightness 0 and nothing is visible. */
 export function lightness([red, green, blue]: number[]): number {
   const linear = (channel: number) => {
     const value = channel / 255;
@@ -190,8 +190,8 @@ export function lightness([red, green, blue]: number[]): number {
   return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y;
 }
 
-/** 按给定的一份 `/api/library-processing` 打开某一页：演示库里那趟任务早就跑完了，
- *  而运行态和失败态正是这两条要看的东西。字段以 `src/peach/web_library_processing.py` 为准。 */
+/** Open a page against a given `/api/library-processing`: in the demo library that run finished long ago,
+ *  and the running and failed states are exactly the two things being tested. Fields defer to `src/peach/web_library_processing.py`. */
 export async function openProcessing(
   browser: Browser, path: '/' | '/data-cleanup', job: Record<string, unknown>,
 ): Promise<Visit> {
@@ -201,7 +201,7 @@ export async function openProcessing(
     })));
   try {
     const body = opened.page.locator(path === '/data-cleanup'
-      ? '#libraryProcessing section[aria-label="扫描与采集"]'
+      ? '#libraryProcessing section[aria-label="Scan and collect"]'
       : '[data-catalog-filter] [data-count-readout]');
     await expectBody(opened.page, path, [body], opened.problems);
     return opened;
@@ -211,11 +211,11 @@ export async function openProcessing(
   }
 }
 
-/** 1280 的桌面视口比 `--board-content` 还窄，量不出「网格铺满、标题居中」这类差别。 */
+/** A 1280 desktop viewport is narrower than `--board-content` and cannot measure differences like "the grid fills, the title centers". */
 export const WIDE = { name: 'wide', width: 1600, height: 900, mobile: false };
 
-/** 垃圾文件页。计数行由垃圾队列那一页画，演示库里一条候选都没有时它照样在；壳铺的
- *  骨架（`[data-junk-count-skeleton]`）也有这两块，等的是页面接管之后的那一版。 */
+/** Junk files page. The count row is drawn by the junk queue page and stays even when the demo library has no candidates; the
+ *  shell's skeleton (`[data-junk-count-skeleton]`) also carries these two blocks, waiting for the version that takes over once the page mounts. */
 export const JUNK_COUNT = '#count > .peach-react:not([data-junk-count-skeleton])';
 export async function openJunk(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/junk-files', WIDE);
@@ -227,14 +227,14 @@ export async function openJunk(browser: Browser): Promise<Visit> {
   return opened;
 }
 
-/** 一条垃圾候选。字段以 `/api/ads`（`src/peach/web_batch.py` 的 `q_ads`）为准；类型都挑没有预览
- *  的，造出来的 id 取不到缩略图。 */
+/** One junk candidate. Fields follow `/api/ads` (`q_ads` in `src/peach/web_batch.py`); types are chosen without previews,
+ *  so the fabricated ids fetch no thumbnails. */
 export const junkItem = (id: number, kind: string, name: string) => ({
-  id, name, junk_kind: kind, why: '文件名像推广', size: 1048576 * id, location: 'local', cost: '',
+  id, name, junk_kind: kind, why: 'Filename looks like promo', size: 1048576 * id, location: 'local', cost: '',
 });
 
-/** 垃圾文件页按给定的候选打开：演示库里没有垃圾候选。`/api/ads` 每次都按当前名单回话，
- *  `/api/batch` 记下请求体、把处置掉的那条从名单里拿掉。 */
+/** The junk files page opens with the given candidates: the demo library has no junk candidates. `/api/ads` answers from the current list every time,
+ *  and `/api/batch` records the request body and removes the handled entry from the list. */
 export async function openJunkWith(browser: Browser, items: ReturnType<typeof junkItem>[], viewport = WIDE) {
   const opened = await visit(browser, '/junk-files', viewport);
   const state = { items: [...items], batches: [] as { ids: number[]; operation: string }[], reads: [] as string[] };
@@ -262,14 +262,14 @@ export async function openJunkWith(browser: Browser, items: ReturnType<typeof ju
   return { ...opened, state };
 }
 
-/** 一个重复文件。字段以 `/api/duplicates`（`src/peach/web_contract.py`）为准。 */
+/** One duplicate file. Fields follow `/api/duplicates` (`src/peach/web_contract.py`). */
 export const duplicateFile = (id: number, location: string, patch: Record<string, unknown> = {}) => ({
   id, name: `DUPE-${id}.mp4`, path: `R:\\media\\DUPE-${id}.mp4`, location, drive: location === '115' ? 'B:' : 'R:',
   size: 1073741824, duration: 3600, is_largest: false, is_longest: false, ...patch,
 });
 
-/** 重复文件页按给定的两组打开：演示库里没有重复组。一组字节一致，一组本地与 115 混着。
- *  文件是造出来的，抽帧那一趟必然取不到，给它一张能加载完的图。 */
+/** The duplicate files page opens with the two given groups: the demo library has no duplicate groups. One group is byte-identical, one mixes local files with 115.
+ *  The files are fabricated, so the frame-grab round cannot fetch; give it an image that loads. */
 export async function openDuplicates(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/duplicates', DESKTOP);
   const groups = [
@@ -291,20 +291,20 @@ export async function openDuplicates(browser: Browser): Promise<Visit> {
   return opened;
 }
 
-/** 打开一张索引页，名册与词表都换成桩：演示库的索引在一轮里会从空变成有，不桩的话
- * 这一条量到的可能是空态。名册第一格带一张桩图，其余只落首字母。 */
+/** Open an index page with the roster and word list stubbed: the demo library's index goes from empty to populated within one run, so without stubs
+ * this test could measure the empty state. The first roster cell carries a stub image, the rest fall back to initials. */
 export async function openIndexPage(browser: Browser, path: string): Promise<Visit> {
   const opened = await visit(browser, path, DESKTOP);
   const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   await opened.page.route('**/api/index?**', (route) => {
     const kind = new URL(route.request().url()).searchParams.get('kind');
     return route.fulfill(json(kind === 'tags'
-      ? { items: [{ k: '痴女', n: 4, cat: 'role' }, { k: '秘书OL', n: 2, cat: 'scene' }], has_more: false,
+      ? { items: [{ k: 'Nympho', n: 4, cat: 'role' }, { k: 'Secretary OL', n: 2, cat: 'scene' }], has_more: false,
         categories: { role: 1, scene: 1 } }
-      : { items: [{ k: '甲', n: 3, members: 2, entity_id: 90_101, has_image: true }, { k: '乙', n: 1, members: 1 }],
+      : { items: [{ k: 'Alpha', n: 3, members: 2, entity_id: 90_101, has_image: true }, { k: 'Beta', n: 1, members: 1 }],
         has_more: false }));
   });
-  // 桩图要比框大：比框小的图按原尺寸摆，走的是另一条规则。
+  // The placeholder image must be larger than the frame; a smaller one is placed at its natural size under a different rule.
   await opened.page.route('**/entity-image?**', (route) => route.fulfill({
     status: 200, contentType: 'image/svg+xml',
     body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="#888"/></svg>',
@@ -319,23 +319,23 @@ export async function openIndexPage(browser: Browser, path: string): Promise<Vis
   return opened;
 }
 
-/** 一串 `box-shadow`（计算值或 token 原文）里最大的那个像素数：落影三层里最远那层的模糊半径。 */
+/** The largest pixel number in a `box-shadow` list (computed value or raw token): the blur radius of the farthest of the three shadow layers. */
 export const farthestShadow = (shadow: string) =>
   Math.max(0, ...[...shadow.matchAll(/(\d+(?:\.\d+)?)px/g)].map((match) => Number(match[1])));
 
-/** 播放列表页按一份造出来的 `/api/playlists`（`src/peach/web_playlists.py`）打开：演示库里
- * 没有播放列表。第一份带三位署名，第二份没人（画标题首字），第三份是空列表（写「无预览」）。
- * 封面是造出来的编号，给一张能加载完的图。 */
+/** The playlists page opens against a fabricated `/api/playlists` (`src/peach/web_playlists.py`): the demo library has no playlists.
+ * The first copy has three credited people, the second none (painting the title's initial), the third an empty list (writing "No preview").
+ * Covers are fabricated numbers, given an image that loads. */
 export async function openPlaylistsPage(browser: Browser, viewport = DESKTOP): Promise<Visit> {
   const opened = await visit(browser, '/playlists', viewport);
   const face = (id: number, name: string, kind = 'performer') => ({ kind, id, name, has_image: false });
   const row = (id: number, patch: Record<string, unknown> = {}) => ({
-    id, name: `列表${id}`, source_kind: 'manual', source_seed_asset_id: null, current_asset_id: null,
+    id, name: `List ${id}`, source_kind: 'manual', source_seed_asset_id: null, current_asset_id: null,
     created_at: '2026-09-01 10:00:00', updated_at: '2026-09-01 10:00:00', item_count: 2,
     preview_asset_id: 11, preview_ids: [11, 12], faces: [], ...patch,
   });
   await opened.page.route((url) => url.pathname === '/api/playlists', (route) => route.fulfill({ json: { items: [
-    row(1, { source_kind: 'mix', faces: [face(901, '甲'), face(902, '乙'), face(903, '丙', 'creator')] }),
+    row(1, { source_kind: 'mix', faces: [face(901, 'Alpha'), face(902, 'Beta'), face(903, 'Gamma', 'creator')] }),
     row(2),
     row(3, { item_count: 0, preview_asset_id: null, preview_ids: [] }),
   ] } }));
@@ -348,7 +348,7 @@ export async function openPlaylistsPage(browser: Browser, viewport = DESKTOP): P
   return opened;
 }
 
-/** 打开目录并等到读数与卡片一起替下首屏骨架。 */
+/** Open the catalog and wait for the counts and cards to replace the first-screen skeleton together. */
 export async function openCatalog(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/', DESKTOP);
   await opened.page.locator('[data-catalog-filter] [data-count-readout]').waitFor({ timeout: 15_000 });
@@ -356,14 +356,14 @@ export async function openCatalog(browser: Browser): Promise<Visit> {
   return opened;
 }
 
-/** 打开目录，两排头像与标签条用桩数据铺满：演示库那十几部作品凑不出一排标签。 */
+/** Opens the catalog with both avatar rows and the tag bar filled by stub data: the demo library's dozen-odd videos cannot make up a full row of tags. */
 export async function openCatalogBars(browser: Browser, viewport: Viewport = DESKTOP): Promise<Visit> {
   const opened = await visit(browser, '/', viewport);
   const performers = Array.from({ length: 6 }, (_, at) => ({
-    id: 96_000 + at, k: `演示女优${at + 1}`, n: 30 - at, has_image: false, has_avatar: false, avatar_focus: null, rep: null,
+    id: 96_000 + at, k: `Demo performer ${at + 1}`, n: 30 - at, has_image: false, has_avatar: false, avatar_focus: null, rep: null,
   }));
-  const studios = Array.from({ length: 3 }, (_, at) => ({ k: `演示厂牌${at + 1}`, n: 20 - at, has_logo: false }));
-  const tags = Array.from({ length: 8 }, (_, at) => ({ k: `演示标签${at + 1}`, n: 90 - at }));
+  const studios = Array.from({ length: 3 }, (_, at) => ({ k: `Demo label ${at + 1}`, n: 20 - at, has_logo: false }));
+  const tags = Array.from({ length: 8 }, (_, at) => ({ k: `Demo tag ${at + 1}`, n: 90 - at }));
   await opened.page.route((url) => url.pathname === '/api/tops', (route) =>
     route.fulfill({ json: Number(new URL(route.request().url()).searchParams.get('page') || 0)
       ? { performers: [], studios: [] } : { performers, studios } }));
@@ -384,7 +384,7 @@ export interface CatalogFixture {
   [key: string]: unknown;
 }
 
-/** 从演示库取一份能完整渲染的真实目录响应，只替换当前判据需要的字段。 */
+/** Takes a real catalog response from the demo library that renders in full, replacing only the fields the current rule needs. */
 export async function openCatalogFixture(
   browser: Browser,
   change: (payload: CatalogFixture, url: URL) => void,
@@ -394,9 +394,9 @@ export async function openCatalogFixture(
   const baselines = new Map<string, CatalogFixture>();
   await opened.page.route(/\/api\/items\?/, async (route) => {
     const url = new URL(route.request().url());
-    /* `visit()` 返回时，首屏还可能在后台续取下一页。路由接管之后若先撞上 offset>0，
-       那份响应本来就可能没有卡片，不能拿它当首屏基线；让旧请求原样完成，reload 后
-       再以 offset=0 的响应建立夹具。 */
+    /* When `visit()` returns, the first screen may still be fetching the next page in the background. If the route takeover first hits offset>0,
+       that response might legitimately have no cards and cannot serve as the first-screen baseline; let the old request finish as-is, then build the fixture
+       after reload from the offset=0 response. */
     if (url.searchParams.get('offset') !== '0') {
       await route.continue();
       return;
@@ -424,21 +424,21 @@ export async function openCatalogFixture(
   return opened;
 }
 
-/** 一趟跑到一半的扫描与采集。 */
-export const RUNNING_JOB = { status: 'running', stage: '采集缺失资料', checked: 38, total: 100 };
+/** A scan and collection pass caught mid-run. */
+export const RUNNING_JOB = { status: 'running', stage: 'Scrape missing profiles', checked: 38, total: 100 };
 
-/** 一趟断在半路、攒下一份长问题清单的扫描与采集：演示库里这两样都凑不出来。 */
+/** A scan-and-collect run that broke halfway and piled up a long issue list: the demo library can produce neither. */
 export const FAILED_JOB = {
-  status: 'failed', job_id: 'one', error: '处理被中断，请检查媒体目录后重试。',
+  status: 'failed', job_id: 'one', error: 'Processing was interrupted; check the media folders and retry.',
   issue_count: 347, issues_truncated: true, retryable_asset_ids: [1, 2],
   issues_log: 'C:\\peach-data\\state\\library-processing-demo.issues.jsonl',
   issue_preview: Array.from({ length: 20 }, (_, at) => ({
-    asset_id: at + 1, title: `示例-${at + 1}.mp4`, path: `B:\\番号\\示例-${at + 1}.mp4`,
-    message: '封面未取得：javdb：本趟采集次数已用完，再跑一次接着采；已有图片保留',
+    asset_id: at + 1, title: `example-${at + 1}.mp4`, path: `B:\\Codes\\example-${at + 1}.mp4`,
+    message: 'Cover not fetched: javdb: this run\'s harvest quota is used up; run again to continue harvesting; existing images are kept',
   })),
 };
 
-/** 一条关注来源。字段以 `_source_payload`（`src/peach/web_follow.py`）为准。 */
+/** One follow source. Fields follow `_source_payload` (`src/peach/web_follow.py`). */
 export const followSource = (id: number, author: string, provider: string, label: string, status = 'ok') => ({
   id, provider: provider.toLowerCase(), provider_label: provider, ref: `ref/${id}`, label,
   url: `https://example.com/${id}`, enabled: true, last_status: status,
@@ -446,24 +446,24 @@ export const followSource = (id: number, author: string, provider: string, label
   author_key: `name:${author}`, author_name: author,
 });
 
-/** 一个站的凭据状态。字段以 `/api/follow/credentials` 为准。 */
+/** One site's credential state. Fields follow `/api/follow/credentials`. */
 export const followCredential = (provider: string, requirement: string, present: boolean, missing: string[]) => ({
   provider: provider.toLowerCase(), provider_label: provider, followable: true, requirement,
   needs: missing, fields: present ? ['cookie'] : [], missing, present,
 });
 
-/** 关注管理页按一份造好的来源与凭据打开：演示库没有关注来源，也凑不齐四种凭据处境。
- *  站标同 `openScraping`：造出来的来源取不到图标，给一张能加载完的图。 */
+/** The follows-management page opens with a fabricated source and credentials: the demo library has no follow sources and cannot cover all four credential situations.
+ *  Site icons as in `openScraping`: fabricated sources fetch no icon, so give it an image that loads. */
 export async function openFollowManage(browser: Browser, viewport = DESKTOP, data: FollowManageData = {}): Promise<Visit> {
   const opened = await visit(browser, '/subscriptions', viewport);
   await stubFollowManage(opened.page, data);
   await opened.page.reload({ waitUntil: 'load' });
-  await opened.page.locator('section[aria-label="kou 的关注来源"]').waitFor({ timeout: 15_000 });
+  await opened.page.locator('section[aria-label="kou\'s follow sources"]').waitFor({ timeout: 15_000 });
   await settle(opened.page);
   return opened;
 }
 
-/** 换掉计数、在三条来源之后再加几条：量极端内容时用。 */
+/** Swap the counts and add a few entries after the three sources: for measuring against extreme content. */
 interface FollowManageData {
   counts?: Record<string, number>;
   extra?: Record<string, unknown>[];
@@ -495,13 +495,13 @@ export async function stubFollowManage(page: Page, { counts, extra = [] }: Follo
   await page.route('**/source-icon**', (route) => route.fulfill({
     status: 200, contentType: 'image/png', body: Buffer.from(PIXEL, 'base64'),
   }));
-  /* 服务端的定时检查可能正在跑，那一趟会让每颗检查键挂着 aria-busy，settle 等不到头。 */
+  /* The server's scheduled check may be running; that pass keeps every check key on aria-busy and settle never finishes. */
   await page.route('**/api/follow/check', (route) => (route.request().method() === 'GET'
     ? route.fulfill(json({ status: 'idle' })) : route.fallback()));
 }
 
-/** 把 `/api/` 请求挂住，直到调用返回的 `release()`：首屏骨架停在屏幕上，量完再放行。
- *  先注册的桩照常生效：放行走 `fallback()`，交给它们或真实服务端。 */
+/** Holds `/api/` requests until the returned `release()` is called: the first-screen skeleton stays up, and requests pass through once measuring is done.
+ *  Stubs registered earlier still apply: release goes through `fallback()`, handing requests to them or the real server. */
 export async function holdApi(page: Page): Promise<() => void> {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -512,7 +512,7 @@ export async function holdApi(page: Page): Promise<() => void> {
   return release;
 }
 
-/** 一组控件此刻的长相：面色、字色、边线、圆角与外框尺寸，以及按钮组的选中标记。 */
+/** A control group's current look: fill, text color, border, radius and outer dimensions, plus the button group's selected marker. */
 export async function controlFaces(page: Page, selectors: Record<string, string>) {
   return page.evaluate((map) => Object.fromEntries(Object.entries(map).map(([name, selector]) => {
     const node = document.querySelector(selector);
@@ -527,7 +527,7 @@ export async function controlFaces(page: Page, selectors: Record<string, string>
   })), selectors);
 }
 
-/** 打开一位订了新作、有一排同台艺人的人物页。演示库里没有人物实体，资料照服务端下发的形状写。 */
+/** Open a person page for someone with new releases on order and a row of co-performers. The demo library has no person entities, so the profile follows the shape the server sends down. */
 export async function openPerformer(browser: Browser, viewport = DESKTOP): Promise<Visit> {
   const name = '七沢みあ';
   const opened = await visit(browser, '/', viewport);
@@ -554,7 +554,7 @@ export async function openPerformer(browser: Browser, viewport = DESKTOP): Promi
   return opened;
 }
 
-/** 照片档：一部作品的两张官方样张加六张本地图片，缩略图都是 1×1 的图，量的是墙的几何。 */
+/** Photo fixture: one video's two official sample shots plus six local images, all thumbnails 1×1 images, measuring the wall's geometry. */
 export async function openPhotoWall(browser: Browser, viewport = DESKTOP): Promise<Visit> {
   const name = '七沢みあ';
   const opened = await visit(browser, '/', viewport);
@@ -564,11 +564,11 @@ export async function openPhotoWall(browser: Browser, viewport = DESKTOP): Promi
     asset_count: 0, tags: [], related_performers: [], links: [], metadata: {}, has_image: false, has_avatar: false,
     avatar_focus: null, representative_asset_id: null, entry_links: [], feed: { following: false },
   } }));
-  // 下一页一直不回：「载入更多」停在忙态，墙不再变，量得到那枚键的几何。
+  // The next page never returns: "Load more" stays busy, the wall stops changing, and the button's geometry can be measured.
   await page.route(/\/api\/photos\?/, (route) => Number(new URL(route.request().url()).searchParams.get('offset') || 0) ? undefined : route.fulfill({ json: {
     kind: 'performer', name, entity_id: 90_001, total: 12, seed: '', has_more: true, sample_total: 2,
     items: Array.from({ length: 6 }, (_, i) => ({ id: 200 + i, name: `${200 + i}.jpg`, size: 1, location: 'media' })),
-    sets: [{ id: 'code:SSIS-057', kind: 'code', code: 'SSIS-057', name: '雨の日', title: 'SSIS-057 雨の日', n: 2,
+    sets: [{ id: 'code:SSIS-057', kind: 'code', code: 'SSIS-057', name: '雨の日', title: 'SSIS-057 Rainy Day', n: 2,
       release_date: '2021-05-18', site: 'dmm', site_label: 'DMM', has_cover: true }],
   } }));
   await page.route(/\/(?:photo-thumb|sample-thumb)\?/, (route) => route.fulfill({
@@ -576,12 +576,12 @@ export async function openPhotoWall(browser: Browser, viewport = DESKTOP): Promi
   }));
   await page.goto(new URL(`/performers/${encodeURIComponent(name)}?media=photos`, page.url()).href, { waitUntil: 'load' });
   await page.locator('[data-local-wall] [data-photo-cell] img').first().waitFor({ timeout: 15_000 });
-  // 续页哨兵提前一屏开始取，这面短墙一出来就会去取那一页；它被上面压着，那枚键的忙态不算页面在等。
+  // The next-page sentinel starts fetching a screen early, so this short wall goes for that page as soon as it appears; it is covered from above, and that key's busy state does not count as the page waiting.
   await settle(page, 'body', { except: '[data-entity-more]' });
   return opened;
 }
 
-/** 本地图片那面墙的排法：网格数列宽，瀑布流数 column-count。 */
+/** Layout of the local image wall: the grid counts column widths, the masonry counts column-count. */
 export const photoWallFaces = (page: Page) => page.evaluate(() => {
   const wall = document.querySelector<HTMLElement>('[data-local-wall]')!;
   const style = getComputedStyle(wall);
@@ -595,8 +595,8 @@ export const photoWallFaces = (page: Page) => page.evaluate(() => {
   };
 });
 
-/** 照片档里 `count` 张本地图，点开第一张的灯箱。大图是 `width`×`height` 的 SVG；取图口全部回桩图，
- *  `/photo` 原图走计费来源，设计用例也不碰真的。 */
+/** A photo archive with `count` local images and a lightbox that opens the first one. The large image is an SVG at `width`×`height`; all image endpoints return stubs,
+ *  since `/photo` originals go through metered sources and design cases never touch the real ones. */
 export async function openLightbox(browser: Browser, { count, width, height }: { count: number; width: number; height: number }):
   Promise<Visit & { box: Locator }> {
   const name = '七沢みあ';
@@ -626,30 +626,30 @@ export async function openLightbox(browser: Browser, { count, width, height }: {
   return { ...opened, box };
 }
 
-/** 有 minnano-av 资料的女优。`profile` 与 `name_groups` 照 `peach.entity_profile.header` 的形状写，
- *  出道片名故意很长：资料表那一格要单行截断。 */
+/** A performer with minnano-av data. `profile` and `name_groups` follow `peach.entity_profile.header`'s shape,
+ *  with the debut title deliberately very long: the profile table's cell must truncate on one line. */
 export const PROFILED = {
   name: '篠田ゆう',
   profile: {
     birth_date: '1991-07-21', age: 35, height: 155, bust: 86, waist: 60, hip: 87, cup: 'F',
-    debut_date: '2010-12-02', debut_title: 'セキララ 〜今どき世代のゆるい性事情〜 03 はじめての撮影でとまどう素人娘の記録',
+    debut_date: '2010-12-02', debut_title: 'Sekirara ~ Loose sex lives of the current generation ~ 03 Record of an amateur girl flustered by her first shoot',
     active: { from: '2010', to: '2023' },
-    tags: ['美乳', '美臀', '百合', '肛交', '巨乳', '高颜值', '苗条', '高个', '剛毛'],
+    tags: ['Pretty breasts', 'Pretty butt', 'Yuri', 'Anal', 'Big breasts', 'Good looks', 'Slender', 'Tall', 'Bushy'],
   },
   name_groups: {
     reading: 'しのだゆう', shown: ['篠崎ゆう子', '高木早希', '橋本真紀'], total: 7,
     groups: [
-      { label: '旧名义', names: [{ name: '篠崎ゆう子', reading: 'しのざきゆうこ' }] },
+      { label: 'Former name', names: [{ name: '篠崎ゆう子', reading: 'しのざきゆうこ' }] },
       { label: '舞ワイフ', names: [{ name: '橋本真紀' }, { name: '桧山彩音' }, { name: '篠田杏奈' }] },
       { label: 'ラグジュTV', names: [{ name: '高木早希' }] },
-      { label: '其它', names: [{ name: '城田優子' }] },
+      { label: 'Other', names: [{ name: '城田優子' }] },
     ],
   },
 };
 
-/** 打开一位有资料的女优：资料表、名字行和外链照服务端下发的形状写，主题按参数切好。
- *  `extra` 覆盖资料里的字段：默认没有看片那一行（`entry_links` 只有 minnano-av 那枚 pill、没有 `feed`），
- *  要验两行都在的几何就从这里补。 */
+/** Open a performer with a profile: profile table, name row, and external links written in the shape the server hands down, theme switched by parameter.
+ *  `extra` overrides profile fields: by default no watch row (`entry_links` only has the minnano-av pill, no `feed`);
+ *  geometry with both rows present is verified by adding them here. */
 export async function openProfiledPerformer(browser: Browser, viewport = DESKTOP, theme: 'light' | 'dark' = 'light',
   extra: Record<string, unknown> = {}): Promise<Visit> {
   const opened = await visit(browser, '/', viewport);
@@ -668,7 +668,7 @@ export async function openProfiledPerformer(browser: Browser, viewport = DESKTOP
     profile: PROFILED.profile, name_groups: PROFILED.name_groups,
     ...extra,
   } }));
-  // 这几条链接是造出来的，服务端的圆标取不到；那是另一条判据，这里给一张能加载完的图。
+  // These links are fabricated and the server's favicon cannot be fetched; that is a different criterion, so here a loadable image is provided.
   await opened.page.route('**/link-mark**', (route) => route.fulfill({
     status: 200, contentType: 'image/png', body: Buffer.from(PIXEL, 'base64'),
   }));
@@ -682,7 +682,7 @@ export async function openProfiledPerformer(browser: Browser, viewport = DESKTOP
   return opened;
 }
 
-/** 资料卡浮层的落影要和遗留 `.popmenu` 同一副：在同一页造一个空 `.popmenu` 取它的计算值。 */
+/** The profile card popover's shadow must be the same one as the legacy `.popmenu`: create an empty `.popmenu` on the same page and read its computed value. */
 export async function popmenuShadow(page: Page): Promise<string> {
   return page.evaluate(() => {
     const menu = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'popmenu' }));
@@ -692,31 +692,31 @@ export async function popmenuShadow(page: Page): Promise<string> {
   });
 }
 
-/** 下拉栏里一部作品的小图。字段以 `_suggest_work_card`（`src/peach/web_entity.py`）为准。 */
+/** A video's thumbnail in the dropdown. Fields follow `_suggest_work_card` (`src/peach/web_entity.py`). */
 export const suggestCard = (id: number) => ({ id, code: `ABW-${id % 1000}`, has_cover: true, has_thumb: false, cover_frame: null, poster_box: null });
 
-/** 一段输入命中女优、厂牌与视频三类的补全，字段以 `q_suggest` 为准。演示库里没有女优实体。 */
+/** One input segment hits completions in three categories, performers, labels, and videos; fields follow `q_suggest`. The demo library has no performer entities. */
 export const SUGGEST = {
   q: '涼森',
   groups: [
-    { kind: 'performer', label: '女优', total: 2, items: [
+    { kind: 'performer', label: 'Performers', total: 2, items: [
       { value: '涼森れむ', n: 128, matched: '', id: null, entity_id: 90_301, has_image: true, avatar_focus: null, rep: null,
         agency: 'Capsule Agency', works: [1, 2, 3, 4].map((at) => suggestCard(90_400 + at)) },
       { value: '涼森ひより', n: 3, matched: 'すずもりひより', id: null, entity_id: 90_302, has_image: false, rep: null,
         agency: '', works: [] },
     ] },
-    { kind: 'studio', label: '厂牌', total: 1, items: [
+    { kind: 'studio', label: 'Labels', total: 1, items: [
       { value: 'Prestige', n: 900, matched: '', id: null, entity_id: 90_303, has_image: false, has_logo: true },
     ] },
-    { kind: 'asset', label: '视频', total: 12, items: [1, 2, 3, 4, 5].map((at) => ({
+    { kind: 'asset', label: 'Videos', total: 12, items: [1, 2, 3, 4, 5].map((at) => ({
       value: `ABW-${500 + at}`, n: 0, matched: '', id: 90_500 + at, code: `ABW-${500 + at}`,
-      title: '出演作', who: '涼森れむ', card: suggestCard(90_500 + at),
+      title: 'Appearances', who: '涼森れむ', card: suggestCard(90_500 + at),
     })) },
   ],
 };
 
-/** 补全、下拉里的图和点进去的资料页都按上面那份造好的数据答。返回每次补全请求问的种类。
- *  图是造出来的实体和番号，服务端取不到；那是另一条判据，这里给一张能加载完的图。 */
+/** Autocomplete, images in the dropdown and the profile page it opens all answer from the fabricated data above. Each completion request returns the kind it asked for.
+ *  Images for fabricated entities and codes cannot be fetched from the server; that is a separate criterion, so here it gets an image that loads. */
 export async function stubSuggest(page: Page): Promise<string[]> {
   const kinds: string[] = [];
   await page.route(/\/api\/suggest\?/, (route) => {
@@ -735,7 +735,7 @@ export async function stubSuggest(page: Page): Promise<string[]> {
   return kinds;
 }
 
-/** 资料卡此刻的几何：身份列、资料表与卡本身的外框，以及资料表那道分隔线落在哪一边。 */
+/** The profile card's current geometry: the identity column, the details table and the card's outer frame, plus which side the details table's divider sits on. */
 export async function heroGeometry(page: Page) {
   return page.evaluate(() => {
     const rect = (selector: string) => {
@@ -754,7 +754,7 @@ export async function heroGeometry(page: Page) {
   });
 }
 
-/** 禁用档的三样颜色（peach-web-ui「按钮悬停只抬填充」那条）：`--surface` 底、`--border-15` 边、`--muted` 字。 */
+/** The disabled tier's three colors (the peach-web-ui rule "button hover lifts fill only"): `--surface` base, `--border-15` border, `--muted` text. */
 export async function disabledTokens(page: Page) {
   return {
     face: await tokenColor(page, '#main', '--surface'),
@@ -763,7 +763,7 @@ export async function disabledTokens(page: Page) {
   };
 }
 
-/** 骨架里等数据的操作键此刻的长相与状态，按文档顺序。 */
+/** The current look and state of the skeleton's data-waiting action buttons, in document order. */
 export async function waitingActionFaces(page: Page, selector: string) {
   return page.locator(selector).evaluateAll((buttons) => buttons.map((button) => {
     const style = getComputedStyle(button);
@@ -778,24 +778,24 @@ export async function waitingActionFaces(page: Page, selector: string) {
 
 export function assertDisabledFace(face: Awaited<ReturnType<typeof waitingActionFaces>>[number],
   expected: Awaited<ReturnType<typeof disabledTokens>>): void {
-  assert.equal(face.disabled, true, `${face.name} 在骨架里没有禁用`);
-  assert.equal(face.cursor, 'not-allowed', `${face.name} 在骨架里的光标不是禁用那一种`);
-  assert.equal(face.opacity, '1', `${face.name} 的禁用态靠透明度，而不是换颜色`);
-  assert.equal(face.face, expected.face, `${face.name} 在骨架里不是禁用底色`);
-  assert.equal(face.image, 'none', `${face.name} 在骨架里还铺着渐变`);
-  assert.equal(face.ink, expected.ink, `${face.name} 在骨架里不是禁用字色`);
-  // 分体键的外圈画在整组上，两半各画一圈的话中缝会出现两道线。
-  if (!face.split) assert.ok(face.ring.includes(expected.ring), `${face.name} 在骨架里没有禁用描边：${face.ring}`);
+  assert.equal(face.disabled, true, `${face.name} is not disabled in the skeleton`);
+  assert.equal(face.cursor, 'not-allowed', `${face.name}'s cursor in the skeleton is not the disabled one`);
+  assert.equal(face.opacity, '1', `${face.name} disabled state relies on opacity, not a color swap`);
+  assert.equal(face.face, expected.face, `${face.name} in the skeleton is not the disabled background`);
+  assert.equal(face.image, 'none', `${face.name} still shows the gradient in the skeleton`);
+  assert.equal(face.ink, expected.ink, `${face.name} in the skeleton is not the disabled text color`);
+  // The split key's outer ring is drawn on the whole group; a ring on each half would leave two lines down the middle seam.
+  if (!face.split) assert.ok(face.ring.includes(expected.ring), `${face.name} ring is not disabled in the skeleton: ${face.ring}`);
 }
 
-/** 切到关注管理页的另一栏。栏名后面可能挂着待配置的数目，按开头认。 */
+/** Switch to the other column of the follows management page. A pending-setup count may trail the column name, so match on the prefix. */
 export async function followTab(opened: Visit, name: string): Promise<void> {
   await opened.page.locator('#stats').getByRole('tab', { name: new RegExp(`^${name}`) }).click({ timeout: 5_000 });
   await settle(opened.page);
 }
 
-/** 每个设计决定文件一个浏览器，至多运行 8 项就换一个，页面与图像缓存的累积占用受限。
- * `assign` 在每次换上新浏览器时收到它，文件里的用例照旧读同一个 `browser` 变量。 */
+/** One browser per design-decision file, swapped out after at most 8 cases so page and image caches cannot accumulate unbounded.
+ * `assign` receives the new browser each time it is swapped in; cases in the file keep reading the same `browser` variable. */
 export function installDesignBrowser(assign: (browser: Browser) => void): void {
   let browser: Browser;
   let browserTests = 0;

@@ -1,8 +1,10 @@
-/* 视口外的卡片跳过渲染：封面和元信息区交给浏览器按视口取舍，卡片盒照常排版。
+/* Cards outside the viewport skip rendering: cover and meta area are left to the browser to decide by viewport, while the
+ * card box still lays out normally.
  *
- * 这几条守的是跳过渲染的副作用：屏外卡确实被跳过、没渲染过的卡按估计高度排进来之后
- * 整页高度和卡片位置不跳、Ctrl+F 仍找得到屏外卡里的字。演示库只有十来条，一屏就放完，
- * 这里把目录和女优资料页的作品响应放大成一长列，编号改成互不相同，封面请求再改写回原来那条。 */
+ * These guard the side effects of skipped rendering: offscreen cards really are skipped, estimated heights slot unrendered
+ * cards in without the page height or card positions jumping, and Ctrl+F still finds text inside offscreen cards. The demo
+ * library has only about ten entries fitting one screen, so this blows the catalog's and performer profile page's video
+ * responses into one long column, makes the numbers distinct, and rewrites cover requests back to the original one. */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -13,10 +15,10 @@ import { launch, layout, settle, visit, VIEWPORTS, type Visit } from './harness.
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 const CLONES = 150;
 const CLONE_BASE = 900_000;
-const PROBE_TAG = '屏外探针';
+const PROBE_TAG = 'Off-screen probes';
 
-/** 卡片里各块的选择器。作品卡归目录网格，关注卡归关注页，钩子都是
- * `data-media-*`；关注卡的封面格多包一层 `[data-follow-visual]`，头像和标签是 `<span>`。 */
+/** Selectors for the blocks inside cards. Video cards belong to the catalog grid and follow cards to the follows page, both hooked by
+ * `data-media-*`; the follow card's cover cell wraps an extra `[data-follow-visual]`, and avatar and tags are `<span>`s. */
 interface CardShape {
   card: string; pic: string; meta: string; avatar: string; text: string; tags: string;
   avatarButton: string; tagButton: string;
@@ -36,17 +38,18 @@ interface CatalogPayload {
   items: Array<Record<string, unknown>>;
 }
 
-/** `/api/items` 的首页换成 `CLONES` 条：每三条有一条带标签，最后一条带一枚独有的标签给查找用。
- * 带标签的那几条同时归给一位女优：演示库的作品都未归属，头像是不可聚焦的 `<span>`，归属之后
- * 才是按钮，焦点环那条用例要聚焦它。
- * 克隆源是去掉 `performer` 筛选之后的目录首页：演示库里没有人物实体，资料页按名字筛出来是空的。 */
+/** `/api/items`' home page becomes `CLONES` entries: every third one carries a tag, and the last one carries a unique tag for
+ * finding. The tagged ones are also assigned to one performer: the demo library's videos are all unassigned, so avatars are
+ * unfocusable `<span>`s, becoming buttons only after assignment, and the focus-ring case needs to focus one.
+ * The clone source is the catalog's home page with the `performer` filter removed: the demo library has no person entities,
+ * so the profile page filtered by name is empty. */
 async function serveLongItems(page: Page): Promise<void> {
   const original = new Map<number, number>();
   let baseline: CatalogPayload | undefined;
   await page.route(/\/api\/items\?/, async (route) => {
     const url = new URL(route.request().url());
-    /* 首页那条竖屏带是第一页落地之后另取、再插进网格中间的附加内容，何时到只看请求快慢。它落在
-       首次测量之后，整页就凭空多出一条带的高度，量的却不是估计误差。这里给它空列表，带子不插。 */
+    /* The home page's vertical strip is extra content fetched separately after the first page lands and inserted into the middle of the grid; when it arrives depends only on request speed. If it lands
+       after the first measurement, the page gains a strip's height out of nowhere, but that is not estimation error being measured. This case gives it an empty list so the strip is not inserted. */
     if (url.searchParams.has('orient')) {
       await route.fulfill({ json: { items: [], total: 0, has_more: false } });
       return;
@@ -62,10 +65,10 @@ async function serveLongItems(page: Page): Promise<void> {
       const item = structuredClone(source[index % source.length]);
       original.set(CLONE_BASE + index, Number(item.id));
       item.id = CLONE_BASE + index;
-      item.tags = index === CLONES - 1 ? [PROBE_TAG] : index % 3 === 0 ? ['演示'] : [];
+      item.tags = index === CLONES - 1 ? [PROBE_TAG] : index % 3 === 0 ? ['Demo'] : [];
       if (index % 3 === 0) {
-        Object.assign(item, { creator: '', performers: ['演示演员'], performer_total: 1,
-          performer_entities: [{ id: 90_100, name: '演示演员', has_image: false }] });
+        Object.assign(item, { creator: '', performers: ['Demo performer'], performer_total: 1,
+          performer_entities: [{ id: 90_100, name: 'Demo performer', has_image: false }] });
       }
       return item;
     });
@@ -91,7 +94,7 @@ async function openLongCatalog(browser: Browser, density = 'big'): Promise<Visit
   return opened;
 }
 
-/** 女优资料页的作品区放大成 `CLONES` 部：资料由这里给，字段照 `/api/entity` 的形状写。 */
+/** The performer profile's video section enlarged into the `CLONES` part: the profile is supplied from here, fields shaped after `/api/entity`. */
 async function openLongEntity(browser: Browser): Promise<Visit> {
   const name = '七沢みあ';
   const opened = await visit(browser, '/', DESKTOP);
@@ -110,13 +113,13 @@ async function openLongEntity(browser: Browser): Promise<Visit> {
   return opened;
 }
 
-/** 关注页换成 `CLONES` 条合成的更新：演示库没有关注来源。字段照 `/api/follow` 的形状，
- * 不带缩略图，不发外站请求；每三条有一条带标签，屏外卡因此有高矮两种元信息区。 */
+/** The follows page swapped for updates synthesized from `CLONES` rows: the demo library has no follow sources. Fields follow the `/api/follow` shape,
+ *  with no thumbnails and no external requests; every third row carries a tag, so off-screen cards get two meta-info heights. */
 async function openLongFollow(browser: Browser): Promise<Visit> {
   const opened = await visit(browser, '/', DESKTOP);
   const { page } = opened;
-  const source = { id: 1, provider: 'rule34xxx', provider_label: 'Rule34.xxx', ref: 'demo', label: '演示来源',
-    author_name: '演示作者', author_key: 'name:演示作者', official_avatar_url: null, avatar_url: null,
+  const source = { id: 1, provider: 'rule34xxx', provider_label: 'Rule34.xxx', ref: 'demo', label: 'Demo source',
+    author_name: 'Demo author', author_key: 'name:Demo author', official_avatar_url: null, avatar_url: null,
     url: 'https://example.invalid/', semantics: 'work', enabled: true, entity_id: null, entity_name: null,
     can_backfill: false, backfill_page: 0, created_at: '2026-09-01T00:00:00Z', last_checked_at: null,
     last_status: 'ok', last_error: null, history_exhausted: true };
@@ -125,13 +128,13 @@ async function openLongFollow(browser: Browser): Promise<Visit> {
     is_release: false, newest_at: '2026-09-01T00:00:00Z',
     primary: {
       id: CLONE_BASE + index, provider: 'rule34xxx', provider_label: 'Rule34.xxx', resource_provider: 'rule34xxx',
-      source_id: 1, source_label: '演示来源', external_id: String(index), title: `演示更新 ${index}`,
-      author: '演示作者', summary: null, url: `https://example.invalid/${index}`, thumb_url: null,
+      source_id: 1, source_label: 'Demo source', external_id: String(index), title: `Demo update ${index}`,
+      author: 'Demo author', summary: null, url: `https://example.invalid/${index}`, thumb_url: null,
       published_at: '2026-09-01T00:00:00Z', published_precision: 'exact', version: null, duration: 60,
       variant_kind: 'main', variant_label: null, status: 'new', asset_id: null, media_needs_credential: false,
       media_error: null, has_media: false, media_kind: 'video', width: 1280, height: 720, media_type: null,
       playable: false, media_items: [], hidden_media: [], resource_urls: [],
-      tags: index % 3 === 0 ? ['演示'] : [], detail_tags: [], tag_types: {},
+      tags: index % 3 === 0 ? ['Demo'] : [], detail_tags: [], tag_types: {},
     },
   }));
   const body = { ok: true, sources: [source], author_aliases: [], alias_suggestions: [], suggestions: [], groups,
@@ -147,7 +150,7 @@ async function openLongFollow(browser: Browser): Promise<Visit> {
   return opened;
 }
 
-/** 一屏一屏滚到底再滚回顶，每步等两帧，让每张卡都至少渲染过一次。 */
+/** Scrolls screen by screen to the bottom and back to the top, waiting two frames per step so every card renders at least once. */
 function roundTrip(page: Page): Promise<void> {
   return page.evaluate(async () => {
     const frame = () => new Promise(requestAnimationFrame);
@@ -163,7 +166,7 @@ function roundTrip(page: Page): Promise<void> {
   });
 }
 
-describe('视口外的卡片', () => {
+describe('Cards outside the viewport', () => {
   let browser: Browser;
 
   before(async () => {
@@ -174,7 +177,7 @@ describe('视口外的卡片', () => {
     await browser.close();
   });
 
-  it('手机关注卡片按文字和标签定高，空标签区不占行', { timeout: 60_000 }, async () => {
+  it('Mobile follow cards are sized by text and tags; an empty tag area takes no row', { timeout: 60_000 }, async () => {
     const opened = await openLongFollow(browser);
     try {
       await opened.page.setViewportSize({ width: 390, height: 844 });
@@ -194,19 +197,19 @@ describe('视口外的卡片', () => {
   });
 
   for (const [where, open, selector] of [
-    ['馆藏', openLongCatalog, CATALOG_CARDS],
-    ['女优资料页', openLongEntity, ENTITY_CARDS],
+    ['Library', openLongCatalog, CATALOG_CARDS],
+    ['Performer profile', openLongEntity, ENTITY_CARDS],
   ] as const) {
-    it(`${where}：跳过封面与元信息区的渲染，Ctrl+F 仍找得到屏外卡里的字`, { timeout: 60_000 }, async () => {
+    it(`${where}: skips rendering the cover and meta section; Ctrl+F still finds text in off-screen cards`, { timeout: 60_000 }, async () => {
       const opened = await open(browser);
       try {
         const state = await opened.page.evaluate(([tag, cardSelector, shape]) => {
           const last = [...document.querySelectorAll<HTMLElement>(cardSelector)].at(-1)!;
           const parts = [last.querySelector(shape.pic)!, last.querySelector(shape.meta)!];
-          // 跳过的是元素的内容，元素自己仍在排版里：查它的第一个子元素。
+          // What is skipped is the element's content; the element itself still takes layout, so query its first child.
           const skipped = parts.map((part) => !part.firstElementChild!.checkVisibility({ contentVisibilityAuto: true }));
           const box = last.getBoundingClientRect();
-          /* 侧栏的标签列表里也有这枚标签，排在文档前面；往下接着找，直到落进那张卡。 */
+          /* The sidebar's tag list also holds this tag, earlier in the document; keep searching downward until it lands inside that card. */
           const find = (window as unknown as { find(text: string): boolean }).find.bind(window);
           let hits = 0;
           while (hits < 5 && find(tag)) {
@@ -221,11 +224,11 @@ describe('视口外的卡片', () => {
             hits, inLast: !!hit && last.contains(hit),
           };
         }, [PROBE_TAG, selector, MEDIA] as const);
-        assert.deepEqual(state.values, ['auto', 'auto'], '屏外卡的封面和元信息区没有交给浏览器按视口取舍');
-        assert.ok(state.below > 1000, `最后一张卡离视口只有 ${state.below}px，放大的列表不够长`);
-        assert.deepEqual(state.skipped, [true, true], '屏外卡的封面或元信息区仍在渲染');
-        assert.ok(state.height > 0, '屏外卡的 getBoundingClientRect 量出了零高');
-        assert.ok(state.inLast, `页内查找没有落到屏外那张卡的标签上（命中 ${state.hits} 次）`);
+        assert.deepEqual(state.values, ['auto', 'auto'], 'Off-screen cards\' covers and meta sections were never left to the browser\'s viewport culling');
+        assert.ok(state.below > 1000, `The last card is only ${state.below}px from the viewport; the enlarged list is not long enough`);
+        assert.deepEqual(state.skipped, [true, true], 'Off-screen cards\' covers or meta sections still render');
+        assert.ok(state.height > 0, 'An off-screen card\'s getBoundingClientRect measured zero height');
+        assert.ok(state.inLast, `In-page find did not reach the off-screen card's tags (${state.hits} hits)`);
         assert.deepEqual(opened.problems, []);
       } finally {
         await opened.close();
@@ -234,12 +237,12 @@ describe('视口外的卡片', () => {
   }
 
   for (const [where, open, selector, shape] of [
-    ['馆藏', openLongCatalog, CATALOG_CARDS, MEDIA],
-    ['馆藏密集一档', (b: Browser) => openLongCatalog(b, 'dense'), CATALOG_CARDS, MEDIA],
-    ['女优资料页', openLongEntity, ENTITY_CARDS, MEDIA],
-    ['关注', openLongFollow, FOLLOW_CARDS, FOLLOW],
+    ['Library', openLongCatalog, CATALOG_CARDS, MEDIA],
+    ['Library one level denser', (b: Browser) => openLongCatalog(b, 'dense'), CATALOG_CARDS, MEDIA],
+    ['Performer profile', openLongEntity, ENTITY_CARDS, MEDIA],
+    ['Follows', openLongFollow, FOLLOW_CARDS, FOLLOW],
   ] as const) {
-    it(`${where}：长距离往返之后整页高度和深处那张卡的位置不跳，屏外量到的几何与渲染后一致`, { timeout: 90_000 }, async () => {
+    it(`${where}: after a long round trip, the full page height and the position of the deep card do not jump, and the geometry measured offscreen matches the rendered one`, { timeout: 90_000 }, async () => {
       const opened = await open(browser);
       try {
         const { page } = opened;
@@ -252,32 +255,32 @@ describe('视口外的卡片', () => {
             skipping: getComputedStyle(deep.querySelector(metaSelector)!).contentVisibility,
             meta: deep.querySelector(metaSelector)!.getBoundingClientRect().height };
         }, [selector, shape.meta] as const);
-        /* 首屏之外的卡此刻都没渲染过，高度全按估计值；往返一趟之后每张都记住了自己的实际
-           尺寸。两次量到的差就是估计值的误差，一行差一点，累积到深处就是滚动条在跳。 */
+        /* Cards beyond the first screen have never rendered at this point, so heights are all estimates; after one round trip each card remembers its actual
+           size. The difference between the two measurements is the estimate's error; a little per row compounds down the list into a jumping scrollbar. */
         const fresh = await measure();
-        assert.equal(fresh.skipping, 'auto', `${where}的屏外卡不跳过渲染，量不到估计值的误差`);
+        assert.equal(fresh.skipping, 'auto', `${where} off-screen cards do not skip rendering, so no estimation error goes unmeasured`);
         await roundTrip(page);
         const rendered = await measure();
         assert.ok(Math.abs(rendered.height - fresh.height) <= 1,
-          `整页高度从 ${fresh.height} 变成 ${rendered.height}：元信息区的估计高度与实际不符`);
+          `The page height changed from ${fresh.height} to ${rendered.height}: the meta section's estimated height does not match reality`);
         assert.ok(Math.abs(rendered.deep - fresh.deep) <= 1,
-          `深处那张卡从 ${fresh.deep} 挪到 ${rendered.deep}`);
+          `The deep card moved from ${fresh.deep} to ${rendered.deep}`);
 
-        /* 停在深处，滚到底再回来：同一个 scrollY 下那张卡应该还在原处。 */
+        /* Stop deep in the list, scroll to the bottom and back: at the same scrollY that card should still be in place. */
         await page.evaluate((y) => scrollTo(0, y), rendered.deep - 300);
         await page.waitForTimeout(300);
         const parked = await measure();
-        /* 跳过渲染时量到的几何要和渲染后一致：卡里有别的子元素抢空间时，内容不参与最小尺寸的
-           元信息区会被压扁，整张卡的高度不变，从外面看不出来，只有量它自己才露馅。 */
+        /* Geometry measured while skipping render must match post-render: when other children in the card compete for space, a meta-info area whose content does not count toward minimum size
+           gets squashed while the card's total height stays the same, invisible from outside; only measuring the element itself exposes it. */
         assert.ok(Math.abs(fresh.meta - parked.meta) <= 1,
-          `屏外卡的元信息区量出 ${fresh.meta}px，渲染后是 ${parked.meta}px`);
+          `The offscreen card meta section measures ${fresh.meta}px, and ${parked.meta}px after render`);
         await roundTrip(page);
         await page.evaluate((y) => scrollTo(0, y), parked.y);
         await page.waitForTimeout(300);
         const back = await measure();
-        assert.equal(back.y, parked.y, '回不到原来的滚动位置');
+        assert.equal(back.y, parked.y, 'The original scroll position never comes back');
         assert.ok(Math.abs(back.view - parked.view) <= 1,
-          `回到同一滚动位置后那张卡在视口里从 ${parked.view} 挪到 ${back.view}`);
+          `After returning to the same scroll position, the card moved from ${parked.view} to ${back.view} in the viewport`);
         assert.deepEqual(opened.problems, []);
       } finally {
         await opened.close();
@@ -285,14 +288,14 @@ describe('视口外的卡片', () => {
     });
   }
 
-  /* 关注卡的头像和标签是 `<span>`，不可聚焦，焦点环那一半只在作品卡上查。 */
+  /* Follow card avatars and tags are `<span>`s and not focusable, so the focus-ring half is checked only on video cards. */
   for (const [where, open, selector, shape, focusable] of [
-    ['馆藏', openLongCatalog, CATALOG_CARDS, MEDIA, true],
-    ['馆藏密集一档', (b: Browser) => openLongCatalog(b, 'dense'), CATALOG_CARDS, MEDIA, true],
-    ['女优资料页', openLongEntity, ENTITY_CARDS, MEDIA, true],
-    ['关注', openLongFollow, FOLLOW_CARDS, FOLLOW, false],
+    ['Library', openLongCatalog, CATALOG_CARDS, MEDIA, true],
+    ['Library one level denser', (b: Browser) => openLongCatalog(b, 'dense'), CATALOG_CARDS, MEDIA, true],
+    ['Performer profile', openLongEntity, ENTITY_CARDS, MEDIA, true],
+    ['Follows', openLongFollow, FOLLOW_CARDS, FOLLOW, false],
   ] as const) {
-    it(`${where}：元信息区垫出的裁切余量不改排版、不接指针，头像和标签的焦点环整圈可见`, { timeout: 60_000 }, async () => {
+    it(`${where}: the clip padding added by the meta section does not change layout or take pointer events, and the avatar and tag focus rings are fully visible`, { timeout: 60_000 }, async () => {
       const opened = await open(browser);
       try {
         const { page } = opened;
@@ -301,11 +304,13 @@ describe('视口外的卡片', () => {
           await new Promise(requestAnimationFrame);
           await new Promise(requestAnimationFrame);
         });
-        /* 元信息区四周垫内边距再用负外边距抵消，裁切边（padding box）往外扩，内容盒原地不动。
-           内容盒要贴着卡片左右缘、封面下方隔一道卡片行距，外边距盒的下沿就是内容盒下沿；
-           同一行里最高的那张卡，内容盒下面到卡片下缘（关注卡是到 `[data-follow-state]`）不留空，卡高
-           于是仍是封面、行距与内容三项之和。头像和文字列贴着内容盒。垫出去的那一圈伸出
-           卡片盒，指针落在那里不能算进这张卡。 */
+        /* The meta area pads itself with padding and cancels it with negative margins, so the clip edge (padding box) grows outward
+           while the content box stays put.
+           The content box must hug the card's left and right edges and sit one card row-gap below the cover, so the margin
+           box's bottom edge is the content box's bottom; in the same row, the tallest card leaves no gap between its content
+           box's bottom and the card's bottom edge (the follow card's bottom is `[data-follow-state]`), so card height remains
+           cover plus row-gap plus content. Avatar and text columns hug the content box. The padded ring extends past the card
+           box, and a pointer landing there does not count as this card. */
         const frames = await page.evaluate(([cardSelector, parts]) => {
           const inFlow = (element: Element | null, step: 'previousElementSibling' | 'nextElementSibling') => {
             let node = element?.[step] ?? null;
@@ -336,7 +341,7 @@ describe('视口外的卡片', () => {
             const mtext = meta.querySelector(`:scope>${parts.text}`)!;
             const textStyle = getComputedStyle(mtext);
             const textBox = mtext.getBoundingClientRect();
-            /* 探的是垫出来的那几圈（元信息区 8px、标签行与密集一档的文字列 4px）里面的点。 */
+            /* Probing targets the dots inside the padded rings (8 px for the meta area, 4 px for the tag row and the dense text columns). */
             const tags = meta.querySelector(parts.tags)?.getBoundingClientRect();
             const probes = [...[content.top + 10, (content.top + content.bottom) / 2, content.bottom - 4]
               .flatMap((y) => [[cardBox.left - 2, y], [cardBox.right + 2, y]]),
@@ -356,22 +361,22 @@ describe('视口外的卡片', () => {
             };
           });
         }, [selector, shape] as const);
-        assert.ok(frames.length > 0, `${where}没有整张落在视口里的卡`);
+        assert.ok(frames.length > 0, `${where} has no card fully inside the viewport`);
         for (const frame of frames) {
-          assert.ok(frame.padded.every((value) => value > 0), `${where}的元信息区没有垫裁切余量`);
+          assert.ok(frame.padded.every((value) => value > 0), `${where} meta area has no crop padding`);
           assert.ok(frame.offsets.every((value) => Math.abs(value) <= .5),
-            `${where}的元信息区内容盒偏离了卡片与封面：${frame.offsets.join(', ')}`);
-          assert.equal(frame.background, 'rgba(0, 0, 0, 0)', `${where}的元信息区有背景，垫出来的一圈会画在卡片外面`);
-          assert.equal(frame.claimed, 0, `${where}卡片盒外 2px 处的指针落进了这张卡`);
-          assert.ok(frame.slack >= -.5, `${where}的元信息区内容盒越过了卡片下缘 ${-frame.slack}px`);
+            `${where}'s meta section content box drifts from the card and cover: ${frame.offsets.join(', ')}`);
+          assert.equal(frame.background, 'rgba(0, 0, 0, 0)', `${where} meta area has a background, and the padded ring paints outside the card`);
+          assert.equal(frame.claimed, 0, `A pointer 2px outside ${where}'s card box landed inside this card`);
+          assert.ok(frame.slack >= -.5, `${where} meta section content box crosses the card bottom edge ${-frame.slack}px`);
         }
         for (const row of new Set(frames.map((frame) => frame.row))) {
           const least = Math.min(...frames.filter((frame) => frame.row === row).map((frame) => frame.slack));
-          assert.ok(least <= .5, `${where}同一行最高的卡在元信息区下面还空着 ${least}px，卡片被撑高了`);
+          assert.ok(least <= .5, `In ${where} the tallest card in the row leaves ${least}px empty under the meta section, so the card is stretched taller`);
         }
 
-        /* 焦点环画在元素外面，逐层往上找会裁切的祖先（`overflow` 不是 visible，或跳过渲染带来的
-           paint containment），环的外沿必须落在每一层的 padding box 以内。 */
+        /* The focus ring paints outside the element; walk up layer by layer to find clipping ancestors (`overflow` not visible, or paint containment from skip-contents),
+           and the ring's outer edge must fall inside every layer's padding box. */
         const room = (target: string) => page.locator(`${selector} ${target}`).first().evaluate((element, cardSelector) => {
           const style = getComputedStyle(element);
           const ring = style.outlineStyle === 'none' ? 0 : parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
@@ -392,9 +397,9 @@ describe('视口外的卡片', () => {
           await page.keyboard.press('Tab');
           await page.locator(`${selector} ${target}`).first().focus();
           const edge = await room(target);
-          assert.ok(edge.focused && edge.ring > 0, `${where}键盘聚焦的 ${target} 没有焦点环`);
-          assert.ok(edge.clips > 0, `${where}的 ${target} 上面没有会裁切的祖先：这条用例守的前提变了，改用例`);
-          assert.ok(edge.least >= -.5, `${where}的 ${target} 焦点环越过裁切边 ${-edge.least}px，那一截会被裁掉`);
+          assert.ok(edge.focused && edge.ring > 0, `${where} keyboard-focused ${target} has no focus ring`);
+          assert.ok(edge.clips > 0, `${where} ${target} no longer has a clipping ancestor: the premise this test guards has changed, update the test`);
+          assert.ok(edge.least >= -.5, `${where}'s ${target} focus ring crosses the clip edge by ${-edge.least}px and that part would be cut off`);
         }
         assert.deepEqual(opened.problems, []);
       } finally {

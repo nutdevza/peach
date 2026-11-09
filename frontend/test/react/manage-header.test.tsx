@@ -1,8 +1,12 @@
-/* 管理区页头：骨架与路由树的换手、管理条的按下态与点击、面包屑左键走路由而带修饰键照链接走、回收站说明行
- * 先占位后落读数，同一页重画时读数那一格原地换字，以及它作为常驻组件（`RESIDENT_ROUTES['manage-header']`）在
- * 路由树里的行为：宿主就是 `[data-manage-header]`、骨架在首帧的同一个任务里换掉、句柄同步画完、抛错只卸组件。
+/* Management header: the skeleton-to-route-tree handover, the manage bar's pressed states and clicks, breadcrumbs taking a
+ * plain left click through routing while modifier keys follow the link, the trash explainer row placing a placeholder first
+ * and landing the readout with the readout cell swapping text in place on same-page re-renders, plus its behavior as a
+ * resident component (`RESIDENT_ROUTES['manage-header']`) in the route tree: the host is `[data-manage-header]`, the skeleton
+ * swaps in the same task as the first frame, the handle renders synchronously, and a thrown error unmounts only the
+ * component.
  *
- * 指示线的滑动、标题居中与窄屏收档要量布局，由 e2e 在浏览器里走（`e2e/management-layout.test.ts`）。 */
+ * The indicator line's sliding, title centering and narrow-screen collapse need measured layout, walked in the browser by e2e
+ * (`e2e/management-layout.test.ts`). */
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -14,27 +18,27 @@ import type { ShellActions } from '../../src/react/router/shell-actions';
 import { click } from './render';
 import { createSettingsStore } from '../../src/settings-store';
 
-// 首次导入会编译路由表带进来的整棵页面子树，编译等待使用独立的有限窗口；之后每条用例重新装载只重跑模块。
+// The first import compiles the whole page subtree the route table pulls in, with the compile wait on its own finite window; every later case remounts and only reruns the module.
 const REACT_IMPORT_TIMEOUT_MS = 30_000;
 
 type ActFlag = { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
 beforeAll(async () => { await import('../../src/react/router/router') }, REACT_IMPORT_TIMEOUT_MS);
 
-/* 页签与面包屑的字形换成一层能当场决定抛不抛的包装：用例中途改 `glyph.broken`，就是「下一次绘制抛错」。 */
+/* Tab and breadcrumb glyphs get a wrapper that decides on the spot whether to throw: a test flips `glyph.broken` mid-case, meaning "throw on the next render". */
 const glyph = vi.hoisted(() => ({ broken: false }));
 vi.mock(import('../../src/react/settings-panel/icon'), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     Icon: (props: Parameters<typeof actual.Icon>[0]) => {
-      if (glyph.broken) throw new Error('页头画不出来');
+      if (glyph.broken) throw new Error('The header never paints');
       return actual.Icon(props);
     },
   };
 });
 
-/* 常驻组件适配层直接读取同一包内的配置函数；测试只接本场景的句柄契约。 */
+/* The resident component adapter reads the config functions from the same package directly; tests only hook into this scenario's handle contract. */
 type ShellIslands = { connectApplication(next: (actions: ShellActions) => void): () => void;
   loadManageHeader(host: ManageHeaderHost): Promise<ManageHeaderApi>;
   manageHeaderApi(): ManageHeaderApi | null;
@@ -78,7 +82,7 @@ function shellActions(): ShellActions {
   };
 }
 
-/** 壳启动时先画路由树（根的选项与 `mountApplication` 同一份）；接上取数单独一步，用例可以把它往后放。 */
+/** At shell startup the route tree paints first (the root's options are the same ones as `mountApplication`); attaching fetches is a separate step the test can defer. */
 async function mountRouter(r: Loaded) {
   unmounts.push(r.islands.connectApplication(() => {}));
   const root = createRoot(document.createElement('div'), r.ROUTER_ROOT_OPTIONS);
@@ -89,13 +93,13 @@ async function connect(r: Loaded) {
   await act(async () => { r.connectManagedRoutes(Promise.resolve(r.prefetchManagedRoute)) });
 }
 
-const SECTIONS: ManageEntry[] = [['stats', '统计', 'chart'], ['cleanup', '数据管理', 'database'], ['trash', '回收站', 'trash']];
+const SECTIONS: ManageEntry[] = [['stats', 'Stats', 'chart'], ['cleanup', 'Data management', 'database'], ['trash', 'Trash', 'trash']];
 const MENU = SECTIONS.filter(([key]) => key !== 'trash');
 
 const props = (section: string, path: string, patch: Partial<ManageHeaderProps> = {}): ManageHeaderProps =>
   ({ section, path, sections: SECTIONS, menu: MENU, trash: null, ...patch });
 
-/** 壳 `index.html` 里那个常驻宿主，壳启动时同步写进骨架。 */
+/** The permanent host in the shell's `index.html`, written into the skeleton synchronously at shell startup. */
 function headerHost(first: ManageHeaderProps): ManageHeaderHost {
   const root = document.createElement('div');
   root.setAttribute('data-manage-header', '');
@@ -105,7 +109,7 @@ function headerHost(first: ManageHeaderProps): ManageHeaderHost {
     openManage: vi.fn(), openPath: vi.fn(), emptyTrash: vi.fn() };
 }
 
-/** 照壳的 `mountManageHeader` 接上：铺骨架、装载，拿到句柄就把手上那份推进去。 */
+/** Wire up along the shell's `mountManageHeader`: lay the skeleton, mount, and once the handle arrives push in the copy at hand. */
 async function setup(first: ManageHeaderProps) {
   const r = await load();
   await mountRouter(r);
@@ -118,7 +122,7 @@ async function setup(first: ManageHeaderProps) {
   return { r, root: host.root, host, api, render };
 }
 
-/** 收下每一次上报；`console.error` 只静音，不数条数。 */
+/** Accept every report; `console.error` is only muted, not counted. */
 function watchReports() {
   const reported = vi.fn();
   vi.stubGlobal('reportError', reported);
@@ -128,8 +132,8 @@ function watchReports() {
 
 const title = (root: ParentNode) => root.querySelector('[data-manage-title]')?.textContent;
 
-describe('换手', () => {
-  it('预取未接上时宿主里是骨架、句柄为 null；画上之后句柄才交出，画出来的是同一份结构', async () => {
+describe('Handoff', () => {
+  it('When prefetch did not connect, the host holds the skeleton and the handle is null; the handle is handed over only after painting, and what is painted is the same structure', async () => {
     const first = props('cleanup', '/junk-files');
     const skeleton = document.createElement('div');
     skeleton.innerHTML = manageHeaderSkeletonHtml(first);
@@ -139,15 +143,15 @@ describe('换手', () => {
     const html = host.root.innerHTML;
     let loaded: Promise<ManageHeaderApi> | null = null;
     await act(async () => { loaded = r.islands.loadManageHeader(host) });
-    expect(host.root.innerHTML, '路由树还没接上取数，骨架原样').toBe(html);
-    expect(r.islands.manageHeaderApi(), '画上之前没有句柄，壳继续接骨架上的点击').toBeNull();
+    expect(host.root.innerHTML, 'The route tree has not attached fetching yet, so the skeleton stays as-is').toBe(html);
+    expect(r.islands.manageHeaderApi(), 'Before painting there is no handle, and the shell keeps taking skeleton clicks').toBeNull();
 
     await connect(r);
     let api: ManageHeaderApi | null = null;
     await act(async () => { api = await loaded });
     expect(r.islands.manageHeaderApi()).toBe(api);
     expect(r.managedEntry(host.root)?.path).toBe('manage-header');
-    expect(host.root.childNodes.length, '骨架清掉了，首帧没有 props、画成空').toBe(0);
+    expect(host.root.childNodes.length, 'The skeleton cleared, the first frame has no props and paints empty').toBe(0);
 
     await act(async () => { api!.render(first) });
     const shape = (node: ParentNode) => [...node.querySelectorAll('*')]
@@ -156,17 +160,17 @@ describe('换手', () => {
       .filter((line) => !line.startsWith('USE'));
     expect(shape(host.root)).toEqual(shape(skeleton));
     expect(host.root.querySelector('[data-pill-thumb]')).not.toBeNull();
-    expect(title(host.root)).toBe('垃圾文件');
+    expect(title(host.root)).toBe('Junk files');
   });
 
-  it('骨架与首帧在同一个任务里换掉：每个任务边界上宿主里要么是骨架、要么是画好的页头，宿主上不多包 .peach-react', async () => {
+  it('Skeleton and first frame swap within one task: at every task boundary the host holds either the skeleton or the painted header, with no extra .peach-react wrapper on the host', async () => {
     const first = props('stats', '/stats');
     const r = await load();
     await mountRouter(r);
     await connect(r);
     const host = headerHost(first);
     const skeletonTitle = host.root.querySelector('[data-manage-title]');
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出换手发生在哪一拍。 */
+    /* No act wrapper: act defers flushSync to its end, which hides at which beat the handoff happened. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     let done = false;
     void r.islands.loadManageHeader(host).then((api) => { api.render(first); done = true });
@@ -180,16 +184,16 @@ describe('换手', () => {
     expect(done).toBe(true);
     expect(seen).not.toContain('empty');
     expect(seen.at(-1)).toBe('header');
-    expect(title(host.root)).toBe('统计');
+    expect(title(host.root)).toBe('Stats');
     expect(host.root.querySelector(':scope > .peach-react')).toBeNull();
     expect(host.root.firstElementChild?.hasAttribute('data-manage-bar')).toBe(true);
   });
 
-  it('骨架阶段的点击由壳的委托接，句柄交出之后归组件，一次点击只到一处', async () => {
+  it('Clicks during the skeleton go through the shell\'s delegation, belong to the component after the handover, and one click lands in exactly one place', async () => {
     const r = await load();
     await mountRouter(r);
     const host = headerHost(props('stats', '/stats'));
-    /* 壳 `mountManageHeader` 里那一段委托：句柄还没交出时才认。 */
+    /* The delegation segment inside the shell's `mountManageHeader`: honored only while the handle has not been handed over. */
     const delegated = vi.fn();
     host.root.addEventListener('click', (event) => {
       if (r.islands.manageHeaderApi()) return;
@@ -208,22 +212,22 @@ describe('换手', () => {
     act(() => { api!.render(props('cleanup', '/data-cleanup')) });
     await click(host.root.querySelector('[data-manage="stats"]'));
     expect(vi.mocked(host.openManage).mock.calls).toEqual([['stats']]);
-    expect(delegated, '委托不再认').toHaveBeenCalledTimes(1);
+    expect(delegated, 'Delegation no longer honored').toHaveBeenCalledTimes(1);
   });
 
-  it('离开管理区时整块清空，回来再画', async () => {
+  it('Leaving manage areas clears the whole block, repainting on return', async () => {
     const { root, render } = await setup(props('stats', '/stats'));
     render(props('', '/'));
     expect(root.childElementCount).toBe(0);
     render(props('cleanup', '/data-cleanup'));
-    expect(title(root)).toBe('数据管理');
+    expect(title(root)).toBe('Data management');
     expect(root.querySelector('[data-manage-title]')!.hasAttribute('data-compact')).toBe(true);
     expect(root.querySelector('[data-manage-crumb]')).toBeNull();
   });
 });
 
-describe('管理条与面包屑', () => {
-  it('横向排序更新共享设置并保留当前页面', async () => {
+describe('Management bar and breadcrumbs', () => {
+  it('Horizontal ordering updates shared settings and keeps the current page', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ manageOrder: ['cleanup', 'stats'] }),
       { status: 200, headers: { 'Content-Type': 'application/json' } })));
     const { root, host } = await setup(props('stats', '/stats'));
@@ -234,7 +238,7 @@ describe('管理条与面包屑', () => {
     expect(host.openManage).not.toHaveBeenCalled();
   });
 
-  it('按下项跟着当前区走，点一项回到壳的 openManage', async () => {
+  it('The pressed item follows the current section, and clicking one hands off to openManage in the shell', async () => {
     const { root, host, render } = await setup(props('stats', '/stats'));
     const pressed = () => [...root.querySelectorAll('[data-manage][aria-pressed="true"]')].map((node) => node.getAttribute('data-manage'));
     expect(pressed()).toEqual(['stats']);
@@ -246,7 +250,7 @@ describe('管理条与面包屑', () => {
     expect(host.openManage).toHaveBeenCalledWith('stats');
   });
 
-  it('数据管理之下的子页按下「数据管理」，骨架与组件同一个判据；管理条上没有的区不按下任何一项', async () => {
+  it('Subpages under data management press "Data management", with the skeleton and component sharing one criterion; sections absent from the admin bar press nothing', async () => {
     const first = props('trash', '/trash');
     const { root, render } = await setup(first);
     const pressed = () => [...root.querySelectorAll('[data-manage][aria-pressed="true"]')].map((node) => node.getAttribute('data-manage'));
@@ -262,11 +266,11 @@ describe('管理条与面包屑', () => {
     expect(pressedManageKey({ section: 'trash', path: '/somewhere', menu: MENU })).toBe('');
   });
 
-  it('面包屑普通左键走路由，带修饰键或中键的点击照链接自己走', async () => {
+  it('Breadcrumb plain left clicks use the router, while modified or middle clicks follow the link itself', async () => {
     const { root, host } = await setup(props('cleanup', '/duplicates'));
     const link = root.querySelector<HTMLAnchorElement>('[data-manage-crumb] a')!;
     expect(link.getAttribute('href')).toBe('/data-cleanup');
-    expect(root.querySelector('[data-manage-crumb] [aria-current="true"]')!.textContent).toBe('重复文件');
+    expect(root.querySelector('[data-manage-crumb] [aria-current="true"]')!.textContent).toBe('Duplicates');
     const fire = (init: MouseEventInit) => {
       const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...init });
       act(() => { link.dispatchEvent(event) });
@@ -280,8 +284,8 @@ describe('管理条与面包屑', () => {
   });
 });
 
-describe('回收站说明行', () => {
-  it('读数到之前铺同形占位，读到以后落读数与清空键；说明行一直是同一个节点', async () => {
+describe('Trash note row', () => {
+  it('A same-shaped placeholder fills in before the count arrives, then the count and clear button land; the description row stays the same node throughout', async () => {
     const { root, host, render } = await setup(props('trash', '/trash'));
     const lede = root.querySelector('[data-manage-lede]')!;
     expect(lede.querySelectorAll('[data-trash-lede-skeleton]')).toHaveLength(2);
@@ -289,14 +293,14 @@ describe('回收站说明行', () => {
     render(props('trash', '/trash', { trash: { total: 1234, shown: 8 } }));
     expect(root.querySelector('[data-manage-lede]')).toBe(lede);
     expect(lede.querySelector('[data-trash-lede-skeleton]')).toBeNull();
-    expect(lede.querySelector('[data-lede-text]')!.textContent).toBe('1,234 个符合 · 显示 8');
+    expect(lede.querySelector('[data-lede-text]')!.textContent).toBe('1,234 matches · showing 8');
     await click(lede.querySelector('[data-empty-trash]'));
     expect(host.emptyTrash).toHaveBeenCalledTimes(1);
     render(props('trash', '/trash', { trash: { total: 0, shown: 0 } }));
     expect(lede.querySelector('[data-empty-trash]')).toBeNull();
   });
 
-  it('同一页重画：读数那一格沿用原节点，旧字淡出后换成新字，不回到占位', async () => {
+  it('Repainting the same page: the count cell keeps its node, old text fades into new, and it never returns to the placeholder', async () => {
     const { root, render } = await setup(props('trash', '/trash', { trash: { total: 20, shown: 8 } }));
     vi.useFakeTimers();
     const cell = root.querySelector<HTMLElement>('[data-lede-text]')!;
@@ -304,25 +308,25 @@ describe('回收站说明行', () => {
     expect(root.querySelector('[data-lede-text]')).toBe(cell);
     expect(root.querySelector('[data-trash-lede-skeleton]')).toBeNull();
     expect(cell.classList.contains('leaving')).toBe(true);
-    expect(cell.textContent).toBe('20 个符合 · 显示 8');
+    expect(cell.textContent).toBe('20 matches · showing 8');
     act(() => { vi.advanceTimersByTime(400) });
-    expect(cell.textContent).toBe('20 个符合 · 显示 16');
+    expect(cell.textContent).toBe('20 matches · showing 16');
     expect(cell.classList.contains('leaving')).toBe(false);
   });
 });
 
-describe('常驻组件', () => {
-  it('句柄 render 返回时标题已是新内容，不等下一次渲染', async () => {
+describe('Resident components', () => {
+  it('By the time the handle render returns, the title already shows the new content, with no wait for the next render', async () => {
     const { root, api } = await setup(props('stats', '/stats'));
-    /* 不包 act：act 会把 flushSync 推到它结束时，看不出句柄自己同步没有。 */
+    /* No act wrapper: act defers flushSync to its end, which hides whether the handle flushed synchronously on its own. */
     (globalThis as ActFlag).IS_REACT_ACT_ENVIRONMENT = false;
     api.render(props('cleanup', '/junk-files'));
-    expect(title(root)).toBe('垃圾文件');
+    expect(title(root)).toBe('Junk files');
     api.render(props('trash', '/trash'));
-    expect([title(root), root.querySelectorAll('[data-trash-lede-skeleton]').length]).toEqual(['回收站', 2]);
+    expect([title(root), root.querySelectorAll('[data-trash-lede-skeleton]').length]).toEqual(['Trash', 2]);
   });
 
-  it('抛错只卸组件、宿主还在，批量条照画；之后句柄是空操作、不抛，这一面空到刷新为止，只报一次', async () => {
+  it('On throw only the component unmounts, the host stays and the batch bar still paints; afterwards the handle is a no-op that does not throw, this face stays empty until refresh, and the error is reported once', async () => {
     const reported = watchReports();
     const { r, root, api, render } = await setup(props('stats', '/stats'));
     const dockRoot = document.createElement('div');
@@ -335,21 +339,21 @@ describe('常驻组件', () => {
     render(props('cleanup', '/data-cleanup'));
     await act(async () => {});
     expect(reported).toHaveBeenCalledTimes(1);
-    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: '页头画不出来' }));
-    expect(root.isConnected, '宿主是壳的节点，不撤').toBe(true);
-    expect(root.childNodes.length, '组件卸掉了').toBe(0);
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ message: 'The header never paints' }));
+    expect(root.isConnected, 'The host is the shell\'s node and never withdraws').toBe(true);
+    expect(root.childNodes.length, 'Component unmounted').toBe(0);
     expect(r.managedTaken(root)).toBe(false);
-    expect(r.managedEntries().map((entry) => entry.path), '别的面照画').toEqual(['batch-dock']);
+    expect(r.managedEntries().map((entry) => entry.path), 'Other faces still drawn').toEqual(['batch-dock']);
     await act(async () => { dock.render({ count: 2, context: 'catalog', junkDismissed: false }) });
-    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('已选 2 项');
+    expect(dockRoot.querySelector('[data-selection-dock] [role="status"]')?.textContent).toBe('Selected 2 items');
 
-    /* 壳照旧每次换页都推一份：不抛、不重开、不再上报。 */
+    /* The shell still pushes one on every page change as before: no throw, no reopen, no further reporting. */
     for (const next of [props('stats', '/stats'), props('trash', '/trash')]) {
       await act(async () => { expect(() => api.render(next)).not.toThrow() });
     }
-    expect(reported, '确定性抛错只报那一次').toHaveBeenCalledTimes(1);
+    expect(reported, 'The deterministic throw is reported only once').toHaveBeenCalledTimes(1);
     glyph.broken = false;
     render(props('stats', '/stats'));
-    expect(root.childNodes.length, '空到刷新为止，不自愈').toBe(0);
+    expect(root.childNodes.length, 'Stays empty until refresh, no self-healing').toBe(0);
   });
 });

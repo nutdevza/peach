@@ -4,11 +4,11 @@ import type { Browser } from 'playwright-core';
 import { followSource, openFollowManage } from './design-fixture.ts';
 import { launch, VIEWPORTS } from './harness.ts';
 
-describe('关注失败来源重试', () => {
+describe('Retry sources with failed follows', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser.close() });
-  for (const viewport of VIEWPORTS) it(`${viewport.name}：只重试启用的失败来源，成功后隐藏入口`, async () => {
+  for (const viewport of VIEWPORTS) it(`${viewport.name}: retries only enabled failed sources and hides the entry once one succeeds`, async () => {
     const paused = { ...followSource(5, 'paused', 'Kemono', 'paused', 'error'), enabled: false };
     const opened = await openFollowManage(browser, viewport, { extra: [
       followSource(4, 'login', 'FANBOX', 'login', 'unauthorized'), paused,
@@ -30,14 +30,14 @@ describe('关注失败来源重试', () => {
       await page.route('**/api/follow?summary=1', route => started ? route.fulfill(json({
         sources: [followSource(1, 'kou', 'Kemono', 'kou'), paused], counts: {}, author_aliases: [], suggestions: [],
       })) : route.fallback());
-      const retry = page.getByRole('button', { name: '检查失败项', exact: true });
+      const retry = page.getByRole('button', { name: 'Check failed items', exact: true });
       await retry.waitFor();
       await retry.focus();
       await retry.press('Enter');
       await retry.waitFor({ state: 'hidden', timeout: 15_000 });
       assert.deepEqual(requests, [{ background: true, sources: [3, 4] }]);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-      await page.getByRole('button', { name: '检查全部', exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Check all', exact: true }).waitFor();
     } finally { await opened.close() }
   });
 });

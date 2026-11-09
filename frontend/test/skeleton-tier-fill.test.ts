@@ -1,7 +1,7 @@
-/* 横向骨架铺到右缘：铺满，而且整批只让浏览器布局几次。
+/* Horizontal skeletons lay to the right edge: fill completely, and let the browser lay out only a few times for the whole batch.
  *
- * 改过 DOM 之后再读一次宽度，浏览器就得当场把整页布局一遍。冷启动时资料页那几排骨架逐枚
- * 追加、逐枚量，实测一排一百多毫秒。这里用桩出来的几何数「改了又读」发生了几次。 */
+ * Reading a width after mutating the DOM forces the browser to lay out the whole page on the spot. On cold start the profile page's skeleton rows appended and
+ * measured one by one, measured at over a hundred milliseconds per row. Here a stubbed geometry counts how many "mutate then read" rounds happened. */
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { fillSkeletonTier, fitSkeleton } from '../src/ui-kit';
@@ -37,8 +37,8 @@ HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect(thi
 
 afterEach(() => { layouts = 0; dirty = false; document.body.replaceChildren(); });
 
-describe('横向骨架补满', () => {
-  it('几排一起补：每排都越过右缘，整批只布局两次', () => {
+describe('The horizontal skeleton fills', () => {
+  it('Rows fill in together: each row crosses the right edge, and the whole batch lays out only twice', () => {
     const root = document.createElement('div');
     const rows = [row('av'), row('brandpill'), row('pill')];
     root.append(...rows);
@@ -48,7 +48,7 @@ describe('横向骨架补满', () => {
     expect(layouts).toBe(2);
   });
 
-  it('已经铺满的那排再补一次不追加', () => {
+  it('Backfilling an already-full row adds nothing', () => {
     const root = document.createElement('div');
     const node = row('pill');
     root.append(node);
@@ -59,7 +59,7 @@ describe('横向骨架补满', () => {
     expect(node.children.length).toBe(filled);
   });
 
-  it('单独补一排也越过右缘，多出来的不超过一轮宽度序列', () => {
+  it('Even a standalone backfilled row crosses the right edge, with extras never exceeding one round of the width sequence', () => {
     const node = row('av');
     document.body.append(node);
     fillSkeletonTier(node, 'av');

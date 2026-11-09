@@ -14,7 +14,7 @@ function stubTimeline(payload: object) {
   return fetch;
 }
 
-/** 进度条宿主：宽 `track`，预览实测宽 `width`。 */
+/** Progress bar host: width `track`, preview's measured width `width`. */
 function seekHost(track: number, width = 0) {
   const host = document.createElement('div');
   document.body.append(host);
@@ -41,20 +41,20 @@ function loadPreviewImage(host: ParentNode) {
   image.dispatchEvent(new Event('load'));
 }
 
-describe('时间到雪碧图坐标', () => {
-  it('固定间隔按页与格换算，末张按自身帧数算行数', () => {
+describe('Time to sprite coordinates', () => {
+  it('Fixed spacing is converted by page and cell; the last sheet\'s row count comes from its own frame count', () => {
     const sheet = { frames: 250, interval: 10, columns: 10, rows: 10 };
     expect(sheetTile(0, sheet)).toEqual({ page: 0, slot: 0, columns: 10, rows: 10 });
     expect(sheetTile(1055, sheet)).toEqual({ page: 1, slot: 5, columns: 10, rows: 10 });
     expect(sheetTile(2499, sheet)).toEqual({ page: 2, slot: 49, columns: 10, rows: 5 });
     expect(sheetTile(99999, sheet)).toEqual({ page: 2, slot: 49, columns: 10, rows: 5 });
   });
-  it('非 10×10 的拼图按自身列数换算，未覆盖的时刻没有格子', () => {
+  it('A sprite that is not 10×10 converts by its own column count; uncovered moments have no cells', () => {
     expect(sheetTile(65, { frames: 30, interval: 5, columns: 5, rows: 4 })).toEqual({ page: 0, slot: 13, columns: 5, rows: 4 });
     expect(sheetTile(100, { frames: 30, interval: 5, columns: 5, rows: 4 })).toEqual({ page: 1, slot: 0, columns: 5, rows: 2 });
     expect(sheetTile(5, { frames: 1, interval: 0, cues: [[0, 3]] })).toBeNull();
   });
-  it('只预热页数可数的自有接触印相', () => {
+  it('Only warm our own contact sheets whose page count is known', () => {
     expect(preloadPages({ frames: 250, interval: 10 })).toBe(3);
     expect(preloadPages({ frames: 2, interval: 0, cues: [[0, 3], [3, 6]] })).toBe(0);
     expect(preloadPages({ source: 'jellyfin', frames: 250, interval: 10 })).toBe(0);
@@ -63,19 +63,19 @@ describe('时间到雪碧图坐标', () => {
   });
 });
 
-describe('边缘对齐', () => {
-  it('中心点跟着指针，两端整块留在进度条里', () => {
+describe('Edge-aligned', () => {
+  it('The center follows the pointer; both ends stay within the progress bar', () => {
     expect(previewCenter(300, 600, 240)).toBe(300);
     expect(previewCenter(10, 600, 240)).toBe(120);
     expect(previewCenter(595, 600, 240)).toBe(480);
     expect(previewCenter(30, 200, 240)).toBe(100);
   });
-  it('进度条贴着视口边时两端各让出边距', () => {
+  it('When the progress bar hugs the viewport edge, each end keeps a margin', () => {
     expect(previewCenter(10, 600, 240, 12)).toBe(132);
     expect(previewCenter(595, 600, 240, 12)).toBe(468);
     expect(previewCenter(30, 250, 240, 12)).toBe(125);
   });
-  it('按显出来之后的实测宽度夹边，不按估算宽度', async () => {
+  it('Clamp to the measured width after it appears, not the estimated width', async () => {
     stubTimeline({});
     const { host, measured } = seekHost(600, 244);
     const preview = createSeekPreview(host, { id: 7, width: 1920, height: 1080, has_thumb: true });
@@ -91,8 +91,8 @@ describe('边缘对齐', () => {
   });
 });
 
-describe('无时间轴图降级', () => {
-  it('没有索引也没有快照时收起整块预览，不取任何图', async () => {
+describe('No-timeline image fallback', () => {
+  it('With no index and no snapshot the whole preview block collapses and fetches no images', async () => {
     const fetch = stubTimeline({});
     const { host, measured } = seekHost(900, 160);
     const preview = createSeekPreview(host, { id: 7, has_thumb: false });
@@ -105,7 +105,7 @@ describe('无时间轴图降级', () => {
     expect(element.querySelector('span')!.textContent).toBe('5:00');
     expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/api/timeline?id=7']);
   });
-  it('已有九宫格成功后显示，取不到则收起且不再请求', async () => {
+  it('The nine-grid shows after success; when it cannot be fetched it collapses and stops requesting', async () => {
     const fetch = stubTimeline({});
     const { host, measured } = seekHost(900, 160);
     const preview = createSeekPreview(host, { id: 7, has_thumb: true });
@@ -130,7 +130,7 @@ describe('无时间轴图降级', () => {
     expect(element.querySelector('span')!.textContent).toBe('9:30');
     expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it('关注条目不取图、不查索引，也不显示空预览', () => {
+  it('Followed entries fetch no image, check no index, and show no empty preview', () => {
     const fetch = stubTimeline({});
     const { host } = seekHost(600);
     createSeekPreview(host, null).show(.5, 120);
@@ -141,8 +141,8 @@ describe('无时间轴图降级', () => {
   });
 });
 
-describe('雪碧图预加载', () => {
-  it('碰到进度条才预热，每页只取一次', async () => {
+describe('Sprite preloading', () => {
+  it('Only warm on progress-bar contact, fetch once per page', async () => {
     stubTimeline({ source: 'peach', frames: 250, interval: 10, columns: 10, rows: 10 });
     const loaded = stubImages();
     const { host } = seekHost(600);
@@ -153,7 +153,7 @@ describe('雪碧图预加载', () => {
     preview.show(.2, 2500); preview.show(.8, 2500);
     expect(loaded).toEqual(['/timeline?id=9&s=0&source=peach', '/timeline?id=9&s=1&source=peach', '/timeline?id=9&s=2&source=peach']);
   });
-  it('外部逐帧来源不预热，自有缓存作为兜底照样预热', async () => {
+  it('External frame-by-frame sources are not warmed; the self-hosted cache is warmed as a fallback', async () => {
     stubTimeline({ source: 'bif', frames: 3, interval: 0, cues: [[0, 10], [10, 20], [20, 30]],
       fallback: { source: 'peach', frames: 3, interval: 10, columns: 10, rows: 10 } });
     const loaded = stubImages();
@@ -165,7 +165,7 @@ describe('雪碧图预加载', () => {
   });
 });
 
-describe('Video.js 进度条接线', () => {
+describe('Video.js progress bar wiring', () => {
   function mounted() {
     stubTimeline({});
     const root = document.createElement('div');
@@ -182,7 +182,7 @@ describe('Video.js 进度条接线', () => {
     };
     return { preview, fire };
   }
-  it('触屏按住拖动时显示，松手收起', () => {
+  it('Show on touch-drag, dismiss on release', () => {
     const { preview, fire } = mounted();
     fire('pointerdown', 150, 'touch');
     expect(preview.hidden).toBe(false);
@@ -192,7 +192,7 @@ describe('Video.js 进度条接线', () => {
     fire('pointerup', 270, 'touch');
     expect(preview.hidden).toBe(true);
   });
-  it('鼠标松开仍在悬停，预览留着；离开进度条才收起', () => {
+  it('Mouse released but still hovering keeps the preview; it only dismisses on leaving the progress bar', () => {
     const { preview, fire } = mounted();
     fire('pointermove', 30, 'mouse');
     fire('pointerup', 30, 'mouse');
@@ -202,8 +202,8 @@ describe('Video.js 进度条接线', () => {
   });
 });
 
-describe('索引晚于悬停到达', () => {
-  it('指针停着不动也换成拼图那一格，图到了就显示；已离开则不显示', async () => {
+describe('The index arrives later than the hover', () => {
+  it('Even with the pointer at rest the cell switches to the contact sheet and shows once the image arrives; after leaving, it does not show', async () => {
     stubTimeline({ source: 'peach', frames: 20, interval: 1, columns: 10, rows: 10 });
     const { host, measured } = seekHost(900, 160);
     const preview = createSeekPreview(host, { id: 7, width: 1920, height: 1080, has_thumb: false });
@@ -229,25 +229,25 @@ describe('索引晚于悬停到达', () => {
   });
 });
 
-describe('时间轴索引', () => {
-  it('按预览自身的非均匀时间选择帧，并保留未覆盖区间', () => {
+describe('Timeline index', () => {
+  it('Frames are picked by the preview\'s own non-uniform timestamps, and uncovered intervals are preserved', () => {
     const source = { frames: 3, interval: 0, cues: [[0, 3.5], [3.5, 7], [10, 15]] as [number, number][] };
     expect([0, 3.4, 3.5, 7, 9, 10, 15, 16].map(time => timelineFrame(time, source)))
       .toEqual([0, 0, 1, null, null, 2, 2, null]);
   });
-  it('按固定间隔选择接触印相中的帧', () => {
+  it('Frames for the contact sheet are picked at fixed intervals', () => {
     const source = { frames: 120, interval: 10 };
     expect([0, 9, 10, 999, 1000, 1500].map(time => timelineFrame(time, source)))
       .toEqual([0, 0, 1, 99, 100, 119]);
   });
-  it('无效索引和时刻返回空值', () => {
+  it('Invalid indexes and timestamps return empty values', () => {
     expect(timelineFrame(-1, { frames: 2, interval: 10 })).toBeNull();
     expect(timelineFrame(Infinity, { frames: 2, interval: 10 })).toBeNull();
     expect(timelineFrame(0, { frames: 0, interval: 10 })).toBeNull();
     expect(timelineFrame(0, { frames: 2, interval: 0 })).toBeNull();
     expect(timelineFrame(1, { frames: 1, interval: 0, cues: [[2, 4]] })).toBeNull();
   });
-  it('预览控件使用准确来源，在空隙与图片失败时读取已有缓存', async () => {
+  it('Preview controls use exact sources, reading existing caches during gaps and image failures', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       source: 'webvtt', frames: 2, interval: 0, columns: 1, rows: 1, cues: [[0, 3], [8, 12]],
       fallback: { source: 'peach', frames: 3, interval: 10, columns: 10, rows: 10 },

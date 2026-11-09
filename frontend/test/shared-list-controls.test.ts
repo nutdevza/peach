@@ -4,7 +4,7 @@ import { wireHorizontalScroller, rubberBand } from '../src/ui-kit';
 afterEach(async () => {document.body.replaceChildren();await new Promise(resolve=>setTimeout(resolve,0));vi.unstubAllGlobals()});
 function button(){const node=document.createElement('button');node.style.overflowX='auto';document.body.append(node);return node}
 
-it('在横排上开头的滚轮手势整段归这一排，鼠标一格逐帧走完、半路接着加，拦不住的留给页面，重复绑定与移除都释放资源', async () => {
+it('A wheel gesture that begins on the horizontal row belongs to the row for its whole life: the mouse walks frames one by one and keeps accumulating mid-gesture, anything it cannot claim goes to the page, and rebinding and removal both release resources', async () => {
   const node=button();let left=0,now=1000;const disconnect=vi.fn();
   vi.stubGlobal('ResizeObserver',class {observe(){}disconnect=disconnect});
   const frames:FrameRequestCallback[]=[];
@@ -19,36 +19,36 @@ it('在横排上开头的滚轮手势整段归这一排，鼠标一格逐帧走�
   const control=wireHorizontalScroller(node,{drag:true});
   expect(wireHorizontalScroller(node)).toBe(control);
   const wheel=(deltaY=100,cancelable=true)=>new WheelEvent('wheel',{deltaY,cancelable});
-  // 内容可直接显示的布局不拦页面滚动，也不画横向提示。
+  // Layouts whose content is directly visible do not block page scrolling and draw no horizontal hint.
   node.style.overflowX='visible';control.update();
   const pageWheel=wheel(60);node.dispatchEvent(pageWheel);
   expect(pageWheel.defaultPrevented).toBe(false);expect(node.dataset.overflowRight).toBe('false');
   node.style.overflowX='auto';control.update();
-  // 鼠标一格逐帧走，不是一下跳过去。
+  // The mouse moves one cell frame by frame, not in one jump.
   const moving=wheel(60);node.dispatchEvent(moving);
   expect(moving.defaultPrevented).toBe(true);expect(left).toBe(0);
   step();expect(left).toBeGreaterThan(0);expect(left).toBeLessThan(60);
-  // 半路再来一格，从上一格的终点接着算，一路走到头停下。
+  // Add another cell midway and it computes from the previous cell's endpoint, continuing to the end and stopping there.
   now+=40;node.dispatchEvent(wheel(60));flush();
   expect(left).toBe(100);expect(frames).toHaveLength(0);
-  // 一帧里的几次 scroll 合成下一帧写一次渐隐标记。
+  // Several scroll events within one frame are coalesced into a single fade-marker write on the next frame.
   node.dispatchEvent(new Event('scroll'));node.dispatchEvent(new Event('scroll'));expect(frames).toHaveLength(1);
   step();expect(node.dataset.overflowRight).toBe('false');
-  // 到头以后还在转、隔一会再转，都不交给页面：要滚整页得把指针挪出这一排。
+  // Spinning past the end, or spinning again after a pause, is never handed to the page: scrolling the whole page requires moving the pointer out of this row.
   now+=40;const still=wheel(60);node.dispatchEvent(still);expect(still.defaultPrevented).toBe(true);
   now+=1000;const next=wheel(60);node.dispatchEvent(next);expect(next.defaultPrevented).toBe(true);
   expect(left).toBe(100);
-  // 触控板的小步直接跟手，不套动画。
+  // Small trackpad steps follow the finger directly, with no animation wrapper.
   left=50;now+=1000;node.dispatchEvent(wheel(-10));
   expect(left).toBe(40);expect(frames).toHaveLength(0);
-  // 页面那边开了头的手势拦不住，这一排也不跟着动。
+  // A gesture the page has already claimed cannot be stopped, and this row does not move with it.
   left=0;now+=1000;node.dispatchEvent(wheel(100,false));expect(left).toBe(0);
   clock.mockRestore();
   node.remove();await vi.waitFor(()=>expect(disconnect).toHaveBeenCalledOnce());
   left=0;node.dispatchEvent(wheel());expect(left).toBe(0);
 });
 
-it('横排推过头按橡皮筋收敛，顶在边上再推也弹，一次滚轮手势只弹一下，拖过头松手弹回', () => {
+it('Horizontal overscroll settles with rubber-banding, pushing against an edge bounces too, one wheel gesture bounces once, and dragging past the edge springs back on release', () => {
   expect(rubberBand(0,400)).toBe(0);
   expect(rubberBand(100,400)).toBeGreaterThan(0);expect(rubberBand(100,400)).toBeLessThan(100);
   expect(rubberBand(-100,400)).toBe(-rubberBand(100,400));
@@ -62,19 +62,19 @@ it('横排推过头按橡皮筋收敛，顶在边上再推也弹，一次滚轮�
   const animate=vi.fn(()=>({cancel(){},onfinish:null}));node.animate=animate as never;
   wireHorizontalScroller(node,{drag:true});
   const wheel=(deltaY:number)=>new WheelEvent('wheel',{deltaY,cancelable:true});
-  // 顶在最右还往前推：这一格也归这一排，弹一下，往左。
+  // Pushing forward when already at the far right: this cell belongs to the row too, so it nudges left.
   const push=wheel(30);node.dispatchEvent(push);
   expect(push.defaultPrevented).toBe(true);expect(animate).toHaveBeenCalledOnce();
   const [frames]=animate.mock.calls[0] as unknown as [Record<string,string>[]];
   expect(parseFloat(frames[1]!['--edge-pull']!)).toBeLessThan(0);
-  // 惯性尾巴接着撞边，同一次手势不再弹。
+  // The momentum tail keeps hitting the edge; the same gesture does not bounce again.
   now+=40;node.dispatchEvent(wheel(20));now+=40;node.dispatchEvent(wheel(10));
   expect(animate).toHaveBeenCalledOnce();
-  // 下一次手势从半路滚过头，再弹一次。
+  // The next gesture overshoots from mid-scroll and bounces once more.
   left=90;now+=1000;node.dispatchEvent(wheel(30));
   expect(left).toBe(100);expect(animate).toHaveBeenCalledTimes(2);
-  // 拖过左端：内容跟手右移、比手少走；松手从那里弹回原位。
-  // happy-dom 的 `pageX` 恒为 0，照浏览器的样子补上。
+  // Dragged past the left end: the content follows the finger rightward but travels less; on release it springs back from there.
+  // happy-dom's `pageX` is always 0, so it is patched to match the browser.
   const mouse=(type:string,pageX=0)=>Object.defineProperty(new MouseEvent(type,{button:0}),'pageX',{value:pageX});
   left=0;node.dispatchEvent(mouse('mousedown'));
   window.dispatchEvent(mouse('mousemove',80));
@@ -87,7 +87,7 @@ it('横排推过头按橡皮筋收敛，顶在边上再推也弹，一次滚轮�
   clock.mockRestore();
 });
 
-it('按住拖动横排时整页锁成抓取光标，松手或窗口失焦就撤掉，点在控件上不起拖', () => {
+it('When holding to drag a horizontal row, the whole page locks to a grabbing cursor; it\'s released on release or window blur; clicking on a control doesn\'t start a drag', () => {
   vi.stubGlobal('ResizeObserver',class {observe(){}disconnect(){}});
   const node=document.createElement('div');document.body.append(node);
   const control=document.createElement('button');node.append(control);

@@ -5,15 +5,15 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, visit, VIEWPORTS } from './harness.ts';
 
-describe('通知和任务卡的共用外框', () => {
+describe('The shared frame of notifications and task cards', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
   for (const viewport of VIEWPORTS) for (const theme of ['light', 'dark']) {
-    it(`${viewport.name} ${theme}：外框一致，正文布局稳定`, async () => {
+    it(`${viewport.name} ${theme}: consistent outer frame, stable body layout`, async () => {
       const opened = await visit(browser, '/data-cleanup', viewport, page => page.route('**/api/library-processing',
         route => route.fulfill({ json: { status: 'paused', job_id: 'shell-preview', checked: 38, total: 100,
-          stage: '采集缺失资料', current_asset_name: '示例影片.mp4', speed_mode: 'standard' } })));
+          stage: 'Scrape missing profiles', current_asset_name: 'Sample video.mp4', speed_mode: 'standard' } })));
       const { page } = opened;
       const artifacts = path.resolve('..', 'build', 'agent-verification', 'processing-controls');
       await mkdir(artifacts, { recursive: true });
@@ -25,9 +25,9 @@ describe('通知和任务卡的共用外框', () => {
           document.documentElement.classList.toggle('dark', theme === 'dark');
           const entry = '/dist/peach-app.js', ui = await import(entry);
           ui.showToast(document.getElementById('toasts'), { success: '', error: '' }, 'shell-receipt',
-            { html: '配置已保存', alert: false, timeout: Infinity, action: null });
+            { html: 'Configuration saved', alert: false, timeout: Infinity, action: null });
         }, theme);
-        const receipt = page.locator('#toasts [data-sonner-toast][data-styled="true"]').filter({ hasText: '配置已保存' });
+        const receipt = page.locator('#toasts [data-sonner-toast][data-styled="true"]').filter({ hasText: 'Configuration saved' });
         await receipt.waitFor();
         await page.waitForFunction(() => [...document.querySelectorAll('#toasts [data-sonner-toast]')]
           .every(node => node.getAttribute('data-mounted') === 'true' && node.getAnimations().length === 0));
@@ -44,14 +44,14 @@ describe('通知和任务卡的共用外框', () => {
         assert.equal(aligned[0]!.radius, aligned[1]!.radius);
         assert.equal(aligned[0]!.shadow, aligned[1]!.shadow);
         assert.equal(aligned[0]!.border, aligned[1]!.border);
-        // 外观与坐标使用同一次测量，尺寸必须来自可见的布局框。
+        // Appearance and coordinates come from one measurement; dimensions must come from the visible layout box.
         for (const item of aligned) assert.ok(item.visibility === 'visible' && item.width > 0 && item.height > 0, JSON.stringify(item));
         const box = aligned.find(item => item.kind === 'task')!, top = aligned.find(item => item.kind === 'receipt')!.y;
         const clip = { x: Math.max(0, viewport.width - 600), y: Math.max(0, top - 20),
           width: Math.min(viewport.width, 600), height: viewport.height - Math.max(0, top - 20) };
         assert.ok(box.x >= 0 && box.x + box.width <= viewport.width);
         await page.screenshot({ path: path.join(artifacts, `${viewport.name}-${theme}-shell-after.png`), clip });
-        // 同一任务和布局下回放外框基线参数。
+        // Replay the outer frame baseline parameters under the same task and layout.
         await page.evaluate(() => document.querySelectorAll<HTMLElement>('#toasts [data-sonner-toaster]')
           .forEach(node => node.style.removeProperty('--floating-radius')));
         const baseline = await page.addStyleTag({ content:

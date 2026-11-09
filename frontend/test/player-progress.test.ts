@@ -16,8 +16,8 @@ let video: HTMLVideoElement;
 beforeEach(() => { localStorage.clear(); video = document.createElement('video') });
 afterEach(() => { stopPlaybackPosition(video); stopTelemetry(video); vi.useRealTimers(); vi.unstubAllGlobals() });
 
-describe('视频续播位置', () => {
-  it('关注片段的实际时长独立于帖子时长，恢复到该片段的保存位置', async () => {
+describe('Video resume position', () => {
+  it('The real duration of a follows clip is independent of the post duration; playback resumes at the saved position for that clip', async () => {
     configurePlayer({ settings: () => ({ ambientMode: false, theaterMode: false, seekSeconds: 10,
       miniplayer: true, detailAutoplay: false, javImage: 'cover' }), saveSettings: () => {}, toast: () => {},
       loadSourceStatus: async () => ({}), offlineReason: () => '', stage: () => null });
@@ -45,7 +45,7 @@ describe('视频续播位置', () => {
     } finally { disposed = true; setDetailPlayer(null) }
   });
 
-  it('暂停、关闭和页面退出保留当前秒数，存储读取独立于条目的旧比例', () => {
+  it('Pause, close, and page exit preserve the current second; storage reads are independent of the old ratio on the entry', () => {
     trackPlaybackPosition(key, video);
     video.dispatchEvent(new Event('loadedmetadata'));
     video.currentTime = 53.25;
@@ -62,7 +62,7 @@ describe('视频续播位置', () => {
     expect(playbackPosition(key, item)).toBe(8);
   });
 
-  it('未加载元数据与换源时的零位置不会覆盖已保存秒数', () => {
+  it('A zero position from unloaded metadata or source switches never overwrites saved seconds', () => {
     trackPlaybackPosition(key, video);
     video.dispatchEvent(new Event('loadedmetadata'));
     video.currentTime = 91;
@@ -77,7 +77,7 @@ describe('视频续播位置', () => {
     expect(playbackPosition(key, item)).toBe(91);
   });
 
-  it('本地旧记录按离开比例恢复，已播完与未知时长从头开始', () => {
+  it('Legacy local records restore at their leave-off ratio, while fully played and unknown durations start over', () => {
     expect(playbackPosition(key, item)).toBe(120);
     expect(playbackPosition(key, { ...item, duration: -1 })).toBe(0);
     expect(playbackPosition(key, { ...item, leave_ratio: 1 })).toBe(0);
@@ -89,14 +89,14 @@ describe('视频续播位置', () => {
     expect(playbackPosition(key, item)).toBe(0);
   });
 
-  it('关注与本地身份互不覆盖，多视频按媒体序号分别记位置', () => {
+  it('Follow and local identities never overwrite each other, and multi-video items remember positions per media index', () => {
     expect(playbackKey('follow', item)).not.toBe(key);
     expect(playbackKey('follow', item, 0)).not.toBe(playbackKey('follow', item, 1));
     expect(playbackKey('item', { ...item, location: 'online', follow_item_id: 42 }))
       .toBe(playbackKey('follow', { id: 42 }));
   });
 
-  it('损坏的存储与存储拒绝不会阻断播放器', () => {
+  it('Corrupted storage and storage refusal never block the player', () => {
     localStorage.setItem(`peach.playback-position.v1:${key}`, 'broken');
     expect(playbackPosition(key, item)).toBe(120);
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied') });
@@ -107,8 +107,8 @@ describe('视频续播位置', () => {
   });
 });
 
-describe('关注视频关闭上报', () => {
-  it('暂停状态的恢复定位不累计观看时间', () => {
+describe('Follow video close reporting', () => {
+  it('Resuming from a paused state never accrues watch time', () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     wireFollowTelemetry(item, video);
     video.currentTime = .7;
@@ -117,7 +117,7 @@ describe('关注视频关闭上报', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('换源停止定时器，继续播放仍能累计与上报', () => {
+  it('Switching sources stops the timer, while continued playback still accumulates and reports', () => {
     vi.useFakeTimers();
     const calls: RequestInit[] = [];
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
@@ -142,7 +142,7 @@ describe('关注视频关闭上报', () => {
     expect(calls).toHaveLength(count + 1);
   });
 
-  it('同步销毁保留最后一段并停止定时器与页面退出监听', () => {
+  it('Synchronous teardown keeps the final segment and stops timers and page-leave listeners', () => {
     vi.useFakeTimers();
     const calls: RequestInit[] = [];
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {

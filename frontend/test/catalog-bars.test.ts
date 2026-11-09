@@ -1,4 +1,4 @@
-/* 首页筛选栏的两份聚合（`src/catalog-bars.ts`）：键、回退、标签页内复用、口径变了重取、刷新强制重取、续页。 */
+/* The two aggregations behind the home-page filter bars (`src/catalog-bars.ts`): keys, fallback, reuse within a tab, re-fetch when the scope changes, forced re-fetch on refresh, and continuation pages. */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import {
@@ -7,10 +7,10 @@ import {
 import { queryClient } from '../src/query';
 
 const EMPTY = { performers: [], studios: [] };
-const FULL = { performers: [{ k: '某人' }], studios: [] };
+const FULL = { performers: [{ k: 'Someone' }], studios: [] };
 const FACETS = { tags: [], locations: [] };
 
-/** 按地址回包的 fetch；`hold` 为真时先不回，等 `release()`。 */
+/** A fetch that replies by address; with `hold` true it does not reply until `release()`. */
 function serve(answer: (url: string) => unknown, hold = false) {
   const waiting: (() => void)[] = [];
   const fetcher = vi.fn((url: string) => new Promise((resolve) => {
@@ -25,7 +25,7 @@ const answer = (tops: unknown) => (url: string) => (url.startsWith('/api/facets'
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(0) });
 afterEach(() => { queryClient.clear(); vi.useRealTimers(); vi.unstubAllGlobals() });
 
-it('两份各存在自己的键下：facets 按口径，tops 按请求方传的参数与口径', async () => {
+it('The two sets live under their own keys: facets by criteria, tops by the parameters and criteria the requester passed', async () => {
   serve(answer(FULL));
   await fetchBars('state=flagged', 'n=60&seed=s&state=flagged');
   expect(queryClient.getQueryData(facetsKey('state=flagged'))).toEqual(FACETS);
@@ -34,7 +34,7 @@ it('两份各存在自己的键下：facets 按口径，tops 按请求方传的�
   expect(topsKey('p', 'a').slice(0, 3)).toEqual(['tops', 'p', 'a']);
 });
 
-it('状态页两排都空时退回全库口径再取一次，键仍按请求方传的那一份', async () => {
+it('When both rows are empty the status page falls back to the whole-library scope and refetches, still using the key the requester passed', async () => {
   const net = serve((url) => (url.includes('state=') ? EMPTY : FULL));
   const [, tops] = await fetchBars('state=flagged', 'n=60&seed=s&state=flagged');
   expect(net.urls()).toEqual(['/api/facets?state=flagged', '/api/tops?n=60&seed=s&state=flagged', '/api/tops?n=60&seed=s']);
@@ -42,7 +42,7 @@ it('状态页两排都空时退回全库口径再取一次，键仍按请求方�
   expect(queryClient.getQueryData(topsKey('n=60&seed=s&state=flagged', 'state=flagged'))).toEqual(FULL);
 });
 
-it('没有状态页参数、或者收窄后仍有人时不回退', async () => {
+it('Without state-page params, or when narrowing still leaves people, it never falls back', async () => {
   const empty = serve(() => EMPTY);
   expect(await loadTops('n=60&seed=s')).toEqual(EMPTY);
   expect(empty.urls()).toEqual(['/api/tops?n=60&seed=s']);
@@ -51,7 +51,7 @@ it('没有状态页参数、或者收窄后仍有人时不回退', async () => {
   expect(full.urls()).toEqual(['/api/tops?n=60&state=flagged']);
 });
 
-it('同一份口径跨长时间往返复用，主动刷新后重取', async () => {
+it('One consistent scope is reused across long round trips and refetched only on an explicit refresh', async () => {
   const net = serve(answer(FULL));
   await fetchBars('', 'n=60&seed=s');
   vi.setSystemTime(24 * 60 * 60 * 1000);
@@ -62,14 +62,14 @@ it('同一份口径跨长时间往返复用，主动刷新后重取', async () =
   expect(net.fetcher).toHaveBeenCalledTimes(4);
 });
 
-it('口径变了两份都重取：tops 的参数没变也跟着取', async () => {
+it('When the convention changes both refetch: tops refetches even with unchanged params', async () => {
   const net = serve(answer(FULL));
   await fetchBars('', 'n=60&seed=s');
   await fetchBars('tag=a', 'n=60&seed=s');
   expect(net.urls().slice(2)).toEqual(['/api/facets?tag=a', '/api/tops?n=60&seed=s']);
 });
 
-it('同时要同一份只发一次请求', async () => {
+it('Concurrent asks for the same asset send one request', async () => {
   const net = serve(answer(FULL), true);
   const both = Promise.all([fetchBars('', 'n=60'), fetchBars('', 'n=60')]);
   await vi.waitFor(() => expect(net.fetcher).toHaveBeenCalledTimes(2));
@@ -79,7 +79,7 @@ it('同时要同一份只发一次请求', async () => {
   expect(net.fetcher).toHaveBeenCalledTimes(2);
 });
 
-it('dropBars 之后立即重取', async () => {
+it('Refetches right after dropBars', async () => {
   const net = serve(answer(FULL));
   await fetchBars('', 'n=60&seed=s');
   dropBars();
@@ -87,7 +87,7 @@ it('dropBars 之后立即重取', async () => {
   expect(net.urls()).toEqual(['/api/facets', '/api/tops?n=60&seed=s', '/api/facets', '/api/tops?n=60&seed=s']);
 });
 
-it('路上那一趟碰上 dropBars：等它的调用方照样拿到数据，下一次另发请求', async () => {
+it('The in-flight call hit dropBars: the caller waiting on it still gets data, and the next one issues a fresh request', async () => {
   const net = serve(answer(FULL), true);
   const before = fetchBars('', 'n=60');
   await vi.waitFor(() => expect(net.fetcher).toHaveBeenCalledTimes(2));
@@ -99,7 +99,7 @@ it('路上那一趟碰上 dropBars：等它的调用方照样拿到数据，下�
   await expect(after).resolves.toEqual([FACETS, FULL]);
 });
 
-it('两排同时翻到同一页只发一次请求，与第一页的键分开', async () => {
+it('Both rows paging to the same page send one request, keyed separately from page one', async () => {
   const net = serve(() => FULL, true);
   const both = Promise.all([fetchTopsPage('n=60&page=1'), fetchTopsPage('n=60&page=1')]);
   await vi.waitFor(() => expect(net.fetcher).toHaveBeenCalledTimes(1));
@@ -111,7 +111,7 @@ it('两排同时翻到同一页只发一次请求，与第一页的键分开', a
   expect(topsPageKey('p')).not.toEqual(topsKey('p', ''));
 });
 
-it('续页复用，dropBars 之后重取，状态页空页照样退回全库口径', async () => {
+it('Follow-up pages reuse the host, refetch after dropBars, and an empty status page still falls back to the whole-library scope', async () => {
   const net = serve((url) => (url.includes('state=') ? EMPTY : FULL));
   await fetchTopsPage('n=60&page=2&state=flagged');
   await fetchTopsPage('n=60&page=2&state=flagged');

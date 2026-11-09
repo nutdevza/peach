@@ -3,7 +3,7 @@ import { growCollapse, setCollapseOpen, setCollapseRegionOpen } from '../src/ui-
 
 afterEach(() => { vi.useRealTimers(); document.body.replaceChildren(); });
 
-it('从起始高度长到内容高度，跑完交回 auto 并装回展开态', () => {
+it('Grows from the start height to the content height, hands back auto when done, and restores the expanded state', () => {
   vi.useFakeTimers();
   const body = document.createElement('div'); body.className = 'ui-fcollapse ui-fcollapse-settled'; document.body.append(body);
   Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 480 });
@@ -17,7 +17,7 @@ it('从起始高度长到内容高度，跑完交回 auto 并装回展开态', (
   expect(body.classList.contains('ui-fcollapse-settled')).toBe(true);
 });
 
-it('过渡途中又被收起时不收尾', () => {
+it('A mid transition collapse skips the finishing step', () => {
   vi.useFakeTimers();
   const body = document.createElement('div'); body.className = 'ui-fcollapse'; document.body.append(body);
   let open = true;
@@ -35,7 +35,7 @@ const collapse = () => {
   return { details, body };
 };
 
-it('收起时高度先收到 0，过渡跑完才合上 details', () => {
+it('Collapsing takes the height to 0 first and closes the details only after the transition finishes', () => {
   vi.useFakeTimers();
   const { details, body } = collapse();
   setCollapseOpen(details, body, true);
@@ -51,7 +51,7 @@ it('收起时高度先收到 0，过渡跑完才合上 details', () => {
   expect(body.style.height).toBe('');
 });
 
-it('收到一半又点开时，收起那次的收尾不再合上 details', () => {
+it('Opening again mid-collapse means the collapsing run no longer closes the details at the end', () => {
   vi.useFakeTimers();
   const { details, body } = collapse();
   setCollapseOpen(details, body, true);
@@ -64,7 +64,7 @@ it('收到一半又点开时，收起那次的收尾不再合上 details', () =>
   expect(body.style.height).toBe('auto');
 });
 
-it('外置触发器保留正文，收起即退出焦点顺序，反向展开取消隐藏', () => {
+it('An external trigger keeps the body; collapsing removes it from the focus order, and reverse-expanding un-hides it', () => {
   vi.useFakeTimers();
   const body = document.createElement('div'); document.body.append(body);
   Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 180 });

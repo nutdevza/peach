@@ -1,8 +1,8 @@
-/* 共用卡面。
+/* Shared card face.
  *
- * 钉的是「卡片是一块填充面」这件事本身：Board 的卡从来不是描边空心壳，迁移时每页各拼一串
- * `rounded-2xl border border-separator-border`，十个文件二十处，整个管理区掉了一层底色。
- * 所以这里除了变体，还扫一遍 React 子树，拦住下一个自己拼卡面的人。 */
+ * What is pinned is the fact that "a card is a filled surface": Board's cards were never outlined hollow shells, yet during migration each page assembled its own
+ * `rounded-2xl border border-separator-border` string, ten files and twenty spots, and the whole admin area lost a layer of surface color.
+ * So besides the variant, this also sweeps the React subtree to stop the next person from assembling their own card face. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -13,58 +13,58 @@ import { cardClass } from '../src/react/components/card';
 const classes = (options?: Parameters<typeof cardClass>[0]) =>
   new Set(cardClass(options).split(' '));
 
-it('默认那一档卡是填充的，没有描边', () => {
+it('The default tier card is filled with no outline', () => {
   const card = classes();
   expect(card).toContain('bg-background-secondary-default');
   expect(card).toContain('shadow-card');
   expect([...card].filter((name) => name.startsWith('border'))).toEqual([]);
 });
 
-it('圆角与内边距按变体给', () => {
+it('Radius and padding come per variant', () => {
   expect(classes()).toContain('rounded-2xl');
   expect(classes()).toContain('p-5');
-  // 图表卡大一档，和旧 `.board-radial-card{border-radius:20px}` 一致。
+  // The chart card steps up one size, matching the legacy `.board-radial-card{border-radius:20px}`.
   expect(classes({ radius: 'chart' })).toContain('rounded-2-5xl');
-  // 头、体、脚各自排内边距的卡（读数卡、分区）自己不留。
+  // Cards that lay out their own header, body, and footer padding (stat cards, sections) get none of this.
   expect(classes({ padding: 'none' })).not.toContain('p-5');
 });
 
-it('描边卡是 primary 底加一条发丝线，不是透明空心壳', () => {
+it('An outlined card is a primary surface plus a hairline, not a transparent hollow shell', () => {
   const outlined = classes({ variant: 'outlined' });
   expect(outlined).toContain('bg-background-primary-default');
   expect(outlined).toContain('border-separator-border');
   expect(outlined).not.toContain('bg-background-secondary-default');
 });
 
-/* 旧 `.reviewitem` 收的是 `--surface-radius` 那一档，也没有接触阴影：阴影是给填充卡
-   「浮在次级底上」用的，描边卡本来就靠线收边，再压一层影子等于两套收边办法叠着用。 */
-it('描边卡自己带 14px 圆角，不跟填充卡那一档走，也不压阴影', () => {
+/* The old `.reviewitem` took the `--surface-radius` tier and had no touch shadow: shadows are for filled cards
+   "floating on a secondary backing"; outlined cards already edge themselves with lines, and pressing another shadow on is two edge treatments stacked. */
+it('Outlined cards carry their own 14px radius, do not follow the filled-card tier, and add no shadow', () => {
   const outlined = classes({ variant: 'outlined' });
   expect(outlined).toContain('rounded-surface');
   expect(outlined).not.toContain('shadow-card');
-  // 点名要别的圆角时仍然听调用方的。
+  // When the caller asks for a different radius, the caller still wins.
   expect(classes({ variant: 'outlined', radius: 'chart' })).toContain('rounded-2-5xl');
 });
 
-it('卡里再浮一层是 primary 底、不画线', () => {
+it('The extra layer floating in the card uses the primary background with no border', () => {
   const raised = classes({ variant: 'raised' });
   expect(raised).toContain('bg-background-primary-default');
   expect([...raised].filter((name) => name.startsWith('border'))).toEqual([]);
 });
 
-it('填充卡之上另加的那条描边不换底', () => {
+it('The extra outline on top of a filled card never swaps the base', () => {
   const fieldset = classes({ bordered: 'line' });
   expect(fieldset).toContain('bg-background-secondary-default');
   expect(fieldset).toContain('border-border-button-default');
   expect(classes({ bordered: 'soft' })).toContain('border-separator-border');
-  // 失败卡的框线要有宽度才画得出来，且画成不占盒子的 outline，不把内容挤进 1px。
+  // The failure card's border needs a width to be drawn, and it's drawn as an outline that doesn't occupy the box, so content isn't squeezed into 1px.
   const failed = [...classes({ bordered: 'error' })];
   expect(failed.filter((name) => name.startsWith('border'))).toEqual([]);
   expect(failed).toEqual(expect.arrayContaining(['outline-1', '-outline-offset-1', 'outline-border-error-default']));
 });
 
-/* 环画在 `::after` 覆盖层上：inset 的 box-shadow 画在子元素底下，脚注带一铺底色就盖掉环的下半截。 */
-it('选中态在最上层压一圈 2px 描边，收掉接触阴影，悬停不盖选中', () => {
+/* The ring draws on the `::after` overlay: an inset box-shadow paints beneath child elements, and the footer strip's background would cover the ring's lower half. */
+it('The selected state draws a 2px outline on the top layer, drops the contact shadow, and hover never covers selected', () => {
   const tab = cardClass({ interactive: true, selectable: true });
   expect(tab).toContain('relative');
   expect(tab).toContain('data-selected:shadow-none');
@@ -75,12 +75,12 @@ it('选中态在最上层压一圈 2px 描边，收掉接触阴影，悬停不�
   expect(tab).toContain('data-selected:after:border-2');
   expect(tab).toContain('data-selected:after:border-border-focus-ring');
   expect(tab).not.toContain('ring-inset');
-  // 悬停那条写成 `not-data-selected:`，不指望工具类的先后顺序。
+  // The hover rule is written as `not-data-selected:`, without relying on utility class ordering.
   expect(tab).toContain('not-data-selected:hover:bg-card-hover');
   expect(tab).not.toContain(' hover:bg-card-hover');
 });
 
-/** React 子树里除 BoardUI 源码外的 `.tsx`。 */
+/** The `.tsx` files in the React subtree except BoardUI sources. */
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(dir, entry.name);
@@ -89,13 +89,13 @@ function sources(dir: string): string[] {
   });
 }
 
-it('页面不自己拼卡面', () => {
+it('The page never assembles its own card faces', () => {
   const offenders = sources(resolve(process.cwd(), 'src/react'))
     .filter((path) => {
       const code = readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-      // 描边配上卡片那两档圆角（16px、20px）就是一张卡，卡面走 `components/card.tsx`。
-      // 剩下的 `border-t` / `border-b` / `border-y` 是分隔线，`rounded-2lg` 是卡里的小块，
-      // `shadow-dropdown` 是浮层——浮层本来就描边。
+      // The stroke plus the card's two corner radii (16px, 20px) make a card; the card face uses `components/card.tsx`.
+      // The remaining `border-t` / `border-b` / `border-y` are dividers, and `rounded-2lg` is a small block inside a card,
+      // `shadow-dropdown` is an overlay; overlays are outlined to begin with.
       return /className=\{?"[^"]*\bborder border-/.test(code)
         && /className=\{?"[^"]*\brounded-(?:2xl|2-5xl)\b/.test(code)
         && !code.includes('shadow-dropdown');

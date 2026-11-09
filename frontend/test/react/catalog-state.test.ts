@@ -9,15 +9,15 @@ const preferences = { defaultSort: 'new', defaultSortDirection: 'asc' };
 const seed = () => 'fresh-seed';
 const initial = (pathname = '/', search = '') => initialCatalogFilters({ pathname, search }, preferences, seed);
 
-describe('目录地址与默认范围', () => {
-  it('发行年份多选随分享地址恢复，重置清除年份', () => {
-    const filters = initial('/', '?loc=115&year=2024,none&q=作品');
+describe('Catalog URL and default scope', () => {
+  it('Release-year multi-select restores from share addresses, and reset clears years', () => {
+    const filters = initial('/', '?loc=115&year=2024,none&q=video');
     const address = new URL(homePath(filters), 'https://peach.test');
     expect(initial(address.pathname, address.search).year).toBe('2024,none');
     expect(resetCatalogFilters(filters, preferences, seed).year).toBe('');
     expect(initial('/follow', '?year=2024').year).toBe('');
   });
-  it('只在目录地址读取筛选，非目录地址仍可指定来源范围', () => {
+  it('Filters read only from catalog addresses, while non-catalog addresses can still specify a source range', () => {
     expect(initial('/follow', '?loc=115&tag=blender&owner=none&q=other&sort=rating&seed=foreign')).toMatchObject({
       loc: '115', tag: '', owner: '', q: '', sort: 'new', dir: 'asc', seed: 'fresh-seed',
     });
@@ -27,7 +27,7 @@ describe('目录地址与默认范围', () => {
     expect(initial('/', '?owner=someone&tag_match=bad')).toMatchObject({ owner: '', tag_match: 'all' });
   });
 
-  it('目录地址覆盖排序偏好，旧排序键与随机方向使用现有解析', () => {
+  it('Catalog addresses override sort preferences, and legacy sort keys plus random direction use the existing parser', () => {
     expect(resolveSort(null, null, preferences)).toEqual({ sort: 'new', dir: 'asc' });
     expect(resolveSort('short', null, preferences)).toEqual({ sort: 'dur', dir: 'asc' });
     expect(resolveSort('short', 'desc', preferences)).toEqual({ sort: 'dur', dir: 'desc' });
@@ -35,7 +35,7 @@ describe('目录地址与默认范围', () => {
     expect(resolveSort('unknown', null, preferences, 'rating')).toEqual({ sort: 'rating', dir: 'desc' });
   });
 
-  it('分享地址包含 owner=none 与非默认方向，省略种子和缩略图开关', () => {
+  it('The share URL includes owner=none and a non-default direction, and omits the seed and thumbnail switches', () => {
     const filters = initial('/watch-later', '?loc=115&owner=none&sort=new&dir=asc&seed=old&thumb=1&tag_match=all');
     const path = homePath(filters);
     const address = new URL(path, 'https://peach.test');
@@ -44,14 +44,14 @@ describe('目录地址与默认范围', () => {
     expect(initial(address.pathname, address.search)).toMatchObject({ ...filters, seed: 'fresh-seed', thumb: '0' });
   });
 
-  it('没有独立路径的状态用查询参数，垃圾文件使用独立路径', () => {
+  it('States without their own path use query params, while junk files get a dedicated path', () => {
     expect(homePath({ state: 'trash', sort: 'seed', dir: '', seed: 'private' })).toBe('/?sort=seed&state=trash');
     expect(homePath({ state: 'ads', tag_match: 'all' })).toBe('/junk-files');
     expect(homePath({ state: 'fresh', sort: 'new', dir: 'desc', tag_match: 'any' }))
       .toBe('/unseen?tag_match=any&sort=new');
   });
 
-  it('默认范围剔除明确离线来源，全部离线时仍保留原范围', () => {
+  it('The default range excludes explicitly offline sources, keeping the original range when everything is offline', () => {
     expect(onlineDefaultLoc('local,115,pikpak', { local: true, '115': false })).toBe('local,pikpak');
     expect(onlineDefaultLoc('local,115', { local: false, '115': false })).toBe('local,115');
     expect(onlineDefaultLoc('', { local: true })).toBe('');
@@ -60,7 +60,7 @@ describe('目录地址与默认范围', () => {
     expect(defaultCatalogLoc('local,115', '?q=test', { '115': false })).toBe('local');
   });
 
-  it('重置保留来源并更新种子，首页筛选条与目录状态共用对象', () => {
+  it('Reset keeps sources and updates the seed, with the home filter bar and catalog state sharing one object', () => {
     const previous = initial('/flagged', '?loc=pikpak&owner=none&creator=x&region=CN&jav=1&thumb=1');
     const state = resetCatalogFilters(previous, preferences, seed);
     expect(state).toEqual({

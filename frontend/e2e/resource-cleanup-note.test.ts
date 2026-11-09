@@ -3,12 +3,12 @@ import { after, before, describe, it } from 'node:test';
 import type { Browser } from 'playwright-core';
 import { launch, layout, settle, visit, VIEWPORTS } from './harness.ts';
 
-describe('资源清理提示与操作', () => {
+describe('Resource cleanup hints and actions', () => {
   let browser: Browser;
   before(async () => { browser = await launch(); });
   after(async () => { await browser?.close(); });
   for (const viewport of VIEWPORTS) {
-    it(`清理操作位于提示内并适应容器（${viewport.name}）`, async () => {
+    it(`Cleanup actions sit inside the note and fit the container (${viewport.name})`, async () => {
       const opened = await visit(browser, '/resource-sync', viewport, async page => {
         await page.route('**/api/resource-sync/scan', route => route.fulfill({ json: {
           status: 'complete', scan_id: 'layout-fixture', missing: 1, purge: 1, vanish: 0, empty: 203,
@@ -20,10 +20,10 @@ describe('资源清理提示与操作', () => {
       try {
         const { page } = opened;
         await page.locator('#resource-sync').waitFor();
-        await page.getByRole('button', { name: '清理失效条目', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Clean up stale entries', exact: true }).waitFor();
         await settle(page);
-        const note = page.locator('#resource-sync [role="note"]').filter({ hasText: '清理内容' });
-        assert.equal(await note.getByRole('button', { name: '清理失效条目', exact: true }).count(), 1);
+        const note = page.locator('#resource-sync [role="note"]').filter({ hasText: 'Clean content' });
+        assert.equal(await note.getByRole('button', { name: 'Clean up stale entries', exact: true }).count(), 1);
         const boxes = await note.evaluate(node => {
           const box = (element: Element) => {
             const rect = element.getBoundingClientRect();

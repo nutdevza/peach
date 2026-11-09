@@ -13,14 +13,14 @@ import { openPanel, stubServer, type Server } from './settings-fixture.ts';
 const DESKTOP = VIEWPORTS.find((viewport) => !viewport.mobile)!;
 
 const item = (id: number) => ({
-  id, code: `EXM-${String(id).padStart(3, '0')}`, title: `示例新作 ${id}`, link: null, cover_url: null,
+  id, code: `EXM-${String(id).padStart(3, '0')}`, title: `Example new release ${id}`, link: null, cover_url: null,
   has_cover: false, cover_frame: null, poster_box: null, release_date: '2026-09-30',
   studio: null, performers: null, read: false, ignored: false, scrape_error: null,
 });
 
 interface Feed { reads: string[]; writes: Record<string, unknown>[]; items: number[] }
 
-/** 发现列表与两颗键的写接口各给一份桩；首页挂上桩之后重载一次，从第一趟取数起就接住。 */
+/** A stub for each of the discovery list's and the two buttons' write endpoints; after mounting the stubs the home page reloads once, so it is caught from the very first fetch. */
 async function openHome(browser: Browser): Promise<Visit & { feed: Feed; server: Server }> {
   const opened = await visit(browser, '/', DESKTOP);
   const { page } = opened;
@@ -40,7 +40,7 @@ async function openHome(browser: Browser): Promise<Visit & { feed: Feed; server:
   return { ...opened, feed, server };
 }
 
-/** 卡上那两颗键藏在悬停工具里：先移上去再点。 */
+/** The card's two buttons hide in the hover toolbar: hover first, then click. */
 async function press(page: Page, id: number, action: string): Promise<void> {
   const card = page.locator(`#feedNew [data-feed-id="${id}"]`);
   await card.hover();
@@ -52,23 +52,23 @@ async function until(page: Page, condition: () => boolean, message: string): Pro
   assert.ok(condition(), message);
 }
 
-describe('首页新作那一行', () => {
+describe('Home\'s new releases row', () => {
   let browser: Browser;
   before(async () => { browser = await launch() });
   after(async () => { await browser?.close() });
 
-  it('标为已看过留在原位变淡，不想看当场消失，收完整块藏起；请求体只带这一条', { timeout: 60_000 }, async () => {
+  it('Marking as watched keeps the card in place and fades it, hiding removes it on the spot, and dismissing the whole block hides it; the request body carries only that one item', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page, feed } = opened;
     try {
-      // 进页那几步里目录可能连画两遍（设置、片库名单晚到），每一遍都可能重取一趟；只量取的是哪一份。
-      assert.ok(feed.reads.length >= 1, '首页那一行没有取数');
-      assert.deepEqual(new Set(feed.reads), new Set(['?limit=12']), '首页那一行不分人，只带条数');
+      // During page entry the catalog may paint twice (settings and the library list arriving late), and each pass may trigger another fetch; only which copy was fetched is measured.
+      assert.ok(feed.reads.length >= 1, 'The home row does not fetch data');
+      assert.deepEqual(new Set(feed.reads), new Set(['?limit=12']), 'The home row is not split per person and only carries counts');
       await press(page, 2, 'read');
       await page.locator('#feedNew [data-feed-id="2"].isread').waitFor({ timeout: 5_000 });
       await press(page, 1, 'ignore');
       await page.locator('#feedNew [data-feed-id="1"]').waitFor({ state: 'detached', timeout: 5_000 });
-      assert.equal(await page.locator('#feedNew').isHidden(), false, '还剩一张就不该藏起');
+      assert.equal(await page.locator('#feedNew').isHidden(), false, 'Should not hide with one image left');
       assert.deepEqual(feed.writes, [{ action: 'read', ids: [2] }, { action: 'ignore', ids: [1] }]);
       await press(page, 2, 'ignore');
       await page.locator('#feedNew').waitFor({ state: 'hidden', timeout: 5_000 });
@@ -79,7 +79,7 @@ describe('首页新作那一行', () => {
     }
   });
 
-  it('在目录页里换筛选保留新作与宿主；设置里改了合集开关重取一次', { timeout: 60_000 }, async () => {
+  it('Changing filters on the catalog page keeps the new releases and the host; toggling the collection switch in settings refetches exactly once', { timeout: 60_000 }, async () => {
     const opened = await openHome(browser);
     const { page, feed, server } = opened;
     try {
@@ -91,21 +91,21 @@ describe('首页新作那一行', () => {
         window.dispatchEvent(new PopStateEvent('popstate'));
       });
       await settle(page);
-      assert.equal(feed.reads.length, booted, '目录筛选不改变新作范围');
+      assert.equal(feed.reads.length, booted, 'Catalog filters never change the new-releases scope');
       assert.deepEqual(await page.locator('#feedNew [data-feed-id]').evaluateAll(nodes =>
         nodes.map(node => node.getAttribute('data-feed-id'))), ['1', '2']);
-      assert.equal(await page.locator('#feedNew .feednewskeleton').count(), 0, '同在目录页里不该再铺骨架');
+      assert.equal(await page.locator('#feedNew .feednewskeleton').count(), 0, 'No skeleton should be laid again while already on the catalog page');
       assert.equal(await host!.evaluate((node) => node.isConnected && node.id === 'feedNew'), true);
 
       feed.items = [4];
-      await openPanel(page, 'JAV 与新作');
+      await openPanel(page, 'JAV & new releases');
       const toggle = page.locator('#feedHideGroupSetting');
       const was = await toggle.isChecked();
       await toggle.click();
       await until(page, () => server.posts.some((post) => post.path === '/api/settings'
-        && post.body.feedHideGroupCompilations === !was), '合集开关没有写回服务端');
+        && post.body.feedHideGroupCompilations === !was), 'The compilation switch never wrote back to the server');
       await until(page, () => feed.reads.length === booted + 1,
-        `改了合集开关应重取一次，实际 ${feed.reads.length - booted} 次`);
+        `Toggling the collection switch should trigger exactly one refetch, got ${feed.reads.length - booted}`);
       await page.locator('#feedNew [data-feed-id="4"]').waitFor({ state: 'attached', timeout: 5_000 });
       assert.equal(await page.locator('#feedNew [data-feed-id]').count(), 1);
       assert.deepEqual(opened.problems, []);
@@ -140,7 +140,7 @@ describe('首页新作那一行', () => {
       await first.locator('[data-feed-action="prioritise"]').click();
       await first.locator('[data-feed-cover-state="missing"]').waitFor({ timeout: 5_000 });
       assert.equal(await first.locator('.feedcoverreason').textContent(), '官方封面地址都没有取到图片');
-      assert.equal(await first.locator('[data-feed-action="prioritise"]').textContent(), '立即重试');
+      assert.equal(await first.locator('[data-feed-action="prioritise"]').textContent(), 'Retry now');
       assert.deepEqual(covers, [{ code: 'EXM-001' }]);
       assert.equal(new URL(page.url()).pathname, '/', '按键不该跟着跳进详情');
       assert.deepEqual(opened.problems, []);

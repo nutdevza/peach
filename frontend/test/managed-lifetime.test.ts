@@ -1,10 +1,10 @@
 import { expect, it, vi } from 'vitest';
 
-it('应用收起全部页面时同时取消未落地预取，晚到响应不挂宿主', async () => {
+it('When the app collapses all pages it also cancels unlanded prefetches, and late responses never mount a host', async () => {
   vi.resetModules();
   const managed = await import('../src/history/managed');
   const container = document.createElement('div');
-  container.textContent = '正在读取'; document.body.append(container);
+  container.textContent = 'Loading'; document.body.append(container);
   let signal: AbortSignal | undefined;
   let release = () => {}, entered = () => {};
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -18,11 +18,11 @@ it('应用收起全部页面时同时取消未落地预取，晚到响应不挂�
   managed.releaseAllManagedRoutes();
   expect(signal?.aborted).toBe(true);
   release(); expect(await opened).toBe(false);
-  expect(place).not.toHaveBeenCalled(); expect(container.textContent).toBe('正在读取');
+  expect(place).not.toHaveBeenCalled(); expect(container.textContent).toBe('Loading');
   expect(managed.managedEntries()).toEqual([]); container.remove();
 });
 
-it('应用收起全部登记只撤页面宿主，保留静态常驻容器', async () => {
+it('The app collapsing all registrations withdraws only page hosts, keeping static resident containers', async () => {
   vi.resetModules();
   const managed = await import('../src/history/managed');
   const page = document.createElement('div'), resident = document.createElement('div');
