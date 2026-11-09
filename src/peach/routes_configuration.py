@@ -733,7 +733,7 @@ def save_storage_policy(request: Request, body: dict[str, Any] = Body(default_fa
     except ValueError as error:
         raise HTTPException(400, str(error)) from error
     except OSError as error:
-        raise HTTPException(500, f'容量设置保存失败：{error}') from error
+        raise HTTPException(500, f'"Saving capacity settings failed: "{error}') from error
     return data_storage.snapshot(config)
 
 
@@ -881,7 +881,7 @@ def acknowledge_release_notice(request: Request, body: dict[str, Any] = Body(def
     from . import __version__, release_notice
     same_origin(request)
     if body.get('version') != __version__:
-        raise HTTPException(409, '已更新到新版本，请刷新页面')
+        raise HTTPException(409, 'Updated to the new version; refresh the page')
     with request.app.state.web_contract.write_transaction() as connection:
         release_notice.acknowledge(connection, __version__)
     return {'ok': True, 'seen': __version__}
@@ -958,7 +958,7 @@ def reclaim_follow_evidence(request: Request, _args=Depends(require_auth)):
     same_origin(request)
     try:
         if not request.app.state.upgrade_repairs.available:
-            raise ValueError('只在本机写入端可用')
+            raise ValueError('Only available on the local writer')
         request.app.state.follow_evidence.start()
         return _repair_center(request)
     except ValueError as exc:
@@ -1182,7 +1182,7 @@ def save_access(request: Request, body: dict[str, Any] = Body(default_factory=di
     if body.get("action") not in {"set", "disable"}:
         raise HTTPException(400, "请选择设置或关闭密码")
     if body["action"] == "set" and not password:
-        raise HTTPException(400, {"message": "请输入访问密码", "errors": {"password": "请输入访问密码"}})
+        raise HTTPException(400, {"message": "Enter an access password", "errors": {"password": "Enter an access password"}})
     if body["action"] == "disable" and body.get("confirm_disable") is not True:
         raise HTTPException(400, "关闭访问密码前先勾选确认")
     try:
@@ -1244,7 +1244,7 @@ def first_access(request: Request, body: dict[str, Any] = Body(default_factory=d
         raise HTTPException(400, "请选择设置访问密码或免登录")
     if choice == "password":
         if not password:
-            raise HTTPException(400, {"message": "请输入访问密码", "errors": {"password": "请输入访问密码"}})
+            raise HTTPException(400, {"message": "Enter an access password", "errors": {"password": "Enter an access password"}})
         try:
             access.validate_password(password, body.get("confirmation", ""))
         except ValueError as exc:
@@ -1562,7 +1562,7 @@ def save_configuration(request: Request, body: dict[str, Any] = Body(default_fac
         errors, validated = _validate(body, config)
         if errors:
             # 400 的响应体带每个字段的原因：页面把它写回出错的那一行底下，不是弹一句总话。
-            raise HTTPException(400, {"message": "有几项需要修改", "errors": errors})
+            raise HTTPException(400, {"message": "A few fields need your attention", "errors": errors})
         paths = validated["media_dirs"]
         locations, mounts = dict(config.locations), dict(config.mounts)
         if "locations" in validated:
@@ -1578,7 +1578,7 @@ def save_configuration(request: Request, body: dict[str, Any] = Body(default_fac
                 [{"location": "local", "path": str(path)} for path in paths], windows=False, config=config)
             local_roots, local_mounts, problems = media_configuration.validate(sources, windows=False, config=config)
             if problems:
-                raise HTTPException(400, {"message": "有几项需要修改", "errors": {"media_dirs": problems}})
+                raise HTTPException(400, {"message": "A few fields need your attention", "errors": {"media_dirs": problems}})
             locations["local"], mounts["local"] = local_roots["local"], local_mounts["local"]
             validated["library_names"] = {**config.library_names, **{
                 row["root"]: row["library"] for row in sources if row.get("library")}}

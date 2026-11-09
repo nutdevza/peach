@@ -41,7 +41,7 @@ from .field_owners import write_owned_fields
 _SITE_POST = re.compile(r"^(fantia)[-_](\d{6,10})$", re.I)
 _EXTENSION = re.compile(r"\.(?:mp4|mkv|avi|wmv|ts|mov|m4v|jpg|jpeg|png|webp)$", re.I)
 
-VERDICT_CODE = "番号"
+VERDICT_CODE = "Code"
 VERDICT_SITE = "站点作品号"
 VERDICT_UNCLEAR = "存疑"
 VERDICT_KEEP = "保留"

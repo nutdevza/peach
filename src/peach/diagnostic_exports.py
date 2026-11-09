@@ -41,7 +41,7 @@ class DiagnosticExports:
                 final = self.root / f'{identity}.zip'
                 def progress(**values):
                     if cancelled.is_set():
-                        raise ExportCancelled('导出已取消')
+                        raise ExportCancelled('Export cancelled')
                     self.job.update(identity, **values)
                 try:
                     if kind == 'scraping':
@@ -49,7 +49,7 @@ class DiagnosticExports:
                         bundle_to(self.config, pending, codes=codes, progress=progress, cancelled=cancelled.is_set)
                     else:
                         from .support_bundle import bundle_to
-                        progress(stage='读取系统诊断', done=0, total=0)
+                        progress(stage='Read system diagnostics', done=0, total=0)
                         try:
                             facts = report() if callable(report) else report
                         except Exception:
@@ -58,16 +58,16 @@ class DiagnosticExports:
                                   progress=progress, cancelled=cancelled.is_set)
                     with self.job.editing(identity) as state:
                         if state is None or cancelled.is_set():
-                            raise ExportCancelled('导出已取消')
+                            raise ExportCancelled('Export cancelled')
                         pending.replace(final)
-                        state.update(status='complete', stage='导出已完成', bytes=final.stat().st_size,
+                        state.update(status='complete', stage='Export complete', bytes=final.stat().st_size,
                                      download_url=f'/api/diagnostics/exports/{identity}/download')
                 except ExportCancelled:
-                    self.job.update(identity, status='cancelled', stage='导出已取消', error='')
+                    self.job.update(identity, status='cancelled', stage='Export cancelled', error='')
                 finally:
                     pending.unlink(missing_ok=True)
 
-            return self.job.start(work, restart=True, initial={'kind': kind, 'stage': '准备导出',
+            return self.job.start(work, restart=True, initial={'kind': kind, 'stage': 'Preparing export',
                                                               'done': 0, 'total': 0, 'files': 0, 'rows': 0})
 
     def cancel(self, identity):

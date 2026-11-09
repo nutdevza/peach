@@ -36,7 +36,7 @@ class TastePreferenceTests(unittest.TestCase):
             "CREATE TABLE asset_entity(asset_id INTEGER,entity_id INTEGER);"
         )
         self.db.executemany("INSERT INTO entity VALUES(?,?,?,?)", [
-            (1, "performer", "演示女优", "演示女优"), (2, "tag", "恋足", "恋足"),
+            (1, "performer", "演示女优", "演示女优"), (2, "tag", "Foot fetish", "Foot fetish"),
             (3, "studio", "演示厂牌", "演示厂牌"), (4, "series", "演示系列", "演示系列"),
             (5, "performer", "其他女优", "其他女优")])
         self.db.execute("INSERT INTO entity_alias VALUES(1,'demo_actor')")
@@ -117,7 +117,7 @@ class TastePreferenceTests(unittest.TestCase):
         path = self.root / "Chrome/Default/Bookmarks"
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"roots": {"bar": {"children": [
-            {"type": "url", "url": "https://rule34.xxx/?tags=feet", "name": "恋足"}]}}}), encoding="utf-8")
+            {"type": "url", "url": "https://rule34.xxx/?tags=feet", "name": "Foot fetish"}]}}}), encoding="utf-8")
         history = path.with_name("History")
         with closing(sqlite3.connect(history)) as db:
             db.executescript("CREATE TABLE urls(id INTEGER PRIMARY KEY,url TEXT,title TEXT);"
@@ -244,11 +244,11 @@ class TastePreferenceTests(unittest.TestCase):
         adult = "https://javdb.com/v/abc123"
         self.assertEqual(_url_candidates(adult, "生放送会場 Metro Platform Oral History")[1], set())
         self.assertEqual(_url_candidates(adult, "ANAL SEX 足フェチ 中出し 制服")[1],
-                         {"肛交", "恋足", "中出内射", "制服"})
-        self.assertEqual(_url_candidates(adult, "ＡＳＭＲ 深喉")[1], {"ASMR", "深喉"})
+                         {"Anal", "Foot fetish", "Creampie", "Uniform"})
+        self.assertEqual(_url_candidates(adult, "ＡＳＭＲ 深喉")[1], {"ASMR", "Deep throat"})
         self.assertEqual(_url_candidates("https://unknown.example/1", "Foot Fetish")[1], set())
         self.assertEqual(_url_candidates("https://x.com/demo/status/1", "Foot Fetish")[1], set())
-        self.assertEqual(_url_candidates("https://x.com/demo/status/1", "NSFW Foot Fetish")[1], {"恋足"})
+        self.assertEqual(_url_candidates("https://x.com/demo/status/1", "NSFW Foot Fetish")[1], {"Foot fetish"})
         self.assertEqual(_url_candidates("https://rule34.xxx/?tags=feet+foot_fetish", "恋足 Foot Fetish")[1], {"feet"})
         self.assertEqual(_url_candidates("https://rule34.xxx/?tags=feet+-cosplay", "feet -cosplay")[1], {"feet"})
 
@@ -318,7 +318,7 @@ class TastePreferenceTests(unittest.TestCase):
         self.assertEqual(account_key("https://pixiv.net/member.php?id=123"), account_key("https://pixiv.net/users/123"))
         self.assertEqual(account_key("https://patreon.com/c/demo_actor/about"), account_key("https://patreon.com/demo_actor"))
         for url in ("https://www.dmm.co.jp/search/=/searchstr=制服/", "https://mgstage.com/search?search_word=制服"):
-            self.assertIn("制服", _url_candidates(url)[1])
+            self.assertIn("Uniform", _url_candidates(url)[1])
         self.assertEqual(_url_candidates("https://x.com/unrelated?search=feet")[1:], (set(), set()))
         _, tags, creators = _url_candidates("https://rule34.xxx/?tags=feet+sort:score+rating:explicit+artist:demo_artist+-cosplay")
         self.assertEqual(tags, {"feet"})

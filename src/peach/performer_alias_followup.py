@@ -62,7 +62,7 @@ from .sources.base import challenge_page
 
 #: 这类后继在任务中心的身份，也是活动页上那一行的名字来源。
 TASK_KEY = "performer-alias"
-TASK_LABEL = "补女优别名"
+TASK_LABEL = "Fill in performer aliases"
 
 #: 这条后继写下的别名都以它开头，后面接 `@<任务行 id>`；撤回按它认。
 SOURCE = "auto:performer-alias"
@@ -381,7 +381,7 @@ class MinnanoPages:
         except (OSError, ValueError, KeyError, TypeError):
             pass
         if paused_until(self.cooldown_root, self.source):
-            raise Blocked("来源正在冷却")
+            raise Blocked("The source is cooling down")
         if self.requests >= self.max_requests:
             raise Unavailable("这一条的请求数用完了")
         self.limiter.wait(url)
@@ -458,7 +458,7 @@ class WikiSitePages:
         from .scraping_access import pause_source, paused_until
 
         if paused_until(self.cooldown_root, self.site):
-            raise Blocked("来源正在冷却")
+            raise Blocked("The source is cooling down")
         missing = self._missing()
         if time.time() - float(missing.get(url, 0)) < self.MISSING_TTL:
             raise Missing("站上没有这一页")
@@ -517,7 +517,7 @@ class Fc2cmadbPages:
         from .scraping_access import SourcePaused, pause_source, paused_until
 
         if paused_until(self.cooldown_root, FC2CMADB):
-            raise Blocked("来源正在冷却")
+            raise Blocked("The source is cooling down")
         if self.requests >= self.max_requests:
             raise Unavailable("这一条的请求数用完了")
         self.limiter.wait(url)

@@ -517,11 +517,11 @@ class ReviewQueueTests(unittest.TestCase):
                   "size_gb": "1", "videos": "1", "fetched_at": "now"}
         self._csv("metadata-field-candidates-20260822.csv", fields, [{
             **common, "item_key": "ABC-001:title", "code": "ABC-001",
-            "query": "ABC-001", "field": "title", "field_label": "标题",
+            "query": "ABC-001", "field": "title", "field_label": "Title",
         }])
         self._csv("fc2-metadata-field-candidates.csv", fields, [{
             **common, "item_key": "FC2-PPV-3701252:title", "code": "FC2-PPV-3701252",
-            "query": "FC2-PPV-3701252", "field": "title", "field_label": "标题",
+            "query": "FC2-PPV-3701252", "field": "title", "field_label": "Title",
         }])
         rows, source, skipped = rm_review.read_candidates("metadata_fields", self.candidates)
         self.assertEqual({row["item_key"] for row in rows},
@@ -717,7 +717,7 @@ class ReviewQueueTests(unittest.TestCase):
         self.write_metadata_rows([
             self._release_date_row("SSIS-123"),
             {"item_key": "123118_001:title", "field": "title", "current": "",
-             "candidates": ["标题"], "code": "123118_001"}])
+             "candidates": ["Title"], "code": "123118_001"}])
         self.assertEqual(self._auto()["applied"], 2)
         self.assertEqual(self._release_dates(103), {103: "2018-05-02"})
 
@@ -757,7 +757,7 @@ class ReviewQueueTests(unittest.TestCase):
             self.assertEqual(
                 sorted(row[0] for row in con.execute(
                     "SELECT tag FROM asset_tag WHERE asset_id=95")),
-                ["白虎", "自慰"], "`Featured Actress` 是演员编成，按非内容排除")
+                ["Shaved", "Masturbation"], "`Featured Actress` 是演员编成，按非内容排除")
         finally:
             con.close()
         self.assertEqual(self.queue_keys("metadata_fields"), [])
@@ -797,7 +797,7 @@ class ReviewQueueTests(unittest.TestCase):
             "MIAD-573:tags", "MIAD-573", ["スレンダー", "まだ知らない分類"])])
         self.assertEqual(self._auto()["applied"], 1)
         rm_review.w_review_genre(
-            self.contract, {"genre": "まだ知らない分類", "tag": "苗条"})
+            self.contract, {"genre": "まだ知らない分類", "tag": "Slim"})
         self.assertEqual(self.queue_keys("metadata_fields"), [])
 
     def test_a_recorded_word_lands_its_tag_on_the_next_run(self):
@@ -809,7 +809,7 @@ class ReviewQueueTests(unittest.TestCase):
         self._asset(96, "MIAD-573", "MIAD573_01.wmv")
         slender = map_genres(["スレンダー"])[0][0]
         self.write_metadata_rows([self._tag_row(
-            "MIAD-573:tags", "MIAD-573", ["スレンダー", "巨乳", "まだ知らない分類"])])
+            "MIAD-573:tags", "MIAD-573", ["スレンダー", "Big Breasts", "まだ知らない分類"])])
         self.assertEqual(self._auto()["applied"], 1)
         con = sqlite3.connect(self.db_path)
         try:
@@ -821,16 +821,16 @@ class ReviewQueueTests(unittest.TestCase):
         finally:
             con.close()
         rm_review.w_review_genre(
-            self.contract, {"genre": "まだ知らない分類", "tag": "苗条"})
+            self.contract, {"genre": "まだ知らない分類", "tag": "Slim"})
 
         result = self._auto()
-        self.assertEqual((result["applied"], result["items"][0]["value"]), (1, "苗条"))
+        self.assertEqual((result["applied"], result["items"][0]["value"]), (1, "Slim"))
         linked, flat = self._tags_of(96)
-        self.assertEqual(flat, {map_genres(["巨乳"])[0][0], "苗条"})
-        self.assertTrue(linked["苗条"].startswith("auto:metadata-tags@"))
+        self.assertEqual(flat, {map_genres(["Big Breasts"])[0][0], "Slim"})
+        self.assertTrue(linked["Slim"].startswith("auto:metadata-tags@"))
         note = self._full_decision("MIAD-573:tags")[1]
         self.assertEqual((note["pending_genres"], note["collected_genres"], note["added_tags"]),
-                         (["まだ知らない分類"], ["まだ知らない分類"], ["苗条"]))
+                         (["まだ知らない分類"], ["まだ知らない分類"], ["Slim"]))
         again = self._auto()
         self.assertEqual((again["applied"], again["refreshed"]), (0, 0))
         self.assertEqual(self.queue_keys("metadata_fields"), [])
@@ -992,7 +992,7 @@ class ReviewQueueTests(unittest.TestCase):
              "candidates": ["2015-02-20"], "code": "CCC-3", "source": "javdb"},
             # 标签不在白名单：它是多值集合，来源之间的分类粒度分歧是真实的。
             {"item_key": "DDD", "field": "tags", "current": "",
-             "candidates": ["巨乳"], "code": "DDD-4"},
+             "candidates": ["Big Breasts"], "code": "DDD-4"},
         ])
         self.assertEqual(self._auto()["applied"], 1)
         con = sqlite3.connect(self.db_path)
@@ -1586,8 +1586,8 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_censored_javdb_tags_replace_automatic_tags_and_preserve_other_provenance(self):
         self._asset(501, "ABW-501", "ABW-501.mp4")
-        self._seed_tags(501, ["肛交", "巨乳"])
-        protected = [("高跟", "manual"), ("丝袜", "name"), ("美乳", "stash")]
+        self._seed_tags(501, ["Anal", "Big Breasts"])
+        protected = [("High Heels", "manual"), ("Stockings", "name"), ("Beautiful Breasts", "stash")]
         with contextlib.closing(sqlite3.connect(self.db_path)) as con, con:
             for tag, source in protected:
                 con.execute("INSERT INTO asset_tag(asset_id,tag,confidence,source) VALUES(501,?,1,?)",
@@ -1598,13 +1598,13 @@ class ReviewQueueTests(unittest.TestCase):
             "pending_genres": ["アナル"]}})
         self.write_metadata_rows([{"item_key": "asset:501:tags", "code": "ABW-501",
             "field": "tags", "current": "", "candidates": [
-                {"value": ["肛交", "巨乳"], "display": "肛交、巨乳"},
-                {"source": "javdb", "value": ["高跟", "丝袜", "美乳", "屁眼"], "display": "高跟、丝袜、美乳、屁眼",
+                {"value": ["Anal", "Big Breasts"], "display": "肛交、巨乳"},
+                {"source": "javdb", "value": ["High Heels", "Stockings", "Beautiful Breasts", "Butthole"], "display": "高跟、丝袜、美乳、屁眼",
                  "unmapped_genres": ["未知类别501"]}]}])
         self.assertEqual(self._auto()["applied"], 1)
         linked, flat = self._tags_of(501)
-        self.assertEqual(flat, {"高跟", "丝袜", "美乳", "屁眼"})
-        self.assertNotIn("肛交", linked)
+        self.assertEqual(flat, {"High Heels", "Stockings", "Beautiful Breasts", "Butthole"})
+        self.assertNotIn("Anal", linked)
         with contextlib.closing(sqlite3.connect(self.db_path)) as con:
             for tag, source in protected:
                 self.assertEqual(con.execute("SELECT source FROM asset_tag WHERE asset_id=501 AND tag=?",
@@ -1620,15 +1620,15 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_censored_javdb_tags_extend_a_manual_approval_even_with_its_original_candidate(self):
         self._asset(502, "ABW-502", "ABW-502.mp4")
-        self._seed_tags(502, ["美乳", "肛交"])
+        self._seed_tags(502, ["Beautiful Breasts", "Anal"])
         self._stale_approvals({"ABW-502:tags": {
             "candidate_key": "ABW-502:tags:0", "source": "r18dev", "user_note": "用户确认"}})
         self.write_metadata_rows([{"item_key": "ABW-502:tags", "code": "ABW-502",
             "field": "tags", "current": "", "candidates": [
-                {"value": ["美乳", "肛交"], "display": "美乳、肛交"},
-                {"source": "javdb", "value": ["美乳", "高跟"], "display": "美乳、高跟"}]}])
+                {"value": ["Beautiful Breasts", "Anal"], "display": "美乳、肛交"},
+                {"source": "javdb", "value": ["Beautiful Breasts", "High Heels"], "display": "美乳、高跟"}]}])
         self.assertEqual(self._auto()["applied"], 1)
-        self.assertEqual(self._tags_of(502)[1], {"美乳", "肛交", "高跟"})
+        self.assertEqual(self._tags_of(502)[1], {"Beautiful Breasts", "Anal", "High Heels"})
         _, note, _ = self._full_decision("ABW-502:tags")
         self.assertEqual(note["user_note"], "用户确认")
         self.assertEqual(note["candidate_key"], "ABW-502:tags:0")
@@ -1639,25 +1639,25 @@ class ReviewQueueTests(unittest.TestCase):
         rows = []
         for aid, code in ((503, "040221-001"), (504, "259LUXU-1475"), (505, "FC2-PPV-1234567")):
             self._asset(aid, code, code + ".mp4")
-            self._seed_tags(aid, ["美乳"])
+            self._seed_tags(aid, ["Beautiful Breasts"])
             rows.append({"item_key": code + ":tags", "code": code, "field": "tags", "current": "",
-                         "candidates": [{"source": "javdb", "value": ["高跟"], "display": "高跟"}]})
+                         "candidates": [{"source": "javdb", "value": ["High Heels"], "display": "High Heels"}]})
         self.write_metadata_rows(rows)
         self.assertEqual(self._auto()["applied"], 0)
         for aid in (503, 504, 505):
-            self.assertEqual(self._tags_of(aid)[1], {"美乳"})
+            self.assertEqual(self._tags_of(aid)[1], {"Beautiful Breasts"})
 
     def test_censored_javdb_tag_candidates_challenge_an_official_automatic_note_in_review(self):
         self._asset(506, "ABW-506", "ABW-506.mp4")
-        self._seed_tags(506, ["美乳"])
+        self._seed_tags(506, ["Beautiful Breasts"])
         self._stale_approvals({"asset:506:tags": {
-            "candidate_key": "old-r18dev", "source": "r18dev", "auto_applied": True, "value": "美乳"}})
+            "candidate_key": "old-r18dev", "source": "r18dev", "auto_applied": True, "value": "Beautiful Breasts"}})
         self.write_metadata_rows([{"item_key": "asset:506:tags", "code": "ABW-506",
             "field": "tags", "current": "", "candidates": [
-                {"source": "javdb", "value": ["高跟"], "display": "高跟"}]}])
+                {"source": "javdb", "value": ["High Heels"], "display": "High Heels"}]}])
         self.assertIn("asset:506:tags", self.queue_keys("metadata_fields"))
         self.assertEqual(self._auto()["applied"], 1)
-        self.assertEqual(self._tags_of(506)[1], {"高跟"})
+        self.assertEqual(self._tags_of(506)[1], {"High Heels"})
 
     def _tags_of(self, asset_id):
         """这部片的标签：实体关系上的名字 → 来源，外加扁平投影那一份名字集合。"""
@@ -1684,35 +1684,35 @@ class ReviewQueueTests(unittest.TestCase):
         subset = {"candidate_key": "PPT-149:gone", "source": "r18dev", "user_note": ""}
         for asset_id, code in ((147, "PPT-147"), (148, "PPT-148"), (149, "PPT-149")):
             self._asset(asset_id, code, f"{code}.mp4")
-            self._seed_tags(asset_id, ["美乳", "痴女"])
+            self._seed_tags(asset_id, ["Beautiful Breasts", "Nympho"])
         self._stale_approvals({"PPT-147:tags": grow, "PPT-148:tags": shrink,
                                "PPT-149:tags": subset})
         self.write_metadata_rows([
             {"item_key": "PPT-147:tags", "field": "tags", "current": "", "code": "PPT-147",
-             "candidates": [{"value": ["美乳", "痴女", "高颜值"], "display": "美乳、痴女、高颜值"}]},
+             "candidates": [{"value": ["Beautiful Breasts", "Nympho", "Gorgeous"], "display": "美乳、痴女、高颜值"}]},
             {"item_key": "PPT-148:tags", "field": "tags", "current": "", "code": "PPT-148",
-             "candidates": [{"value": ["美乳", "高颜值"], "display": "美乳、高颜值"}]},
+             "candidates": [{"value": ["Beautiful Breasts", "Gorgeous"], "display": "美乳、高颜值"}]},
             # 停用的 `乳系` 落库时丢掉，剩下的全在账本里。
             {"item_key": "PPT-149:tags", "field": "tags", "current": "", "code": "PPT-149",
-             "candidates": [{"value": ["美乳", "乳系"], "display": "美乳、乳系"}]},
+             "candidates": [{"value": ["Beautiful Breasts", "乳系"], "display": "美乳、乳系"}]},
         ])
 
         result = self._auto()
         self.assertEqual((result["applied"], result["refreshed"], result["left_to_review"]),
                          (2, 1, 0))
         linked, flat = self._tags_of(147)
-        self.assertEqual(flat, {"美乳", "痴女", "高颜值"})
-        self.assertEqual({tag: source for tag, source in linked.items() if tag != "高颜值"},
-                         {"美乳": "javinizer:r18dev:tag", "痴女": "javinizer:r18dev:tag"})
-        self.assertTrue(linked["高颜值"].startswith("auto:metadata-tags@"))
+        self.assertEqual(flat, {"Beautiful Breasts", "Nympho", "Gorgeous"})
+        self.assertEqual({tag: source for tag, source in linked.items() if tag != "Gorgeous"},
+                         {"Beautiful Breasts": "javinizer:r18dev:tag", "Nympho": "javinizer:r18dev:tag"})
+        self.assertTrue(linked["Gorgeous"].startswith("auto:metadata-tags@"))
         self.assertEqual(self._full_decision("PPT-147:tags"), (
             "approved", {**grow, "refreshed_candidate_key": "PPT-147:tags:0",
-                         "added_tags": ["高颜值"]}, self.STALE_AT))
-        self.assertEqual(self._tags_of(148)[1], {"美乳", "痴女", "高颜值"})
+                         "added_tags": ["Gorgeous"]}, self.STALE_AT))
+        self.assertEqual(self._tags_of(148)[1], {"Beautiful Breasts", "Nympho", "Gorgeous"})
         self.assertEqual(self._full_decision("PPT-148:tags"), (
             "approved", {**shrink, "refreshed_candidate_key": "PPT-148:tags:0",
-                         "added_tags": ["高颜值"]}, self.STALE_AT))
-        self.assertEqual(self._tags_of(149)[1], {"美乳", "痴女"})
+                         "added_tags": ["Gorgeous"]}, self.STALE_AT))
+        self.assertEqual(self._tags_of(149)[1], {"Beautiful Breasts", "Nympho"})
         self.assertEqual(self._full_decision("PPT-149:tags"), (
             "approved", {**subset, "refreshed_candidate_key": "PPT-149:tags:0"}, self.STALE_AT))
         self.assertEqual(self.queue_keys("metadata_fields"), [])
@@ -1735,7 +1735,7 @@ class ReviewQueueTests(unittest.TestCase):
                 "--source", "auto:metadata-tags",
                 "--apply", "--backup", str(Path(self.tmp.name) / "backup.db")]), 0)
         linked, flat = self._tags_of(147)
-        self.assertEqual((set(linked), flat), ({"美乳", "痴女"}, {"美乳", "痴女"}))
+        self.assertEqual((set(linked), flat), ({"Beautiful Breasts", "Nympho"}, {"Beautiful Breasts", "Nympho"}))
         self.assertEqual(self._full_decision("PPT-147:tags"), ("approved", grow, self.STALE_AT))
         self.assertEqual(sorted(self.queue_keys("metadata_fields")),
                          ["PPT-147:tags", "PPT-148:tags"])
@@ -1750,23 +1750,23 @@ class ReviewQueueTests(unittest.TestCase):
         vague = {"rule": "user-authorized-official-tag-backfill-20260901", "value": "美乳、痴女"}
         for asset_id, code in ((150, "CWPBD-150"), (151, "CWPBD-151")):
             self._asset(asset_id, code, f"{code}.mp4")
-            self._seed_tags(asset_id, ["美乳", "痴女"])
+            self._seed_tags(asset_id, ["Beautiful Breasts", "Nympho"])
         self._stale_approvals({"CWPBD-150:tags": legacy, "CWPBD-151:tags": vague})
         self.write_metadata_rows([
             {"item_key": f"{code}:tags", "field": "tags", "current": "", "code": code,
              "source": "aventertainment",
-             "candidates": [{"value": ["美乳", "火车便当"], "display": "美乳、火车便当"}]}
+             "candidates": [{"value": ["Beautiful Breasts", "Ekiben position"], "display": "美乳、火车便当"}]}
             for code in ("CWPBD-150", "CWPBD-151")])
 
         result = self._auto()
         self.assertEqual((result["applied"], result["left_to_review"]), (1, 0))
         linked, flat = self._tags_of(150)
-        self.assertEqual(flat, {"美乳", "痴女", "火车便当"})
-        self.assertTrue(linked["火车便当"].startswith("auto:metadata-tags@"))
+        self.assertEqual(flat, {"Beautiful Breasts", "Nympho", "Ekiben position"})
+        self.assertTrue(linked["Ekiben position"].startswith("auto:metadata-tags@"))
         self.assertEqual(self._full_decision("CWPBD-150:tags"), (
             "approved", {**legacy, "refreshed_candidate_key": "CWPBD-150:tags:0",
-                         "added_tags": ["火车便当"]}, self.STALE_AT))
-        self.assertEqual(self._tags_of(151)[1], {"美乳", "痴女"})
+                         "added_tags": ["Ekiben position"]}, self.STALE_AT))
+        self.assertEqual(self._tags_of(151)[1], {"Beautiful Breasts", "Nympho"})
         self.assertEqual(self._full_decision("CWPBD-151:tags"), ("approved", vague, self.STALE_AT))
         self.assertEqual(self.queue_keys("metadata_fields"), [])
         self.assertEqual(self._auto()["applied"], 0)
@@ -2734,7 +2734,7 @@ class ReviewQueueTests(unittest.TestCase):
         payload = [{
             "item_key": "asset:125:title", "code": "LIVE-5", "query": "LIVE-5",
             "asset_id": "125", "asset_path": "/x/LIVE-5-A.mp4",
-            "field": "title", "field_label": "标题", "current_value": "",
+            "field": "title", "field_label": "Title", "current_value": "",
             "candidates_json": json.dumps([{
                 "candidate_key": "asset:125:title:r18dev:1", "source": "r18dev",
                 "display_value": "来源给的标题", "value": "来源给的标题",
@@ -3078,13 +3078,13 @@ class ReviewQueueTests(unittest.TestCase):
                 "INSERT INTO asset_tag(asset_id,tag,confidence,source) "
                 "VALUES(1,'美乳',0.4,'filename')"
             )
-            upsert_asset_entity(con, kind="tag", name="美乳", asset_id=1, role="tag",
+            upsert_asset_entity(con, kind="tag", name="Beautiful Breasts", asset_id=1, role="tag",
                                 source="filename", confidence=0.4)
         candidate = {
             "candidate_key": "ABC-001:tags:r18dev:abc", "source": "r18dev",
             "source_url": "https://r18.dev/example", "confidence": 0.9,
             "provider_id": "ABC-001",
-            "value": ["美乳", "颜射"], "display_value": "美乳、颜射", "warnings": [],
+            "value": ["Beautiful Breasts", "Facial"], "display_value": "美乳、颜射", "warnings": [],
         }
         self.write_metadata_candidates([{
             "item_key": "ABC-001:tags", "code": "ABC-001", "query": "ABC-001",
@@ -3101,16 +3101,16 @@ class ReviewQueueTests(unittest.TestCase):
             self.assertEqual(con.execute(
                 "SELECT tag,confidence,source FROM asset_tag WHERE asset_id=1 ORDER BY tag"
             ).fetchall(), [
-                ("美乳", 0.9, "javinizer:r18dev:tag"),
-                ("颜射", 0.9, "javinizer:r18dev:tag"),
+                ("Beautiful Breasts", 0.9, "javinizer:r18dev:tag"),
+                ("Facial", 0.9, "javinizer:r18dev:tag"),
             ])
             self.assertEqual(con.execute(
                 "SELECT e.canonical_name,ae.confidence,ae.source FROM asset_entity ae "
                 "JOIN entity e ON e.id=ae.entity_id WHERE ae.asset_id=1 AND ae.role='tag' "
                 "AND ae.source='javinizer:r18dev:tag' ORDER BY e.canonical_name"
             ).fetchall(), [
-                ("美乳", 0.9, "javinizer:r18dev:tag"),
-                ("颜射", 0.9, "javinizer:r18dev:tag"),
+                ("Beautiful Breasts", 0.9, "javinizer:r18dev:tag"),
+                ("Facial", 0.9, "javinizer:r18dev:tag"),
             ])
 
     def test_a_stale_candidate_lands_on_the_current_vocabulary(self):
@@ -3122,7 +3122,7 @@ class ReviewQueueTests(unittest.TestCase):
             "candidate_key": "ABC-001:tags:r18dev:specific", "source": "r18dev",
             "source_url": "https://r18.dev/example", "confidence": 0.9,
             "provider_id": "ABC-001",
-            "value": ["乳系", "处女", "颜射"], "display_value": "乳系、处女、颜射",
+            "value": ["乳系", "处女", "Facial"], "display_value": "乳系、处女、颜射",
             "warnings": [],
         }
         self.write_metadata_candidates([{
@@ -3140,11 +3140,11 @@ class ReviewQueueTests(unittest.TestCase):
         con = sqlite3.connect(self.db_path)
         self.assertEqual(con.execute(
             "SELECT tag FROM asset_tag WHERE asset_id=1 ORDER BY tag"
-        ).fetchall(), [("处女设定",), ("颜射",)])
+        ).fetchall(), [("Virgin theme",), ("Facial",)])
         self.assertEqual(con.execute(
             "SELECT e.canonical_name FROM asset_entity ae JOIN entity e ON e.id=ae.entity_id "
             "WHERE ae.asset_id=1 AND ae.role='tag' ORDER BY e.canonical_name"
-        ).fetchall(), [("处女设定",), ("颜射",)])
+        ).fetchall(), [("Virgin theme",), ("Facial",)])
         con.close()
 
     def test_metadata_title_approval_writes_catalog_title(self):
@@ -3159,7 +3159,7 @@ class ReviewQueueTests(unittest.TestCase):
         }
         self.write_metadata_candidates([{
             "item_key": "ABC-001:title", "code": "ABC-001", "query": "ABC-001",
-            "field": "title", "field_label": "标题", "current_value": "",
+            "field": "title", "field_label": "Title", "current_value": "",
             "candidates_json": json.dumps([candidate], ensure_ascii=False), "source_count": "1",
             "status": "candidate", "size_gb": "1", "videos": "1", "fetched_at": "now",
         }])
@@ -3180,7 +3180,7 @@ class ReviewQueueTests(unittest.TestCase):
                      'source_url':'https://r18.dev/example','provider_id':'PCH-890',
                      'confidence':0.9,'value':'English translated title','display_value':'English translated title'}
         self.write_metadata_candidates([{'item_key':'PCH-890:title','code':'PCH-890','query':'PCH-890',
-            'field':'title','field_label':'标题','current_value':'','candidates_json':json.dumps([candidate]),
+            'field':'title','field_label':'Title','current_value':'','candidates_json':json.dumps([candidate]),
             'source_count':'1','status':'candidate','size_gb':'1','videos':'1','fetched_at':'now'}])
         self.assertEqual(self._auto()['applied'], 0)
         with self.assertRaisesRegex(ValueError, '原文证据未取得'):
@@ -3227,8 +3227,8 @@ class ReviewQueueTests(unittest.TestCase):
     def test_rows_without_a_stable_key_are_dropped_and_counted(self):
         """缺主键的行绝不能退化成行号：CSV 一重排，历史决定就挪到别的条目上了。"""
         self.write_candidates("creator-tags-candidate-20260817.csv", [
-            {"board": "", "creator": "ukiru", "tags": "恋足", "status": "candidate"},
-            {"board": "ok", "creator": "ukiru", "tags": "恋足", "status": "candidate"},
+            {"board": "", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"},
+            {"board": "ok", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"},
         ])
         rows, _, skipped = rm_review.read_candidates("creator_tags", self.candidates)
         self.assertEqual([row["item_key"] for row in rows], ["ok"])
@@ -3237,7 +3237,7 @@ class ReviewQueueTests(unittest.TestCase):
     def test_approval_takes_creator_and_tags_from_the_candidate_not_the_body(self):
         """否则「批准候选 X」能写入与 X 无关的标签，而留痕仍写着 X 通过。"""
         self.write_candidates("creator-tags-candidate-20260817.csv",
-                              [{"board": "b1", "creator": "ukiru", "tags": "恋足", "status": "candidate"}])
+                              [{"board": "b1", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"}])
         with self.assertRaises(ValueError):
             rm_review.w_review_decision(self.contract, {
                 "category": "creator_tags", "item_key": "b1", "status": "approved",
@@ -3250,7 +3250,7 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_approval_refuses_candidates_outside_the_current_batch(self):
         self.write_candidates("creator-tags-candidate-20260817.csv",
-                              [{"board": "b1", "creator": "ukiru", "tags": "恋足", "status": "candidate"}])
+                              [{"board": "b1", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"}])
         with self.assertRaises(ValueError):
             rm_review.w_review_decision(self.contract, {
                 "category": "creator_tags", "item_key": "已消失的候选", "status": "approved",
@@ -3259,7 +3259,7 @@ class ReviewQueueTests(unittest.TestCase):
     def test_skip_candidate_cannot_be_approved(self):
         """机械批次明确跳过的聚合目录不能从复核页误批准回真相层。"""
         self.write_candidates("creator-tags-candidate-20260817.csv",
-                              [{"board": "b1", "creator": "ukiru", "tags": "恋足", "status": "skip"}])
+                              [{"board": "b1", "creator": "ukiru", "tags": "Foot fetish", "status": "skip"}])
         with self.assertRaises(ValueError):
             rm_review.w_review_decision(self.contract, {
                 "category": "creator_tags", "item_key": "b1", "status": "approved",
@@ -3271,7 +3271,7 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_unselected_approval_is_capped_instead_of_tagging_everything(self):
         self.write_candidates("creator-tags-candidate-20260817.csv",
-                              [{"board": "b1", "creator": "ukiru", "tags": "恋足", "status": "candidate"}])
+                              [{"board": "b1", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"}])
         with mock.patch.object(rm_review, "REVIEW_APPLY_LIMIT", 2):
             with self.assertRaises(ValueError) as caught:
                 rm_review.w_review_decision(self.contract, {
@@ -3300,7 +3300,7 @@ class ReviewQueueTests(unittest.TestCase):
 
     def test_selected_ids_must_belong_to_the_reviewed_creator(self):
         self.write_candidates("creator-tags-candidate-20260817.csv",
-                              [{"board": "b1", "creator": "ukiru", "tags": "恋足", "status": "candidate"}])
+                              [{"board": "b1", "creator": "ukiru", "tags": "Foot fetish", "status": "candidate"}])
         con = sqlite3.connect(self.db_path)
         con.execute("INSERT INTO asset(id,location,path,name,medium) "
                     "VALUES(99,'local','/x/99.mp4','99.mp4','video')")

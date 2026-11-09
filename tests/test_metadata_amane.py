@@ -37,7 +37,7 @@ def report(**sites):
 
 
 FOUND = {"status": "found", "metadata": {
-    "number": "FC2-PPV-1234567", "title": "標題", "studio": "卖家", "publisher": "レーベル",
+    "number": "FC2-PPV-1234567", "title": "標題", "studio": "Seller", "publisher": "レーベル",
     "release": "2024-01-02", "runtime": 61, "tags": ["a", "b"], "series": "",
     "actors": [{"name": "女優", "gender": "female"}, {"name": "男", "gender": "male"}],
     "poster_urls": ["https://x/p.jpg"], "thumb_urls": ["https://x/t.jpg"],
@@ -655,7 +655,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(payload["source"], "fc2club")
         self.assertEqual(payload["content_id"], "FC2-PPV-1234567")
         self.assertEqual(payload["id"], "FC2-PPV-1234567")
-        self.assertEqual(payload["maker"], "卖家")
+        self.assertEqual(payload["maker"], "Seller")
         self.assertEqual(payload["label"], "レーベル")
         self.assertEqual(payload["actresses"], [{"japanese_name": "女優"}])
         self.assertEqual(payload["cover_url"], "https://x/t.jpg")
@@ -665,7 +665,7 @@ class PayloadTests(unittest.TestCase):
         fields = extract_peach_fields(payload)
         self.assertEqual(fields["title"]["value"], "標題")
         self.assertEqual([row["name"] for row in fields["performers"]["value"]], ["女優"])
-        self.assertEqual(fields["studio"]["value"], "卖家")
+        self.assertEqual(fields["studio"]["value"], "Seller")
         self.assertEqual(fields["release_date"]["value"], "2024-01-02")
 
     def test_the_bridge_payload_is_the_contract_record_projected_field_for_field(self):
@@ -684,7 +684,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(payload, {
             "id": "FC2-PPV-1234567", "content_id": "FC2-PPV-1234567", "source": "fc2club",
             "source_url": "https://fc2club.top/html/FC2-PPV-1234567.html", "title": "標題",
-            "maker": "卖家", "label": "レーベル", "series": "", "release_date": "2024-01-02", "runtime": 61,
+            "maker": "Seller", "label": "レーベル", "series": "", "release_date": "2024-01-02", "runtime": 61,
             "director": "監督", "cover_url": "https://x/t.jpg", "cover_urls": ["https://x/t.jpg"],
             "poster_url": "https://x/p.jpg", "screenshot_urls": ["https://x/1.jpg"], "trailer_url": "",
             "actresses": [{"japanese_name": "女優"}], "genres": ["a", "b"], "plot": "",

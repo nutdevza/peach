@@ -348,7 +348,7 @@ class DownloadTask:
     @property
     def postprocess_label(self) -> str:
         if self.postprocess_state == POSTPROCESS_PENDING and self.next_check_at:
-            return f"等待自动重试（{self.postprocess_retries}/{len(RETRY_DELAYS)}）"
+            return f"Waiting for automatic retry ({self.postprocess_retries}/{len(RETRY_DELAYS)})"
         return POSTPROCESS_LABELS.get(self.postprocess_state, self.postprocess_state)
 
     @property
@@ -591,7 +591,7 @@ class DownloadStore:
         detail = f'{type(error).__name__}: {error}'
         if delay is None:
             if task.postprocess_retries >= len(RETRY_DELAYS):
-                detail = f'自动重试 {task.postprocess_retries} 次后仍未完成；{detail}'
+                detail = f'"Automatic retry "{task.postprocess_retries}" attempts without finishing; "{detail}'
             self.postprocess(task_id, POSTPROCESS_FAILED, detail=detail)
             return False
         with self.database.write_transaction(notify=False) as connection:

@@ -89,7 +89,7 @@ class EntityClassificationTests(unittest.TestCase):
             self.claim(entity_id,facet,value)
         self.connection.commit()
         data=q_entity(WebContract(self.db),{'kind':'performer','name':'Known Person'})
-        self.assertEqual(data['identity_labels'],['女优','西方'])
+        self.assertEqual(data['identity_labels'],['JAV','Western'])
         self.assertEqual(len(classification.classifications(self.connection,[entity_id])[entity_id]),5)
         self.assertNotIn('classifications',data)
 
@@ -140,7 +140,7 @@ class EntityClassificationTests(unittest.TestCase):
         before = self.connection.total_changes
         for provider in sorted(classification.JAV_DIRECTORIES):
             profile = q_entity(WebContract(self.db),{'kind':'performer','name':provider})
-            self.assertEqual(profile['identity_labels'],['女优'])
+            self.assertEqual(profile['identity_labels'],['JAV'])
             self.assertEqual(classification.classifications(self.connection,[profile['id']])[profile['id']],[])
         found = []
         for offset in range(len(expected)):
@@ -183,23 +183,23 @@ class EntityClassificationTests(unittest.TestCase):
         for category in ('japanese_av','western'):
             page = q_index(WebContract(self.db),'performers',category=category,limit=1)
             self.assertEqual(page['categories'],{'japanese_av':1,'western':1})
-            self.assertEqual(page['items'][0]['identity_labels'],['女优','西方'])
+            self.assertEqual(page['items'][0]['identity_labels'],['JAV','Western'])
             self.assertEqual(page['items'][0]['identity_categories'],['japanese_av','western'])
         self.assertEqual(q_index(WebContract(self.db),'performers',category='amateur')['items'],[])
         self.connection.execute("UPDATE asset SET disposal='vanished' WHERE id=?",(asset_id,))
         self.connection.commit()
-        self.assertEqual(classification.summaries(self.connection,[entity_id])[entity_id]['identity_labels'],['女优'])
+        self.assertEqual(classification.summaries(self.connection,[entity_id])[entity_id]['identity_labels'],['JAV'])
 
     def test_amateur_scene_tag_does_not_classify_a_jav_performer_as_amateur(self):
         asset_id, entity_id = self.entity('JAV Performer',kind='performer')
         self.claim(entity_id,'market','japanese_av')
         self.connection.execute("UPDATE asset SET code='SIRO-5333' WHERE id=?",(asset_id,))
-        upsert_asset_entity(self.connection,kind='tag',name='素人',asset_id=asset_id,
+        upsert_asset_entity(self.connection,kind='tag',name='Amateur',asset_id=asset_id,
                             role='tag',source='test:scene-tag')
         self.connection.commit()
         contract=WebContract(self.db)
         profile=q_entity(contract,{'kind':'performer','name':'JAV Performer'})
-        self.assertEqual(profile['identity_labels'],['女优'])
+        self.assertEqual(profile['identity_labels'],['JAV'])
         self.assertEqual(q_index(contract,'performers',category='amateur')['items'],[])
         self.assertEqual(q_index(contract,'performers')['categories'],{'japanese_av':1})
 
@@ -218,7 +218,7 @@ class EntityClassificationTests(unittest.TestCase):
         self.claim(confirmed,'occupation','amateur_performer')
         fc2_id, fc2_only = self.entity('FC2 Cast',kind='performer')
         self.connection.execute("UPDATE asset SET code='FC2-PPV-1234567' WHERE id=?",(fc2_id,))
-        self.work('FC2 Cast',tag='素人')
+        self.work('FC2 Cast',tag='Amateur')
         self.work('FC2 Cast',disposal='vanished')
         mixed_id, _ = self.entity('Mixed Cast',kind='performer')
         self.connection.execute("UPDATE asset SET code='FC2-PPV-7654321' WHERE id=?",(mixed_id,))
@@ -236,7 +236,7 @@ class EntityClassificationTests(unittest.TestCase):
         self.assertEqual(page['categories']['amateur'],2)
         self.assertEqual(q_entity(contract,{'kind':'performer','name':'Mixed Cast'})['identity_labels'],[])
         self.assertEqual(q_entity(contract,{'kind':'performer','name':'Guessed Cast'})['identity_labels'],[])
-        self.assertEqual(q_entity(contract,{'kind':'performer','name':'Known JAV Cast'})['identity_labels'],['女优'])
+        self.assertEqual(q_entity(contract,{'kind':'performer','name':'Known JAV Cast'})['identity_labels'],['JAV'])
         self.claim(confirmed,'occupation','adult_performer')
         self.claim(fc2_only,'market','western_adult')
         self.connection.commit()
@@ -246,10 +246,10 @@ class EntityClassificationTests(unittest.TestCase):
         asset_id, styled = self.entity('Styled Cast',kind='performer')
         self.connection.execute("INSERT INTO asset_tag(asset_id,tag,confidence,source) VALUES(?,'素人',0.6,'vision_creator')",(asset_id,))
         for source in ('vision_creator','vision_creator_review'):
-            upsert_asset_entity(self.connection,kind='tag',name='素人',asset_id=asset_id,role='tag',source=source)
+            upsert_asset_entity(self.connection,kind='tag',name='Amateur',asset_id=asset_id,role='tag',source=source)
         self.connection.commit()
         self.assertEqual(classification.summaries(self.connection,[styled])[styled]['identity_categories'],[])
-        upsert_asset_entity(self.connection,kind='tag',name='素人',asset_id=asset_id,role='tag',source='name')
+        upsert_asset_entity(self.connection,kind='tag',name='Amateur',asset_id=asset_id,role='tag',source='name')
         self.connection.commit()
         self.assertEqual(classification.summaries(self.connection,[styled])[styled]['identity_categories'],['amateur'])
 
@@ -286,7 +286,7 @@ class EntityClassificationTests(unittest.TestCase):
         contract = WebContract(self.db)
         self.assertEqual(q_index(contract,'performers')['items'][0]['entity_id'],person)
         self.assertEqual(q_index(contract,'creators')['items'][0]['entity_id'],person)
-        self.assertEqual(q_entity(contract,{'kind':'creator','name':'Person Account'})['identity_labels'],['网黄博主','卖家'])
+        self.assertEqual(q_entity(contract,{'kind':'creator','name':'Person Account'})['identity_labels'],['Creator','Seller'])
 
     def test_western_cast_occupation_does_not_assert_a_japanese_av_career(self):
         _, entity_id = self.entity('Western Performer',kind='performer')
@@ -294,7 +294,7 @@ class EntityClassificationTests(unittest.TestCase):
         self.claim(entity_id,'market','western_adult')
         self.connection.commit()
         profile = q_entity(WebContract(self.db),{'kind':'performer','name':'Western Performer'})
-        self.assertEqual(profile['identity_labels'],['西方'])
+        self.assertEqual(profile['identity_labels'],['Western'])
         self.assertEqual(q_index(WebContract(self.db),'performers',category='japanese_av')['items'],[])
 
     def test_script_cannot_approve_or_supply_unvalidated_values(self):
@@ -410,7 +410,7 @@ class EntityClassificationTests(unittest.TestCase):
         self.claim(source,'occupation','model');self.connection.commit()
         with self.connection:
             merge_entity(self.connection,target_id=target,source_id=source,source_name='Old Name',alias_source='user:review')
-        self.assertEqual(classification.classifications(self.connection,[target])[target][0]['label'],'模特')
+        self.assertEqual(classification.classifications(self.connection,[target])[target][0]['label'],'Model')
         self.assertEqual(self.connection.execute('PRAGMA foreign_key_check').fetchall(),[])
 
     def part(self, number, code='FC2-PPV-3312576', disposal=None):

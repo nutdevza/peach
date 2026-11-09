@@ -126,7 +126,7 @@ class _Export:
 
     def check(self):
         if self.cancelled():
-            raise ExportCancelled('导出已取消')
+            raise ExportCancelled('Export cancelled')
 
     def add(self, name: str, payload):
         self.check()
@@ -149,7 +149,7 @@ class _Export:
                     target.write(chunk)
         self.used += size
         self.entries.append({'name': name, 'status': 'included', 'bytes': size})
-        self.progress(stage='整理刮削证据', files=len(self.entries), content_bytes=self.used)
+        self.progress(stage='Tidy scraping evidence', files=len(self.entries), content_bytes=self.used)
         return True
 
     def unavailable(self, section, error, **facts):
@@ -237,7 +237,7 @@ def _candidates(config, codes, asset_ids, export):
                     scanned += 1
                     if scanned % 100 == 0:
                         export.check()
-                        export.progress(stage='读取字段候选', rows=scanned, done=0, total=0)
+                        export.progress(stage='Read field candidates', rows=scanned, done=0, total=0)
                     if scanned > 100_000 or len(records) > ROW_LIMIT:
                         break
                     if row.get('code', '').upper() not in codes and row.get('asset_id') not in asset_keys:
@@ -340,7 +340,7 @@ def bundle_to(config, destination, *, codes: str = '', include_all: bool = False
             snapshots.update(str(path) for path in root.glob('*.json') if _snapshot_identity(path)[0] in selected)
         for index, value in enumerate(sorted(snapshots)):
             export.check()
-            progress(stage='整理来源快照', done=index, total=len(snapshots))
+            progress(stage='Tidy source snapshots', done=index, total=len(snapshots))
             if index >= ROW_LIMIT:
                 export.entries.append({'name': 'snapshots', 'status': 'count_limit'})
                 break
@@ -371,7 +371,7 @@ def bundle_to(config, destination, *, codes: str = '', include_all: bool = False
             'evidence_scope': '现存来源快照、字段候选和当前归属；空记录表示未取得，历史快照可能被后续采集覆盖',
             'entries': list(export.entries)})
         export.check()
-    progress(stage='刮削记录已生成', done=len(snapshots), total=len(snapshots))
+    progress(stage='Scraping records generated', done=len(snapshots), total=len(snapshots))
 
 
 def bundle_bytes(config, *, codes: str = '', include_all: bool = False) -> bytes:

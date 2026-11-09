@@ -411,7 +411,7 @@ def initial_estimate(config, db_path, stage, asset_ids=None, mode=None, *, allow
                 eta_seconds_min=max(1, math.ceil(estimate * 0.4)) if known and count else 0 if known else None,
                 eta_seconds_max=max(1, math.ceil(estimate * 2.5)) if known and count else 0 if known else None,
                 eta_kind='historical' if historical else 'estimating', eta_initial=True,
-                eta_scope='本趟处理（已登记文件，未含未知新增）' if stage in ('scan', 'all') else '本趟处理',
+                eta_scope='This pass (registered files, unknown new files not included)' if stage in ('scan', 'all') else '本趟处理',
                 eta_basis=f'根据已登记的 {count} 个视频、{size / 1024**3:.1f} GiB'
                           + ('及本机同类历史耗时粗估' if historical else '粗估，运行后校准')
                           if known else '正在统计新目录的文件数量和大小',
@@ -497,11 +497,11 @@ class ProcessingEstimate:
         if any(step['id'] == 'sources' and step['status'] == 'current' for step in state.get('steps', [])):
             return
         stage = state.get('stage')
-        phase = ('previews' if stage == '生成预览图' else
-                 'images' if stage == '读取配套图片' else
-                 'local' if stage in ('读取本地资料', '检查配套文件') else
-                 'metadata' if stage in ('采集缺失资料', '采集缺失封面', '保存待确认资料') else
-                 'probe' if stage == '读取时长与分辨率' else None)
+        phase = ('previews' if stage == 'Generate preview images' else
+                 'images' if stage == 'Read companion images' else
+                 'local' if stage in ('Read local details', 'Check companion files') else
+                 'metadata' if stage in ('Collect missing details', 'Collect missing covers', 'Save details pending confirmation') else
+                 'probe' if stage == 'Read duration and resolution' else None)
         done, total = state.get('checked', 0), state.get('total', 0)
         now = time.monotonic() - self.paused_elapsed()
         if phase != self.phase or done < self.last_done:

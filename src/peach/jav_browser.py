@@ -524,7 +524,7 @@ class JavBrowser:
         attempt = row.get('retry_attempt', 0)
         delay = retry_delay(error, attempt)
         if delay is None:
-            prefix = f'自动重试 {attempt} 次后仍未完成；' if attempt == len(RETRY_DELAYS) else ''
+            prefix = f'"Automatic retry "{attempt}" attempts without finishing; "' if attempt == len(RETRY_DELAYS) else ''
             row.update(state='failed', message=prefix + '搜索或云下载提交失败，请在 Peach 检查来源和下载渠道后重试')
             row['retry_exhausted'] = attempt == len(RETRY_DELAYS)
             return

@@ -219,7 +219,7 @@ class ServiceStatusTests(unittest.TestCase):
         warnings = ["本地磁盘：目录不存在", "CloudDrive · 115：" + "很长的目录/" * 40]
         response = Mock(status_code=200)
         response.json.return_value = {"ok": True, "media_mounts": {"warnings": warnings}}
-        manager = self.manager({"http": (False, "未检测"), "https": (False, "未检测")})
+        manager = self.manager({"http": (False, "not checked"), "https": (False, "not checked")})
         manager._health_get = lambda *a, **k: response
         for spec in manager.specs:
             self.assertTrue(manager.healthy(spec))
@@ -230,14 +230,14 @@ class ServiceStatusTests(unittest.TestCase):
         response.json.return_value = {"ok": True, "media_mounts": {"warnings": []}}
         for spec in manager.specs:
             manager.healthy(spec)
-        self.assertEqual(manager.status_summary(), "运行中")
+        self.assertEqual(manager.status_summary(), "Running")
         self.assertEqual(manager.status_details(), ("HTTP 正常", "HTTPS 正常"))
 
     def test_short_summary_preserves_service_failures(self):
         manager = self.manager({"http": (True, ""), "https": (False, "状态码 503")})
-        self.assertEqual(manager.status_summary(), "部分服务异常")
+        self.assertEqual(manager.status_summary(), "Some services unhealthy")
         self.assertEqual(manager.status_details(), ("HTTP 正常", "HTTPS 异常（状态码 503）"))
-        self.assertEqual(self.manager({"http": (False, "无响应")}).status_summary(), "服务未运行")
+        self.assertEqual(self.manager({"http": (False, "无响应")}).status_summary(), "Services not running")
 
     def test_windows_style_menu_keeps_details_out_of_the_root_and_refreshes(self):
         manager = self.manager({"http": (True, "")})
@@ -492,7 +492,7 @@ class ReplicationSwitchTests(unittest.TestCase):
 
     def test_menu_items_are_assembled_when_replication_is_on(self):
         labels = [label for label, _ in self.items(True)]
-        self.assertEqual(labels, ["同步数据库", "由本机接管数据库写入"])
+        self.assertEqual(labels, ["Sync the database", "Take over database writes on this machine"])
 
     def test_sync_ledger_refuses_instead_of_probing_a_share(self):
         """菜单项没了，但托盘还有别的入口；这条路径会去探一个不存在的共享。"""
@@ -564,8 +564,8 @@ class SetupGateTests(unittest.TestCase):
         gate = SetupGate(manager, config, waiting=True, load=self._config)
         self.assertTrue(gate.waiting)
         self.assertEqual(gate.open_url(), "http://127.0.0.1:8900/")
-        self.assertEqual(gate.open_label(), "重新打开设置页")
-        self.assertIn("等待完成首次设置", gate.status_line())
+        self.assertEqual(gate.open_label(), "Reopen setup page")
+        self.assertIn("Waiting for initial setup", gate.status_line())
         self.assertFalse(gate.poll(), "设置还没做完，轮询不动任何东西")
         self.assertEqual([spec.name for spec in manager.specs], ["setup"])
 
@@ -610,7 +610,7 @@ class SetupGateTests(unittest.TestCase):
         self.assertTrue(manager.specs, "切换之后必须有正常服务规格")
         self.assertEqual(manager.log_dir, self.data_root / "logs")
         self.assertEqual(manager.child_environment()["PEACH_DATA_ROOT"], str(self.data_root))
-        self.assertEqual(gate.open_label(), "打开 Peach")
+        self.assertEqual(gate.open_label(), "Open Peach")
         self.assertEqual(gate.open_url(), "https://peach-writer.local/")
 
         scan = scan_popen.call_args
@@ -812,8 +812,8 @@ class SourceSyncTests(unittest.TestCase):
         source = inspect.getsource(PeachTray.__init__)
         self.assertIn('MenuItem("同步开发进度", self.sync_source,', source)
         self.assertIn('visible=lambda _: not standalone()', source)
-        self.assertLess(source.index("同步开发进度"), source.index("ledger_menu_items"))
-        self.assertLess(source.index("ledger_menu_items"), source.index("重启服务"))
+        self.assertLess(source.index("Sync development progress"), source.index("ledger_menu_items"))
+        self.assertLess(source.index("ledger_menu_items"), source.index("Restart service"))
 
     def test_windows_source_sync_tests_then_restarts_services(self):
         snapshot = VersionSnapshot("0.6.4", "master", "abc12345", False, True, "origin/master")
@@ -855,7 +855,7 @@ class SourceSyncTests(unittest.TestCase):
         tray.sync_source(icon)
         self.assertTrue(completed.wait(2))
         manager.restart.assert_called_once()
-        self.assertEqual(manager.restart.call_args.kwargs["reason"], "同步开发进度后重启")
+        self.assertEqual(manager.restart.call_args.kwargs["reason"], "restart after syncing development progress")
         manager.stop_owned.assert_not_called()
 
     def test_windows_source_sync_stops_services_only_after_replacer_is_ready(self):
@@ -1048,7 +1048,7 @@ class LocalRebuildTests(unittest.TestCase):
             tray.sync_source(icon)
             self.drain(tray)
         self.assertEqual(updates.prepared, [])
-        self.assertIn("独立测试包", self.messages(icon))
+        self.assertIn("standalone test package", self.messages(icon))
 
     def test_a_fast_forward_from_the_channel_still_uses_the_paths_it_pulled(self):
         """`updated` 那条路不变：远端真有新提交时，重建范围就是这次快进带来的改动。"""
@@ -1223,7 +1223,7 @@ class MacMenuBarActionTests(unittest.TestCase):
                     thread.join(5)
 
         versions = Mock()
-        versions.inspect.return_value = Mock(package_version="0.9.0", build_label="独立测试包", channel_label="测试版")
+        versions.inspect.return_value = Mock(package_version="0.9.0", build_label="standalone test package", channel_label="beta")
         versions.check.return_value = UpdateResult("available", "当前版本：0.9.0。最新测试版：1.0.0。有新版本可下载。",
                                                    versions.inspect.return_value)
         fake = types.ModuleType("peach.menubar")
@@ -1231,12 +1231,12 @@ class MacMenuBarActionTests(unittest.TestCase):
         with patch.dict(sys.modules, {"peach.menubar": fake}),                 patch.object(tray_module, "VersionManager", return_value=versions),                 patch.object(tray_module, "standalone", return_value=True):
             tray_module.run_macos_menu_bar(Mock(), Mock(waiting=False))
         with tempfile.TemporaryDirectory() as directory,                 patch("peach.support_bundle.save_bundle", return_value=Path(directory) / "peach-support.zip"),                 patch.object(tray_module.subprocess, "run") as opened:
-            run_handler("导出诊断报告")
-            run_handler("检查更新", submenu="版本与更新")
+            run_handler("Export diagnostics report")
+            run_handler("Check for updates", submenu="Version and updates")
         self.assertEqual(opened.call_args.args[0][:2], ["open", "-R"])
         versions.check.assert_called_once()
-        self.assertIn(("Peach 诊断报告", "诊断报告已保存：peach-support.zip"), built["notices"])
-        self.assertIn(("Peach 版本与更新", versions.check.return_value.message), built["notices"])
+        self.assertIn(("Peach diagnostic report", "诊断报告已保存：peach-support.zip"), built["notices"])
+        self.assertIn(("Peach Version and updates", versions.check.return_value.message), built["notices"])
 
 
 class TemplateHookTests(unittest.TestCase):
@@ -1526,7 +1526,7 @@ class ServiceRevivalTests(unittest.TestCase):
                 manager.start_missing()
             manager._popen.assert_called_once()
             self.assertTrue(manager.waiting_for_startup())
-            self.assertEqual(manager.status_summary(), "启动中")
+            self.assertEqual(manager.status_summary(), "Starting up")
             self.assertIn("HTTPS 启动中", manager.status_details())
             get.side_effect = None
             get.return_value = ReadyResponse(200, {"ok": True})
@@ -1534,7 +1534,7 @@ class ServiceRevivalTests(unittest.TestCase):
             get.side_effect = OSError("lost listener")
             self.assertFalse(manager.healthy(self.SPEC))
             self.assertFalse(manager.waiting_for_startup())
-            self.assertIn("异常", manager.status())
+            self.assertIn("Unhealthy", manager.status())
 
     def test_an_exited_child_or_an_error_response_is_not_starting(self):
         process = Mock()
@@ -1818,7 +1818,7 @@ class TrayPreparationTests(unittest.TestCase):
         tray = self.tray(manager, self.preparation(migration=failed))
         self.run_tray(tray)
         self.assertIn("database is locked", tray._startup_warning)
-        self.assertIn("数据库结构与迁移不一致", tray._startup_warning)
+        self.assertIn("database schema does not match the migrations", tray._startup_warning)
         self.assertFalse(runtime_prepare.read_record(self.root / "state", pid=os.getpid())["ok"])
 
     def test_late_readiness_completes_the_record_and_opens_the_browser_once(self):

@@ -223,7 +223,7 @@ class ProcessingTrafficTests(unittest.TestCase):
 
     def test_complete_fields_and_local_cover_have_no_download_work(self):
         traffic = ProcessingTraffic(self.config, self.db, 'collect')
-        row = self._video(catalog_title='影片', performers='演员', studio='厂牌', release_date='2026-01-01', tags='类别')
+        row = self._video(catalog_title='影片', performers='演员', studio='Studio', release_date='2026-01-01', tags='类别')
         with patch.object(traffic.plan, '_ready', return_value=True):
             traffic.refresh_plan([row])
         self.assertEqual(sum(source['estimated_bytes'] for source in traffic.snapshot()['sources'] if not source['root']), 0)
@@ -231,7 +231,7 @@ class ProcessingTrafficTests(unittest.TestCase):
     def test_local_evidence_recalculates_actual_metadata_verification_work(self):
         traffic = ProcessingTraffic(self.config, self.db, 'collect')
         row = self._video()
-        fields = dict(title='影片', performers='演员', studio='厂牌', release_date='2026-01-01', tags='类别')
+        fields = dict(title='影片', performers='演员', studio='Studio', release_date='2026-01-01', tags='类别')
         with patch.object(traffic.plan, '_ready', return_value=True):
             traffic.prepare_metadata([(row, 'ABW-001', False, fields, [], True)])
             self.assertEqual(sum(source['estimated_bytes'] for source in traffic.snapshot()['sources'] if not source['root']), 0)

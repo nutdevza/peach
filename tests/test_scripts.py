@@ -913,8 +913,8 @@ class LibraryDirectoryTests(unittest.TestCase):
                    name='film.mp4', creator='account', effective_region='')
         self.assertEqual(script.label(row, {1: [(9, 'account')]}, {}, {9}),
                          ('creator', '创作者', 'account'))
-        self.assertEqual(script.label(row, {1: [(9, 'account')]}, {9: ['网黄博主']}, set()),
-                         ('creator', '网黄博主', 'account'))
+        self.assertEqual(script.label(row, {1: [(9, 'account')]}, {9: ['Creator']}, set()),
+                         ('creator', 'Creator', 'account'))
         self.assertEqual(script.label(dict(row, studio='MIB', code='AR-101', effective_region='kr'), {}, {}, set()),
                          ('publisher', '韩国', 'MIB'))
         image = dict(row, medium='image', creator=None)
@@ -2398,7 +2398,7 @@ class OperationalScriptTests(unittest.TestCase):
     def test_rehome_unknown_jav_flattens_files_and_updates_confirmed_studio(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            unknown = root / "番号" / "_未知厂牌"
+            unknown = root / "Code" / "_未知厂牌"
             nested = unknown / "259LUXU-1468" / "release title"
             nested.mkdir(parents=True)
             video = nested / "259LUXU-1468.mp4"
@@ -2431,7 +2431,7 @@ class OperationalScriptTests(unittest.TestCase):
             ])
 
             self.assertEqual(result, 0)
-            target = root / "番号" / "ラグジュTV" / "259LUXU-1468"
+            target = root / "Code" / "ラグジュTV" / "259LUXU-1468"
             self.assertEqual((target / video.name).read_bytes(), b"video")
             self.assertEqual((target / sidecar.name).read_bytes(), b"image")
             self.assertFalse((unknown / "259LUXU-1468").exists())
@@ -2452,7 +2452,7 @@ class OperationalScriptTests(unittest.TestCase):
     def test_rehome_unknown_jav_refuses_flattening_name_collisions(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            unknown = root / "番号" / "_未知厂牌"
+            unknown = root / "Code" / "_未知厂牌"
             for folder in ("one", "two"):
                 nested = unknown / "ABP-340" / folder
                 nested.mkdir(parents=True)
@@ -2475,7 +2475,7 @@ class OperationalScriptTests(unittest.TestCase):
 
             self.assertEqual(result, 1)
             self.assertTrue((unknown / "ABP-340" / "one" / "ABP-340.mp4").is_file())
-            self.assertFalse((root / "番号" / "Prestige" / "ABP-340").exists())
+            self.assertFalse((root / "Code" / "Prestige" / "ABP-340").exists())
 
     def test_rehome_unknown_jav_accepts_cloud_drive_removing_an_empty_layer(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2510,7 +2510,7 @@ class OperationalScriptTests(unittest.TestCase):
                 self.assertEqual(self.rehome_unknown._direct_children(target), {})
 
     def test_media_batch_scripts_are_import_safe_and_keep_context_rules(self):
-        self.assertEqual(self.probe.context_fields(1920, 1080, 180), ("速食", "横屏", "2K"))
+        self.assertEqual(self.probe.context_fields(1920, 1080, 180), ("速食", "Landscape", "2K"))
         with tempfile.TemporaryDirectory() as tmp:
             output = self.sheets.output_path(Path(tmp), "local", "R:/media/one.mp4")
             self.assertFalse(output.exists())
@@ -3558,7 +3558,7 @@ class OperationalScriptTests(unittest.TestCase):
         for code in ("WX17", "PBD390", "ipvr00296", "RAIKUN325", "BANBI_555"):
             self.assertFalse(explicit(code), code)
             self.assertTrue(explicit(code, release_evidence=True), code)
-        for code in ("", "合集", "未知厂牌", "4K", "FC2-1234"):
+        for code in ("", "Collection", "未知厂牌", "4K", "FC2-1234"):
             self.assertFalse(explicit(code, release_evidence=True), code)
 
     def test_a_directory_label_stored_as_code_is_never_queried(self):
@@ -4098,14 +4098,14 @@ class OperationalScriptTests(unittest.TestCase):
                             "catalog_title='Catalog title',studio='Studio A',release_date='2020-09-13'")
                 con.execute("INSERT INTO asset_tag(asset_id,tag,confidence,source) "
                             "VALUES(1,'肛交',0.9,'javinizer:r18dev:tag')")
-                upsert_asset_entity(con, kind="tag", name="肛交", asset_id=1, role="tag",
+                upsert_asset_entity(con, kind="tag", name="Anal", asset_id=1, role="tag",
                                     source="javinizer:r18dev:tag")
                 upsert_asset_entity(con, kind="performer", name="木村さん", asset_id=1,
                                     role="performer", source="javinizer:r18dev:performer")
                 con.execute("INSERT INTO review_decision(category,item_key,status,note,updated_at) "
                             "VALUES('metadata_fields','ABW-220:tags','approved',?,'2026-01-01')",
                             (json.dumps({"auto_applied": True, "source": "r18dev",
-                                         "candidate_key": "old-r18dev", "value": "肛交"}),))
+                                         "candidate_key": "old-r18dev", "value": "Anal"}),))
 
             class Recollection:
                 def __init__(self):
@@ -4131,7 +4131,7 @@ class OperationalScriptTests(unittest.TestCase):
             self.assertIn(("ABW-220", "javdb"), provider.calls)
             with output.open(encoding="utf-8-sig", newline="") as handle:
                 tags = next(row for row in csv.DictReader(handle) if row["field"] == "tags")
-            self.assertEqual(tags["current_value"], "肛交")
+            self.assertEqual(tags["current_value"], "Anal")
             candidate = json.loads(tags["candidates_json"])[0]
             self.assertEqual(candidate["source"], "javdb")
             self.assertEqual((candidate.get('javdb_rule'), candidate.get('source_id')), (2, 'VerifiedWork'))
@@ -4139,7 +4139,7 @@ class OperationalScriptTests(unittest.TestCase):
             with closing(sqlite3.connect(db)) as con:
                 self.assertEqual(set(con.execute("SELECT tag,source FROM asset_tag WHERE asset_id=1"
                                                  " AND tag NOT LIKE '演员:%'")),
-                                 {("高跟", "javinizer:javdb:tag"), ("丝袜", "javinizer:javdb:tag")})
+                                 {("High Heels", "javinizer:javdb:tag"), ("Stockings", "javinizer:javdb:tag")})
 
     def test_explicit_sources_ask_every_named_source_and_refuse_retired_names(self):
         """`--sources` 点名的每一家都问，官方答全了也不停；历史来源名当场拒绝。"""
@@ -4181,7 +4181,7 @@ class OperationalScriptTests(unittest.TestCase):
         translate = self.scrape_codes.translate_failure
         self.assertEqual((translate("javdb", NotFound("没有")).kind,
                           translate("javdb", NotFound("没有")).retryable), ("not_found", False))
-        paused = translate("javdb", SourcePaused("来源正在冷却"))
+        paused = translate("javdb", SourcePaused("The source is cooling down"))
         self.assertEqual((paused.kind, paused.status_code, paused.retryable), ("rate_limited", 429, True))
         walled = translate("javdb", SourcePaused("javdb 返回 403，已冷却"))
         self.assertEqual((walled.kind, walled.status_code, walled.retryable), ("auth", 403, False))
@@ -4227,7 +4227,7 @@ class OperationalScriptTests(unittest.TestCase):
             self.assertEqual((total, pending), (1, 1))
             with review.open(encoding="utf-8-sig", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            rows[0].update({"status": "approved", "tags": "素人", "reason": "reviewed"})
+            rows[0].update({"status": "approved", "tags": "Amateur", "reason": "reviewed"})
             with review.open("w", encoding="utf-8-sig", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=self.creator_tags.REVIEW_FIELDS)
                 writer.writeheader()
@@ -4599,16 +4599,16 @@ class ApplyMetadataTagsTests(unittest.TestCase):
     def test_only_the_requested_source_and_field_are_written(self):
         rows = [
             {"item_key": "AAA-001:tags", "field": "tags", "status": "candidate",
-             "candidates_json": json.dumps([{"source": "javbus", "value": ["素人"]},
-                                            {"source": "javdb", "value": ["人妻"]}])},
+             "candidates_json": json.dumps([{"source": "javbus", "value": ["Amateur"]},
+                                            {"source": "javdb", "value": ["Housewife"]}])},
             {"item_key": "AAA-001:title", "field": "title", "status": "candidate",
              "candidates_json": json.dumps([{"source": "javbus", "value": "タイトル"}])},
             {"item_key": "BBB-002:tags", "field": "tags", "status": "applied",
-             "candidates_json": json.dumps([{"source": "javbus", "value": ["白虎"]}])},
+             "candidates_json": json.dumps([{"source": "javbus", "value": ["Shaved"]}])},
         ]
         selected = self.apply_tags.plan(rows, "javbus", "tags")
         self.assertEqual([(group["item_key"], candidate["value"]) for group, candidate in selected],
-                         [("AAA-001:tags", ["素人"])])
+                         [("AAA-001:tags", ["Amateur"])])
 
     def test_skipped_codes_stay_in_the_csv_but_do_not_reach_the_ledger(self):
         """批量放行里总有几条明显不对，跳过它们，但不许从复核产物里抹掉。
@@ -4647,7 +4647,7 @@ class ApplyMetadataTagsTests(unittest.TestCase):
                 "confidence": 0.75, "provider": "javinizer-go",
                 "source_url": "https://www.javbus.com/ja/TRE-080",
                 "provider_id": "TRE-080", "content_id": "TRE-080",
-                "raw_snapshot": "javbus.json", "value": ["中出内射", "素人"],
+                "raw_snapshot": "javbus.json", "value": ["Creampie", "Amateur"],
             }
             with candidates.open("w", encoding="utf-8-sig", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=[
@@ -4692,7 +4692,7 @@ class ApplyMetadataTagsTests(unittest.TestCase):
                 writer.writeheader()
                 writer.writerow({"item_key": "A:tags", "field": "tags", "status": "candidate",
                                  "candidates_json": json.dumps([{"source": "javbus",
-                                                                 "value": ["素人"]}])})
+                                                                 "value": ["Amateur"]}])})
             args = self.apply_tags.build_parser().parse_args(
                 [str(candidates), "--db", str(root / "missing.db")])
             with redirect_stdout(io.StringIO()):

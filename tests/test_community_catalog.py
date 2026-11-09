@@ -339,7 +339,7 @@ class VerifiedCoverTests(unittest.TestCase):
         conflicting = {**pages, JAVBUS_COVER: gradient(800, 538, rising=False),
                        DMM_COVER: gradient(800, 538, rising=False)}
         failures = ((httpx.ConnectError("proxy down"), Unavailable), (httpx.ReadTimeout("read timeout"), Unavailable),
-                    (503, Unavailable), (404, Unavailable), (SourcePaused("来源正在冷却"), SourcePaused))
+                    (503, Unavailable), (404, Unavailable), (SourcePaused("The source is cooling down"), SourcePaused))
         for failure, expected in failures:
             with self.subTest(failure=failure), patch("peach.jav_cover_fetch.time.sleep"):
                 # 只剩 javdb 带水印的那张；或另两家各给一张对不上：没下到的 JavBus 那张都可能改变结论。
@@ -483,14 +483,14 @@ class SourceChoiceTests(unittest.TestCase):
 
 
 #: 接口类别按 (作品类型, id) 换回详情页原词；测试只登记这几项。
-PUBLIC_GENRES = {"0:28": "單體作品", "0:57": "美臀", "0:74": "肛門・肛交", "3:11": "私人攝影"}
+PUBLIC_GENRES = {"0:28": "單體作品", "0:57": "Nice butt", "0:74": "肛門・肛交", "3:11": "私人攝影"}
 PUBLIC_MOVIE = {
     "id": "Zb7mX", "type": 0, "number": "ABW-358", "title": "顯示標題", "origin_title": TITLE,
     "maker_name": "PRESTIGE,プレステージ", "publisher_name": None, "series_name": None, "director_name": None,
     "release_date": "2023-05-23", "duration": 210,
     "cover_url": "https://tp.spfcas.com/rhe951l4q/covers/zb/Zb7mX.jpg",
     "actors": [{"id": "a", "name": "涼森れむ", "gender": 0}, {"id": "m", "name": "男優", "gender": 1}],
-    "tags": [{"id": "28", "name": "单体作品"}, {"id": "57", "name": "屁股"}, {"id": "74", "name": "肛交"},
+    "tags": [{"id": "28", "name": "单体作品"}, {"id": "57", "name": "屁股"}, {"id": "74", "name": "Anal"},
              {"id": "299", "name": "数位马赛克"}]}
 
 
@@ -507,7 +507,7 @@ class PublicSourceTests(unittest.TestCase):
         payload = public_record(PUBLIC_MOVIE).payload()
         page = JavDBSource().parse(Page("https://javdb.com/v/Zb7mX", JAVDB_PAGE), "ABW-358").payload()
         self.assertEqual(set(payload), set(page))
-        self.assertEqual(payload["genres"], ["單體作品", "美臀", "肛門・肛交"], "译名不进词表，详情页不显示的类别不投出")
+        self.assertEqual(payload["genres"], ["單體作品", "Nice butt", "肛門・肛交"], "译名不进词表，详情页不显示的类别不投出")
         self.assertEqual((payload["title"], payload["display_title"], payload["origin_title"]),
                          (TITLE, "顯示標題", TITLE))
         self.assertEqual(payload["actresses"], [{"japanese_name": "涼森れむ", "profile_source": "javdb", "external_id": "a"}])
@@ -575,17 +575,17 @@ class PublicSourceTests(unittest.TestCase):
     def test_genre_table_aligns_by_position_infers_hidden_genres_and_refuses_conflicts(self):
         from scripts.generate_javdb_genres import align
         rows = [{"type": 0, "api": [{"id": "57", "name": "屁股"}, {"id": "299", "name": "数位马赛克"}],
-                 "html": ["美臀"]},
-                {"type": 0, "api": [{"id": "57", "name": "美臀"}, {"id": "30", "name": "女大学生"}],
-                 "html": ["美臀", "女大學生"]},
+                 "html": ["Nice butt"]},
+                {"type": 0, "api": [{"id": "57", "name": "Nice butt"}, {"id": "30", "name": "女大学生"}],
+                 "html": ["Nice butt", "女大學生"]},
                 {"type": 1, "api": [{"id": "30", "name": "3P"}], "html": ["3P"]},
                 {"type": 0, "api": [{"id": "30", "name": "3P"}], "html": ["3P"]},
                 {"type": 0, "api": [{"id": "8", "name": "精选综合"}], "html": []},
-                {"type": 0, "api": [{"id": "65", "name": "苗条"}, {"id": "65", "name": "苗条"}], "html": ["苗條"]},
-                {"type": 0, "api": [{"id": "57", "name": "美臀"}, {"id": "390", "name": "LTX破解"}], "html": ["美臀"]},
-                {"type": 0, "api": [{"id": "65", "name": "苗条"}, {"id": "299", "name": "数位马赛克"}], "html": ["苗條"]}]
+                {"type": 0, "api": [{"id": "65", "name": "Slim"}, {"id": "65", "name": "Slim"}], "html": ["苗條"]},
+                {"type": 0, "api": [{"id": "57", "name": "Nice butt"}, {"id": "390", "name": "LTX破解"}], "html": ["Nice butt"]},
+                {"type": 0, "api": [{"id": "65", "name": "Slim"}, {"id": "299", "name": "数位马赛克"}], "html": ["苗條"]}]
         table, hidden, conflicts, skipped = align(rows)
-        self.assertEqual(table, {"0:57": "美臀", "0:65": "苗條", "1:30": "3P"},
+        self.assertEqual(table, {"0:57": "Nice butt", "0:65": "苗條", "1:30": "3P"},
                          "重复类别先去重；只多出详情页不显示的那项时其余照样对齐")
         self.assertEqual(hidden, ["0:299"], "只有一部作品为证的 390 不算详情页不显示")
         self.assertEqual(conflicts, {"0:30": ["3P", "女大學生"]})

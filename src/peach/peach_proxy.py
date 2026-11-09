@@ -36,13 +36,13 @@ def describe(root: Path) -> dict:
 def validate(root: Path, body: object) -> dict:
     """校验连接方式与地址；凭据只留在返回给保存流程的值中。"""
     if not isinstance(body, dict):
-        raise ValueError("请选择 Peach 代理的连接方式")
+        raise ValueError("Choose how Peach connects: environment, direct, or proxy")
     mode = body.get("mode")
     if not isinstance(mode, str) or mode not in {"environment", "direct", "proxy"}:
-        raise ValueError("请选择 Peach 代理的连接方式")
+        raise ValueError("Choose how Peach connects: environment, direct, or proxy")
     address = body.get("proxy") or values(root).get("proxy", "")
     if not isinstance(address, str):
-        raise ValueError("代理地址必须是文字")
+        raise ValueError("The proxy address must be text")
     address = address.strip()
     if mode == "proxy":
         try:
@@ -52,7 +52,7 @@ def validate(root: Path, body: object) -> dict:
         except ValueError:
             valid = False
         if not valid or any(char.isspace() for char in address):
-            raise ValueError("请填写带端口的 HTTP 或 SOCKS 代理地址")
+            raise ValueError("Enter an HTTP or SOCKS proxy address with a port")
     return {"mode": mode, "proxy": address if mode == "proxy" else ""}
 
 

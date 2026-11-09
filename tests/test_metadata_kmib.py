@@ -129,7 +129,7 @@ class KmibCatalogRuleTests(unittest.TestCase):
         """
         self.assertEqual(
             map_genres(["Doggy-Style", "Masterbation", "Pretty Girl", "Sexy", "Kiss"]),
-            (["后入", "自慰", "高颜值", "接吻"], []))
+            (["Doggy style", "Masturbation", "Gorgeous", "Kissing"], []))
 
 
 class KmibHarvestTests(unittest.TestCase):
@@ -175,7 +175,7 @@ class KmibHarvestTests(unittest.TestCase):
         self.assertEqual(by_field["studio"]["value"], "MIB")
         self.assertEqual(by_field["performers"]["provider_id"], "AIN-203")
         self.assertEqual(by_field["performers"]["value"][0]["external_id"], "3")
-        self.assertEqual(by_field["tags"]["value"], ["口交", "接吻"])
+        self.assertEqual(by_field["tags"]["value"], ["Oral", "Kissing"])
 
     def test_missing_codes_come_from_filenames_listed_on_the_official_site(self):
         con = sqlite3.connect(self.db)
@@ -225,7 +225,7 @@ class KmibHarvestTests(unittest.TestCase):
         finally:
             con.close()
         self.assertEqual(asset, ("Do you wanna be my slave", "2024-11-20", "MIB"))
-        self.assertEqual(tags, ["口交", "接吻"])
+        self.assertEqual(tags, ["Oral", "Kissing"])
         self.assertEqual(ref, ("Ain",))
 
 

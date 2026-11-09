@@ -237,7 +237,7 @@ class DmmSourceTests(unittest.TestCase):
             DmmSource().query("SSIS-057", session=Session(graphql(items={"ssis00057": Unavailable("HTTP 422")})))
         self.assertEqual((caught.exception.reason, caught.exception.status_code), (FailureReason.NETWORK, 422))
         with self.assertRaises(SourcePaused):
-            DmmSource().query("SSIS-057", session=Session(graphql(items={"ssis00057": SourcePaused("来源正在冷却")})))
+            DmmSource().query("SSIS-057", session=Session(graphql(items={"ssis00057": SourcePaused("The source is cooling down")})))
 
 
 def listed(cid, *, status=None, date="2026-10-30T00:00:00+09:00", cast=("森日向子",), maker="ムーディーズ"):

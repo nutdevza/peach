@@ -69,8 +69,8 @@ class LibraryShortcutsTests(unittest.TestCase):
     def test_tag_alias_resolves_to_entity_and_can_be_cancelled(self):
         result = self.write(action="favorite", kind="tag", name="故事", on=True)
         self.assertEqual(result['favorites'][0]['entity_id'], 3)
-        self.assertEqual(result['favorites'][0]['name'], '剧情')
-        self.assertEqual(self.write(action="favorite", kind="tag", name="剧情", on=False)['favorites'], [])
+        self.assertEqual(result['favorites'][0]['name'], 'Drama / Story')
+        self.assertEqual(self.write(action="favorite", kind="tag", name="Drama / Story", on=False)['favorites'], [])
 
     def test_filters_roundtrip_preserves_empty_source_and_removal(self):
         href = '/watch-later?loc=&q=ABW&tag=%E5%89%A7%E6%83%85&jav=1&sort=name&dir=asc&thumb=0'

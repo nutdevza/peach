@@ -103,7 +103,7 @@ class MediaRepairRunTests(unittest.TestCase):
             mock.patch.object(rm_repair.mp4recover, "untrunc_path", lambda root: Path("untrunc")),
             mock.patch.object(rm_repair.media_probe, "measure",
                               lambda ffprobe, asset_id, path: (95.0, 720, 406, "h264", 29.97, None,
-                                                               "短", "横屏", "低画质", asset_id)),
+                                                               "短", "Landscape", "Low quality", asset_id)),
         ):
             patch.start()
             self.addCleanup(patch.stop)

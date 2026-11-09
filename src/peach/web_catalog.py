@@ -412,7 +412,7 @@ def orientation_member(args) -> Callable[[dict], bool] | None:
         orient = args["orient"]
         return lambda member: member.get("ctx_orient") == orient
     if args.get("exclude_vertical") == "1":
-        return lambda member: member.get("ctx_orient") != "竖屏"
+        return lambda member: member.get("ctx_orient") != "Portrait"
     return None
 
 
@@ -740,7 +740,7 @@ def attach_saved_follow_cards(contract: WebContract, rows):
 
 #: 版次的展示次序：正片在前，处理过的在后。这不是偏好排序，只是要一个稳定的
 #: 锚点——卡片标题取第一个，次序一变卡片就换名字。
-EDITION_ORDER = ("有码", "中字", "无码", "无码流出", "无码破解")
+EDITION_ORDER = ("Censored", "中字", "Uncensored", "无码流出", "无码破解")
 
 
 def _edition_label(row: dict, tags: tuple[str, ...] = (), source_names: tuple[str, ...] = ()) -> str:
@@ -756,7 +756,7 @@ def _edition_label(row: dict, tags: tuple[str, ...] = (), source_names: tuple[st
 def _edition_badge(name, code, tags: tuple[str, ...], source_names: tuple[str, ...]) -> str:
     # 分组快照每次重算都要判一遍；判据只看这四样，按它们记住。
     badges = jav_edition_badges(name, code, tags, source_names)
-    return str(badges[0]) if badges else "有码"
+    return str(badges[0]) if badges else "Censored"
 
 
 def _edition_rows(contract: WebContract, codes) -> list[dict]:

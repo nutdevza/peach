@@ -200,7 +200,7 @@ class HeaderTests(Case):
             "birth_date": "1991-07-21", "age": 35, "height": 155, "bust": 86, "waist": 60,
             "hip": 87, "cup": "F", "debut_date": "2010-12-02",
             "debut_title": "セキララ 〜今どき世代のゆるい性事情〜 03",
-            "active": {"from": 2010, "to": 2023}, "tags": ["美乳", "美臀", "百合"]})
+            "active": {"from": 2010, "to": 2023}, "tags": ["Beautiful Breasts", "Nice butt", "Yuri / GL"]})
         groups = head["name_groups"]
         self.assertEqual(groups["reading"], "しのだゆう")
         self.assertEqual(groups["shown"], ["篠田ゆう", "篠崎ゆう子", "高木早希"])
@@ -233,13 +233,13 @@ class HeaderTests(Case):
         raw = ["美人", "美少女", "清楚", "巨尻", "美尻", "ロリ→ギャル", "美乳美尻",
                "カリビアン", "まだ知らない分類", "  "]
         self.assertEqual(performer_header.site_tags(raw),
-                         ["高颜值", "清纯", "巨臀", "美臀", "萝莉→辣妹", "美乳", "まだ知らない分類"])
+                         ["Gorgeous", "Innocent", "Big ass", "Nice butt", "Lolita→Gyaru", "Beautiful Breasts", "まだ知らない分類"])
         with self.connection:
             record_genre_decision(self.connection, "剛毛", "浓密阴毛", STAMP)
             record_genre_decision(self.connection, "美尻", None, STAMP)
         shinoda = self.entity("篠田优")
         self.land(shinoda, SHINODA.replace(">レズ<", ">剛毛<"))
-        self.assertEqual(self.header(shinoda, "篠田优")["profile"]["tags"], ["美乳", "浓密阴毛"])
+        self.assertEqual(self.header(shinoda, "篠田优")["profile"]["tags"], ["Beautiful Breasts", "浓密阴毛"])
 
     def test_age_turns_on_the_birthday(self):
         self.assertEqual(performer_header.age_on("1991-07-21", date(2026, 7, 20)), 34)

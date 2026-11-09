@@ -172,7 +172,7 @@ class MacStandaloneDistributionTests(TestCase):
                         mock.patch.object(tray, "NetworkChangeWatcher") as watcher:
                     tray.run_macos_menu_bar(mock.Mock(specs=()), gate, silent=True)
                 labels = [title for title, _ in menu_type.call_args.args[2]]
-                self.assertEqual("同步开发进度" in labels, not independent)
+                self.assertEqual("Sync development progress" in labels, not independent)
                 if independent:
                     certificate.assert_not_called()
                     watcher.assert_not_called()
@@ -180,7 +180,7 @@ class MacStandaloneDistributionTests(TestCase):
                     certificate.assert_called_once()
                     watcher.return_value.start.assert_called_once()
                     watcher.return_value.stop.assert_called_once()
-                    self.assertLess(labels.index("同步开发进度"), labels.index("重启服务"))
+                    self.assertLess(labels.index("Sync development progress"), labels.index("Restart service"))
                 menu.run.assert_called_once()
 
     @skipUnless(sys.platform == "darwin", "AppKit 是 macOS 专属")
@@ -420,8 +420,8 @@ class SparkleUpdateTests(TestCase):
                 mock.patch.object(tray, "create_icon"), \
                 mock.patch.object(tray.sparkle_update, "start", return_value=sparkle):
             tray.run_macos_menu_bar(mock.Mock(specs=()), mock.Mock(waiting=False), silent=True)
-        submenu = dict(menu_type.call_args.args[2])["版本与更新"]
-        dict(row for row in submenu.items() if row[0])["检查更新"]()
+        submenu = dict(menu_type.call_args.args[2])["Version and updates"]
+        dict(row for row in submenu.items() if row[0])["Check for updates"]()
         sparkle.check.assert_called_once()
         versions.return_value.check.assert_not_called()
 

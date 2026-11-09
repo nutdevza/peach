@@ -177,7 +177,7 @@ class R18DevSourceTests(unittest.TestCase):
             R18DevSource().query("ABW-358", session=Session(serve({DETAIL_URL: Unavailable("HTTP 503")})))
         self.assertEqual((caught.exception.reason, caught.exception.status_code), (FailureReason.SERVER_ERROR, 503))
         with self.assertRaises(SourcePaused):
-            R18DevSource().query("ABW-358", session=Session(serve({DETAIL_URL: SourcePaused("来源正在冷却")})))
+            R18DevSource().query("ABW-358", session=Session(serve({DETAIL_URL: SourcePaused("The source is cooling down")})))
         with self.assertRaises(SourceFailure) as caught:
             R18DevSource().query("ABW-358", session=Session(serve({DETAIL_URL: Unavailable("本趟对外请求配额已用完")})))
         self.assertEqual((caught.exception.reason, str(caught.exception)), (FailureReason.NETWORK, "本趟对外请求配额已用完"))

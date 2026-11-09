@@ -291,7 +291,7 @@ class LedgerSyncTests(unittest.TestCase):
         self.assertTrue(reader.read_only)
         message = reader.read_only_message
         self.assertIn("win", message)                 # 指出写入端是谁
-        self.assertIn("由本机接管数据库写入", message)     # 给出本机恢复方式
+        self.assertIn("Take over database writes on this machine", message)     # 给出本机恢复方式
         self.assertNotIn("两侧一致", message)          # 不得把同步判定原样抛给用户
 
     def test_conflict_message_points_to_manual_recovery(self):

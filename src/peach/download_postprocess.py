@@ -20,7 +20,7 @@ from .task_runs import declared_rows
 from .task_retry import RetryableTaskError
 
 TASK_KEY = "download-postprocess"
-TASK_LABEL = "云下载后处理"
+TASK_LABEL = "Cloud download post-processing"
 
 
 def followup_key(task_id: int) -> str:

@@ -67,16 +67,21 @@ _SETUP_SYMBOLS = re.compile(r'<symbol id="i-(?:' + '|'.join(sorted({"folder-sear
 #: 键 -> 页面上的题目与一句说明。顺序、默认值与校验仍然来自 `onboarding.questions()`，
 #: 这里只决定同一道题在浏览器里怎么称呼：命令行那份题面要把可选值写进去，页面用控件表达。
 _SETUP_COPY = {
-    "data_root": ("数据目录", "Peach 数据库、封面、预览图和缓存都放在这里，馆藏较大时会占用数十 GB。"
-                              "系统盘空间紧张时，请选择其他磁盘上的文件夹；之后也可在设置页迁移。"),
-    "media_dir": ("媒体目录", "选择存放视频和图片的现有文件夹，也可以使用外置硬盘。"),
-    "host": ("谁可以访问", ""),
-    "port": ("端口", "浏览器地址里冒号后面的数字，一般不用改。"),
-    "mdns_name": ("局域网访问地址", "选了「同一局域网的设备」之后，其他设备在浏览器里输入这个地址就能打开 Peach。"),
+    "data_root": ("Data directory",
+                  "The Peach database, cover art, previews, and caches all live here. A large library "
+                  "can take tens of GB; if the system drive is running low, pick a folder on another "
+                  "disk. You can migrate it later from Settings."),
+    "media_dir": ("Media folders", "Pick the folders that already hold your videos and images; an external drive works fine."),
+    "host": ("Who can access", ""),
+    "port": ("Port", "The number after the colon in your browser's address bar; you rarely need to change it."),
+    "mdns_name": ("LAN address",
+                  'After choosing "Devices on the same LAN", other devices open Peach by entering this address in a browser.'),
 }
 #: 「谁可以访问」在页面上的顺序：局域网在左边，也是默认选项——Peach 的本意就是给
 #: 同一局域网里的设备看。命令行问答按 `HOST_OPTIONS` 的编号顺序念，两边取值一致。
 _HOST_ORDER = ("2", "1")
+#: Page copy for the host options; the CLI question text keeps its own wording.
+_HOST_PAGE_LABELS = {"1": "This computer only", "2": "Devices on the same LAN"}
 
 
 def setup_shell() -> str:
@@ -85,7 +90,7 @@ def setup_shell() -> str:
     字形从 `web/index.html` 的雪碧图里按名字摘。
     """
     index = (PROJECT_ROOT / "web/index.html").read_text(encoding="utf-8")
-    return page_shell("Peach · 首次运行", "setup", symbols="".join(_SETUP_SYMBOLS.findall(index)))
+    return page_shell("Peach · First-time setup", "setup", symbols="".join(_SETUP_SYMBOLS.findall(index)))
 
 
 def error_page(status: int, message: str) -> str:
@@ -101,20 +106,20 @@ def _copy_for(key: str, fallback: str) -> tuple[str, str]:
 
 
 #: 非 Windows 表单说明实际目录的填写位置。
-_POSIX_MEDIA_NOTE = "填写这台设备实际读取媒体的文件夹；Docker 部署填写容器内目录，例如 /media。"
+_POSIX_MEDIA_NOTE = "Enter the folder this machine actually reads media from; for a Docker deployment, enter the in-container directory, for example /media."
 
 
 #: 有一行媒体来源选了云盘时，媒体库底下出现的那句提示和它的帮助链接。
 _CLOUD_HELP = "请先将 CloudDrive2 或 OpenList 中的网盘挂载为本机文件夹；Windows 读取 NAS 共享时，请先映射为盘符，再选择对应文件夹。本机安装提示仅适用于在本机运行 CloudDrive。文件操作需要挂载工具和网盘账号授予写入权限；光鸭云盘的上传、建文件夹、改名和移动需要 CloudDrive2 v1.1.0 或更高版本，删除和复制暂不支持。"
 _CLOUD_HELP_URL = "https://www.clouddrive2.com/help.html"
-_CLOUD_HELP_LABEL = "挂载帮助"
+_CLOUD_HELP_LABEL = "Mounting help"
 
 
 def missing_mount_dependencies(*, windows: bool) -> list[dict[str, str]]:
     """云盘挂载缺的软件：每项一句「未检测到」和它的下载入口，由 `/api/setup/questions` 交给首启页。"""
     from .media_configuration import mount_dependencies
-    return [{"name": row["name"], "message": f"未检测到 {row['name']}。",
-             "download_url": row["download_url"], "download_label": f"下载 {row['name']}"}
+    return [{"name": row["name"], "message": f"{row['name']} was not detected.",
+             "download_url": row["download_url"], "download_label": f"Download {row['name']}"}
             for row in mount_dependencies(system='win32' if windows else 'darwin') if not row['available']]
 
 
@@ -436,17 +441,17 @@ def _setup_guard(request: Request, *, submit: bool) -> None:
         if not local_client(request):
             raise HTTPException(status_code=403, detail={"message": FIRST_ACCESS_DENIED, "docker": True})
         if submit and not origin_allowed(request, guard="setup", tunnels=False):
-            raise HTTPException(status_code=403, detail="请从 Peach 设置页提交")
+            raise HTTPException(status_code=403, detail="Submit from Peach's setup page")
         return
     host = request.client.host if request.client else ""
     if host not in _LOOPBACK:
         raise HTTPException(status_code=403, detail="setup is loopback-only")
     if distribution.standalone() and request.url.hostname not in _LOOPBACK:
-        raise HTTPException(status_code=403, detail="请使用本机地址打开设置")
+        raise HTTPException(status_code=403, detail="Open setup from an address on this machine")
     if not submit:
         return
     if not origin_allowed(request, guard="setup", tunnels=False):
-        raise HTTPException(status_code=403, detail="请从 Peach 设置页提交")
+        raise HTTPException(status_code=403, detail="Submit from Peach's setup page")
 
 
 @router.get("/api/setup/questions")
@@ -462,7 +467,7 @@ def setup_questions(request: Request):
     windows = os.name == "nt"
     docker = distribution.docker()
     asked = _asked(onboarding.questions(settings_file.active(), windows=windows), docker=docker)
-    host_labels = dict(onboarding.HOST_OPTIONS)
+    host_labels = _HOST_PAGE_LABELS
     from .media_configuration import SOURCE_OPTIONS
     items = []
     for question in asked:
@@ -552,7 +557,7 @@ async def setup_submit_json(request: Request):
     except ValueError:
         body = None
     if not isinstance(body, dict):
-        raise HTTPException(status_code=400, detail="请求正文要是 JSON 对象")
+        raise HTTPException(status_code=400, detail="The request body must be a JSON object")
     from . import remote_reporting
     try:
         reporting = remote_reporting.parse_choices(body.get("remote_reporting", {}), partial=True)
@@ -574,7 +579,7 @@ async def setup_submit_json(request: Request):
     confirmation = submitted.get("access_confirm", "") if password_enabled else ""
     try:
         if password_enabled and not password:
-            raise ValueError("请输入访问密码")
+            raise ValueError("Enter an access password")
         access.validate_password(password, confirmation)
     except ValueError as exc:
         errors["access_password"] = str(exc)
@@ -607,7 +612,7 @@ async def setup_submit_json(request: Request):
         except (OSError, RuntimeError) as exc:
             errors = {"data_root": str(exc)}
     if errors:
-        raise HTTPException(status_code=400, detail={"message": "有几项需要修改", "errors": errors})
+        raise HTTPException(status_code=400, detail={"message": "A few fields need your attention", "errors": errors})
     remote_reporting.save(reporting, applied.config)
     if scan_now:
         onboarding.request_first_scan(applied.config, "configured" if answers.media_sources is not None else "local")
@@ -645,14 +650,14 @@ async def setup_restore(request: Request):
         body = await request.json()
         raw = body.get("data_root") if isinstance(body, dict) else None
         if not isinstance(raw, str) or not raw.strip() or not Path(raw).is_absolute():
-            raise ValueError("请选择已有数据目录的绝对路径")
+            raise ValueError("Choose an absolute path to an existing data directory")
         config, broken = onboarding.resolve_config(Path(raw))
         if broken:
             raise broken
         if not config.present:
-            raise ValueError("此目录中没有有效的 config.toml")
+            raise ValueError("No valid config.toml in this directory")
         if not (config.directory("database") / "ledger.db").is_file():
-            raise ValueError("此目录中没有数据库，请选择保存原配置和数据库的数据目录")
+            raise ValueError("No database here; choose a data directory that still holds the original config and database")
         if distribution.standalone():
             onboarding.check_available_port(config.server.port, request.url.port or 80)
         settings_file.remember_data_root(settings_file.active(), config)

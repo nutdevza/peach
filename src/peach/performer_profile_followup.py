@@ -62,7 +62,7 @@ from .scripting import HostLimiter
 from .sources import avbase
 
 TASK_KEY = "performer-profile"
-TASK_LABEL = "补女优资料"
+TASK_LABEL = "Fill in performer profiles"
 SOURCE = "auto:performer-profile"
 MINNANO, AVBASE, AVWIKIDB, JAVDB = alias.MINNANO, "avbase", "avwikidb", "javdb"
 #: javdb 的女优页不另设间隔：取页时等 `library_processing.SOURCE_LIMITER`，与资料处理、订阅源同一份。

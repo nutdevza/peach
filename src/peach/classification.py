@@ -31,13 +31,14 @@ def structural_vocabulary() -> frozenset[str]:
     单字词（`海`、`生`、`足`）在连写切分中会拼出普通人名，不收。
     """
     from .catalog_rules import (APPEARANCE_TAGS, ATTRIBUTE_TAGS, POSITION_TAGS, RELATIONSHIP_TAGS,
-                                RETIRED_TAGS, ROLE_TAGS, SCENE_TAGS, STORY_TAGS, TECH_TAGS)
+                                RETIRED_TAGS, ROLE_TAGS, SCENE_TAGS, STORY_TAGS, TAG_ENGLISH, TECH_TAGS)
     from .genre_taxonomy import CONTENT_GENRES
     words = set()
     for group in (APPEARANCE_TAGS, ATTRIBUTE_TAGS, POSITION_TAGS, RELATIONSHIP_TAGS,
                   ROLE_TAGS, SCENE_TAGS, STORY_TAGS, TECH_TAGS, RETIRED_TAGS, CONTENT_GENRES):
         words.update(group)
     words.update(CONTENT_GENRES.values())
+    words.update(TAG_ENGLISH)
     for line in STRUCTURAL_WORDS_FILE.read_text(encoding="utf-8").splitlines():
         word = line.split("#", 1)[0].strip()
         if word:

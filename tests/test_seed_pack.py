@@ -76,7 +76,7 @@ def label_maker(connection, label_id: int, maker_id: int, source: str) -> None:
 
 
 PROFILE = {"kana": "あまかわそら", "birth_date": "1998-10-10", "height_cm": 164, "cup": "G",
-           "tags": ["巨乳", "美肌"], "raw": {"名前": "天川そら", "サイズ": "T164 / B87"}}
+           "tags": ["Big Breasts", "Beautiful skin"], "raw": {"名前": "天川そら", "サイズ": "T164 / B87"}}
 
 
 class SeedPackCase(unittest.TestCase):
@@ -217,7 +217,7 @@ class ExportTests(SeedPackCase):
                          "敏感链接、目录页与种子写的链接都不导；主机按导入同一套规则归一，大小写不进包")
         self.assertEqual(sora["profile"]["fields"],
                          {"kana": "あまかわそら", "birth_date": "1998-10-10", "height_cm": 164, "cup": "G",
-                          "tags": ["巨乳", "美肌"]}, "资料按列导，raw 残片不导")
+                          "tags": ["Big Breasts", "Beautiful skin"]}, "资料按列导，raw 残片不导")
         self.assertEqual(sora["profile"]["source"], "auto:performer-profile@7")
         self.assertEqual(sora["agency"], {"name": "STARTUP", "source": "minnano-av:所属事務所"})
         self.assertNotIn("只有名字", by_name, "光一个名字对别的数据库没有用处")
@@ -269,7 +269,7 @@ class ImportTests(SeedPackCase):
         self.assertEqual(json.loads(links[0][1]), {"source": "auto:seed", "batch": BATCH})
         profile = read_profile(self.target, her)
         self.assertEqual((profile["kana"], profile["height_cm"], profile["tags"], profile["raw"], profile["source"]),
-                         ("あまかわそら", 164, ["巨乳", "美肌"], {}, BATCH))
+                         ("あまかわそら", 164, ["Big Breasts", "Beautiful skin"], {}, BATCH))
         self.assertEqual(profile["fetched_at"], STAMP, "取回时间照包里的记，30 天算旧的规则接着管它")
         member = self.target.execute("SELECT agency_id,source FROM entity_membership WHERE member_id=?",
                                      (her,)).fetchone()

@@ -19,10 +19,10 @@ from .reporting_identity import event_metadata, machine_facts
 from .diagnostic_exceptions import media_details
 
 FIELDS = {
-    "usage": "Peach 版本、分发方式（Windows／macOS 应用、Docker、wheel 或源码）、操作系统类型与版本、CPU 架构与核数、内存档位、Python 版本、运行环境与公开构建编号；每天最多一条活跃日志和一条会话汇总，不含安装标识。连续运行时也按 UTC 日统计，代表运行中的实例，不代表人数或当天有人操作。",
-    "errors": "诊断补充：故障环节、异常链、Peach 与白名单框架的代码文件名/函数名/行号、结构化错误码、媒体工具故障类别、浏览器白名单异常类型与正式脚本构建映射、HTTP 方法/路由模板/关联错误编号、同类故障次数与统计日期；同一版本的同类故障只上传一次完整诊断，每天最多 5 条，之后的次数每 6 小时或退出时合并为计数日志。",
+    "usage": "Peach version, distribution (Windows/macOS app, Docker, wheel, or source), OS type and version, CPU architecture and core count, memory tier, Python version, runtime, and public build number; at most one active log and one session summary per day, no install identifier. Continuous runs are counted per UTC day and represent a running instance, not people or that someone used it that day.",
+    "errors": "Diagnostic extras: failing stage, exception chain, code file/function/line for Peach and whitelisted frameworks, structured error codes, media tool failure categories, whitelisted browser exception types and their official build mappings, HTTP method/route template/linked error IDs, counts of identical failures with the dates; for one version the first identical failure uploads the full diagnostics, at most 5 per day, and later ones merge into count logs every 6 hours or on exit.",
 }
-NOTICE = "发送至 Sentry。不上报错误原文、完整日志、诊断 ZIP、媒体名称、路径、网址、观看记录或凭据。接收服务会接触连接 IP；关闭后停止新发送，已发送的信息无法撤回。"
+NOTICE = "Sent to Sentry. It never includes raw error text, full logs, diagnostic ZIPs, media names, paths, URLs, watch history, or credentials. The receiving service sees the connection IP; after turning it off no new sends happen, and already sent information cannot be recalled."
 _lock = threading.RLock()
 _client = None
 _client_dsn = ""
@@ -103,13 +103,13 @@ def snapshot(config=None):
 
 def parse_choices(body, *, partial=False):
     if not isinstance(body, dict):
-        raise ValueError("遥测和自动错误诊断必须是布尔值")
+        raise ValueError("Telemetry and automatic error reporting must be true or false")
     defaults = consent() if partial else {}
     choices = {key: body.get(key, defaults.get(key)) for key in FIELDS}
     if any(type(value) is not bool for value in choices.values()):
-        raise ValueError("遥测和自动错误诊断必须是布尔值")
+        raise ValueError("Telemetry and automatic error reporting must be true or false")
     if choices["usage"] != choices["errors"]:
-        raise ValueError("版本统计与错误诊断须同时开启或关闭")
+        raise ValueError("Usage stats and error reporting turn on or off together")
     return choices
 
 

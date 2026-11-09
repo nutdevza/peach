@@ -91,7 +91,7 @@ class LibraryDiagnosticsTests(unittest.TestCase):
         self.assertIsNone(diagnostics.failures(self.config)[0])
 
     def test_large_lists_are_bounded_and_keep_the_total(self):
-        result = diagnostics.group('缺时长', [{'id': i, 'code': None} for i in range(1, 601)])
+        result = diagnostics.group('Missing duration', [{'id': i, 'code': None} for i in range(1, 601)])
         self.assertEqual(result['count'], 600)
         self.assertEqual(len(result['items']), 500)
         self.assertTrue(result['truncated'])

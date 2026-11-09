@@ -180,7 +180,7 @@ def _delegate_class():
             if reason is None:
                 return None
             # 空条目让 Sparkle 按「没有可用更新」收尾，原因另用通知说明。
-            self._notify(reason, "Peach 版本与更新")
+            self._notify(reason, "Peach Version and updates")
             return objc.lookUpClass("SUAppcastItem").emptyAppcastItem()
 
         def updater_willInstallUpdate_(self, _updater, _item):
@@ -206,7 +206,7 @@ def _delegate_class():
             # 附件应用没有窗口可前置；定时检查到的更新用系统通知提醒一次。
             if not state.userInitiated():
                 self._notify(f"Peach {item.displayVersionString()} 可以安装，"
-                             "在菜单栏「版本与更新」中点「检查更新」", "Peach 版本与更新")
+                             "在菜单栏「版本与更新」中点「检查更新」", "Peach Version and updates")
 
     def create(config, stop_services, notify):
         delegate = SparkleDelegate.alloc().init()

@@ -242,7 +242,7 @@ class ReleaseUpdateTests(unittest.TestCase):
         with patch.dict("os.environ", {"PEACH_DISTRIBUTION": "docker"}):
             snapshot = release_updates.snapshot()
         result, calls = self.docker_check({"1.0.0": same, "edge": same})
-        self.assertEqual(snapshot["installation"], "Docker 镜像", "此前显示成「源码运行」")
+        self.assertEqual(snapshot["installation"], "Docker image", "此前显示成「源码运行」")
         self.assertEqual([step["command"] for step in snapshot["steps"]],
                          ["docker compose pull", "docker compose up -d"])
         self.assertEqual((result["state"], result["latest_version"]), ("available", "1.0.0"))

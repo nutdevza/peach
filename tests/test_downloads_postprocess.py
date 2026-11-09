@@ -72,7 +72,7 @@ class DownloadPostprocessTests(unittest.TestCase):
         from peach.task_retry import RETRY_DELAYS
         started = 1_800_000_000.0
         self.contract.downloads.clock = lambda: started
-        with patch.object(post, '_collect', side_effect=TimeoutError('来源连接超时')):
+        with patch.object(post, '_collect', side_effect=TimeoutError('Source connection timed out')):
             for attempt, delay in enumerate(RETRY_DELAYS, 1):
                 with self.assertRaises(TimeoutError):
                     self.run_task()
@@ -208,11 +208,11 @@ class DownloadPostprocessTests(unittest.TestCase):
     def test_collection_that_steps_aside_stays_queued_instead_of_failed(self):
         self.handle.run_id = 123
         self.contract.task_runs = Mock()
-        with patch.object(post, '_collect', side_effect=JobDeferred('等待扫描与采集完成后继续')):
+        with patch.object(post, '_collect', side_effect=JobDeferred('Waiting for the scan-and-scrape pass to finish')):
             with self.assertRaises(JobDeferred):
                 self.run_task()
         task = self.store.get(self.task.id)
-        self.assertEqual((task.postprocess_state, task.postprocess_detail), ('queued', '等待扫描与采集完成后继续'))
+        self.assertEqual((task.postprocess_state, task.postprocess_detail), ('queued', 'Waiting for the scan-and-scrape pass to finish'))
         self.contract.task_runs.enqueue_followups.assert_not_called()
 
     def test_collection_held_only_by_paused_sources_still_organizes_the_file(self):

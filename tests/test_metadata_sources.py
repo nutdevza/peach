@@ -81,7 +81,7 @@ class JavDBResourceTests(unittest.TestCase):
         self.assertEqual(record.tags, ("高跟鞋", "絲襪、過膝襪", "尚未收錄的分類", "單體作品"))
         self.assertEqual(record.payload()["genres"], ["高跟鞋", "絲襪、過膝襪", "尚未收錄的分類", "單體作品"])
         fields = extract_peach_fields(record.payload())
-        self.assertEqual(fields["tags"]["value"], ["高跟", "丝袜"])
+        self.assertEqual(fields["tags"]["value"], ["High Heels", "Stockings"])
         self.assertEqual(fields["tags"]["unmapped_genres"], ["尚未收錄的分類"])
         with self.assertRaises(SourceFailure):
             JavDBSource().parse(page, "ABW-221")
@@ -213,8 +213,8 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(SourceFailure) as caught:
             DemoSource().query("ABC-001", session=Session(serve({"https://demo.test/ABC-001": b"gate"})))
         self.assertEqual(caught.exception.reason, FailureReason.AUTH_REQUIRED)
-        for signal in (SourcePaused("来源正在冷却"), DeadlineExceeded("动作预算已用尽"),
-                       httpx.TransportError("来源连接未取得")):
+        for signal in (SourcePaused("The source is cooling down"), DeadlineExceeded("动作预算已用尽"),
+                       httpx.TransportError("Source connection not reached")):
             with self.subTest(signal=type(signal).__name__), \
                     patch("peach.jav_cover_fetch.NETWORK_RETRY_DELAYS", ()), \
                     self.assertRaises(type(signal)):
@@ -231,10 +231,10 @@ class ContractTests(unittest.TestCase):
             "release_date": "", "runtime": 90, "cover_urls": ["https://demo.test/a.jpg", "https://demo.test/b.jpg"],
             "cover_url": "https://demo.test/a.jpg"})
         tagged = SiteRecord(source="demo", provenance="demo-page", code="ABC-001", source_url="", tags=(),
-                            extra={"plot": "剧情"})
+                            extra={"plot": "Drama / Story"})
         payload = tagged.payload()
         self.assertEqual((payload["genres"], payload["plot"], payload["cover_urls"], payload["cover_url"]),
-                         ([], "剧情", [], ""))
+                         ([], "Drama / Story", [], ""))
         self.assertNotIn("genres", record.payload(), "不给标签的站不带 genres 键")
 
 

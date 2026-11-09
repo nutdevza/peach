@@ -79,29 +79,29 @@ TASTE_DOMAIN_SUFFIXES = {
 TASTE_DOMAIN_SUFFIXES = (TASTE_DOMAIN_SUFFIXES | ADULT_DOMAINS) - MIXED_DOMAINS
 QUERY_KEYS |= {"searchstr", "search_word", "search_query", "k", "word", "text"}
 CATEGORY_TERMS: dict[str, set[str]] = {
-    "足系": {"feet", "foot", "footjob", "soles", "toes", "足", "足交", "脚", "脚交"},
+    "足系": {"feet", "foot", "footjob", "soles", "toes", "足", "Footjob", "脚", "脚交"},
     "3D/动画": {"3d", "animation", "blender", "daz", "sfm", "动画"},
-    "制服/角色扮演": {"cosplay", "jk", "maid", "schoolgirl", "uniform", "制服", "女仆", "角色扮演"},
-    "乳系": {"bigbreasts", "bigboobs", "boobs", "breasts", "tits", "巨乳", "乳"},
-    "口交": {"blowjob", "deepthroat", "oral", "口交", "深喉"},
-    "马眼/尿道/龟头": {"glans", "glansjob", "sounding", "urethra", "尿道", "马眼", "龟头"},
+    "制服/角色扮演": {"cosplay", "jk", "maid", "schoolgirl", "uniform", "Uniform", "Maid", "Role Play"},
+    "乳系": {"bigbreasts", "bigboobs", "boobs", "breasts", "tits", "Big Breasts", "乳"},
+    "Oral": {"blowjob", "deepthroat", "oral", "Oral", "Deep throat"},
+    "马眼/尿道/龟头": {"glans", "glansjob", "sounding", "urethra", "尿道", "Urethral", "龟头"},
     "ASMR/音声": {"asmr", "audio", "音声"},
-    "游戏同人": {"detroit", "detroitbecomehuman", "game", "gamecg", "hgame", "游戏", "同人"},
-    "反差/泄密/探花": {"leak", "leaked", "private", "反差", "探花", "泄密", "流出"},
+    "Game doujin": {"detroit", "detroitbecomehuman", "game", "gamecg", "hgame", "游戏", "同人"},
+    "反差/泄密/探花": {"leak", "leaked", "private", "Gap moe", "Paid hookup", "泄密", "流出"},
 }
 TASTE_CATEGORY_TAGS: dict[str, tuple[str, ...]] = {
-    "3D/动画": ("3D动画", "游戏同人", "动漫同人"),
-    "口交": ("口交", "打扫口交", "深喉"),
-    "制服/角色扮演": ("制服", "角色扮演", "JK制服", "女仆"),
-    "足系": ("足交", "恋足", "裸足"),
-    "游戏同人": ("游戏同人", "动漫同人", "日系同人"),
-    "乳系": ("巨乳", "美乳"),
-    "马眼/尿道/龟头": ("马眼", "龟头责"),
-    "ASMR/音声": ("ASMR", "淫语"),
-    "反差/泄密/探花": ("反差", "泄密流出", "探花"),
+    "3D/动画": ("3D animation", "Game doujin", "Anime doujin"),
+    "Oral": ("Oral", "Cleanup blowjob", "Deep throat"),
+    "制服/角色扮演": ("Uniform", "Role Play", "JK uniform", "Maid"),
+    "足系": ("Footjob", "Foot fetish", "Barefoot"),
+    "Game doujin": ("Game doujin", "Anime doujin", "Japanese doujin"),
+    "乳系": ("Big Breasts", "Beautiful Breasts"),
+    "马眼/尿道/龟头": ("Urethral", "Glans teasing"),
+    "ASMR/音声": ("ASMR", "Dirty talk"),
+    "反差/泄密/探花": ("Gap moe", "Leaked", "Paid hookup"),
 }
 NON_TASTE_SUMMARY_TAGS = TECH_TAGS | LENGTH_TAGS | {
-    "中文字幕", "内嵌字幕", "外挂字幕", "AI修复", "AI去码", "60fps",
+    "Chinese subtitles", "Embedded subtitles", "External subtitles", "AI restoration", "AI decensoring", "60fps",
 }
 TAKEOUT_HISTORY_MEMBER = "Takeout/Chrome/History.json"
 TAKEOUT_ACTIVITY_MEMBERS = (
@@ -1673,7 +1673,7 @@ def analyze_history(store_path: Path, output_dir: Path, *, since: str | None = N
         def report_analysis():
             if progress:
                 progress(stage="analyzing", checked=total, total=ceiling,
-                         message=f"分析浏览记录：已处理 {total:,} / {ceiling:,} 条")
+                         message=f"Analyzing browser history: {total:,} / {ceiling:,} processed")
         report_analysis()
         for source_key, visited_at, url, browser, profile, title, bookmark in db.execute(query, params):
             total += 1

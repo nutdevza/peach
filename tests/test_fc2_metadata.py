@@ -141,7 +141,7 @@ class MetadataCandidateTest(unittest.TestCase):
     def test_translates_only_reviewed_fc2_tags_and_deduplicates_synonyms(self):
         self.assertEqual(
             translated_tags("素人 フェラ フェラチオ 口内発射 未知"),
-            ["素人", "口交", "口爆"],
+            ["Amateur", "Oral", "Cum in mouth"],
         )
 
     def test_article_title_tags_and_cover_evidence_enter_the_unified_review_shape(self):
@@ -178,14 +178,14 @@ class MetadataCandidateTest(unittest.TestCase):
                              "https://example.invalid/cover.jpg")
             tag_row = next(row for row in rows if row["field"] == "tags")
             tags = json.loads(tag_row["candidates_json"])[0]
-            self.assertEqual(tags["value"], ["素人", "口交", "口爆"])
+            self.assertEqual(tags["value"], ["Amateur", "Oral", "Cum in mouth"])
 
 
 class HarvestTest(unittest.TestCase):
     """评论是用户多年攒的人工经验，本地对不上的标记同样要留。"""
 
     def _props(self, comments):
-        return {"article": {"title": "合集", "tags": []},
+        return {"article": {"title": "Collection", "tags": []},
                 "comments": {"data": comments}}
 
     def test_keeps_markings_for_video_ids_we_do_not_own(self):

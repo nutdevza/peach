@@ -54,7 +54,7 @@ class RepairDeferred(Exception):
 
 
 def mount_unreachable(ledger_path: str) -> bool:
-    """影片所在目录现在读不到：网盘或 NAS 掉线时补修延后，不按这部片失败结算。"""
+    "The video folder is unreadable: repairs defer while a cloud drive or NAS is offline, not counted as a failure"
     from .platform import root_status, translate_ledger_path
     try:
         folder = getattr(translate_ledger_path(ledger_path), 'parent', None)
@@ -418,7 +418,7 @@ def restore_dangling_candidates(database, candidate_root) -> dict:
         stored = connection.execute('SELECT result_json FROM ledger_upgrade_repair WHERE id=?',
                                     (DANGLING_KEY,)).fetchone()
         if stored is None:
-            raise ValueError('没有悬空候选补修的回执')
+            raise ValueError('No receipt for dangling-candidate repairs')
         receipt = json.loads(stored[0])
         if receipt.get('restored_at'):
             return {'rows': 0, 'decisions': 0, 'skipped': 0}
@@ -896,7 +896,7 @@ class UpgradeRepairs:
         except (OSError, sqlite3.Error) as error:
             if (getattr(error, 'errno', None) == errno.ENOSPC or getattr(error, 'winerror', None) in (39, 112)
                     or getattr(error, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL):
-                raise DiskSpaceDenied('显示尺寸补测备份空间不足，已暂停本批媒体') from error
+                raise DiskSpaceDenied('Not enough space for the display-dimension backup; this media batch paused') from error
             raise
 
     def _isolate_system_files(self) -> None:
@@ -973,7 +973,7 @@ class UpgradeRepairs:
         try:
             self._settle_dangling_candidates_once()
         except Exception:
-            LOGGER.exception('悬空资料候选补修失败')
+            LOGGER.exception('Dangling profile-candidate repair failed')
 
     def _settle_dangling_candidates_once(self) -> None:
         from .review_csv import write_rows
@@ -1009,7 +1009,7 @@ class UpgradeRepairs:
             # 候选件在事务里写，写不成整个事务回滚、下次启动重做（`_withdraw_stale_code_evidence` 同一做法）。
             for path, (header, rows) in plan['files'].items():
                 write_rows(path, header, rows, atomic=True)
-        LOGGER.info('悬空资料候选：改挂 %s 行，撤下 %s 行，决定改挂或清掉 %s 条',
+        LOGGER.info('Dangling profile candidates: reattached %s rows, withdrew %s rows, %s decided to reattach or clear',
                     len(plan['repinned']), len(plan['withdrawn']), len(decisions))
 
     def _settle_javdb_records(self) -> None:
@@ -1033,9 +1033,9 @@ class UpgradeRepairs:
                 connection.execute('INSERT INTO ledger_upgrade_repair(id,applied_at,result_json) VALUES(?,?,?)',
                                    (JAVDB_RECORDS_KEY, str(time.time()), json.dumps(result, ensure_ascii=False)))
         except Exception:
-            LOGGER.exception('JavDB 演员页记录类型补修失败')
+            LOGGER.exception('JavDB performer page record-type repair failed')
             return
-        LOGGER.info('JavDB 演员页：补记 %s 个记录类型，%s 枚入口不再给出，停用 %s 条订阅',
+        LOGGER.info('JavDB performer page: recorded %s record types, %s entries no longer listed, %s subscriptions disabled',
                     len(result['recorded']), len(result['hidden']), len(result['disabled_feeds']))
 
     def _clear_stale_codes(self) -> None:
@@ -1084,9 +1084,9 @@ class UpgradeRepairs:
             with self.contract.database.write_transaction() as connection:
                 connection.execute('INSERT OR IGNORE INTO ledger_upgrade_repair(id,applied_at,result_json) '
                                    'VALUES(?,?,?)', (key, str(time.time()), json.dumps({'removed': removed})))
-            LOGGER.info('已结束任务的控制文件：清掉 %s 个', removed)
+            LOGGER.info('Control files of finished tasks: cleared %s', removed)
         except Exception:
-            LOGGER.exception('清退已结束任务的控制文件失败')
+            LOGGER.exception('Failed to clear control files of finished tasks')
 
     def _prune_repair_checkpoints(self) -> None:
         """旧版补修完不删的续跑状态一次清掉；之后每部、每批有了结论就当场删（`discard_checkpoint`）。
@@ -1124,9 +1124,9 @@ class UpgradeRepairs:
                 connection.execute('INSERT OR IGNORE INTO ledger_upgrade_repair(id,applied_at,result_json) '
                                    'VALUES(?,?,?)', (key, str(time.time()),
                                                      json.dumps({'removed': removed, 'bytes': size})))
-            LOGGER.info('补修续跑状态：清掉 %s 个文件，%s 字节', removed, size)
+            LOGGER.info('Repair resume state: cleared %s files, %s bytes', removed, size)
         except Exception:
-            LOGGER.exception('清退补修续跑状态失败')
+            LOGGER.exception('Failed to clear repair resume state')
 
     def _settle_verification(self) -> None:
         """核查差异的结算规则（ADR-0139）对存量候选跑一遍，规则版本变了才再跑。
@@ -1285,7 +1285,7 @@ class UpgradeRepairs:
                 if cost_for(row['location'], row['path'], config) != 'free':
                     deferred.append(row['id'])
                     continue
-                planned.append(Followup(display_key, MEDIA_TASK, f'{_title(row)} · 补测显示尺寸'))
+                planned.append(Followup(display_key, MEDIA_TASK, f'{_title(row)}" · measure display dimensions"'))
                 media_count += 1
                 if len(planned) >= MAX_FOLLOWUPS:
                     break
@@ -1479,7 +1479,7 @@ class UpgradeRepairs:
             receipt = _read(self.receipt)
             display = receipt.get(repair.RECEIPT_KEY)
             if display is None:
-                raise ValueError('显示尺寸补测还没准备好，请稍后再试')
+                raise ValueError('Display-dimension measurement is not ready yet; try again later')
             with self.contract.database.read_connection() as connection:
                 known = self._display_targets_known(connection)
                 extra = {asset_id: size for asset_id, size in repair.collect(connection, cloud=True).items()
@@ -1557,7 +1557,7 @@ class UpgradeRepairs:
             with _mutex(state_for(self.contract.db_path)):
                 ids = [row['id'] for row in rows if task_control.requested(
                     self.contract.db_path, row['id'], (row['parent_run_id'], row['root_run_id'])) == 'resume']
-                receipt['media_paused'] = {'message': f'{error}；影片自动补全已暂停，请检查缓存后显式重试',
+                receipt['media_paused'] = {'message': f'{error}"; automatic video completion is paused - check the cache and retry explicitly"',
                                            'run_ids': ids, 'commands': {}}
                 self._save_receipt(receipt)
                 for run_id in ids:
@@ -1590,7 +1590,7 @@ class UpgradeRepairs:
 def _media_run(contract, key: str, handle) -> dict:
     # 旧队列保留撤下状态，新规则拥有独立回执。
     if f':{upgrade_rules.DISPLAY_DIMENSIONS}:' in key:
-        return {'outcome': 'skipped', 'reason': '已停用自动显示尺寸重探，保留已有测量和预览'}
+        return {'outcome': 'skipped', 'reason': 'Automatic display-dimension re-probing disabled; existing measurements and previews kept'}
     if f':{upgrade_rules.DISPLAY_DIMENSIONS_SAR}:' in key:
         return _display_run(contract, key, handle)
     if batch_members(key) is not None:
@@ -1621,7 +1621,7 @@ def _media_run(contract, key: str, handle) -> dict:
                 raise DiskSpaceDenied(paused['message'])
         if found is not None and mount_unreachable(found['path']):
             return _defer(contract, key, handle, [asset_id],
-                          RepairDeferred('影片所在目录读不到，挂载恢复后再补全', MOUNT_RETRY_SECONDS))
+                          RepairDeferred('Video folder unreadable; completing after the mount recovers', MOUNT_RETRY_SECONDS))
         guard = CapacityGuard(config)
         guard.check(force=True)
         result = process_library(config, contract.db_path, contract.candidate_root, contract.cover_root,
@@ -1645,7 +1645,7 @@ def _media_run(contract, key: str, handle) -> dict:
         result.get('outcome') == 'partial' and not result.get('paused_count'))
     if not finished and asset_id in result.get('paused_asset_ids', ()):
         return _defer(contract, key, handle, [asset_id],
-                      RepairDeferred('资料来源正在冷却，来源放开后再补全', COOLDOWN_RETRY_SECONDS))
+                      RepairDeferred('The source is cooling down; completing after it opens again', COOLDOWN_RETRY_SECONDS))
     if not finished:
         raise RuntimeError(result.get('error') or '影片升级补全未完成，请在任务中心查看后重试')
     discard_checkpoint(state_file)
@@ -1687,7 +1687,7 @@ def _batch_run(contract, key: str, handle) -> dict:
                                      recheck_existing=True, job_id=job_id, state_file=state_file,
                                      resume_state=previous or None, active=active,
                                      report=lambda state: handle.progress(
-                                         label=f"{len(targets)} 部影片 · {state.get('stage') or '更新影片资料'}"))
+                                         label=f"{len(targets)} videos · {state.get('stage') or 'Update video profiles'}"))
             guard.check(force=True)
     except DiskSpaceDenied as error:
         _pause_for_capacity(service, handle, error)
@@ -1729,9 +1729,9 @@ def _settle_batch(contract, handle, rule: str, asset_ids, offline, cooling) -> d
               'retry_at': now + COOLDOWN_RETRY_SECONDS} for asset_id in cooling]
     with contract.database.write_transaction(notify=False) as connection:
         upsert_items(connection, rows, mode='finish')
-    outcome = f'影片升级补全完成 {len(done)} 部'
+    outcome = f'"Video upgrade completion finished "{len(done)} 部'
     if offline or cooling:
-        outcome += f'；目录读不到或来源冷却，延后 {len(offline) + len(cooling)} 部'
+        outcome += f'"; folder unreadable or source cooling, deferred "{len(offline) + len(cooling)} 部'
     return {'outcome': outcome, 'asset_ids': asset_ids, 'done': len(done), 'deferred': len(offline) + len(cooling)}
 
 
@@ -1758,7 +1758,7 @@ def _display_run(contract, key: str, handle) -> dict:
             paused = _read(service.receipt).get('media_paused')
             if paused:
                 raise DiskSpaceDenied(paused['message'])
-        handle.progress(label='补测视频显示尺寸')
+        handle.progress(label='Measure video display dimensions')
         result = display_dimensions_repair.reprobe(contract, config, asset_id, checkpoint=available,
                                                    expected_generation=key.rsplit(':', 2)[1],
                                                    run_id=_run_id(handle))
@@ -1770,7 +1770,7 @@ def _display_run(contract, key: str, handle) -> dict:
         if service is not None and service.stopping.is_set():
             raise JobPaused('服务重启后继续') from None
         raise
-    return {'outcome': 'skipped' if result.get('skipped') else '显示尺寸补测完成',
+    return {'outcome': 'skipped' if result.get('skipped') else 'Display-dimension measurement finished',
             'asset_id': asset_id, 'dimensions_changed': result['changed']}
 
 
@@ -1787,7 +1787,7 @@ def _defer(contract, key: str, handle, asset_ids, error: RepairDeferred) -> dict
         upsert_items(connection, [{'rule': rule, 'asset_id': asset_id, 'generation': generation, 'state': 'deferred',
                                    'run_id': _run_id(handle), 'retry_at': until} for asset_id in asset_ids],
                      mode='finish')
-    return {'outcome': f'已延后：{error}', 'deferred': len(asset_ids), 'retry_at': until}
+    return {'outcome': f'"Deferred: "{error}', 'deferred': len(asset_ids), 'retry_at': until}
 
 
 def _pause_for_capacity(service, handle, error):

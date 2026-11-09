@@ -160,7 +160,7 @@ class ProcessingControlTests(unittest.TestCase):
     def test_progress_calibrates_range_and_paused_time_does_not_count(self):
         self.seed()
         state = dict(initial_estimate(self.config, self.db, 'metadata'),
-                     requested_stage='metadata', status='running', stage='读取本地资料', checked=0, total=10)
+                     requested_stage='metadata', status='running', stage='Read local details', checked=0, total=10)
         with patch('peach.processing_control.time.monotonic', return_value=100):
             estimate = ProcessingEstimate(self.config, state, None)
             estimate.update(state)
@@ -180,7 +180,7 @@ class ProcessingControlTests(unittest.TestCase):
     def test_metadata_passes_use_independent_measured_samples(self):
         self.seed()
         state = dict(initial_estimate(self.config, self.db, 'metadata'),
-                     requested_stage='metadata', status='running', stage='读取本地资料', checked=0, total=10)
+                     requested_stage='metadata', status='running', stage='Read local details', checked=0, total=10)
         with patch('peach.processing_control.time.monotonic', return_value=100):
             estimate = ProcessingEstimate(self.config, state, None)
             estimate.update(state)
@@ -188,7 +188,7 @@ class ProcessingControlTests(unittest.TestCase):
         with patch('peach.processing_control.time.monotonic', return_value=103):
             estimate.update(state)
         self.assertEqual(state['eta_kind'], 'measured')
-        state.update(stage='采集缺失资料', checked=0)
+        state.update(stage='Collect missing details', checked=0)
         with patch('peach.processing_control.time.monotonic', return_value=200):
             estimate.update(state)
         self.assertTrue(state['eta_initial'])
@@ -203,7 +203,7 @@ class ProcessingControlTests(unittest.TestCase):
 
     def test_total_estimate_includes_pending_media_and_collection(self):
         state = dict(speed_mode='standard', status='running', requested_stage='all',
-                     stage='读取本地资料', checked=0, total=10,
+                     stage='Read local details', checked=0, total=10,
                      estimate_pending={'local': 10, 'probe': 2, 'previews': 3, 'metadata': 10})
         with patch('peach.processing_control.time.monotonic', return_value=100):
             estimate = ProcessingEstimate(self.config, state, None)
@@ -214,14 +214,14 @@ class ProcessingControlTests(unittest.TestCase):
         self.assertEqual(state['eta_scope'], '整趟任务')
         self.assertTrue(state['eta_initial'])
         self.assertGreater(state['eta_seconds_min'], 40)
-        state.update(checked=0, total=2, stage='采集缺失资料', estimate_pending={'metadata': 2})
+        state.update(checked=0, total=2, stage='Collect missing details', estimate_pending={'metadata': 2})
         with patch('peach.processing_control.time.monotonic', return_value=120):
             estimate.update(state)
         self.assertLessEqual(state['eta_seconds_max'], 40)
 
     def test_unmeasured_finalization_does_not_keep_a_completed_phase_estimate(self):
         state = dict(speed_mode='standard', status='running', requested_stage='metadata',
-                     stage='保存待确认资料', checked=10, total=10, estimate_pending={},
+                     stage='Save details pending confirmation', checked=10, total=10, estimate_pending={},
                      eta_seconds_min=1, eta_seconds_max=2)
         estimate = ProcessingEstimate(self.config, state, None)
         estimate.update(state)
@@ -229,7 +229,7 @@ class ProcessingControlTests(unittest.TestCase):
 
     def test_slow_tail_uses_recent_completions_instead_of_the_fast_prefix(self):
         state = dict(speed_mode='standard', status='running', requested_stage='metadata',
-                     stage='读取本地资料', checked=0, total=120, estimate_pending={'local': 120})
+                     stage='Read local details', checked=0, total=120, estimate_pending={'local': 120})
         with patch('peach.processing_control.time.monotonic', return_value=100):
             estimate = ProcessingEstimate(self.config, state, None)
             estimate.update(state)
@@ -244,7 +244,7 @@ class ProcessingControlTests(unittest.TestCase):
     def test_progress_count_rewind_starts_a_new_sample_for_same_stage(self):
         self.seed()
         state = dict(initial_estimate(self.config, self.db, 'metadata'),
-                     requested_stage='metadata', status='running', stage='读取时长与分辨率', checked=0, total=10)
+                     requested_stage='metadata', status='running', stage='Read duration and resolution', checked=0, total=10)
         with patch('peach.processing_control.time.monotonic', return_value=100):
             estimate = ProcessingEstimate(self.config, state, None)
             estimate.update(state)
@@ -672,7 +672,7 @@ class ProcessingControlTests(unittest.TestCase):
             task_control.request(runs, initial['run_id'], 'set_speed', mode='low')
             first.stop()
             self.assertEqual(runs.get(initial['run_id']).status, 'pending')
-            self.assertEqual(runs.get(initial['run_id']).progress_label, '已暂停，等待继续')
+            self.assertEqual(runs.get(initial['run_id']).progress_label, 'Paused, waiting to resume')
             second = BackgroundJob('library-processing', runs=runs)
             self.addCleanup(second.stop, timeout=None)
             contract.library_processing_job = second

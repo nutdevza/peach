@@ -29,7 +29,7 @@ def _row(item_key, field, candidates, asset_id=1):
 class StaleGenreTests(unittest.TestCase):
     def test_an_english_word_from_r18_is_what_marks_a_row_stale(self):
         rows = [_row("asset:1:tags", "tags",
-                     [{"source": "r18dev", "value": ["熟女"], "unmapped_genres": ["Sex Toy"]}])]
+                     [{"source": "r18dev", "value": ["Mature / Milf"], "unmapped_genres": ["Sex Toy"]}])]
         self.assertEqual([row["item_key"] for row in stale_genre_rows(rows)], ["asset:1:tags"])
 
     def test_a_japanese_word_still_waiting_for_a_decision_is_not_stale(self):
@@ -41,7 +41,7 @@ class StaleGenreTests(unittest.TestCase):
     def test_a_genre_that_is_written_the_same_in_both_languages_is_not_stale(self):
         """`69` 两边写法一样，按它摘行就是每跑一次摘一次、永远收敛不了。"""
         rows = [_row("asset:9:tags", "tags",
-                     [{"source": "r18dev", "value": ["巨乳"], "unmapped_genres": ["69"]}])]
+                     [{"source": "r18dev", "value": ["Big Breasts"], "unmapped_genres": ["69"]}])]
         self.assertEqual(stale_genre_rows(rows), [])
 
     def test_other_sources_and_other_fields_are_left_alone(self):

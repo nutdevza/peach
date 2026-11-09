@@ -430,7 +430,7 @@ class DeclaredTablesTests(unittest.TestCase):
             connection.executemany(
                 "INSERT INTO entity(id,kind,canonical_name,normalized_name,metadata_json,created_at,updated_at) "
                 "VALUES(?,?,?,?,?,'2026-01-01','2026-01-01')",
-                [(10, "tag", "足交", "足交", "{}"), (11, "performer", "Canonical Alice", "canonical alice", "{}"),
+                [(10, "tag", "Footjob", "Footjob", "{}"), (11, "performer", "Canonical Alice", "canonical alice", "{}"),
                  (12, "creator", "Canonical Creator", "canonical creator", "{}"),
                  (13, "studio", "Canonical Studio", "canonical studio", "{}"),
                  (14, "series", "Canonical Series", "canonical series", "{}"),
@@ -445,7 +445,7 @@ class DeclaredTablesTests(unittest.TestCase):
                  (2, 16, "tag", "test")])
             connection.executemany(
                 "INSERT INTO asset_tag(asset_id,tag,source) VALUES(?,?,?)",
-                [(1, "足交", "name"), (2, "隐藏别名", "name"), (4, "足交", "name")])
+                [(1, "Footjob", "name"), (2, "隐藏别名", "name"), (4, "Footjob", "name")])
             connection.executemany(
                 "INSERT INTO entity_alias(entity_id,alias,normalized_alias,source,confidence) VALUES(?,?,?,?,1.0)",
                 [(11, "Alice Alias", "alice alias", "test"), (16, "隐藏别名", "隐藏别名", "test")])
@@ -470,7 +470,7 @@ class DeclaredTablesTests(unittest.TestCase):
             connection.execute(
                 "UPDATE profile SET settings_json=? WHERE id='local-default'",
                 (json.dumps({"libraryShortcuts": {"favorites": [
-                    {"entity_id": 11}, {"kind": "tag", "name": "足交"},
+                    {"entity_id": 11}, {"kind": "tag", "name": "Footjob"},
                     {"kind": "tag", "scope": "online", "tag_id": "animation", "name": "animation"}]}}),))
         with self.contract.database.write_transaction() as connection:
             store = FollowStore(lambda: connection, sources_root=self.contract.follow_sources_root)

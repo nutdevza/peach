@@ -417,13 +417,13 @@ class TokyoHotShapeTests(unittest.TestCase):
             name = f'MKBD{separator}S94-C 作品标题.mkv'
             self.assertEqual(jav_display_metadata(name, 'MKBD-S94'), {
                 'display_code': 'MKBD-S94', 'display_title': '作品标题',
-                'edition_badges': ['中字', '无码']})
+                'edition_badges': ['中字', 'Uncensored']})
         self.assertEqual(jav_fallback_title('MKD-S118.mp4', 'MKD-S118'), '')
 
     def test_uncensored_only_labels_get_the_uncensored_badge(self):
         for name, code in (('SMBD-120.mp4', 'SMBD-120'), ('SKYHD-050-C.mp4', 'SKYHD-050')):
             with self.subTest(code=code):
-                self.assertIn('无码', jav_display_metadata(name, code)['edition_badges'])
+                self.assertIn('Uncensored', jav_display_metadata(name, code)['edition_badges'])
         self.assertEqual(jav_display_metadata('MCDV-024.mp4', 'MCDV-024')['edition_badges'], [])
 
     def test_ltx_after_the_code_marks_a_cracked_edition(self):
@@ -1061,7 +1061,7 @@ class RevertMisreadCodeTests(unittest.TestCase):
         self.assertEqual(self._run("--source-mismatch", "348NTR-007:r18dev", "--apply",
                                    "--backup", str(self.root / "b.db")), 0)
         self.assertEqual(self._read("SELECT code,catalog_title,series FROM asset WHERE id=5"),
-                         [("348NTR-007", None, "素人")])
+                         [("348NTR-007", None, "Amateur")])
         self.assertEqual(self._read("SELECT source FROM asset_entity WHERE asset_id=5"),
                          [("javinizer:mgstage:performer",)])
         self.assertEqual(self._read("SELECT count(*) FROM asset_tag WHERE asset_id=5"), [(0,)])
@@ -1104,7 +1104,7 @@ class RevertMisreadCodeTests(unittest.TestCase):
         self.assertEqual(
             self._read("SELECT catalog_title,json_extract(field_owners,'$.catalog_title'),"
                        "series,json_extract(field_owners,'$.series') FROM asset WHERE id=5"),
-            [(None, "script:revert_misread_code", "素人", "user:manual")])
+            [(None, "script:revert_misread_code", "Amateur", "user:manual")])
 
     def test_a_source_that_still_identifies_the_code_is_refused(self):
         self._add_wrong_source(r18dev_id="348NTR-007", r18dev_content="h_1348ntr00007")

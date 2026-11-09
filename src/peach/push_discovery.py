@@ -424,7 +424,7 @@ class DiscoveryQueue:
         except FileNotFoundError:
             return 0
         except (OSError, ValueError):
-            LOGGER.warning("推送发现的待办清单读不出来，跳过：%s", self.journal)
+            LOGGER.warning("Could not read the push-discovery queue; skipping: %s", self.journal)
             return 0
         restored = 0
         for row in rows if isinstance(rows, list) else ():
@@ -456,7 +456,7 @@ class DiscoveryQueue:
             else:
                 self.journal.unlink(missing_ok=True)
         except OSError:
-            LOGGER.warning("推送发现的待办清单写不进去：%s", self.journal, exc_info=True)
+            LOGGER.warning("Could not write the push-discovery queue: %s", self.journal, exc_info=True)
             with self._lock:
                 self._dirty = True
 

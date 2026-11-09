@@ -82,64 +82,64 @@ def sql_is_local_extra(name: str | None, path: str | None, library_roots: tuple[
 
 LENGTH_TAGS = {"短片-2分内", "中片-10分内", "长片-30分内", "超长片-30分上"}
 TECH_TAGS = {
-    "1080P", "720P", "4K", "2K", "2160P", "480P", "低画质", "高帧率",
-    "横屏", "竖屏", "真人", "合集", "身份待确认", "R-18", "有码", "无码",
-    "薄码",
+    "1080P", "720P", "4K", "2K", "2160P", "480P", "Low quality", "High frame rate",
+    "Landscape", "Portrait", "Live action", "Collection", "Identity unverified", "R-18", "Censored", "Uncensored",
+    "Thin mosaic",
 }
 
 # Hanime1 的筛选把可见标签按语义分组。Peach 只收录当前馆藏里确实存在的
 # 分组；未命中的标签仍归「其他内容」，不凭名字臆造作品/角色实体。
 ATTRIBUTE_TAGS = {
-    "中文字幕", "内嵌字幕", "外挂字幕", "AI修复", "AI去码", "淫语", "ASMR",
-    "日系同人", "游戏同人", "动漫同人", "3D动画", "VR", "60fps",
-    "女性向", "原作改编",
+    "Chinese subtitles", "Embedded subtitles", "External subtitles", "AI restoration", "AI decensoring", "Dirty talk", "ASMR",
+    "Japanese doujin", "Game doujin", "Anime doujin", "3D animation", "VR", "60fps",
+    "For women", "Original-work adaptation",
 }
 RELATIONSHIP_TAGS = {
-    "母子设定", "近亲", "姐弟", "师生", "同事上司", "女友", "青梅竹马",
-    "情侣", "友情", "伴侣", "母亲的朋友",
+    "Mother and son", "Incest", "Sister and brother", "Teacher and student", "Coworker / Boss", "Girlfriend", "Childhood friend",
+    "Couple", "Friendship", "Partner", "Mother's friend",
 }
 ROLE_TAGS = {
-    "素人", "网红主播", "萝莉", "痴女", "人妻", "御姐", "学生", "秘书OL",
-    "女仆", "熟女", "护士", "空姐", "家庭教师", "教师",
-    "探花", "男主频道", "辣妹", "千金小姐", "偶像艺人", "教练",
+    "Amateur", "Streamer", "Loli", "Nympho", "Housewife", "Mature Woman", "Student", "Secretary / OL",
+    "Maid", "Mature / Milf", "Nurse", "Flight attendant", "Private tutor", "Teacher",
+    "Paid hookup", "Male POV channel", "Gyaru", "Rich girl", "Idol", "Coach",
     # 「处男」说男方、「处女设定」说女方，来源用 `童貞` 和 `処女` 两个格子分开写，
     # 合成一个中文词就再也分不开。女方那一格叫「设定」：AV 里的処女是出道卖点或剧情，
     # 核实不了，出道之后对她本人也不再成立。
-    "处男", "处女设定", "孕妇", "黑人",
-    "美熟女", "微熟女", "美魔女", "变态", "跨性别",
+    "Male virgin", "Virgin theme", "Pregnant", "Interracial",
+    "Elegant mature", "Soft mature", "Ageless beauty", "Pervert", "Transgender",
     # 「伪娘」是男方扮女装，「跨性别」是身体本身；「正太」说男方年幼的设定，和「萝莉」对称。
-    "伪娘", "正太", "外国人", "赛车女郎", "陪酒女郎", "女搜查官",
-    "风俗女郎", "扶她", "母亲角色", "妹妹角色", "寡妇角色", "女医生",
-    "模特", "格斗选手", "展会女郎", "讲师", "服务员", "女乘务员",
-    "女儿角色", "公主角色", "宅女宅男", "老年女性角色", "老年男性角色",
-    "啦啦队员", "养女角色", "女战士", "女忍者", "短裙女警", "修女",
-    "播音员", "白人出演",
+    "Femboy", "Shota", "Foreigner", "Race queen", "Hostess", "Female detective",
+    "Sex worker", "Futa", "Mother role", "Little sister role", "Widow", "Female doctor",
+    "Model", "Fighter", "Convention girl", "Lecturer", "Waitress", "Train attendant",
+    "Daughter role", "Princess role", "Otaku couple", "Older woman role", "Older man role",
+    "Cheerleader", "Adopted daughter role", "Female warrior", "Female ninja", "Skirted policewoman", "Nun",
+    "Announcer", "White performer",
 }
 APPEARANCE_TAGS = {
-    "丝袜", "制服", "OL制服", "JK制服", "美臀", "露脸", "情趣内衣", "美腿", "高跟",
-    "眼镜", "洛丽塔", "苗条", "高颜值", "巨乳", "大腿", "白丝", "黑丝",
-    "泳装", "美乳", "肉丝", "旗袍汉服", "恋足",
-    "白虎", "双马尾", "婚纱", "裸足", "贫乳", "皮衣皮裙", "体操服",
-    "兽耳兽装", "口罩遮脸", "和服浴衣", "瑜伽裤", "兔女郎", "腋", "丰满",
-    "阿黑颜", "娇小", "高个", "美肌",
+    "Stockings", "Uniform", "Office uniform", "JK uniform", "Nice butt", "Face shown", "Erotic lingerie", "Beautiful legs", "High Heels",
+    "Glasses", "Lolita", "Slim", "Gorgeous", "Big Breasts", "Thighs", "White stockings", "Black stockings",
+    "Swimsuit", "Beautiful Breasts", "Skin-tone stockings", "Cheongsam / Hanfu", "Foot fetish",
+    "Shaved", "Twin tails", "Wedding dress", "Barefoot", "Small breasts", "Leather outfit", "Gym uniform",
+    "Kemonomimi", "Masked face", "Kimono / Yukata", "Yoga pants", "Bunny girl", "Armpits", "Plump",
+    "Ahegao", "Petite", "Tall", "Beautiful skin",
     # 发型三个标签一组：来源给的 `金髪・ブロンド`、`Short Hair` 和 `ツインテール`
     # 是同一档的格子。`汗湿` 和 `阿黑颜` 一样说的是身体当下的状态。
-    "金发", "短发", "黑发", "汗湿", "美穴", "巨根",
+    "Blonde", "Short hair", "Black hair", "Sweaty", "Pretty pussy", "Large Cock",
     # 乳型一种一个标签，不往一个「乳系」里并：来源说到哪一级就取哪一级。大小只有
     # 「巨乳」「贫乳」两档，好看与否是「美乳」另一格。
-    "瘦巨乳", "火箭乳", "尖乳", "下垂乳", "长垂乳",
-    "色气乳房", "美乳晕", "大乳晕", "凸乳晕", "色气乳头", "大乳头", "美乳头",
-    "凹陷乳头", "勃起乳头", "敏感乳头", "深色乳头", "长乳头", "隆胸",
-    "巨臀", "美巨臀",
+    "Slim and busty", "Rocket tits", "Pointy breasts", "Sagging breasts", "Long sagging breasts",
+    "Erotic breasts", "Pretty areola", "Large areola", "Puffy areola", "Erotic nipples", "Large nipples", "Pretty nipples",
+    "Inverted nipple", "Erect nipples", "Sensitive nipples", "Dark nipples", "Long nipples", "Breast implants",
+    "Big ass", "Big ass",
     # 「高颜值」说好看，「清纯」「可爱」各说一种气质，三个分开。
-    "清纯", "可爱",
-    "多毛", "白皙", "细腰", "火辣身材", "色气身材", "微胖", "身体柔软", "混血",
-    "纹身", "大阴唇", "深色阴部", "名器", "动漫音", "娃娃音", "腹肌", "敏感体质",
+    "Innocent", "Cute",
+    "Hairy", "Fair skin", "Slim waist", "Hot body", "Sexy figure", "Slightly chubby", "Flexible", "Mixed race",
+    "Tattoo", "Large labia", "Dark privates", "Meiki", "Anime voice", "Doll voice", "Abs", "Sensitive body",
     # 「明星脸」说长得像某位名人，和「高颜值」不是一回事。
-    "迷你裙", "明星脸",
-    "晒黑肤色", "纯欲", "湿身", "运动短裤", "制服外套", "裸体围裙",
-    "猫耳", "短裙", "紧身衣", "泡泡袜", "靴子", "肥胖体型", "肌肉体型",
-    "无内裤", "无胸罩", "翻白眼·失神", "蒙面", "卷发", "运动服",
+    "Miniskirt", "Celebrity lookalike",
+    "Tanned skin", "Sweet and sexy", "Soaked", "Sport shorts", "Uniform jacket", "Naked apron",
+    "Cat ears", "Short skirt", "Bodysuit", "Loose socks", "Boots", "Heavyset", "Muscular",
+    "No panties", "No bra", "Eye-rolling blackout", "Hooded", "Curly hair", "Tracksuit",
 }
 
 #: 不再使用、也没有接替者的标签。`乳系`、`足系` 是文件名规则和视觉模型早期给的宽泛
@@ -147,37 +147,37 @@ APPEARANCE_TAGS = {
 #: 账本里的存量按 `scripts/rename_retired_tags.py` 删掉。
 DROPPED_TAGS = frozenset({"乳系", "足系"})
 SCENE_TAGS = {
-    "酒店", "浴室", "车震", "办公室", "户外露出", "线下约拍", "探花约炮",
-    "教室学校", "厨房客厅", "户外", "车内", "按摩", "油压",
+    "Hotel", "Bathroom", "Car sex", "Office", "Outdoor exhibitionism", "Offline photoshoot", "Pickup and film",
+    "Classroom", "Kitchen and living room", "Outdoor", "In the car", "Massage", "Oil massage",
     # 「风俗店」比「按摩」宽：外送、店内和泡泡浴都算，来源也用 `風俗` 一个词盖住。
     # 「温泉」说的是旅程和露天池，不是家里那间浴室。
-    "风俗店", "温泉", "医院", "酒会联谊",
-    "公共场所", "热带度假", "旅行",
+    "Fuzoku parlor", "Hot spring", "Hospital", "Party",
+    "Public place", "Tropical resort", "Travel",
 }
 STORY_TAGS = {
-    "角色扮演", "反差", "绿帽NTR", "调教", "泄密流出",
-    "偷拍偷窥", "出轨", "强制剧情", "剧情", "捆绑", "性教育",
-    "定制", "百合", "慢热前戏", "榨精",
-    "女性主导", "走光", "初次无码", "初拍", "逆搭讪",
-    "痴汉", "运动", "醉酒", "药物", "纪录片", "写真映像",
+    "Role Play", "Gap moe", "NTR", "Training", "Leaked",
+    "Voyeur", "Cheating / Affair", "Forced storyline", "Drama / Story", "Bondage", "Sex education",
+    "Custom", "Yuri / GL", "Slow buildup", "Milking",
+    "Female domination", "Accidental exposure", "First uncensored", "Debut", "Reverse pickup",
+    "Molester", "Sports", "Drunk", "Drugs", "Documentary", "Gravure video",
     # 「羞耻」是让她难为情的玩法，没到「调教」那一步；「妄想剧情」是时间停止、隐身一类现实里做不到的设定。
-    "羞耻", "妄想剧情",
-    "恋腿", "恋乳", "正太控", "舞蹈", "搭讪", "恶作剧", "性骚扰剧情",
-    "残虐表现", "触手", "性转·女体化", "男同", "经历讲述", "傲娇",
-    "萝莉角色扮演", "约会", "瑜伽·健身", "催眠剧情", "换妻换夫",
-    "综艺", "历史剧", "恐怖剧情", "科幻剧情", "恶搞", "冒险剧情",
-    "悬疑剧情", "心理惊悚", "复古风格", "怀旧风格",
+    "Humiliation", "Fantasy storyline",
+    "Leg fetish", "Breast fetish", "Shotacon", "Dance", "Pickup", "Prank", "Molestation storyline",
+    "Brutal depiction", "Tentacles", "Gender swap", "Gay male", "Personal story", "Tsundere",
+    "Loli roleplay", "Date", "Yoga and fitness", "Hypnosis storyline", "Swinging",
+    "Variety show", "Period drama", "Horror storyline", "Sci-fi storyline", "Parody", "Adventure storyline",
+    "Mystery storyline", "Psychological thriller", "Retro", "Vintage style",
 }
 POSITION_TAGS = {
-    "口交", "打扫口交", "主观视角", "骑乘", "自慰", "后入", "多人", "中出内射", "足交",
-    "手交", "潮吹", "打桩", "深喉", "射精", "乳交", "多女出镜",
-    "颜射", "肛交", "射精特写", "3P多人", "吞精",
-    "素股隔丝", "马眼", "屁眼", "直接进入", "舔阴",
-    "龟头责", "口爆", "舔脚", "毒龙", "传教士", "火车便当", "双洞齐插",
-    "接吻", "性玩具", "69", "颜面骑乘",
-    "放尿", "局部特写", "母乳", "排泄", "拳交",
-    "高潮", "饮尿", "挠痒", "脱衣", "宫颈", "导尿", "口球", "自慰辅助",
-    "鼻钩", "双人性爱", "M字开腿", "站立性爱", "呻吟",
+    "Oral", "Cleanup blowjob", "POV", "Riding", "Masturbation", "Doggy style", "Group", "Creampie", "Footjob",
+    "Handjob", "Squirting", "Pounding", "Deep throat", "Ejaculation", "Titfuck", "Multiple girls",
+    "Facial", "Anal", "Cumshot close-up", "Group", "Swallowing",
+    "Thigh sex", "Urethral", "Butthole", "No foreplay", "Cunnilingus",
+    "Glans teasing", "Cum in mouth", "Foot licking", "Rimjob", "Missionary", "Ekiben position", "Double penetration",
+    "Kissing", "Sex Toys", "69", "Face sitting",
+    "Pissing", "Close-up", "Breast milk", "Scat", "Fisting",
+    "Orgasm", "Piss drinking", "Tickling", "Striptease", "Cervix", "Catheterization", "Ball gag", "Masturbation aid",
+    "Nose hook", "One-on-one", "M-legs", "Standing sex", "Moaning",
 }
 
 #: 同一件事的两个名字：左边是账本里已经存在、但不该再用的写法，右边是规范名。
@@ -192,40 +192,211 @@ POSITION_TAGS = {
 #: 规范名取馆藏里通行的那个写法，不取词表里先写下的那个：`合集` 有 3699 条、全部来自
 #: 文件名，`混合集` 只有 313 条、全部来自 Stash，其中 270 条的资产两个名字都挂着。
 RETIRED_TAGS = {
-    "OL": "秘书OL",
-    "POV第一视角": "主观视角",
-    "女上位": "骑乘",
-    "内射": "中出内射",
-    "马眼尿道": "马眼",
-    "NTR绿帽": "绿帽NTR",
-    "有剧情": "剧情",
-    "剧情演绎": "剧情",
-    "偷窥": "偷拍偷窥",
-    "内衣情趣": "情趣内衣",
-    "高跟鞋": "高跟",
-    "臀部": "美臀",
-    "足控": "恋足",
-    "足底足指": "恋足",
-    "足部射精": "足交",
-    "老师": "家庭教师",
-    "混合集": "合集",
-    "淫语ASMR": "淫语",
-    "处女": "处女设定",
+    "OL": "Secretary / OL",
+    "POV第一视角": "POV",
+    "女上位": "Riding",
+    "内射": "Creampie",
+    "马眼尿道": "Urethral",
+    "NTR绿帽": "NTR",
+    "有剧情": "Drama / Story",
+    "剧情演绎": "Drama / Story",
+    "偷窥": "Voyeur",
+    "内衣情趣": "Erotic lingerie",
+    "高跟鞋": "High Heels",
+    "臀部": "Nice butt",
+    "足控": "Foot fetish",
+    "足底足指": "Foot fetish",
+    "足部射精": "Footjob",
+    "老师": "Private tutor",
+    "混合集": "Collection",
+    "淫语ASMR": "Dirty talk",
+    "处女": "Virgin theme",
     # 胸的大小只留「巨乳」一档：来源之间 F 杯与 H 杯的边界各说各的，同一部片被一家写
     # `Big Tits`、另一家写 `Huge Tits`，两个标签在 70 部片上同时出现。「美巨乳」这类
     # 组合词读着拗口，账本里只挂了两部，一并归到大小那一档。
-    "爆乳": "巨乳",
-    "美巨乳": "巨乳",
-    "美爆乳": "巨乳",
-    "美贫乳": "贫乳",
+    "爆乳": "Big Breasts",
+    "美巨乳": "Big Breasts",
+    "美爆乳": "Big Breasts",
+    "美贫乳": "Small breasts",
+    # The deployment owner runs the library in English: the canonical content-tag
+    # vocabulary is the English names already sitting in `asset_tag` (Creampie,
+    # Big Breasts, Housewife...), and every Chinese canonical below retires to
+    # its English counterpart. `genre_taxonomy` still emits the Chinese form;
+    # the alias layer folds it into the English entity, so future scrapes land
+    # on the same tag instead of growing a second row.
+    "中出内射": "Creampie", "主观视角": "POV", "乳交": "Titfuck", "人妻": "Housewife",
+    "丝袜": "Stockings", "OL制服": "Office uniform",
+    "偶像艺人": "Idol", "偷拍偷窥": "Voyeur", "出轨": "Cheating / Affair", "初拍": "Debut",
+    "制服": "Uniform", "制服外套": "Uniform jacket", "剧情": "Drama / Story", "口交": "Oral",
+    "合集": "Collection", "同事上司": "Coworker / Boss", "后入": "Doggy style", "吞精": "Swallowing",
+    "和服浴衣": "Kimono / Yukata", "多人": "Group", "3P多人": "Group", "寡妇角色": "Widow",
+    "巨乳": "Big Breasts", "巨根": "Large Cock", "巨臀": "Big ass", "强制剧情": "Forced storyline",
+    "御姐": "Mature Woman", "性玩具": "Sex Toys", "恶作剧": "Prank", "恶搞": "Parody",
+    "户外": "Outdoor", "户外露出": "Outdoor exhibitionism", "手交": "Handjob", "护士": "Nurse",
+    "按摩": "Massage", "接吻": "Kissing", "教师": "Teacher", "有码": "Censored",
+    "油压": "Oil massage", "泳装": "Swimsuit", "浴室": "Bathroom", "淫语": "Dirty talk",
+    "温泉": "Hot spring", "潮吹": "Squirting", "熟女": "Mature / Milf", "痴女": "Nympho",
+    "痴汉": "Molester", "百合": "Yuri / GL", "直接进入": "No foreplay", "短裙": "Short skirt",
+    "秘书OL": "Secretary / OL", "素人": "Amateur", "纪录片": "Documentary", "绿帽NTR": "NTR",
+    "美乳": "Beautiful Breasts", "美腿": "Beautiful legs", "羞耻": "Humiliation", "自慰": "Masturbation",
+    "苗条": "Slim", "药物": "Drugs", "角色扮演": "Role Play", "调教": "Training",
+    "走光": "Accidental exposure", "足交": "Footjob", "酒会联谊": "Party", "陪酒女郎": "Hostess",
+    "颜射": "Facial", "风俗女郎": "Sex worker", "骑乘": "Riding", "高跟": "High Heels",
+    "高颜值": "Gorgeous", "黑人": "Interracial",
+}
+
+#: The deployment owner reads the library in English: every Chinese canonical
+#: tag normalizes to its English name at input, so facets, cards and future
+#: scrapes all land on the English entity. The word sets above stay Chinese —
+#: they are matching vocabulary (CJK name segmentation, genre projection
+#: targets), not display copy.
+TAG_ENGLISH = {
+
+    "无码": "Uncensored",
+    "中出": "Creampie",
+    "中字": "Chinese subs",
+    "无码破解": "decensored",
+    "无码流出": "leaked",
+    "SM模特": "SM model",
+    "SOD女员工": "SOD staff",
+    "上门服务女郎": "Escort",
+    "偶像": "Idol",
+    "写真偶像": "Gravure idol",
+    "加拿大血统": "Canadian heritage",
+    "台湾血统": "Taiwanese heritage",
+    "嘴角痣": "Mole by the mouth",
+    "四分之一混血": "Quarter heritage",
+    "处女出道": "Virgin debut",
+    "女公关": "Hostess",
+    "导演": "Director",
+    "性感酒吧女郎": "Sexy pub hostess",
+    "意大利血统": "Italian heritage",
+    "捕蟹渔民": "Crab fisherman",
+    "擦边影像": "Clothed erotica",
+    "整形": "Plastic surgery",
+    "无NG": "No NG",
+    "歌手": "Singer",
+    "泡泡浴女郎": "Soap girl",
+    "泰国血统": "Thai heritage",
+    "现役护士": "Active nurse",
+    "电影演员": "Film actress",
+    "粉红电影演员": "Pink film actress",
+    "美国血统": "American heritage",
+    "美少女→丰满熟女": "Beauty→Voluptuous milf",
+    "美甲": "Manicure",
+    "脱衣舞娘": "Stripper",
+    "艺人": "TV personality",
+    "艺术体操": "Rhythmic gymnastics",
+    "芭蕾": "Ballet",
+    "萝莉→熟女": "Lolita→Mature",
+    "萝莉→辣妹": "Lolita→Gyaru",
+    "萝莉→黑辣妹": "Lolita→Black gyaru",
+    "裸体模特": "Nude model",
+    "西班牙血统": "Spanish heritage",
+    "贫乳→巨乳": "Petite→Busty",
+    "贫乳→隆胸": "Petite→Breast implants",
+    "运动员": "Athlete",
+    "金券商": "Ticket reseller",
+    "长发→短发": "Long hair→Short hair",
+    "韩国血统": "Korean heritage",
+    "风俗从业": "Sex industry work",
+    "3D动画": "3D animation", "3P多人": "Group", "AI修复": "AI restoration", "AI去码": "AI decensoring",
+    "JK制服": "JK uniform", "M字开腿": "M-legs", "NTR绿帽": "NTR", "OL制服": "Office uniform",
+    "POV第一视角": "POV", "下垂乳": "Sagging breasts", "丝袜": "Stockings", "中出内射": "Creampie",
+    "中文字幕": "Chinese subtitles", "丰满": "Plump", "主观视角": "POV", "乳交": "Titfuck",
+    "人妻": "Housewife", "传教士": "Missionary", "伪娘": "Femboy", "伴侣": "Partner",
+    "低画质": "Low quality", "体操服": "Gym uniform", "修女": "Nun", "偶像艺人": "Idol",
+    "偷拍偷窥": "Voyeur", "偷窥": "Voyeur", "催眠剧情": "Hypnosis storyline", "傲娇": "Tsundere",
+    "兔女郎": "Bunny girl", "公主角色": "Princess role", "公共场所": "Public place", "养女角色": "Adopted daughter role",
+    "兽耳兽装": "Kemonomimi", "内射": "Creampie", "内嵌字幕": "Embedded subtitles", "内衣情趣": "Erotic lingerie",
+    "冒险剧情": "Adventure storyline", "写真映像": "Gravure video", "凸乳晕": "Puffy areola", "凹陷乳头": "Inverted nipple",
+    "出轨": "Cheating / Affair", "初拍": "Debut", "初次无码": "First uncensored", "制服": "Uniform",
+    "制服外套": "Uniform jacket", "剧情": "Drama / Story", "剧情演绎": "Storyline acting", "办公室": "Office",
+    "动漫同人": "Anime doujin", "动漫音": "Anime voice", "勃起乳头": "Erect nipples", "医院": "Hospital",
+    "千金小姐": "Rich girl", "卷发": "Curly hair", "历史剧": "Period drama", "原作改编": "Original-work adaptation",
+    "厨房客厅": "Kitchen and living room", "友情": "Friendship", "双人性爱": "One-on-one", "双洞齐插": "Double penetration",
+    "双马尾": "Twin tails", "反差": "Gap moe", "变态": "Pervert", "口交": "Oral",
+    "口爆": "Cum in mouth", "口球": "Ball gag", "口罩遮脸": "Masked face", "可爱": "Cute",
+    "合集": "Collection", "同事上司": "Coworker / Boss", "名器": "Meiki", "后入": "Doggy style",
+    "吞精": "Swallowing", "呻吟": "Moaning", "和服浴衣": "Kimono / Yukata", "啦啦队员": "Cheerleader",
+    "处女": "Virgin theme", "处女设定": "Virgin theme", "处男": "Male virgin", "复古风格": "Retro",
+    "外国人": "Foreigner", "外挂字幕": "External subtitles", "多人": "Group", "多女出镜": "Multiple girls",
+    "多毛": "Hairy", "大乳头": "Large nipples", "大乳晕": "Large areola", "大腿": "Thighs",
+    "大阴唇": "Large labia", "女上位": "Riding", "女乘务员": "Train attendant", "女仆": "Maid",
+    "女儿角色": "Daughter role", "女医生": "Female doctor", "女友": "Girlfriend", "女忍者": "Female ninja",
+    "女性主导": "Female domination", "女性向": "For women", "女战士": "Female warrior", "女搜查官": "Female detective",
+    "妄想剧情": "Fantasy storyline", "妹妹角色": "Little sister role", "姐弟": "Sister and brother", "娃娃音": "Doll voice",
+    "娇小": "Petite", "婚纱": "Wedding dress", "孕妇": "Pregnant", "学生": "Student",
+    "宅女宅男": "Otaku couple", "定制": "Custom", "宫颈": "Cervix", "家庭教师": "Private tutor",
+    "寡妇角色": "Widow", "导尿": "Catheterization", "射精": "Ejaculation", "射精特写": "Cumshot close-up",
+    "尖乳": "Pointy breasts", "局部特写": "Close-up", "屁眼": "Butthole", "展会女郎": "Convention girl",
+    "巨乳": "Big Breasts", "巨根": "Large Cock", "巨臀": "Big ass", "师生": "Teacher and student",
+    "强制剧情": "Forced storyline", "御姐": "Mature Woman", "微熟女": "Soft mature", "微胖": "Slightly chubby",
+    "心理惊悚": "Psychological thriller", "怀旧风格": "Vintage style", "性教育": "Sex education", "性玩具": "Sex Toys",
+    "性转·女体化": "Gender swap", "性骚扰剧情": "Molestation storyline", "恋乳": "Breast fetish", "恋腿": "Leg fetish",
+    "恋足": "Foot fetish", "恐怖剧情": "Horror storyline", "恶作剧": "Prank", "恶搞": "Parody",
+    "悬疑剧情": "Mystery storyline", "情侣": "Couple", "情趣内衣": "Erotic lingerie", "慢热前戏": "Slow buildup",
+    "户外": "Outdoor", "户外露出": "Outdoor exhibitionism", "手交": "Handjob", "打扫口交": "Cleanup blowjob",
+    "打桩": "Pounding", "扶她": "Futa", "护士": "Nurse", "拳交": "Fisting",
+    "按摩": "Massage", "挠痒": "Tickling", "捆绑": "Bondage", "换妻换夫": "Swinging",
+    "排泄": "Scat", "探花": "Paid hookup", "探花约炮": "Pickup and film", "接吻": "Kissing",
+    "搭讪": "Pickup", "播音员": "Announcer", "放尿": "Pissing", "敏感乳头": "Sensitive nipples",
+    "敏感体质": "Sensitive body", "教室学校": "Classroom", "教师": "Teacher", "教练": "Coach",
+    "旅行": "Travel", "旗袍汉服": "Cheongsam / Hanfu", "无内裤": "No panties", "无胸罩": "No bra",
+    "日系同人": "Japanese doujin", "明星脸": "Celebrity lookalike", "晒黑肤色": "Tanned skin", "有剧情": "With storyline",
+    "有码": "Censored", "服务员": "Waitress", "格斗选手": "Fighter", "榨精": "Milking",
+    "模特": "Model", "横屏": "Landscape", "正太": "Shota", "正太控": "Shotacon",
+    "残虐表现": "Brutal depiction", "母乳": "Breast milk", "母亲的朋友": "Mother's friend", "母亲角色": "Mother role",
+    "母子设定": "Mother and son", "毒龙": "Rimjob", "汗湿": "Sweaty", "油压": "Oil massage",
+    "泄密流出": "Leaked", "泡泡袜": "Loose socks", "泳装": "Swimsuit", "洛丽塔": "Lolita",
+    "浴室": "Bathroom", "淫语": "Dirty talk", "淫语ASMR": "Dirty talk ASMR", "深喉": "Deep throat",
+    "深色乳头": "Dark nipples", "深色阴部": "Dark privates", "混合集": "Mixed collection", "混血": "Mixed race",
+    "清纯": "Innocent", "温泉": "Hot spring", "游戏同人": "Game doujin", "湿身": "Soaked",
+    "潮吹": "Squirting", "火箭乳": "Rocket tits", "火车便当": "Ekiben position", "火辣身材": "Hot body",
+    "热带度假": "Tropical resort", "熟女": "Mature / Milf", "爆乳": "Big Breasts", "猫耳": "Cat ears",
+    "瑜伽·健身": "Yoga and fitness", "瑜伽裤": "Yoga pants", "男主频道": "Male POV channel", "男同": "Gay male",
+    "痴女": "Nympho", "痴汉": "Molester", "瘦巨乳": "Slim and busty", "白丝": "White stockings",
+    "白人出演": "White performer", "白皙": "Fair skin", "白虎": "Shaved", "百合": "Yuri / GL",
+    "皮衣皮裙": "Leather outfit", "直接进入": "No foreplay", "真人": "Live action", "眼镜": "Glasses",
+    "短发": "Short hair", "短裙": "Short skirt", "短裙女警": "Skirted policewoman", "科幻剧情": "Sci-fi storyline",
+    "秘书OL": "Secretary / OL", "空姐": "Flight attendant", "竖屏": "Portrait", "站立性爱": "Standing sex",
+    "素人": "Amateur", "素股隔丝": "Thigh sex", "紧身衣": "Bodysuit", "约会": "Date",
+    "纪录片": "Documentary", "纯欲": "Sweet and sexy", "纹身": "Tattoo", "线下约拍": "Offline photoshoot",
+    "细腰": "Slim waist", "经历讲述": "Personal story", "综艺": "Variety show", "绿帽NTR": "NTR",
+    "网红主播": "Streamer", "美乳": "Beautiful Breasts", "美乳头": "Pretty nipples", "美乳晕": "Pretty areola",
+    "美巨乳": "Big Breasts", "美巨臀": "Big ass", "美熟女": "Elegant mature", "美爆乳": "Big Breasts",
+    "美穴": "Pretty pussy", "美肌": "Beautiful skin", "美腿": "Beautiful legs", "美臀": "Nice butt",
+    "美贫乳": "Small breasts", "美魔女": "Ageless beauty", "羞耻": "Humiliation", "翻白眼·失神": "Eye-rolling blackout",
+    "老师": "Private tutor", "老年女性角色": "Older woman role", "老年男性角色": "Older man role", "肉丝": "Skin-tone stockings",
+    "肌肉体型": "Muscular", "肛交": "Anal", "肥胖体型": "Heavyset", "脱衣": "Striptease",
+    "腋": "Armpits", "腹肌": "Abs", "臀部": "Nice butt", "自慰": "Masturbation",
+    "自慰辅助": "Masturbation aid", "舔脚": "Foot licking", "舔阴": "Cunnilingus", "舞蹈": "Dance",
+    "色气乳头": "Erotic nipples", "色气乳房": "Erotic breasts", "色气身材": "Sexy figure", "苗条": "Slim",
+    "药物": "Drugs", "萝莉": "Loli", "萝莉角色扮演": "Loli roleplay", "蒙面": "Hooded",
+    "薄码": "Thin mosaic", "裸体围裙": "Naked apron", "裸足": "Barefoot", "角色扮演": "Role Play",
+    "触手": "Tentacles", "讲师": "Lecturer", "调教": "Training", "贫乳": "Small breasts",
+    "赛车女郎": "Race queen", "走光": "Accidental exposure", "足交": "Footjob", "足底足指": "Foot fetish",
+    "足控": "Foot fetish", "足部射精": "Footjob", "跨性别": "Transgender", "身份待确认": "Identity unverified",
+    "身体柔软": "Flexible", "车内": "In the car", "车震": "Car sex", "辣妹": "Gyaru",
+    "运动": "Sports", "运动服": "Tracksuit", "运动短裤": "Sport shorts", "近亲": "Incest",
+    "迷你裙": "Miniskirt", "逆搭讪": "Reverse pickup", "酒会联谊": "Party", "酒店": "Hotel",
+    "醉酒": "Drunk", "金发": "Blonde", "长乳头": "Long nipples", "长垂乳": "Long sagging breasts",
+    "阿黑颜": "Ahegao", "陪酒女郎": "Hostess", "隆胸": "Breast implants", "露脸": "Face shown",
+    "青梅竹马": "Childhood friend", "靴子": "Boots", "颜射": "Facial", "颜面骑乘": "Face sitting",
+    "风俗女郎": "Sex worker", "风俗店": "Fuzoku parlor", "饮尿": "Piss drinking", "马眼": "Urethral",
+    "马眼尿道": "Urethral", "骑乘": "Riding", "高个": "Tall", "高帧率": "High frame rate",
+    "高潮": "Orgasm", "高跟": "High Heels", "高跟鞋": "High Heels", "高颜值": "Gorgeous",
+    "黑丝": "Black stockings", "黑人": "Interracial", "黑发": "Black hair", "鼻钩": "Nose hook",
+    "龟头责": "Glans teasing",
 }
 
 # 界面名称与来源写法指向同一标签身份。
 TAG_NAME_ALIASES = {
     **RETIRED_TAGS,
-    '眼镜娘': '眼镜', '性感内衣': '情趣内衣', '口罩': '口罩遮脸',
-    '强制': '强制剧情', '骑乘位': '骑乘', '背后位': '后入',
-    '3P': '3P多人', '双洞齐下': '双洞齐插', '毒龙钻': '毒龙', 'AI解码': 'AI去码',
+    **TAG_ENGLISH,
+    '眼镜娘': 'Glasses', '性感内衣': 'Erotic lingerie', '口罩': 'Masked face',
+    '强制': 'Forced storyline', '骑乘位': 'Riding', '背后位': 'Doggy style',
+    '3P': 'Group', '双洞齐下': 'Double penetration', '毒龙钻': 'Rimjob', 'AI解码': 'AI decensoring',
 }
 _TAG_ALIASES = {old.casefold(): new for old, new in TAG_NAME_ALIASES.items()}
 _TAG_SPELLINGS = {tag.casefold(): tag for tag in (
@@ -1193,7 +1364,7 @@ def jav_edition_badges(name: str | None, code: str | None,
 
 
 #: 无码类版次，按「谁说得更具体」排：破解 > 流出 > 无码（同 mdcz `bc4e8828`）。
-UNCENSORED_EDITIONS = ("无码破解", "无码流出", "无码")
+UNCENSORED_EDITIONS = ("无码破解", "无码流出", "Uncensored")
 #: 有码片商的番号：字母段加 2–5 位序号，含 MGS 素人系的三位数字前缀。这类片商不出无码版，
 #: 文件名上的 `-U`／`uncensored` 说的只能是事后的去码版本。
 _CENSORED_RELEASE = re.compile(r"^(?:\d{3})?[A-Z]{2,8}-\d{2,5}$")
@@ -1246,23 +1417,23 @@ def _edition_evidence(name: str | None, code: str | None,
     )
     # `un` 和 `u`／`uc` 是同一个意思。此前它没进这张表，`ABF-158-UN.mp4` 既拿不到徽章，
     # `UN` 又被当标题显示；现在标题判空了，不认它就等于把这条信息整个丢掉。
-    marked = "无码" in tag_set or bool(re.search(
+    marked = "Uncensored" in tag_set or bool(re.search(
         r"(?:^|[-_.\s\[])(?:uc|un|u|uncen(?:sored)?|uncensored|无码|無碼)(?:$|[-_.\s\]])",
         suffix, re.I))
     subtitled = (
-        bool({"中文字幕", "内嵌字幕", "外挂字幕", "中字"}.intersection(tag_set))
+        bool({"Chinese subtitles", "Embedded subtitles", "External subtitles", "中字"}.intersection(tag_set))
         or bool(re.search(r"(?:^|[-_.\s\[])(?:c|ch|sub|中字|中文字幕)"
                           r"(?:$|[-_.\s\]])", suffix, re.I))
     )
     # 无码片商的片本身就是无码，不需要文件名里另有 `-U`／`Uncen` 标记。
     if is_uncensored_release(name, code):
-        return subtitled, "无码", False
+        return subtitled, "Uncensored", False
     if cracked:
         return subtitled, "无码破解", False
     if leaked:
         return subtitled, "无码流出", False
     if marked:
-        return subtitled, "无码破解" if _censored_release(code) else "无码", True
+        return subtitled, "无码破解" if _censored_release(code) else "Uncensored", True
     return subtitled, "", False
 
 

@@ -602,11 +602,11 @@ class ProcessCommandTests(unittest.TestCase):
 
     def test_progress_lines_show_files_found_while_scanning_and_skip_repeats(self):
         def process(*_args, report, **_kwargs):
-            scanning = {"stage": "扫描文件", "checked": 0, "total": 0, "current_action": "scanning_files"}
+            scanning = {"stage": "Scan files", "checked": 0, "total": 0, "current_action": "scanning_files"}
             report({**scanning, "scanned": 0})
             report({**scanning, "scanned": 8096})
             report({**scanning, "scanned": 8096})
-            report({"stage": "读取时长与分辨率", "checked": 12, "total": 40, "scanned": 8096})
+            report({"stage": "Read duration and resolution", "checked": 12, "total": 40, "scanned": 8096})
             report({"stage": "整理结果", "checked": 0, "total": 0, "scanned": 8096})
             return {"status": "complete", "followups": []}
         with mock.patch("peach.library_processing.process_library", side_effect=process), \

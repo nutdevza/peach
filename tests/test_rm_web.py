@@ -238,22 +238,22 @@ class WebDataTests(unittest.TestCase):
                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [
                 (1, "local", r"R:\\Media\\one.mp4", "one.mp4", "video", 100,
-                 "Alice", "Studio A", "ABC-001", 100, 1920, 1080, "速食", "横屏", "2K", "2026-08-14"),
+                 "Alice", "Studio A", "ABC-001", 100, 1920, 1080, "速食", "Landscape", "2K", "2026-08-14"),
                 (2, "115", r"B:\\two.mp4", "two.mp4", "video", 200,
-                 "Bob", None, None, 200, 1080, 1920, "速食", "竖屏", "1080P", "2026-08-13"),
+                 "Bob", None, None, 200, 1080, 1920, "速食", "Portrait", "1080P", "2026-08-13"),
                 (3, "local", r"R:\\Media\\cover.jpg", "cover.jpg", "image", 10,
                  "Alice", None, None, None, None, None, None, None, None, "2026-08-12"),
             ],
         )
         con.executemany(
             "INSERT INTO asset_tag(asset_id,tag,source) VALUES(?,?,?)",
-            [(1, "足交", "name"), (1, "演员:Alice", "performer"),
-             (1, "Canonical Alice", "vision"), (2, "竖屏", "probe")],
+            [(1, "Footjob", "name"), (1, "演员:Alice", "performer"),
+             (1, "Canonical Alice", "vision"), (2, "Portrait", "probe")],
         )
         con.executemany(
             "INSERT INTO entity(id,kind,canonical_name,normalized_name,created_at,updated_at) "
             "VALUES(?,?,?,?,'2026-01-01','2026-01-01')",
-            [(10, "tag", "足交", "足交"),
+            [(10, "tag", "Footjob", "Footjob"),
              (11, "performer", "Canonical Alice", "canonical alice"),
              (12, "creator", "Canonical Creator", "canonical creator"),
              (13, "studio", "Canonical Studio", "canonical studio"),
@@ -581,7 +581,7 @@ class WebDataTests(unittest.TestCase):
         self.assertEqual(result["items"][0]["performer_entities"], [
             {"id": 11, "name": "Canonical Alice", "has_image": False},
         ])
-        self.assertEqual(result["items"][0]["tags"], ["足交"])
+        self.assertEqual(result["items"][0]["tags"], ["Footjob"])
         self.assertIn("play_seconds", result["items"][0])
         self.assertIn("duration", result["items"][0])
         self.assertNotIn("Canonical Alice", [tag["k"] for tag in rm_web.q_item(self.contract, 1)["tags"]])
@@ -660,7 +660,7 @@ class WebDataTests(unittest.TestCase):
             {"k": "速食", "n": 2}, {"k": "短", "n": 0}, {"k": "中", "n": 0}, {"k": "长", "n": 0}])
         self.assertEqual(stats["by_quality"], [
             {"k": "4K", "n": 0}, {"k": "2K", "n": 1}, {"k": "1080P", "n": 1},
-            {"k": "720P", "n": 0}, {"k": "低画质", "n": 0}])
+            {"k": "720P", "n": 0}, {"k": "Low quality", "n": 0}])
 
     def test_stats_play_activity_and_replays_count_each_work_once(self):
         """在线追更那条关联的馆藏视频自己播过，就只按馆藏那一次算；没关联的照常算。"""
@@ -793,20 +793,20 @@ class WebDataTests(unittest.TestCase):
             self.contract, scope_kind="creator", scope_name="Canonical Creator",
         )
         self.assertEqual({row["k"] for row in creator["locations"]}, {"local", "115"})
-        self.assertEqual({row["k"] for row in creator["orientations"]}, {"横屏", "竖屏"})
+        self.assertEqual({row["k"] for row in creator["orientations"]}, {"Landscape", "Portrait"})
         self.assertEqual(creator["stats"]["duration"], 2)
 
         item = rm_web.q_facets(self.contract, asset_id=1)
         self.assertEqual(item["locations"], [{"k": "local", "n": 1, "played": 0}])
-        self.assertEqual(item["orientations"], [{"k": "横屏", "n": 1}])
+        self.assertEqual(item["orientations"], [{"k": "Landscape", "n": 1}])
         self.assertEqual([row["k"] for row in item["creators"]], ["Canonical Creator"])
-        self.assertEqual([row["k"] for row in item["tags"]], ["足交"])
+        self.assertEqual([row["k"] for row in item["tags"]], ["Footjob"])
         self.assertEqual(item["stats"]["duration"], 1)
 
-        tag = rm_web.q_facets(self.contract, scope_kind="tag", scope_name="足交")
+        tag = rm_web.q_facets(self.contract, scope_kind="tag", scope_name="Footjob")
         self.assertEqual(tag["locations"], item["locations"])
         self.assertEqual(tag["stats"]["duration"], 1)
-        self.assertEqual([row["k"] for row in tag["tags"]], ["足交"])
+        self.assertEqual([row["k"] for row in tag["tags"]], ["Footjob"])
 
     def test_studio_spellings_share_videos_pagination_and_facets(self):
         alias = 'CANONICAL STUDIO（カノニカル）'
@@ -890,7 +890,7 @@ class WebDataTests(unittest.TestCase):
 
         flagged = rm_web.q_facets(self.contract, state="flagged")
         self.assertEqual({row["k"] for row in flagged["locations"]}, {"115"})
-        self.assertEqual({row["k"] for row in flagged["orientations"]}, {"竖屏"})
+        self.assertEqual({row["k"] for row in flagged["orientations"]}, {"Portrait"})
         local = rm_web.q_facets(self.contract, filters={"loc": "local"})
         remote = rm_web.q_facets(self.contract, filters={"loc": "115"})
         self.assertEqual(local['stats']['total'], 1)
@@ -901,7 +901,7 @@ class WebDataTests(unittest.TestCase):
         self.assertEqual(empty['tags'], [])
         self.assertEqual(empty['creators'], [])
         self.assertEqual(empty['stats']['total'], 0)
-        self.assertNotIn("足交", [row["k"] for row in flagged["tags"]])
+        self.assertNotIn("Footjob", [row["k"] for row in flagged["tags"]])
 
         # 顶部三层同一口径：Alice 只在 1 号上，应该整个消失；
         # 厂牌两边都有，但计数要收窄到 1。
@@ -1373,7 +1373,7 @@ class WebDataTests(unittest.TestCase):
 
     def test_every_technical_tag_uses_the_same_facets_classification(self):
         connection = sqlite3.connect(self.db_path)
-        for entity_id, tag in enumerate(("2K", "有码", "无码"), start=201):
+        for entity_id, tag in enumerate(("2K", "Censored", "Uncensored"), start=201):
             connection.execute(
                 "INSERT INTO entity(id,kind,canonical_name,normalized_name,created_at,updated_at) "
                 "VALUES(?, 'tag', ?, ?,'2026-01-01','2026-01-01')",
@@ -1390,18 +1390,18 @@ class WebDataTests(unittest.TestCase):
         facets = rm_web.q_facets(self.contract)
         tech = {row["k"] for row in facets["tech"]}
         content = {row["k"] for row in facets["tags"]}
-        self.assertTrue({"2K", "有码", "无码"} <= tech)
-        self.assertTrue({"2K", "有码", "无码"}.isdisjoint(content))
+        self.assertTrue({"2K", "Censored", "Uncensored"} <= tech)
+        self.assertTrue({"2K", "Censored", "Uncensored"}.isdisjoint(content))
 
     def test_tag_index_uses_populated_hanime_style_categories(self):
         connection = sqlite3.connect(self.db_path)
         tagged = (
-            (301, "中文字幕", "影片属性"),
-            (302, "近亲", "人物关系"),
-            (303, "护士", "角色设定"),
-            (304, "巨乳", "外貌身材"),
-            (305, "浴室", "情境场所"),
-            (306, "出轨", "故事剧情"),
+            (301, "Chinese subtitles", "影片属性"),
+            (302, "Incest", "人物关系"),
+            (303, "Nurse", "角色设定"),
+            (304, "Big Breasts", "外貌身材"),
+            (305, "Bathroom", "情境场所"),
+            (306, "Cheating / Affair", "故事剧情"),
             (308, "原创内容", "其他内容"),
             (309, "原神", "其他内容"),
         )
@@ -1420,13 +1420,13 @@ class WebDataTests(unittest.TestCase):
         connection.close()
 
         expected = {
-            "中文字幕": "meta",
-            "近亲": "relationship",
-            "护士": "role",
-            "巨乳": "appearance",
-            "浴室": "scene",
-            "出轨": "story",
-            "足交": "position",
+            "Chinese subtitles": "meta",
+            "Incest": "relationship",
+            "Nurse": "role",
+            "Big Breasts": "appearance",
+            "Bathroom": "scene",
+            "Cheating / Affair": "story",
+            "Footjob": "position",
             "原创内容": "general",
             "原神": "general",
         }
@@ -1727,9 +1727,9 @@ class WebDataTests(unittest.TestCase):
         })
         self.assertIn("新标签", added["tags"])
         removed = rm_web.w_item_tag(self.contract, {
-            "id": 1, "operation": "remove", "tag": "足交",
+            "id": 1, "operation": "remove", "tag": "Footjob",
         })
-        self.assertNotIn("足交", removed["tags"])
+        self.assertNotIn("Footjob", removed["tags"])
         con = sqlite3.connect(self.db_path)
         self.assertEqual(
             con.execute("SELECT source FROM asset_tag WHERE asset_id=1 AND tag='足交'").fetchone()[0],
@@ -1743,21 +1743,21 @@ class WebDataTests(unittest.TestCase):
 
     def test_item_tag_alias_uses_the_canonical_name_and_can_be_hidden(self):
         first = rm_web.w_item_tag(self.contract, {
-            "id": 1, "operation": "add", "tag": "秘书OL",
+            "id": 1, "operation": "add", "tag": "Secretary / OL",
         })
         repeated = rm_web.w_item_tag(self.contract, {
             "id": 1, "operation": "add", "tag": "OL",
         })
-        self.assertEqual(repeated["tag"], "秘书OL")
+        self.assertEqual(repeated["tag"], "Secretary / OL")
         self.assertEqual(repeated["tags"], first["tags"])
         with closing(sqlite3.connect(self.db_path)) as con:
             self.assertEqual(con.execute(
                 "SELECT tag FROM asset_tag WHERE asset_id=1 AND tag IN ('OL','秘书OL')"
-            ).fetchall(), [("秘书OL",)])
+            ).fetchall(), [("Secretary / OL",)])
         removed = rm_web.w_item_tag(self.contract, {
             "id": 1, "operation": "remove", "tag": repeated["tag"],
         })
-        self.assertNotIn("秘书OL", removed["tags"])
+        self.assertNotIn("Secretary / OL", removed["tags"])
 
     def test_tag_management_visibility_agrees_across_catalog_surfaces(self):
         from peach.web_tags import w_tag_management, w_tag_preview
@@ -1811,7 +1811,7 @@ class WebDataTests(unittest.TestCase):
         con.commit(); con.close()
         groups = rm_web._edition_groups(self.contract, ["ABF-234"])
         self.assertEqual(list(groups), ["ABF-234"])
-        self.assertEqual([item["edition"] for item in groups["ABF-234"]], ["有码", "无码破解"])
+        self.assertEqual([item["edition"] for item in groups["ABF-234"]], ["Censored", "无码破解"])
         # 正片在前只是要一个稳定的锚点：次序一变，卡片标题就跟着换。
         self.assertEqual(groups["ABF-234"][0]["id"], 9001)
 
@@ -2350,19 +2350,19 @@ class WebDataTests(unittest.TestCase):
         con.execute("INSERT INTO entity(id,kind,canonical_name,normalized_name,created_at,updated_at) "
                     "VALUES(14,'tag','痴女','痴女','2026-01-01','2026-01-01')")
         con.executemany("INSERT INTO asset_tag(asset_id,tag,source) VALUES(?,?,?)",
-                        [(1, "痴女", "name"), (2, "足交", "name"), (2, "痴女", "name")])
+                        [(1, "Nympho", "name"), (2, "Footjob", "name"), (2, "Nympho", "name")])
         con.executemany("INSERT INTO asset_entity(asset_id,entity_id,role,source,confidence) "
                         "VALUES(?,?,'tag','test',1.0)", [(1, 14), (2, 10), (2, 14)])
         con.commit()
         con.close()
 
         first = rm_web.q_related(self.contract, 1, 10)["items"][0]
-        self.assertEqual((first["why"], first["why_tags"]), ("同创作者", ["足交", "痴女"]))
+        self.assertEqual((first["why"], first["why_tags"]), ("同创作者", ["Footjob", "Nympho"]))
         # 用户在对面那部上隐藏的标签不拿来当理由；一个都不剩时退回「标签接近」。
-        rm_web.w_item_tag(self.contract, {"id": 2, "operation": "remove", "tag": "足交"})
+        rm_web.w_item_tag(self.contract, {"id": 2, "operation": "remove", "tag": "Footjob"})
         first = rm_web.q_related(self.contract, 1, 10)["items"][0]
-        self.assertEqual(first["why_tags"], ["痴女"])
-        rm_web.w_item_tag(self.contract, {"id": 2, "operation": "remove", "tag": "痴女"})
+        self.assertEqual(first["why_tags"], ["Nympho"])
+        rm_web.w_item_tag(self.contract, {"id": 2, "operation": "remove", "tag": "Nympho"})
         first = rm_web.q_related(self.contract, 1, 10)["items"][0]
         self.assertEqual((first["why"], "why_tags" in first), ("同创作者 · 标签接近", False))
 
@@ -2454,9 +2454,9 @@ class WebDataTests(unittest.TestCase):
                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [
                 (4, "local", r"R:\Media\four.mp4", "four.mp4", "video", 400,
-                 None, "ラグジュTV", "259LUXU-1509", 400, 1280, 720, "速食", "横屏", "720P", "2026-08-11"),
+                 None, "ラグジュTV", "259LUXU-1509", 400, 1280, 720, "速食", "Landscape", "720P", "2026-08-11"),
                 (5, "local", r"R:\Media\five.mp4", "five.mp4", "video", 500,
-                 None, None, None, 500, 1920, 1080, "速食", "横屏", "2K", "2026-08-10"),
+                 None, None, None, 500, 1920, 1080, "速食", "Landscape", "2K", "2026-08-10"),
             ],
         )
         con.execute("INSERT INTO asset_entity(asset_id,entity_id,role,source,confidence) "
@@ -2570,7 +2570,7 @@ class WebDataTests(unittest.TestCase):
         page = rm_web.q_entity(self.contract, {"kind": "performer", "name": "Alice"})
         self.assertEqual(page["canonical_name"], "Canonical Alice")
         self.assertEqual(page["asset_count"], 1)
-        self.assertEqual(page["tags"], [{"id": 10, "k": "足交", "n": 1}])
+        self.assertEqual(page["tags"], [{"id": 10, "k": "Footjob", "n": 1}])
         self.assertEqual(page["related_performers"][0]["k"], "Related Bob")
         self.assertEqual(page["related_performers"][0]["n"], 1)
         # 那排共演者是同一条两级取图链，取景也走同一份 sidecar。键必须在：没算过时
@@ -3135,7 +3135,7 @@ class JavModeAndCoverTests(unittest.TestCase):
             "ABP614.Hinata.Mio.Uncen.mp4", "ABP614",
         )
         cracked = rm_web.jav_display_metadata(
-            "MIDE-950.mp4", "MIDE-950", ["AI去码"],
+            "MIDE-950.mp4", "MIDE-950", ["AI decensoring"],
         )
         self.assertEqual(subtitled, {
             "display_code": "CJOD-175", "display_title": "",
@@ -3202,7 +3202,7 @@ class JavModeAndCoverTests(unittest.TestCase):
             ("122614_001-1pon-whole1_hd.avi", "122614-947"),
         ):
             self.assertEqual(
-                rm_web.jav_display_metadata(name, code)["edition_badges"], ["无码"], name)
+                rm_web.jav_display_metadata(name, code)["edition_badges"], ["Uncensored"], name)
         # 有码番号不能因为这条判据凭空拿到徽章。
         for name, code in (("ABW-220.mp4", "ABW-220"), ("MIDE-925-4K.mp4", "MIDE-925")):
             self.assertEqual(
@@ -3233,7 +3233,7 @@ class JavModeAndCoverTests(unittest.TestCase):
             ("SSIS-698-UC.mp4", "SSIS-698", (), ["无码破解"]),
             ("www.98T.la@ABW-358-U.mp4", "ABW-358", (), ["无码破解"]),
             ("300MIUM-123-U.mp4", "300MIUM-123", (), ["无码破解"]),
-            ("ABP-123.mp4", "ABP-123", ("无码",), ["无码破解"]),
+            ("ABP-123.mp4", "ABP-123", ("Uncensored",), ["无码破解"]),
             # `-C-U` 整个是破解标记，不另算中字；`-UMR` 同理。
             ("ABP-123-C-U.mp4", "ABP-123", (), ["无码破解"]),
             ("ABP-123-UMR.mp4", "ABP-123", (), ["无码破解"]),
@@ -3241,10 +3241,10 @@ class JavModeAndCoverTests(unittest.TestCase):
             ("STARS-160_UNCENSORED_Leaked.mp4", "STARS-160", (), ["无码流出"]),
             ("ABP-123-流出.mp4", "ABP-123", (), ["无码流出"]),
             # 无码片商与 FC2 这类本身可能无码的片，`-U` 不改成破解。
-            ("SMBD-120-U.mp4", "SMBD-120", (), ["无码"]),
-            ("010124-001-carib.mp4", "010124-001", (), ["无码"]),
-            ("FC2-PPV-1234567-U.mp4", "FC2-PPV-1234567", (), ["无码"]),
-            ("FC2-PPV-1234567.mp4", "FC2-PPV-1234567", ("无码",), ["无码"]),
+            ("SMBD-120-U.mp4", "SMBD-120", (), ["Uncensored"]),
+            ("010124-001-carib.mp4", "010124-001", (), ["Uncensored"]),
+            ("FC2-PPV-1234567-U.mp4", "FC2-PPV-1234567", (), ["Uncensored"]),
+            ("FC2-PPV-1234567.mp4", "FC2-PPV-1234567", ("Uncensored",), ["Uncensored"]),
         ):
             self.assertEqual(badges(name, code, tags), expected, name)
 
@@ -3268,11 +3268,11 @@ class JavModeAndCoverTests(unittest.TestCase):
         # 文件名只有泛泛的 `-U` 时，种子名里明说的流出压过它；文件名明说了的，种子名改不动。
         self.assertEqual(badges("ABP-123-U.mp4", "ABP-123", (), ("ABP-123 流出",)), ["无码流出"])
         self.assertEqual(badges("ABP-123-LTX.mp4", "ABP-123", (), ("ABP-123 流出",)), ["无码破解"])
-        self.assertEqual(badges("ABP-123.mp4", "ABP-123", ["AI去码"], ("ABP-123-U",)),
+        self.assertEqual(badges("ABP-123.mp4", "ABP-123", ["AI decensoring"], ("ABP-123-U",)),
                          ["无码破解"])
         # 无码片商的番号本身就是文件侧证据，种子名上的「破解」不覆盖它，但中字照样补。
         self.assertEqual(badges("040221-001.mp4", "040221-001", (),
-                                ("040221-001 破解 中文字幕",)), ["中字", "无码"])
+                                ("040221-001 破解 中文字幕",)), ["中字", "Uncensored"])
         # 中字只有「有」一个方向：文件名有、种子名没有，不算矛盾。
         self.assertEqual(badges("ABP-123-C.mp4", "ABP-123", (), ("ABP-123",)), ["中字"])
 
@@ -3624,7 +3624,7 @@ class PeopleIndexFocusTests(unittest.TestCase):
         con.executemany(
             "INSERT INTO entity(id,kind,canonical_name,normalized_name,created_at,updated_at)"
             " VALUES(?,?,?,?,'2026-01-01','2026-01-01')",
-            [(10, "tag", "足交", "足交"),
+            [(10, "tag", "Footjob", "Footjob"),
              (11, "performer", "Canonical Alice", "canonical alice"),
              (12, "creator", "Canonical Creator", "canonical creator")],
         )
@@ -3668,7 +3668,7 @@ class PeopleIndexFocusTests(unittest.TestCase):
 
     def test_the_tag_index_has_no_face_to_frame(self):
         tags = rm_web.q_index(self.contract, "tags")["items"]
-        self.assertEqual([row["k"] for row in tags], ["足交"])
+        self.assertEqual([row["k"] for row in tags], ["Footjob"])
         self.assertNotIn("avatar_focus", tags[0])
 
 
@@ -3940,11 +3940,11 @@ class DuplicateDetectionTests(unittest.TestCase):
         只算三卷横屏，队列仍是整部作品。"""
         ids = [self.add("FC2-PPV-3189161", 600 + n, 1_000 * n, name=f"FC2-3189161-{n}.mp4") for n in range(1, 6)]
         lone = [self.add("FC2-PPV-4028828", 1000 + n, 2_000, name=f"FC2-4028828-{n}.mp4") for n in (1, 2)]
-        for asset_id, orient in zip(ids + lone, ["横屏"] * 3 + ["竖屏"] * 2 + ["横屏", "竖屏"]):
+        for asset_id, orient in zip(ids + lone, ["Landscape"] * 3 + ["Portrait"] * 2 + ["Landscape", "Portrait"]):
             self.con.execute("UPDATE asset SET ctx_orient=? WHERE id=?", (orient, asset_id))
         self.con.commit()
 
-        portrait = rm_web.q_items(self.contract, {"orient": "竖屏", "limit": "10"})["items"]
+        portrait = rm_web.q_items(self.contract, {"orient": "Portrait", "limit": "10"})["items"]
         groups = {row["id"]: row["part_group"] for row in portrait}
         self.assertEqual(set(groups), {ids[3], ids[4], lone[1]})
         self.assertEqual(groups[ids[3]], {
@@ -4110,7 +4110,7 @@ class DuplicateDetectionTests(unittest.TestCase):
         cases = {
             "完整版": [{"id": 1, "name": "TRE-080.mp4", "duration": 28900}, *parts],
             "广告片": [{"id": 1, "name": "TRE-080.mp4", "duration": 78}, *parts],
-            "缺时长": [{"id": 1, "name": "TRE-080.mp4", "duration": None}, *parts],
+            "Missing duration": [{"id": 1, "name": "TRE-080.mp4", "duration": None}, *parts],
             "两个裸名": [{"id": 1, "name": "TRE-080.mp4", "duration": 9163},
                          {"id": 4, "name": "tre-080.mp4", "duration": 9163}, *parts],
             "标记不从 2 起": [{"id": 1, "name": "TRE-080.mp4", "duration": 9163}, parts[1]],
@@ -4517,9 +4517,9 @@ class CatalogVersionTests(unittest.TestCase):
         self.add(2, 'FC2-PPV-1110408-1-4K修复.mp4', 3013, 2160)
         self.add(3, 'FC2-PPV-1110408-2-4K修复.mp4', 200, 2160)
         with closing(sqlite3.connect(self.db)) as connection, connection:
-            connection.executemany('UPDATE asset SET ctx_orient=? WHERE id=?', [('横屏', 1), ('竖屏', 2), ('竖屏', 3)])
+            connection.executemany('UPDATE asset SET ctx_orient=? WHERE id=?', [('Landscape', 1), ('Portrait', 2), ('Portrait', 3)])
         editions = lambda args: {row['id']: row['edition_group'] for row in q_items(self.contract, args)['items']}
-        portrait = editions({'orient': '竖屏'})
+        portrait = editions({'orient': 'Portrait'})
         self.assertEqual(set(portrait), {2, 3})
         self.assertEqual((portrait[2]['count'], portrait[2]['item_ids'], portrait[2]['seed_id']), (1, [2, 3], 1))
         self.assertEqual(len(portrait[2]['editions']), 1)

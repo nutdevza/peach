@@ -295,7 +295,7 @@ def counts(planned: dict) -> dict:
     """计划里每一类各有几条，命令行 dry-run 的那一行摘要。"""
     return {"链接": len(planned["links"]), "别名": len(planned["aliases"]),
             "资料": len(planned["profiles"]), "断言": len(planned["claims"]),
-            "公司资料": len(planned["companies"]), "卖家": len(planned["sellers"]),
+            "公司资料": len(planned["companies"]), "Seller": len(planned["sellers"]),
             "关注建档": len(planned["creators"]), "编号": len(planned["refs"]),
             "归属": len(planned["memberships"]), "片商": len(planned["makers"]),
             "标识文件": len(planned["files"]), "封面": len(planned["covers"]),

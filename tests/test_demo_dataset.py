@@ -303,7 +303,7 @@ class PortraitDatasetTests(unittest.TestCase):
         _, items = self._generate("shapes", count=16)
         shape = {entry.name: entry.landscape for entry in self.entries}
         for item in items:
-            self.assertEqual(shape[item.portrait], item.orientation == "横屏", item.path)
+            self.assertEqual(shape[item.portrait], item.orientation == "Landscape", item.path)
 
     def test_covers_are_written_at_the_documented_sizes(self):
         from PIL import Image
@@ -313,7 +313,7 @@ class PortraitDatasetTests(unittest.TestCase):
             if not item.poster:
                 continue
             with Image.open(output / item.poster) as cover:
-                expected = (self.portraits.COVER_PORTRAIT if item.orientation == "竖屏"
+                expected = (self.portraits.COVER_PORTRAIT if item.orientation == "Portrait"
                             else self.portraits.COVER_LANDSCAPE)
                 self.assertEqual(cover.size, expected, item.poster)
 

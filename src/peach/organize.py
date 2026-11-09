@@ -35,24 +35,24 @@ PLAN_FIELDS = ["asset_id", "location", "current_path", "target_path", "action", 
 
 #: 文件名与目录组合，以及使用示例字段时的完整路径。
 PRESETS: tuple[dict[str, str], ...] = (
-    {"label": "仅番号", "file": "{code}", "dir": "", "example": "ABC-123.mp4"},
-    {"label": "番号和标题", "file": "{code}[ {title}]", "dir": "", "example": "ABC-123 标题.mp4"},
-    {"label": "番号和画质", "file": "{code}[ {definition}]", "dir": "", "example": "ABC-123 1080p.mp4"},
-    {"label": "番号和出演者", "file": "{code}[ {actors}]", "dir": "", "example": "ABC-123 甲、乙.mp4"},
-    {"label": "按厂牌建文件夹", "file": "{code}[ {title}]", "dir": "{studio}", "example": "厂牌/ABC-123 标题.mp4"},
-    {"label": "按系列建文件夹", "file": "{code}[ {title}]", "dir": "{series}", "example": "系列/ABC-123 标题.mp4"},
-    {"label": "按出演者建文件夹", "file": "{code}[ {title}]", "dir": "{actors}", "example": "甲、乙/ABC-123 标题.mp4"},
-    {"label": "按发行年建文件夹", "file": "{code}[ {title}]", "dir": "{year}", "example": "2024/ABC-123 标题.mp4"},
-    {"label": "厂牌下按番号建文件夹", "file": "{code}[ {title}][ CD{cd}]", "dir": "{studio}/{code}", "example": "厂牌/ABC-123/ABC-123 标题 CD2.mp4"},
+    {"label": "Code only", "file": "{code}", "dir": "", "example": "ABC-123.mp4"},
+    {"label": "Code and title", "file": "{code}[ {title}]", "dir": "", "example": "ABC-123 Title.mp4"},
+    {"label": "Code and quality", "file": "{code}[ {definition}]", "dir": "", "example": "ABC-123 1080p.mp4"},
+    {"label": "Code and performers", "file": "{code}[ {actors}]", "dir": "", "example": "ABC-123 A, B.mp4"},
+    {"label": "Folder by studio", "file": "{code}[ {title}]", "dir": "{studio}", "example": "Studio/ABC-123 Title.mp4"},
+    {"label": "Folder by series", "file": "{code}[ {title}]", "dir": "{series}", "example": "Series/ABC-123 Title.mp4"},
+    {"label": "Folder by performer", "file": "{code}[ {title}]", "dir": "{actors}", "example": "A, B/ABC-123 Title.mp4"},
+    {"label": "Folder by year", "file": "{code}[ {title}]", "dir": "{year}", "example": "2024/ABC-123 Title.mp4"},
+    {"label": "Studio / code folder", "file": "{code}[ {title}][ CD{cd}]", "dir": "{studio}/{code}", "example": "Studio/ABC-123/ABC-123 Title CD2.mp4"},
 )
 
 #: 跳过原因的固定写法。界面按这几个键分组计数，所以它们是契约的一部分。
-SKIP_OFFLINE = "来源未挂载"
-SKIP_MISSING_FIELD = "字段缺失"
-SKIP_OUTSIDE_ROOT = "不在来源根内"
-SKIP_TARGET_EXISTS = "目标已存在"
-SKIP_CROSS_VOLUME = "跨盘"
-SKIP_TOO_LONG = "路径过长"
+SKIP_OFFLINE = "Source not mounted"
+SKIP_MISSING_FIELD = "Missing field"
+SKIP_OUTSIDE_ROOT = "Outside source root"
+SKIP_TARGET_EXISTS = "Target already exists"
+SKIP_CROSS_VOLUME = "Cross-volume"
+SKIP_TOO_LONG = "Path too long"
 
 
 #: 挂载上的 `os.rename` 证明不了云端真的改了名的来源：PikPak 挂载对大文件常报 WinError 50，
@@ -145,7 +145,7 @@ def placeholder_values(row, performers: Sequence[str] = ()) -> dict[str, str]:
         "cd": marker.upper() if marker else "",
         # 有码不是本机可核验的事实，所以只在有无码证据时给值；`[{mosaic}]` 于是
         # 在普通片上整段消失，而不是写上一个猜出来的「有码」。
-        "mosaic": "无码" if is_uncensored_release(name, code) else "",
+        "mosaic": "Uncensored" if is_uncensored_release(name, code) else "",
         "definition": _definition(row["width"], row["height"]),
     }
 

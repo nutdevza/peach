@@ -342,15 +342,15 @@ def _history_source_label(record: dict) -> str:
             return f"lit.link @{page.path.strip('/')}"
         if host in ("prd.storage.lit.link", "prd.resource-api.lit.link"):
             return "lit.link"
-        return "来源未记录"
+        return "Source not recorded"
     if provider == "gfriends":
         category, _, _ = external_id.partition("/")
-        return f"图库 · {gfriends.category_label(category)}" if category else "图库"
+        return f"Gallery · {gfriends.category_label(category)}" if category else "Gallery"
     if provider in ("history", "picker", ""):
-        return "来源未记录"
+        return "Source not recorded"
     if provider == "url":
-        return f"图片地址 · {host}" if host else "来源未记录"
-    return SOURCE_NAMES.get(provider, "来源未记录")
+        return f"Image URL · {host}" if host else "Source not recorded"
+    return SOURCE_NAMES.get(provider, "Source not recorded")
 
 
 def _history_source(records: dict[str, list[dict]], digest: str) -> dict:
@@ -360,7 +360,7 @@ def _history_source(records: dict[str, list[dict]], digest: str) -> dict:
     while digest in records and digest not in visited:
         visited.add(digest)
         record = min(records[digest], key=lambda row: (
-            _history_source_label(row) == "来源未记录",
+            _history_source_label(row) == "Source not recorded",
             row.get("provider") in ("history", "picker")))
         if record.get("provider") != "history":
             return record
@@ -401,7 +401,7 @@ def _history(providers_root: Path, entity_id: int, current: str,
         label = _history_source_label(source)
         cropped = any(row.get("source_kind") == "user_cropped" for row in evidence)
         if cropped:
-            label += " · 已裁剪"
+            label += " · cropped"
         width, height = int(record.get("width") or 0), int(record.get("height") or 0)
         whole = provider in WHOLE_COVER_PROVIDERS and not cropped
         focus, cast = None, 0
@@ -875,7 +875,7 @@ def resolve(ref: str, connection: sqlite3.Connection, providers_root: Path,
         records = _history_records(providers_root, entity_id)
         source = _history_source(records, digest)
         origin = {"source": "avatar picker", "provider": "history", "external_id": digest}
-        if _history_source_label(source) != "来源未记录":
+        if _history_source_label(source) != "Source not recorded":
             origin.update({key: source[key] for key in (
                 "provider", "external_id", "upstream_url", "matched_name", "name_source") if key in source})
         if any(row.get("source_kind") == "user_cropped" for row in records.get(digest, ())):

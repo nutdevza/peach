@@ -246,7 +246,7 @@ class RunnerTests(LedgerTestCase):
         def busy_until_clear(_contract, key, _handle):
             attempts.append(key)
             if not clear.is_set():
-                raise Blocked("等待扫描与采集完成后继续")
+                raise Blocked("Waiting for the scan-and-scrape pass to finish")
             return {"outcome": key}
 
         parent = self.parent()
@@ -261,7 +261,7 @@ class RunnerTests(LedgerTestCase):
             time.sleep(0.05)
             waiting = self.store.get(child)
             self.assertEqual(waiting.status, "pending")
-            self.assertEqual(waiting.progress_label, "等待扫描与采集完成后继续")
+            self.assertEqual(waiting.progress_label, "Waiting for the scan-and-scrape pass to finish")
             self.assertEqual(attempts, ["ledger-a:1"])
             clear.set()
             self.wait_until_settled(parent.id)
@@ -311,7 +311,7 @@ class RunnerTests(LedgerTestCase):
 
         def busy(_contract, key, _handle):
             attempts.append(key)
-            raise JobDeferred("等待扫描与采集完成后继续")
+            raise JobDeferred("Waiting for the scan-and-scrape pass to finish")
 
         parent = self.parent()
         with registered(echo_type("ledger-a", run=busy)):
@@ -1838,7 +1838,7 @@ class EntityPendingWorkTests(LedgerTestCase):
                 (asset_id,))
         with closing(sqlite3.connect(self.db)) as connection:
             self.assertEqual(pending_work(contract, connection, "performer", entity_id), [
-                {"task_key": "download-postprocess", "label": "云下载后处理", "status": "running"}])
+                {"task_key": "download-postprocess", "label": "Cloud download post-processing", "status": "running"}])
         self.assertEqual([row["task_key"] for row in q_item(WebContract(self.db), asset_id)["pending_work"]],
                          ["download-postprocess"])
         with closing(sqlite3.connect(self.db)) as connection, connection:

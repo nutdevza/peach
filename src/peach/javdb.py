@@ -148,7 +148,7 @@ def one_person(cards: list[dict]) -> bool:
 
 
 #: 無碼那条卡片上的标记。繁体界面写 `無碼`，简体界面写 `无码`。
-UNCENSORED = frozenset({"無碼", "无码"})
+UNCENSORED = frozenset({"無碼", "Uncensored"})
 
 
 def card_uncensored(card: dict) -> bool | None:

@@ -125,7 +125,7 @@ class FetchRetryTests(unittest.TestCase):
                     patch.object(covers, 'r18_evidence', return_value=covers.MetadataEvidence()), \
                     patch.object(covers, 'mgstage_images', return_value=[]), \
                     patch.object(covers, 'prestige_images', return_value=[]), \
-                    patch.object(covers, site, side_effect=covers.SourcePaused('来源正在冷却')):
+                    patch.object(covers, site, side_effect=covers.SourcePaused('The source is cooling down')):
                 winner, size, _ = covers.best_cover(
                     transport_for({candidate.url: (200, jpeg(800, 540))}), code, 0,
                     prior_candidates=(candidate,))
@@ -136,7 +136,7 @@ class FetchRetryTests(unittest.TestCase):
         for paused, available in (('prestige_images', 'mgstage_images'),
                                    ('mgstage_images', 'prestige_images')):
             with self.subTest(paused=paused), \
-                    patch.object(covers, paused, side_effect=covers.SourcePaused('来源正在冷却')), \
+                    patch.object(covers, paused, side_effect=covers.SourcePaused('The source is cooling down')), \
                     patch.object(covers, available, return_value=[candidate]):
                 winner, _, _ = covers.best_cover(
                     transport_for({candidate.url: (200, jpeg(1600, 1080))}), 'ABW-192', 0)
@@ -168,7 +168,7 @@ class FetchRetryTests(unittest.TestCase):
             def transport(request, _timeout, _limit, phase=phase):
                 if request.url == paused.url:
                     if phase == 'probe' or 'Range' not in request.headers:
-                        raise covers.SourcePaused('来源正在冷却')
+                        raise covers.SourcePaused('The source is cooling down')
                     return _Response(200, jpeg(1600, 1080))
                 return _Response(200, jpeg(800, 540))
             with self.subTest(phase=phase):
@@ -182,7 +182,7 @@ class FetchRetryTests(unittest.TestCase):
         for all_paused in (False, True):
             def transport(request, _timeout, _limit, all_paused=all_paused):
                 if request.url == first.url or all_paused:
-                    raise covers.SourcePaused('来源正在冷却')
+                    raise covers.SourcePaused('The source is cooling down')
                 return _Response(503, b'')
             expected = covers.SourcePaused if all_paused else covers.Unavailable
             with self.subTest(all_paused=all_paused):
@@ -192,7 +192,7 @@ class FetchRetryTests(unittest.TestCase):
 
     def test_catalogs_that_are_all_paused_remain_paused_not_missing(self):
         def transport(*_args):
-            raise covers.SourcePaused('来源正在冷却')
+            raise covers.SourcePaused('The source is cooling down')
         for code in ('SSIS-057', '200GANA-1995', 'ABW-192'):
             with self.subTest(code=code), self.assertRaises(covers.SourcePaused):
                 covers.best_cover(transport, code, 0)

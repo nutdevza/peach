@@ -25,7 +25,7 @@ TITLE = "みお(19)可愛い巨乳JDの初アナル貫通動画"
 
 def shop_page(video="4364209", title=TITLE, image=COVER, slug="otonakamenz",
               seller="大人仮面Z", sold="2024/03/31", runtime="41:50",
-              tags=("おっぱい", "お尻", "素人")):
+              tags=("おっぱい", "お尻", "Amateur")):
     """商品页里解析用得上的那几块，标记与站上一致。"""
     product = {"@type": "Product", "@id": f"article:{video}", "sku": video, "name": title,
                "description": "本編と別アングルの2本立て。",
@@ -221,7 +221,7 @@ class Fc2ShopPageTests(unittest.TestCase):
         self.assertEqual(found["maker"], STUDIO)
         self.assertEqual(found["label"], "大人仮面Z")
         self.assertEqual(found["seller_url"], "https://adult.contents.fc2.com/users/otonakamenz/")
-        self.assertEqual(found["genres"], ["おっぱい", "お尻", "素人"])
+        self.assertEqual(found["genres"], ["おっぱい", "お尻", "Amateur"])
         self.assertEqual(found["cover_url"], COVER)
         self.assertEqual(found["cover_urls"], [COVER])
 
@@ -232,7 +232,7 @@ class Fc2ShopPageTests(unittest.TestCase):
             "description": "本編と別アングルの2本立て。", "actresses": [], "maker": "FC2-PPV",
             "label": "大人仮面Z", "seller_url": "https://adult.contents.fc2.com/users/otonakamenz/",
             "series": "", "director": "", "release_date": "2024-03-31", "runtime": 41.83,
-            "genres": ["おっぱい", "お尻", "素人"], "cover_urls": [COVER], "cover_url": COVER})
+            "genres": ["おっぱい", "お尻", "Amateur"], "cover_urls": [COVER], "cover_url": COVER})
 
     def test_the_shop_page_names_no_performers(self):
         # 标题里那个 `みお(19)` 是卖家自己写的宣传语，没有第二处可以印证；FC2 的演员
@@ -439,7 +439,7 @@ class JavArchiveTests(unittest.TestCase):
             "id": "FC2-PPV-4137487", "content_id": "4137487", "source_url": "https://javarchive.com" + ARCHIVE_LINK,
             "title": ARCHIVE_TITLE, "description": "", "actresses": [], "maker": "FC2-PPV", "label": "",
             "seller_url": "", "series": "", "director": "", "release_date": "2023-11-21", "runtime": 50.05,
-            "genres": ["ハメ撮り", "素人", "爆乳"],
+            "genres": ["ハメ撮り", "Amateur", "爆乳"],
             "cover_urls": [ARCHIVE_PICTURES + "4137487pl.jpg", ARCHIVE_PICTURES + "4137487ps.jpg"],
             "cover_url": ARCHIVE_PICTURES + "4137487pl.jpg"})
 
@@ -468,7 +468,7 @@ class JavArchiveTests(unittest.TestCase):
     def test_the_body_block_gives_up_the_tags_the_date_and_the_runtime(self):
         """转存者填了就取。2026-09-22 实测 4 部里只有 `4030617` 这块是齐的。"""
         found = archive(archive_page(), "FC2-PPV-4137487")
-        self.assertEqual(found["genres"], ["ハメ撮り", "素人", "爆乳"])
+        self.assertEqual(found["genres"], ["ハメ撮り", "Amateur", "爆乳"])
         self.assertEqual(found["release_date"], "2023-11-21")
         self.assertEqual(found["runtime"], 50.05)
 
@@ -506,7 +506,7 @@ def db_actress(at: int) -> str:
 
 def db_page(video="4898837", title="ふたりの巨乳美少女と3P。", seller="ぷにぷに製作所", slug="punipuni",
             sold="2026年5月10日", runtime="55:00", performers=("川北すずね",), leaked="流出なし",
-            tags=("巨乳", "3P")):
+            tags=("Big Breasts", "3P")):
     """fc2ppv-db.com 的作品页：Next.js 服务端渲染，「動画詳細情報」那块是嵌套的 div 与 p。
 
     PR 位与関連動画也链到女优页，放进来看解析只认出演女優那一块。
@@ -553,7 +553,7 @@ class Fc2ppvdbTests(unittest.TestCase):
         self.assertEqual((found["label"], found["seller_url"]),
                          ("ぷにぷに製作所", "https://adult.contents.fc2.com/users/punipuni/"))
         self.assertEqual((found["release_date"], found["runtime"]), ("2026-05-10", 55.0))
-        self.assertEqual(found["genres"], ["巨乳", "3P"])
+        self.assertEqual(found["genres"], ["Big Breasts", "3P"])
         self.assertEqual(found["leaked"], False)
         self.assertEqual(database(db_page(leaked="流出あり"), "FC2-PPV-4898837")["leaked"], True)
         self.assertEqual((found["id"], found["content_id"], found["maker"], found["source_url"]),
@@ -621,7 +621,7 @@ TEN_GALLERY = "//contents-thumbnail2.fc2.com/w1280/storage200000.contents.fc2.co
 
 
 def ten_page(video="4898837", title="ふたりの巨乳美少女と3P。", seller="ぷにぷに製作所", runtime="55:00",
-             published="2026-05-10T22:02:04+07:00", tags=("巨乳", "3P"), url=TEN_ORIGINAL, gallery=TEN_GALLERY):
+             published="2026-05-10T22:02:04+07:00", tags=("Big Breasts", "3P"), url=TEN_ORIGINAL, gallery=TEN_GALLERY):
     """javten.com 的作品页：番号在 `h1.fc2-id`，卖家与时长只在 description 里。"""
     marks = "".join(f'<a class="badge badge-primary" href="https://javten.com/tag/{at}/{tag}/newest">{tag}</a>'
                     for at, tag in enumerate(tags))
@@ -659,7 +659,7 @@ class JavtenTests(unittest.TestCase):
         self.assertEqual(found["title"], "ふたりの巨乳美少女と3P。")
         self.assertEqual((found["label"], found["seller_url"]), ("ぷにぷに製作所", ""))
         self.assertEqual((found["release_date"], found["runtime"]), ("2026-05-10", 55.0))
-        self.assertEqual(found["genres"], ["巨乳", "3P"])
+        self.assertEqual(found["genres"], ["Big Breasts", "3P"])
         self.assertEqual(found["cover_urls"], [
             TEN_STORAGE, "https://storage200000.contents.fc2.com/file/393/39269295/1778420440.53.png"])
         self.assertEqual((found["id"], found["content_id"], found["maker"], found["source_url"], found["actresses"]),

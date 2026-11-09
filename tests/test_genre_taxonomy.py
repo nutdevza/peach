@@ -35,9 +35,9 @@ class SimplifiedSourceGenreTests(unittest.TestCase):
                 self.assertIsNone(resolve_genre(converter.convert(raw)))
 
     def test_simplified_sources_keep_user_overrides_and_unknown_words(self):
-        self.assertEqual(map_genres(['护士', '業餘', '业余', '无码破解', '4小时以上作品', '未知类别']),
-                         (['护士', '素人'], ['未知类别']))
-        self.assertEqual(resolve_genre('护士', {'护士': '职业角色'}), '职业角色')
+        self.assertEqual(map_genres(['Nurse', '業餘', '业余', '无码破解', '4小时以上作品', '未知类别']),
+                         (['Nurse', 'Amateur'], ['未知类别']))
+        self.assertEqual(resolve_genre('Nurse', {'Nurse': '职业角色'}), '职业角色')
 
 
 def _catalog_vocabulary() -> set[str]:
@@ -54,61 +54,61 @@ def _catalog_vocabulary() -> set[str]:
 class GenreTaxonomyTests(unittest.TestCase):
     def test_office_role_and_uniform_keep_separate_dimensions(self):
         tags, unknown = map_genres(["OL", "Secretary", "Office Lady", "スーツ", "Business Suit"])
-        self.assertEqual(tags, ["秘书OL", "OL制服"])
+        self.assertEqual(tags, ["Secretary / OL", "Office uniform"])
         self.assertEqual(unknown, [])
-        self.assertEqual(catalog_rules.current_tags(["OL", "秘书OL", "OL制服"]),
-                         ["秘书OL", "OL制服"])
-        self.assertEqual(catalog_rules.tag_cat("秘书OL"), "role")
-        self.assertEqual(catalog_rules.tag_cat("OL制服"), "appearance")
-        self.assertEqual(catalog_rules.tag_cat("JK制服"), "appearance")
+        self.assertEqual(catalog_rules.current_tags(["OL", "Secretary / OL", "Office uniform"]),
+                         ["Secretary / OL", "Office uniform"])
+        self.assertEqual(catalog_rules.tag_cat("Secretary / OL"), "role")
+        self.assertEqual(catalog_rules.tag_cat("Office uniform"), "appearance")
+        self.assertEqual(catalog_rules.tag_cat("JK uniform"), "appearance")
 
     def test_cat_ears_share_one_target_across_source_spellings(self):
-        self.assertEqual(map_genres(["猫耳", "貓耳女"]), (["猫耳"], []))
+        self.assertEqual(map_genres(["Cat ears", "貓耳女"]), (["Cat ears"], []))
 
     def test_public_javdb_simplified_categories_share_verified_targets(self):
-        self.assertEqual(map_genres(['蕩婦', '荡妇', '戀腿癖', '恋腿癖']), (['痴女', '恋腿'], []))
+        self.assertEqual(map_genres(['蕩婦', '荡妇', '戀腿癖', '恋腿癖']), (['Nympho', 'Leg fetish'], []))
 
     def test_anal_region_is_distinct_from_anal_intercourse(self):
         for raw in ("Anal", "Anal Play", "アナル", "アナル責め", "アナルシリーズ", "肛門・肛交"):
             with self.subTest(raw=raw):
-                self.assertEqual(resolve_genre(raw), "屁眼")
+                self.assertEqual(resolve_genre(raw), "Butthole")
         for raw in ("Anal Sex", "アナルセックス", "アナルファック", "アナル中出し"):
             with self.subTest(raw=raw):
-                self.assertEqual(resolve_genre(raw), "肛交")
+                self.assertEqual(resolve_genre(raw), "Anal")
 
     def test_javdb_categories_have_explicit_existing_vocabulary_targets(self):
         tags, unknown = map_genres(["高跟鞋", "絲襪、過膝襪", "白天出軌", "女大學生",
                                     "第一人稱攝影", "4小時以上作品", "單體作品", "尚未收錄的分類"])
-        self.assertEqual(tags, ["高跟", "丝袜", "出轨", "学生", "主观视角"])
+        self.assertEqual(tags, ["High Heels", "Stockings", "Cheating / Affair", "Student", "POV"])
         self.assertEqual(unknown, ["尚未收錄的分類"])
-        self.assertEqual(resolve_genre("靴子"), "靴子")
+        self.assertEqual(resolve_genre("Boots"), "Boots")
 
     def test_javdb_aliases_share_the_existing_semantic_targets(self):
         aliases = (
-            ("溫泉", "Hot Spring", "温泉"),
-            ("女同性戀", "Lesbian", "百合"),
-            ("女同接吻", "レズキス", "百合"),
-            ("強姦", "レイプ", "强制剧情"),
-            ("偷窺", "盗撮", "偷拍偷窥"),
-            ("處女", "Virgin", "处女设定"),
-            ("爛醉如泥的", "泥酔", "醉酒"),
-            ("黑人演員", "黒人男優", "黑人"),
-            ("家教", "Private Tutor", "家庭教师"),
-            ("童年朋友", "幼なじみ", "青梅竹马"),
-            ("變性者", "Transsexual", "跨性别"),
-            ("肉肉女", "Chubby", "丰满"),
-            ("水手服", "Sailor Uniform", "制服"),
-            ("學校泳裝", "School Swimsuits", "泳装"),
-            ("手指插入", "Fingering", "手交"),
-            ("手淫", "Masturbation", "自慰"),
-            ("輪姦", "Gangbang", "多人"),
-            ("兩男兩女", "Foursome", "3P多人"),
-            ("打屁股", "Spanking", "调教"),
-            ("灌腸", "Enema", "排泄"),
-            ("假陽具", "Dildo", "性玩具"),
-            ("肛交", "Anal Sex", "肛交"),
-            ("薄馬賽克", "ギリモザ", "薄码"),
-            ("數位馬賽克", "Digital Mosaic", "有码"),
+            ("溫泉", "Hot Spring", "Hot spring"),
+            ("女同性戀", "Lesbian", "Yuri / GL"),
+            ("女同接吻", "レズキス", "Yuri / GL"),
+            ("強姦", "レイプ", "Forced storyline"),
+            ("偷窺", "盗撮", "Voyeur"),
+            ("處女", "Virgin", "Virgin theme"),
+            ("爛醉如泥的", "泥酔", "Drunk"),
+            ("黑人演員", "黒人男優", "Interracial"),
+            ("家教", "Private Tutor", "Private tutor"),
+            ("童年朋友", "幼なじみ", "Childhood friend"),
+            ("變性者", "Transsexual", "Transgender"),
+            ("肉肉女", "Chubby", "Plump"),
+            ("水手服", "Sailor Uniform", "Uniform"),
+            ("學校泳裝", "School Swimsuits", "Swimsuit"),
+            ("手指插入", "Fingering", "Handjob"),
+            ("手淫", "Masturbation", "Masturbation"),
+            ("輪姦", "Gangbang", "Group"),
+            ("兩男兩女", "Foursome", "Group"),
+            ("打屁股", "Spanking", "Training"),
+            ("灌腸", "Enema", "Scat"),
+            ("假陽具", "Dildo", "Sex Toys"),
+            ("Anal", "Anal Sex", "Anal"),
+            ("薄馬賽克", "ギリモザ", "Thin mosaic"),
+            ("數位馬賽克", "Digital Mosaic", "Censored"),
         )
         for chinese, existing, target in aliases:
             with self.subTest(chinese=chinese, existing=existing):
@@ -124,44 +124,44 @@ class GenreTaxonomyTests(unittest.TestCase):
         self.assertEqual(unknown, raw)
 
     def test_confirmed_javdb_translations_preserve_semantic_dimensions(self):
-        raw = ["靴子", "高跟鞋", "濕身", "濕透", "流汗", "飲尿", "尿失禁",
+        raw = ["Boots", "高跟鞋", "濕身", "濕透", "流汗", "飲尿", "尿失禁",
                "妓女", "風俗嬢", "風俗", "雙性人", "變性者", "母親", "亂倫",
-               "女醫生", "護士", "Female Investigator", "戀腿癖", "美腳", "戀乳癖", "美乳",
-               "子宮頸", "正太控", "瘦小身型"]
+               "女醫生", "護士", "Female Investigator", "戀腿癖", "美腳", "戀乳癖", "Beautiful Breasts",
+               "子宮頸", "Shotacon", "瘦小身型"]
         tags, unknown = map_genres(raw)
-        self.assertEqual(tags, ["靴子", "高跟", "湿身", "汗湿", "饮尿", "放尿",
-                                "风俗女郎", "风俗店", "扶她", "跨性别", "母亲角色", "近亲",
-                                "女医生", "护士", "女搜查官", "恋腿", "美腿", "恋乳", "美乳",
-                                "宫颈", "正太控", "娇小"])
+        self.assertEqual(tags, ["Boots", "High Heels", "Soaked", "Sweaty", "Piss drinking", "Pissing",
+                                "Sex worker", "Fuzoku parlor", "Futa", "Transgender", "Mother role", "Incest",
+                                "Female doctor", "Nurse", "Female detective", "Leg fetish", "Beautiful legs", "Breast fetish", "Beautiful Breasts",
+                                "Cervix", "Shotacon", "Petite"])
         self.assertEqual(unknown, [])
 
     def test_javdb_category_link_identities_share_chinese_and_english_targets(self):
         for chinese, english, target in (
-            ("雙性人", "Futanari", "扶她"), ("妓女", "Prostitutes", "风俗女郎"),
-            ("戀腿癖", "Leg Fetish", "恋腿"), ("戀乳癖", "Busty Fetish", "恋乳"),
-            ("蠻橫嬌羞", "Tsundere", "傲娇"), ("子宮頸", "Cervix", "宫颈"),
+            ("雙性人", "Futanari", "Futa"), ("妓女", "Prostitutes", "Sex worker"),
+            ("戀腿癖", "Leg Fetish", "Leg fetish"), ("戀乳癖", "Busty Fetish", "Breast fetish"),
+            ("蠻橫嬌羞", "Tsundere", "Tsundere"), ("子宮頸", "Cervix", "Cervix"),
         ):
             with self.subTest(chinese=chinese):
                 self.assertEqual(map_genres([chinese, english, chinese]), ([target], []))
 
     def test_javdb_source_version_labels_do_not_assert_local_file_attributes(self):
         self.assertEqual(map_genres(["無碼流出", "無碼破解", "HDTV", "共演", "店長推薦"]), ([], []))
-        self.assertEqual(map_genres(["無修正", "肛交", "女醫生"]), (["无码", "肛交", "女医生"], []))
+        self.assertEqual(map_genres(["無修正", "Anal", "女醫生"]), (["Uncensored", "Anal", "Female doctor"], []))
 
     def test_confirmed_tags_have_filter_groups(self):
         for group, names in (
-            (catalog_rules.ROLE_TAGS, ["风俗女郎", "扶她", "女医生", "母亲角色"]),
-            (catalog_rules.STORY_TAGS, ["恋腿", "恋乳", "正太控"]),
-            (catalog_rules.APPEARANCE_TAGS, ["靴子", "湿身"]),
-            (catalog_rules.POSITION_TAGS, ["饮尿", "宫颈"]),
+            (catalog_rules.ROLE_TAGS, ["Sex worker", "Futa", "Female doctor", "Mother role"]),
+            (catalog_rules.STORY_TAGS, ["Leg fetish", "Breast fetish", "Shotacon"]),
+            (catalog_rules.APPEARANCE_TAGS, ["Boots", "Soaked"]),
+            (catalog_rules.POSITION_TAGS, ["Piss drinking", "Cervix"]),
         ):
             with self.subTest(names=names):
                 self.assertTrue(set(names) <= group)
 
     def test_javdb_aliases_preserve_scene_behavior_and_anal_boundaries(self):
         tags, unknown = map_genres(["戶外", "Exhibitionism", "洗澡", "溫泉",
-                                    "手淫", "手指插入", "Anal", "肛交", "肛門・肛交"])
-        self.assertEqual(tags, ["户外", "户外露出", "浴室", "温泉", "自慰", "手交", "屁眼", "肛交"])
+                                    "手淫", "手指插入", "Anal", "Anal", "肛門・肛交"])
+        self.assertEqual(tags, ["Outdoor", "Outdoor exhibitionism", "Bathroom", "Hot spring", "Masturbation", "Handjob", "Butthole", "Anal"])
         self.assertEqual(unknown, [])
 
     def test_every_projection_lands_in_the_existing_catalog_vocabulary(self):
@@ -180,12 +180,12 @@ class GenreTaxonomyTests(unittest.TestCase):
         身体尺寸与发行／营销／规格分类一概不进 `CONTENT_GENRES`，和既有的
         「`Featured Actress` 不入库」是同一条线。
         """
-        self.assertEqual(CONTENT_GENRES["中出し"], "中出内射")
-        self.assertEqual(CONTENT_GENRES["パイパン"], "白虎")
-        self.assertEqual(CONTENT_GENRES["女子校生"], "学生")
-        self.assertEqual(CONTENT_GENRES["寝取り・寝取られ"], "绿帽NTR")
-        self.assertEqual(CONTENT_GENRES["巨乳"], "巨乳")
-        self.assertEqual(CONTENT_GENRES["美乳"], "美乳")
+        self.assertEqual(CONTENT_GENRES["中出し"], "Creampie")
+        self.assertEqual(CONTENT_GENRES["パイパン"], "Shaved")
+        self.assertEqual(CONTENT_GENRES["女子校生"], "Student")
+        self.assertEqual(CONTENT_GENRES["寝取り・寝取られ"], "NTR")
+        self.assertEqual(CONTENT_GENRES["Big Breasts"], "Big Breasts")
+        self.assertEqual(CONTENT_GENRES["Beautiful Breasts"], "Beautiful Breasts")
         for measurement in ("Dカップ", "Gカップ", "Jカップ"):
             self.assertNotIn(measurement, CONTENT_GENRES,
                              f"{measurement} 是身体尺寸，词表里没有对应分类")
@@ -226,10 +226,10 @@ class GenreTaxonomyTests(unittest.TestCase):
         self.assertEqual(both, set(), "同一个 genre 不能既是内容又被排除")
 
     def test_case_and_width_variants_hit_the_same_entry(self):
-        self.assertEqual(map_genres(["Deep Throat"])[0], ["深喉"])
-        self.assertEqual(map_genres(["deep throat"])[0], ["深喉"])
-        self.assertEqual(map_genres(["ＤＥＥＰ　ＴＨＲＯＡＴ"])[0], ["深喉"])
-        self.assertEqual(map_genres(["３Ｐ"])[0], ["3P多人"])
+        self.assertEqual(map_genres(["Deep Throat"])[0], ["Deep throat"])
+        self.assertEqual(map_genres(["deep throat"])[0], ["Deep throat"])
+        self.assertEqual(map_genres(["ＤＥＥＰ　ＴＨＲＯＡＴ"])[0], ["Deep throat"])
+        self.assertEqual(map_genres(["３Ｐ"])[0], ["Group"])
 
     def test_japanese_and_english_sources_project_to_one_tag(self):
         """dmm/mgstage 只给日文，r18dev 只给英文；两边必须落到同一个标签。
@@ -239,9 +239,9 @@ class GenreTaxonomyTests(unittest.TestCase):
         """
         self.assertEqual(map_genres(["Creampie"])[0], map_genres(["中出し"])[0])
         self.assertEqual(map_genres(["Blowjob"])[0], map_genres(["フェラチオ"])[0])
-        self.assertEqual(map_genres(["Big Tits"])[0], map_genres(["巨乳"])[0])
+        self.assertEqual(map_genres(["Big Tits"])[0], map_genres(["Big Breasts"])[0])
         # 胸的大小只有一档：来源之间 `Big Tits` 与 `Huge Tits` 的边界各说各的。
-        self.assertEqual(map_genres(["Huge Tits"])[0], map_genres(["巨乳"])[0])
+        self.assertEqual(map_genres(["Huge Tits"])[0], map_genres(["Big Breasts"])[0])
         self.assertEqual(map_genres(["Lunch Box Fuck"])[0], map_genres(["駅弁"])[0])
 
     def test_marketing_and_format_categories_are_excluded_not_missing(self):
@@ -252,12 +252,12 @@ class GenreTaxonomyTests(unittest.TestCase):
 
     def test_unrecognised_genres_come_back_for_registration(self):
         tags, unmapped = map_genres(["Creampie", "まだ知らない分類", "Creampie"])
-        self.assertEqual(tags, ["中出内射"])
+        self.assertEqual(tags, ["Creampie"])
         self.assertEqual(unmapped, ["まだ知らない分類"], "未收录不等于非内容，必须回传登记")
 
     def test_order_is_first_appearance_and_duplicates_collapse(self):
-        tags, _ = map_genres(["巨乳", "Creampie", "Big Tits", "中出し"])
-        self.assertEqual(tags, ["巨乳", "中出内射"])
+        tags, _ = map_genres(["Big Breasts", "Creampie", "Big Tits", "中出し"])
+        self.assertEqual(tags, ["Big Breasts", "Creampie"])
 
     def test_campaign_names_are_excluded_by_shape_not_by_enumeration(self):
         """促销企划名逐片起，穷举一轮就过期一轮。
@@ -270,19 +270,19 @@ class GenreTaxonomyTests(unittest.TestCase):
                       "BIG Sale Part 2", "Summer BIG Sale",
                       "Adult Summer Campaign", "MOODYZ Fan Campaign"):
             self.assertTrue(is_non_content_genre(value), value)
-        self.assertEqual(map_genres(["中出し", "春のBIGセール"]), (["中出内射"], []))
+        self.assertEqual(map_genres(["中出し", "春のBIGセール"]), (["Creampie"], []))
         # 形状判据不能误伤内容分类。
-        for value in ("中出し", "巨乳", "コスプレ", "痴女"):
+        for value in ("中出し", "Big Breasts", "コスプレ", "Nympho"):
             self.assertFalse(is_non_content_genre(value), value)
 
     def test_abw_220_reproduces_the_mgs_product_page(self):
         """本轮的起点样本：r18dev 只给三个泛化类别，MGS 商品页给的是这些。"""
         tags, unmapped = map_genres([
-            "MGS限定特典映像", "性教育", "中出し", "巨乳", "スレンダー",
+            "MGS限定特典映像", "Sex education", "中出し", "Big Breasts", "スレンダー",
             "単体作品", "フルハイビジョン(FHD)", "プレステージ20周年特別企画",
         ])
         # `性教育` 是题材类，用户复核后收进词表，不再算待决。
-        self.assertEqual(tags, ["性教育", "中出内射", "巨乳", "苗条"])
+        self.assertEqual(tags, ["Sex education", "Creampie", "Big Breasts", "Slim"])
         self.assertEqual(unmapped, [])
 
     def test_traditional_nfo_spellings_share_the_same_taxonomy(self):
@@ -290,7 +290,7 @@ class GenreTaxonomyTests(unittest.TestCase):
             "主觀視角", "苗條", "單體作品", "MGSだけのおまけ映像付き",
             "フルハイビジョン(FHD)",
         ])
-        self.assertEqual(tags, ["主观视角", "苗条"])
+        self.assertEqual(tags, ["POV", "Slim"])
         self.assertEqual(unmapped, [])
 
     def test_non_content_patterns_stay_narrow(self):
@@ -310,14 +310,14 @@ class GenreTaxonomyTests(unittest.TestCase):
     def test_uncensored_source_vocabularies_project_too(self):
         """caribbeancom 与 javbus 的词表和 dmm/mgstage 不一样，同样要投影。"""
         carib, carib_left = map_genres([
-            "オリジナル動画", "美乳", "中出し", "パイパン", "オナニー",
+            "オリジナル動画", "Beautiful Breasts", "中出し", "パイパン", "オナニー",
             "手コキ", "69", "クンニ", "初裏", "スレンダー"])
-        self.assertEqual(carib, ["美乳", "中出内射", "白虎", "自慰", "手交", "69",
-                                 "舔阴", "初次无码", "苗条"])
+        self.assertEqual(carib, ["Beautiful Breasts", "Creampie", "Shaved", "Masturbation", "Handjob", "69",
+                                 "Cunnilingus", "First uncensored", "Slim"])
         self.assertEqual(carib_left, [])
         heyzo, heyzo_left = map_genres([
             "中出し", "潮吹き", "淫語", "騎乗位", "口内発射", "看護婦", "指マン"])
-        self.assertEqual(heyzo, ["中出内射", "潮吹", "淫语", "骑乘", "口爆", "护士", "手交"])
+        self.assertEqual(heyzo, ["Creampie", "Squirting", "Dirty talk", "Riding", "Cum in mouth", "Nurse", "Handjob"])
         self.assertEqual(heyzo_left, [])
         # javbus 会混进画质与演员编成，同样按非内容排除。
         self.assertTrue(all(is_non_content_genre(v)
@@ -367,21 +367,21 @@ class VocabularyHygieneTests(unittest.TestCase):
 
         两者曾同投 `美腿`，于是「找恋足题材」和「找美腿出镜」在检索上分不开。
         """
-        self.assertEqual(map_genres(["Foot Fetish"])[0], ["恋足"])
-        self.assertEqual(map_genres(["足フェチ"])[0], ["恋足"])
-        self.assertEqual(map_genres(["Legs"])[0], ["美腿"])
-        self.assertEqual(map_genres(["美脚"])[0], ["美腿"])
+        self.assertEqual(map_genres(["Foot Fetish"])[0], ["Foot fetish"])
+        self.assertEqual(map_genres(["足フェチ"])[0], ["Foot fetish"])
+        self.assertEqual(map_genres(["Legs"])[0], ["Beautiful legs"])
+        self.assertEqual(map_genres(["美脚"])[0], ["Beautiful legs"])
 
     def test_the_name_the_library_actually_uses_wins(self):
         """规范名取馆藏里通行的写法，不取词表里先写下的那个。
 
         `合集` 3699 条、全部来自文件名；`混合集` 313 条、全部来自已关停的 Stash 导入。
         """
-        self.assertEqual(map_genres(["総集編"])[0], ["合集"])
-        self.assertEqual(map_genres(["ベスト・総集編"])[0], ["合集"])
-        self.assertEqual(map_genres(["Compilation"])[0], ["合集"])
-        self.assertEqual(map_genres(["淫語"])[0], ["淫语"])
-        self.assertEqual(map_genres(["Dirty Talk"])[0], ["淫语"])
+        self.assertEqual(map_genres(["総集編"])[0], ["Collection"])
+        self.assertEqual(map_genres(["ベスト・総集編"])[0], ["Collection"])
+        self.assertEqual(map_genres(["Compilation"])[0], ["Collection"])
+        self.assertEqual(map_genres(["淫語"])[0], ["Dirty talk"])
+        self.assertEqual(map_genres(["Dirty Talk"])[0], ["Dirty talk"])
 
     def test_a_source_that_only_publishes_english_still_reaches_one_tag(self):
         """k-mib、aventertainments、javdb 的类目在来源页上就是英文，没有日文原词可换。
@@ -390,13 +390,13 @@ class VocabularyHygieneTests(unittest.TestCase):
         一个标签上，否则筛选面板会摆出两行同义标签。
         """
         for english, japanese, tag in (
-            ("Kiss", "キス", "接吻"),
-            ("Ahegao", "アヘ顔", "阿黑颜"),
-            ("Femdom", "女王様", "女性主导"),
-            ("Tiny Girl", "小柄", "娇小"),
-            ("Oil", "ローション・オイル", "油压"),
-            ("Sitting on Face", "顔面騎乗", "颜面骑乘"),
-            ("Beautiful Skin", "美肌", "美肌"),
+            ("Kiss", "キス", "Kissing"),
+            ("Ahegao", "アヘ顔", "Ahegao"),
+            ("Femdom", "女王様", "Female domination"),
+            ("Tiny Girl", "小柄", "Petite"),
+            ("Oil", "ローション・オイル", "Oil massage"),
+            ("Sitting on Face", "顔面騎乗", "Face sitting"),
+            ("Beautiful Skin", "Beautiful skin", "Beautiful skin"),
         ):
             self.assertEqual(map_genres([english])[0], [tag])
             self.assertEqual(map_genres([japanese])[0], [tag])
@@ -409,7 +409,7 @@ class VocabularyHygieneTests(unittest.TestCase):
         for word in ("Sex Toy", "Sex Toys", "大人のおもちゃ", "おもちゃ",
                      "Vibrator", "Big Vibrator", "Egg Vibrator",
                      "バイブ", "ローター", "電マ"):
-            self.assertEqual(map_genres([word])[0], ["性玩具"], word)
+            self.assertEqual(map_genres([word])[0], ["Sex Toys"], word)
 
     def test_a_catch_all_bucket_is_excluded_not_registered(self):
         """来源的兜底格说的是「归不进上面任何一格」，不是某种内容。"""
@@ -423,10 +423,10 @@ class VocabularyHygieneTests(unittest.TestCase):
     def test_two_source_words_for_one_thing_land_on_one_tag(self):
         """同义的来源词各投一个标签，就是页面上那两行重复的来处。"""
         self.assertEqual(map_genres(["Peeping"])[0], map_genres(["Voyeur"])[0])
-        self.assertEqual(map_genres(["High Heels"])[0], ["高跟"])
+        self.assertEqual(map_genres(["High Heels"])[0], ["High Heels"])
         # 家教和校内老师是两件事，中文里「老师」把它们盖在一起。
-        self.assertEqual(map_genres(["家庭教師"])[0], ["家庭教师"])
-        self.assertEqual(map_genres(["女教師"])[0], ["教师"])
+        self.assertEqual(map_genres(["家庭教師"])[0], ["Private tutor"])
+        self.assertEqual(map_genres(["女教師"])[0], ["Teacher"])
 
     def test_every_spelling_a_source_uses_reaches_the_same_tag(self):
         """同一个含义在各来源写法不同：英日、连写分写、片假名平假名。
@@ -435,36 +435,36 @@ class VocabularyHygieneTests(unittest.TestCase):
         `おもちゃ` 与 `オモチャ` 在它眼里仍是两个键，词表里得各登记一次。
         """
         for spellings, tag in (
-            (("Doggystyle", "Doggy Style", "Doggy", "バック", "後背位"), "后入"),
-            (("Deep Throat", "Deepthroat", "Irrumatio", "イラマチオ"), "深喉"),
-            (("Handjob", "Hand Job", "Fingering", "指マン", "手マン"), "手交"),
-            (("Titty Fuck", "Tit Fuck", "Paizuri", "パイズリ"), "乳交"),
-            (("Squirting", "Squirt", "潮吹き"), "潮吹"),
-            (("Threesome", "Foursome", "3P・4P", "3P/4P", "4P"), "3P多人"),
-            (("Orgy", "Gangbang", "Gang Bang", "Group Sex", "乱交"), "多人"),
-            (("Sex Toy", "Toys", "Dildo", "おもちゃ", "オモチャ", "Pinkrotor", "ピンクローター"), "性玩具"),
-            (("Facesitting", "Face Sitting", "顔面騎乗"), "颜面骑乘"),
-            (("Big Tits", "Big Boobs", "Busty", "巨乳"), "巨乳"),
-            (("Small Tits", "Tiny Tits", "Flat Chest", "貧乳"), "贫乳"),
-            (("Slender", "Slim", "Skinny", "細身", "スレンダー"), "苗条"),
-            (("Tiny Girl", "Petite", "小柄", "ミニマム"), "娇小"),
-            (("Tall Girl", "Tall", "長身", "高身長", "高身長グラマラス"), "高个"),
-            (("Pantyhose", "パンスト", "タイツ", "ストッキング", "網タイツ"), "丝袜"),
-            (("Kimono", "Yukata", "着物", "浴衣", "和服・浴衣"), "和服浴衣"),
-            (("Twintails", "Pigtails", "ツインテール"), "双马尾"),
-            (("Married Woman", "Housewife", "Wife", "主婦", "人妻"), "人妻"),
-            (("School Girls", "Schoolgirl", "Student", "女学生", "女子校生"), "学生"),
-            (("Nurse", "看護婦", "看護師", "ナース"), "护士"),
-            (("Stewardess", "Flight Attendant", "キャビンアテンダント"), "空姐"),
-            (("Bath", "Shower", "Bathroom", "お風呂", "シャワー", "入浴"), "浴室"),
-            (("School", "Classroom", "学校", "教室", "学園もの"), "教室学校"),
-            (("Hotel", "ホテル"), "酒店"),
-            (("Office", "オフィス"), "办公室"),
-            (("Bondage", "Shibari", "Tied Up", "緊縛", "縛り"), "捆绑"),
-            (("Cuckold", "Netorare", "寝取り", "寝取られ"), "绿帽NTR"),
-            (("Cheating Wife", "Cheating", "不倫", "浮気"), "出轨"),
-            (("Voyeur", "盗撮", "盗撮・のぞき"), "偷拍偷窥"),
-            (("Uncensored", "無修正"), "无码"),
+            (("Doggystyle", "Doggy Style", "Doggy", "バック", "後背位"), "Doggy style"),
+            (("Deep Throat", "Deepthroat", "Irrumatio", "イラマチオ"), "Deep throat"),
+            (("Handjob", "Hand Job", "Fingering", "指マン", "手マン"), "Handjob"),
+            (("Titty Fuck", "Tit Fuck", "Paizuri", "パイズリ"), "Titfuck"),
+            (("Squirting", "Squirt", "潮吹き"), "Squirting"),
+            (("Threesome", "Foursome", "3P・4P", "3P/4P", "4P"), "Group"),
+            (("Orgy", "Gangbang", "Gang Bang", "Group Sex", "乱交"), "Group"),
+            (("Sex Toy", "Toys", "Dildo", "おもちゃ", "オモチャ", "Pinkrotor", "ピンクローター"), "Sex Toys"),
+            (("Facesitting", "Face Sitting", "顔面騎乗"), "Face sitting"),
+            (("Big Tits", "Big Boobs", "Busty", "Big Breasts"), "Big Breasts"),
+            (("Small Tits", "Tiny Tits", "Flat Chest", "貧乳"), "Small breasts"),
+            (("Slender", "Slim", "Skinny", "細身", "スレンダー"), "Slim"),
+            (("Tiny Girl", "Petite", "小柄", "ミニマム"), "Petite"),
+            (("Tall Girl", "Tall", "長身", "高身長", "高身長グラマラス"), "Tall"),
+            (("Pantyhose", "パンスト", "タイツ", "ストッキング", "網タイツ"), "Stockings"),
+            (("Kimono", "Yukata", "着物", "浴衣", "和服・浴衣"), "Kimono / Yukata"),
+            (("Twintails", "Pigtails", "ツインテール"), "Twin tails"),
+            (("Married Woman", "Housewife", "Wife", "主婦", "Housewife"), "Housewife"),
+            (("School Girls", "Schoolgirl", "Student", "女学生", "女子校生"), "Student"),
+            (("Nurse", "看護婦", "看護師", "ナース"), "Nurse"),
+            (("Stewardess", "Flight Attendant", "キャビンアテンダント"), "Flight attendant"),
+            (("Bath", "Shower", "Bathroom", "お風呂", "シャワー", "入浴"), "Bathroom"),
+            (("School", "Classroom", "学校", "教室", "学園もの"), "Classroom"),
+            (("Hotel", "ホテル"), "Hotel"),
+            (("Office", "オフィス"), "Office"),
+            (("Bondage", "Shibari", "Tied Up", "緊縛", "縛り"), "Bondage"),
+            (("Cuckold", "Netorare", "寝取り", "寝取られ"), "NTR"),
+            (("Cheating Wife", "Cheating", "不倫", "浮気"), "Cheating / Affair"),
+            (("Voyeur", "盗撮", "盗撮・のぞき"), "Voyeur"),
+            (("Uncensored", "無修正"), "Uncensored"),
             (("Virtual Reality", "VR", "VR専用"), "VR"),
         ):
             for spelling in spellings:
@@ -474,7 +474,7 @@ class VocabularyHygieneTests(unittest.TestCase):
     def test_a_debut_is_filed_with_the_first_shoot(self):
         """`デビュー作品`／`Debut` 是厂牌说的「第一次上镜」，和素人系列的 `初撮り` 同一格。"""
         for word in ("初撮り", "デビュー作品", "Debut"):
-            self.assertEqual(map_genres([word])[0], ["初拍"], word)
+            self.assertEqual(map_genres([word])[0], ["Debut"], word)
 
     def test_fame_and_mood_words_are_excluded_not_registered(self):
         """`Famous Name` 说的是演员名气，`Hardcore Fuck`、`Scream for Joy` 是氛围词。
@@ -484,7 +484,7 @@ class VocabularyHygieneTests(unittest.TestCase):
         for word in ("Famous Name", "Hardcore Fuck", "Scream for Joy",
                      "Choker", "Kawaii Fashion"):
             self.assertTrue(is_non_content_genre(word), word)
-        self.assertEqual(map_genres(["Famous Name", "中出し"]), (["中出内射"], []))
+        self.assertEqual(map_genres(["Famous Name", "中出し"]), (["Creampie"], []))
 
     def test_the_newly_localised_words_reach_their_tag(self):
         """本机候选里出现过、之前没有中文标签的那批，现在各有去处。
@@ -493,26 +493,26 @@ class VocabularyHygieneTests(unittest.TestCase):
         `genre_decision` 里——换一台机器、换一份候选又要再答一遍。
         """
         for spellings, tag in (
-            (("風俗", "ソープ", "Soapland", "デリヘル"), "风俗店"),
-            (("温泉", "Hot Spring"), "温泉"),
-            (("金髪・ブロンド", "Blonde", "金髪", "ブロンド"), "金发"),
-            (("Short Hair", "ショートヘア", "短髪"), "短发"),
-            (("スポーツ", "Sports", "アスリート"), "运动"),
-            (("童貞", "Virgin Boy"), "处男"),
-            (("処女", "Virgin"), "处女设定"),
-            (("汗だく", "Sweaty", "汗"), "汗湿"),
-            (("泥酔", "Drunk", "酔っ払い"), "醉酒"),
-            (("ドラッグ", "媚薬", "Aphrodisiac"), "药物"),
-            (("局部アップ", "Close Up", "Close-Up"), "局部特写"),
-            (("Nice Pussy", "Beautiful Pussy"), "美穴"),
-            (("Glamorous Body", "グラマー"), "丰满"),
-            (("ドキュメンタリー", "Documentary"), "纪录片"),
-            (("イメージビデオ", "Image Video", "グラビア"), "写真映像"),
-            (("痴漢", "Molester", "Groping"), "痴汉"),
-            (("妊婦", "妊娠", "Pregnant"), "孕妇"),
-            (("巨根", "Big Cock", "デカチン"), "巨根"),
-            (("放尿", "Peeing", "おしっこ"), "放尿"),
-            (("黒人", "Black Guy"), "黑人"),
+            (("風俗", "ソープ", "Soapland", "デリヘル"), "Fuzoku parlor"),
+            (("Hot spring", "Hot Spring"), "Hot spring"),
+            (("金髪・ブロンド", "Blonde", "金髪", "ブロンド"), "Blonde"),
+            (("Short Hair", "ショートヘア", "短髪"), "Short hair"),
+            (("スポーツ", "Sports", "アスリート"), "Sports"),
+            (("童貞", "Virgin Boy"), "Male virgin"),
+            (("処女", "Virgin"), "Virgin theme"),
+            (("汗だく", "Sweaty", "汗"), "Sweaty"),
+            (("泥酔", "Drunk", "酔っ払い"), "Drunk"),
+            (("ドラッグ", "媚薬", "Aphrodisiac"), "Drugs"),
+            (("局部アップ", "Close Up", "Close-Up"), "Close-up"),
+            (("Nice Pussy", "Beautiful Pussy"), "Pretty pussy"),
+            (("Glamorous Body", "グラマー"), "Plump"),
+            (("ドキュメンタリー", "Documentary"), "Documentary"),
+            (("イメージビデオ", "Image Video", "グラビア"), "Gravure video"),
+            (("痴漢", "Molester", "Groping"), "Molester"),
+            (("妊婦", "妊娠", "Pregnant"), "Pregnant"),
+            (("Large Cock", "Big Cock", "デカチン"), "Large Cock"),
+            (("Pissing", "Peeing", "おしっこ"), "Pissing"),
+            (("黒人", "Black Guy"), "Interracial"),
         ):
             for spelling in spellings:
                 with self.subTest(spelling=spelling):
@@ -523,9 +523,9 @@ class VocabularyHygieneTests(unittest.TestCase):
 
         两边合成一个「第一次」标签，馆藏里就再也问不出想找的是哪一种。
         """
-        self.assertEqual(map_genres(["童貞", "処女"])[0], ["处男", "处女设定"])
-        self.assertEqual(map_genres(["Virgin"])[0], ["处女设定"])
-        self.assertEqual(map_genres(["Virgin Boy"])[0], ["处男"])
+        self.assertEqual(map_genres(["童貞", "処女"])[0], ["Male virgin", "Virgin theme"])
+        self.assertEqual(map_genres(["Virgin"])[0], ["Virgin theme"])
+        self.assertEqual(map_genres(["Virgin Boy"])[0], ["Male virgin"])
 
     def test_words_whose_meaning_is_not_settled_stay_on_the_review_page(self):
         """含义还没查清的原文留给人判，不按字面猜一个标签。
@@ -545,21 +545,21 @@ class Fc2SellerTagTests(unittest.TestCase):
         """口交的站姿、骑姿、不用手各写一格，说的仍是口交；事后舔干净的另归一格。"""
         for spellings, tag in (
             (("フェラ抜き", "仁王立ちフェラ", "ノーハンドフェラ",
-              "馬乗りフェラ", "Ｗフェラ", "玉舐め", "裏筋舐め", "口淫"), "口交"),
-            (("お掃除フェラ", "お掃除", "掃除"), "打扫口交"),
-            (("舌上発射", "舌上射精"), "口爆"),
-            (("精飲",), "吞精"),
-            (("挟射", "馬乗りパイズリ", "着衣パイズリ"), "乳交"),
-            (("2回射精", "大量射精", "大量発射", "ザーメン発射"), "射精"),
-            (("精子を搾り取", "搾り取", "ザーメン搾り取", "精液搾り"), "榨精"),
-            (("濃厚中出し", "膣内射精", "生セックス", "生SEX", "ザーメン注入"), "中出内射"),
-            (("アナルファック", "AF", "アナル中出し"), "肛交"),
-            (("アナル舐め",), "毒龙"),
-            (("亀頭責め",), "龟头责"),
-            (("正常位",), "传教士"),
-            (("ピストン", "ガン突き"), "打桩"),
-            (("腋コキ", "わき"), "腋"),
-            (("オナホ", "ローター責め", "コックリング", "アナルプラグ"), "性玩具"),
+              "馬乗りフェラ", "Ｗフェラ", "玉舐め", "裏筋舐め", "口淫"), "Oral"),
+            (("お掃除フェラ", "お掃除", "掃除"), "Cleanup blowjob"),
+            (("舌上発射", "舌上射精"), "Cum in mouth"),
+            (("精飲",), "Swallowing"),
+            (("挟射", "馬乗りパイズリ", "着衣パイズリ"), "Titfuck"),
+            (("2回射精", "大量射精", "大量発射", "ザーメン発射"), "Ejaculation"),
+            (("精子を搾り取", "搾り取", "ザーメン搾り取", "精液搾り"), "Milking"),
+            (("濃厚中出し", "膣内射精", "生セックス", "生SEX", "ザーメン注入"), "Creampie"),
+            (("アナルファック", "AF", "アナル中出し"), "Anal"),
+            (("アナル舐め",), "Rimjob"),
+            (("亀頭責め",), "Glans teasing"),
+            (("正常位",), "Missionary"),
+            (("ピストン", "ガン突き"), "Pounding"),
+            (("腋コキ", "わき"), "Armpits"),
+            (("オナホ", "ローター責め", "コックリング", "アナルプラグ"), "Sex Toys"),
         ):
             for spelling in spellings:
                 with self.subTest(spelling=spelling):
@@ -568,20 +568,20 @@ class Fc2SellerTagTests(unittest.TestCase):
     def test_spelling_variants_and_costumes_reach_the_existing_tags(self):
         """假名、省写与扮装各有既有的一格，不另开标签。"""
         for spellings, tag in (
-            (("ぱいぱん",), "白虎"),
-            (("スジマン",), "美穴"),
-            (("猫耳",), "猫耳"),
-            (("セーラー",), "制服"),
-            (("体操着", "体操服"), "体操服"),
-            (("バニー",), "兔女郎"),
-            (("競泳水着",), "泳装"),
-            (("ボンテージ", "エナメル"), "皮衣皮裙"),
-            (("コス", "コスチューム", "サキュバス"), "角色扮演"),
-            (("メンズエステ", "メンエス"), "按摩"),
-            (("隠し撮り",), "偷拍偷窥"),
-            (("他人棒",), "绿帽NTR"),
-            (("奥様",), "人妻"),
-            (("無", "モ無し"), "无码"),
+            (("ぱいぱん",), "Shaved"),
+            (("スジマン",), "Pretty pussy"),
+            (("Cat ears",), "Cat ears"),
+            (("セーラー",), "Uniform"),
+            (("体操着", "Gym uniform"), "Gym uniform"),
+            (("バニー",), "Bunny girl"),
+            (("競泳水着",), "Swimsuit"),
+            (("ボンテージ", "エナメル"), "Leather outfit"),
+            (("コス", "コスチューム", "サキュバス"), "Role Play"),
+            (("メンズエステ", "メンエス"), "Massage"),
+            (("隠し撮り",), "Voyeur"),
+            (("他人棒",), "NTR"),
+            (("奥様",), "Housewife"),
+            (("無", "モ無し"), "Uncensored"),
         ):
             for spelling in spellings:
                 with self.subTest(spelling=spelling):
@@ -589,8 +589,8 @@ class Fc2SellerTagTests(unittest.TestCase):
 
     def test_a_gravure_idol_is_an_idol_on_a_work_and_a_trade_on_a_profile(self):
         """同一个 `グラドル`：作品上说出镜的是谁，资料页上说她做过的行业。"""
-        self.assertEqual(map_genres(["グラドル"])[0], ["偶像艺人"])
-        self.assertEqual(resolve_profile_tag("グラドル"), ("写真偶像",))
+        self.assertEqual(map_genres(["グラドル"])[0], ["Idol"])
+        self.assertEqual(resolve_profile_tag("グラドル"), ("Gravure idol",))
 
     def test_release_wording_and_praise_are_excluded_not_registered(self):
         """谁拍的、公开过没有、有多好，都不说拍了什么。"""
@@ -599,7 +599,7 @@ class Fc2SellerTagTests(unittest.TestCase):
                      "Wピース", "ゴム", "着衣", "しょうなちゃん", "ＦＧ○"):
             with self.subTest(word=word):
                 self.assertTrue(is_non_content_genre(word), word)
-        self.assertEqual(map_genres(["個人撮影", "オリジナル", "お掃除フェラ"]), (["打扫口交"], []))
+        self.assertEqual(map_genres(["個人撮影", "オリジナル", "お掃除フェラ"]), (["Cleanup blowjob"], []))
 
     def test_words_the_catalog_has_no_slot_for_stay_on_the_review_page(self):
         """词表里没有对应一格、或者含义还没查清的词，留给人判。
@@ -617,15 +617,15 @@ class ResolveGenreTests(unittest.TestCase):
     """抓取与复核折叠候选走同一个查表函数。"""
 
     def test_the_three_outcomes_are_told_apart(self):
-        self.assertEqual(resolve_genre("中出し"), "中出内射")
+        self.assertEqual(resolve_genre("中出し"), "Creampie")
         self.assertIsNone(resolve_genre("単体作品"), "非内容是结论，不是未收录")
         self.assertEqual(resolve_genre("まだ知らない分類"), UNMAPPED)
         self.assertIsNone(resolve_genre(""), "空值没有可判的东西")
 
     def test_a_decision_outranks_both_static_tables(self):
-        decisions = {normalise_genre("中出し"): "内射体験", normalise_genre("巨乳"): None}
+        decisions = {normalise_genre("中出し"): "内射体験", normalise_genre("Big Breasts"): None}
         self.assertEqual(resolve_genre("中出し", decisions), "内射体験")
-        self.assertIsNone(resolve_genre("巨乳", decisions))
+        self.assertIsNone(resolve_genre("Big Breasts", decisions))
 
 
 class UserDecisionTests(unittest.TestCase):
@@ -634,20 +634,20 @@ class UserDecisionTests(unittest.TestCase):
     def test_a_recorded_genre_stops_coming_back_as_unmapped(self):
         decisions = {normalise_genre("Famous Name"): "有名女优"}
         tags, unmapped = map_genres(["中出し", "Famous Name", "Inter"], decisions)
-        self.assertEqual(tags, ["中出内射", "有名女优"])
+        self.assertEqual(tags, ["Creampie", "有名女优"])
         self.assertEqual(unmapped, ["Inter"], "还没决定的那个仍要回来问")
 
     def test_a_genre_judged_non_content_is_excluded_not_asked_again(self):
-        tags, unmapped = map_genres(["Inter", "巨乳"],
+        tags, unmapped = map_genres(["Inter", "Big Breasts"],
                                     {normalise_genre("Inter"): None})
-        self.assertEqual(tags, ["巨乳"])
+        self.assertEqual(tags, ["Big Breasts"])
         self.assertEqual(unmapped, [], "排除也是结论；再问一遍等于没记下来")
 
     def test_the_written_form_does_not_split_one_decision_into_several(self):
         # 键已规范化，所以全角、半角和大小写写法命中同一条决定。
-        decisions = {normalise_genre("Kiss"): "接吻"}
-        self.assertEqual(map_genres(["ＫＩＳＳ"], decisions)[0], ["接吻"])
-        self.assertEqual(map_genres([" kiss "], decisions)[0], ["接吻"])
+        decisions = {normalise_genre("Kiss"): "Kissing"}
+        self.assertEqual(map_genres(["ＫＩＳＳ"], decisions)[0], ["Kissing"])
+        self.assertEqual(map_genres([" kiss "], decisions)[0], ["Kissing"])
 
     def test_a_decision_outranks_both_static_tables(self):
         """用户刚说过的话不该被发版时写下的默认盖掉。"""
@@ -671,36 +671,36 @@ class LooksTests(unittest.TestCase):
     def test_beauty_words_that_mean_the_same_share_one_tag(self):
         for word in ("美人", "美少女", "美女", "美顔", "Beautiful Girl", "Pretty Face"):
             with self.subTest(word=word):
-                self.assertEqual(map_genres([word])[0], ["高颜值"])
+                self.assertEqual(map_genres([word])[0], ["Gorgeous"])
 
     def test_seiso_and_cute_are_their_own_tags(self):
         """`清楚` 说的是气质干净、不张扬，不是长得好看；`可愛い` 是另一种好看。"""
         for word in ("清楚", "清楚系", "清純", "Neat and Clean"):
             with self.subTest(word=word):
-                self.assertEqual(map_genres([word])[0], ["清纯"])
+                self.assertEqual(map_genres([word])[0], ["Innocent"])
         for word in ("可愛い", "かわいい", "Cute"):
             with self.subTest(word=word):
-                self.assertEqual(map_genres([word])[0], ["可爱"])
+                self.assertEqual(map_genres([word])[0], ["Cute"])
 
 
 class ProfileTagTests(unittest.TestCase):
     """资料页的标签先查资料专用表，再落回作品的表。"""
 
     def test_each_trade_keeps_its_own_name(self):
-        self.assertEqual(resolve_profile_tag("現役デリヘル嬢"), ("上门服务女郎",))
-        self.assertEqual(resolve_profile_tag("ソープ嬢"), ("泡泡浴女郎",))
-        self.assertEqual(resolve_profile_tag("セクシーパブ嬢"), ("性感酒吧女郎",))
-        self.assertEqual(resolve_profile_tag("風俗嬢"), ("风俗从业",))
+        self.assertEqual(resolve_profile_tag("現役デリヘル嬢"), ("Escort",))
+        self.assertEqual(resolve_profile_tag("ソープ嬢"), ("Soap girl",))
+        self.assertEqual(resolve_profile_tag("セクシーパブ嬢"), ("Sexy pub hostess",))
+        self.assertEqual(resolve_profile_tag("風俗嬢"), ("Sex industry work",))
         # 作品上的 `看護師` 是角色扮演，资料上是她的本职。
-        self.assertEqual(resolve_profile_tag("現役看護師"), ("现役护士",))
+        self.assertEqual(resolve_profile_tag("現役看護師"), ("Active nurse",))
 
     def test_a_style_change_keeps_both_ends_of_the_arrow(self):
-        self.assertEqual(resolve_profile_tag("ロリ→ギャル"), ("萝莉→辣妹",))
-        self.assertEqual(resolve_profile_tag("微乳→巨乳"), ("贫乳→巨乳",))
+        self.assertEqual(resolve_profile_tag("ロリ→ギャル"), ("Lolita→Gyaru",))
+        self.assertEqual(resolve_profile_tag("微乳→巨乳"), ("Petite→Busty",))
 
     def test_a_cell_holding_several_tags_is_split(self):
-        self.assertEqual(resolve_profile_tag("ショートカット、美乳、レズ"), ("短发", "美乳", "百合"))
-        self.assertEqual(resolve_profile_tag("清楚お嬢様系"), ("清纯", "千金小姐"))
+        self.assertEqual(resolve_profile_tag("ショートカット、美乳、レズ"), ("Short hair", "Beautiful Breasts", "Yuri / GL"))
+        self.assertEqual(resolve_profile_tag("清楚お嬢様系"), ("Innocent", "Rich girl"))
 
     def test_labels_and_career_notes_are_not_tags(self):
         for word in ("カリビアン", "改名・移籍", "引退", "セクシー", "女優", ""):
@@ -708,7 +708,7 @@ class ProfileTagTests(unittest.TestCase):
                 self.assertEqual(resolve_profile_tag(word), ())
 
     def test_everything_else_falls_back_to_the_work_table(self):
-        self.assertEqual(resolve_profile_tag("巨尻"), ("巨臀",))
+        self.assertEqual(resolve_profile_tag("巨尻"), ("Big ass",))
         self.assertEqual(resolve_profile_tag("単体作品"), ())
         self.assertIsNone(resolve_profile_tag("まだ知らない分類"), "未收录要让调用方照原文列")
 
@@ -729,7 +729,7 @@ class ProfileTagTests(unittest.TestCase):
         收录了日文名却漏了英文名，r18dev 快照里的这个分类就一个标签都投不出来。
         """
         same_category = {
-            "Asian Actress": "アジア女優", "Big Asses": "巨尻", "Breast Milk": "母乳",
+            "Asian Actress": "アジア女優", "Big Asses": "巨尻", "Breast Milk": "Breast milk",
             "Business Suit": "ビジネススーツ", "Caucasian Actress": "白人女優", "Cherry Boy": "童貞",
             "Club Hostess & Sex Worker": "キャバ嬢・風俗嬢", "Club Manager": "部活・マネージャー",
             "Confessional": "体験告白", "Confinement": "監禁", "Cross Dresser": "女装・男の娘",
@@ -758,12 +758,12 @@ class ProfileTagTests(unittest.TestCase):
 
     def test_a_race_queen_is_one_tag_in_either_kana_spelling(self):
         # DMM 写小字 `ィ`，FC2 卖家写 `イ`；NFKC 不折叠，两种写法各登记一次。
-        self.assertEqual(resolve_genre("レースクィーン"), "赛车女郎")
-        self.assertEqual(resolve_genre("レースクイーン"), "赛车女郎")
+        self.assertEqual(resolve_genre("レースクィーン"), "Race queen")
+        self.assertEqual(resolve_genre("レースクイーン"), "Race queen")
 
     def test_dressing_as_a_girl_is_told_apart_from_being_transgender(self):
-        self.assertEqual(resolve_genre("女装・男の娘"), "伪娘")
-        self.assertEqual(resolve_genre("ニューハーフ"), "跨性别")
+        self.assertEqual(resolve_genre("女装・男の娘"), "Femboy")
+        self.assertEqual(resolve_genre("ニューハーフ"), "Transgender")
 
 
 if __name__ == "__main__":

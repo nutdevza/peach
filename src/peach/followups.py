@@ -283,7 +283,7 @@ class FollowupRunner:
             self.store.suspend(run.id, label=str(error), paused_for_update=False)
             return error
         except JobPaused as error:
-            self.store.suspend(run.id, label=str(error) or '等待安装完成后继续')
+            self.store.suspend(run.id, label=str(error) or 'Waiting for install to finish')
             self._paused_for_update = True
             return
         except Exception as error:  # 后继失败只是它自己失败，父任务的结论不动。

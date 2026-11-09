@@ -174,7 +174,7 @@ class AgencyLedgerTests(unittest.TestCase):
               '{"agency":{"name":"Capsule Agency","checked_at":"2026-09-04T00:00:00Z"}}'),
              (13, "performer", "白石亚子", "白石亚子",
               '{"agency":{"name":"ACT(アクト)","checked_at":"2026-09-04T00:00:00Z"}}'),
-             (20, "tag", "足交", "足交", "{}")])
+             (20, "tag", "Footjob", "Footjob", "{}")])
         self.con.executemany(
             "INSERT INTO asset_entity(asset_id,entity_id,role,source,confidence)"
             " VALUES(?,?,?,'test',1.0)",
@@ -245,7 +245,7 @@ class AgencyLedgerTests(unittest.TestCase):
         self.assertEqual(sorted(names), ["七泽美亚", "神雪"])
 
     def test_the_agency_profile_carries_the_tags_of_its_members_works(self):
-        self.assertIn("足交", [tag["k"] for tag in
+        self.assertIn("Footjob", [tag["k"] for tag in
                               self.page("agency", "Capsule Agency")["tags"]])
 
     def test_the_agency_representative_is_picked_from_its_members_works(self):

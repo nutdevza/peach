@@ -22,12 +22,12 @@ FIELDS = [
     "去重后的作品编号，以及评分、喜欢、不喜欢、已看、稍后看、播放次数、观看比例与手动添加的标签",
     "出演者、创作者、厂牌、系列、手动标签、年代与时长分组的收藏、喜欢、不喜欢、观看数量和评分分布（有编号作品与无编号条目分开），以及主动收藏的实体名称",
     "馆藏文件数量、有编号作品数量与无编号条目数量",
-    "近 7 天与 30 天已观测的容量天数、播放活跃天数及其记录覆盖天数；数据与缓存的当前占用、峰值、已观测正增长量、缓存清理量（自动与手动合计，不含备份和日志）。未取得的值为空，不补足 30 天记录",
-    "同意后随机生成的研究实例标识，用于关联本实例的馆藏、容量和参与状态；重新开启时更换，不使用机器指纹或诊断标识",
-    "启用及每日最多一次的联系状态、版本和最近联系时间；关闭时仍允许后台尝试一次仅含实例标识与关闭状态的最小记录，之后停止发送。离线、卸载和发送失败不视为关闭，实例数不等于人数",
+    "Observed capacity days, playback-active days and their coverage over the last 7 and 30 days; current usage, peaks, observed positive growth and cleared cache amounts (automatic plus manual, backups and logs excluded) for data and caches. Missing values stay empty; the 30-day record is not padded",
+    "A randomly generated research instance ID created on consent, linking the library, capacity and participation of this instance; replaced when re-enabled, never a machine fingerprint or diagnostic ID",
+    "Contact state, version and last-contact time, at most once per day while enabled; when off, the background may try once with a minimal record of only the instance ID and closing state, then stops. Being offline, uninstalled, or a failed send does not count as closed; instance count does not equal people",
     "Peach 版本、字段版本与 UTC 自然周",
 ]
-NOTICE = "上传移除直接身份信息的馆藏、偏好和容量聚合，并使用随机研究实例标识关联参与状态。启用后每日最多联系一次；关闭时后台仅尝试一次最小关闭状态，之后停发。播放活跃天数不代表全部日常使用；容量和参与状态不含新增路径、作品或账号信息。"
+NOTICE = "Sends library, preference and capacity aggregates with direct identity removed, and links participation state with a random research instance ID. At most one contact per day while enabled; when turned off the background tries once with a minimal closing state, then stops. Days of playback activity do not represent all daily use; capacity and participation include no new paths, works, or account information."
 
 
 def _path(config):
@@ -334,7 +334,7 @@ class Service:
         self._thread.start()
 
     def sample_capacity(self):
-        """研究日采样在分享后台运行，不让请求中的容量检查展开数据目录。"""
+        "Research day sampling runs in the sharing background; capacity checks in requests never walk the data directory."
         from . import storage_budget
         current = consent(self.config)
         if not current or self._stop.is_set() or not storage_budget._history_due(self.config):
@@ -343,12 +343,12 @@ class Service:
         def active():
             nonlocal next_check
             if self._stop.is_set():
-                raise InterruptedError('研究容量采样已停止')
+                raise InterruptedError('Research capacity sampling stopped')
             now = time.monotonic()
             if now >= next_check:
                 next_check = now + 2
                 if consent(self.config).get('revision') != current['revision']:
-                    raise InterruptedError('研究容量采样的同意已变化')
+                    raise InterruptedError('Research capacity sampling consent changed')
         try:
             data_bytes = storage_budget.data_usage(self.config, check=active)
             cache = storage_budget.cache_usage(self.config, check=active)
@@ -358,7 +358,7 @@ class Service:
         except InterruptedError:
             return
         except (OSError, ValueError) as error:
-            logging.getLogger(__name__).warning('研究容量采样未取得（%s）', type(error).__name__)
+            logging.getLogger(__name__).warning('Research capacity sampling not obtained (%s)', type(error).__name__)
 
     def stop(self):
         self._stop.set()

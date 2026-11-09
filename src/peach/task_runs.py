@@ -102,7 +102,7 @@ TASK_LABELS = {
     "ledger-restore": "从备份恢复账本",
     "upgrade-repairs": "自动修复",
     "upgrade-library": "资料自动修复",
-    "follow-evidence-reclaim": "关注旧快照清理",
+    "follow-evidence-reclaim": "Follow snapshot cleanup",
     "organize": "按模板整理",
     "batch": "批量操作",
     "scrape-codes": "番号资料刮削",
@@ -118,9 +118,9 @@ TASK_LABELS = {
     "feed-cover": "新作封面采集",
     "want-scrape": "想要作品资料采集",
     "timeline-thumbnails": "视频缩略图采集",
-    "download-postprocess": "云下载后处理",
+    "download-postprocess": "Cloud download post-processing",
     "seed-import": "初始资料导入",
-    "follow-creator": "关注作者建档",
+    "follow-creator": "File followed creators",
     "amane-bridge": "amane 桥重建",
     "source-check": "资料源连接检查",
     "face-models": "人脸模型下载",
@@ -129,7 +129,7 @@ TASK_LABELS = {
 
 #: 触发方式的中文名。跳过原因是给人看的一句话，里面不留英文枚举值。
 TRIGGER_LABELS = {
-    "manual": "手动", "scheduled": "定时", "startup": "启动", "cli": "命令行",
+    "manual": "Manual", "scheduled": "Scheduled", "startup": "Startup", "cli": "CLI",
 }
 
 
@@ -295,7 +295,7 @@ class TaskRunStore:
                                conflict=conflict, total=total, label=label, pid=pid,
                                summary=summary)
 
-    def suspend(self, run_id: int, *, label: str = '等待安装完成后继续',
+    def suspend(self, run_id: int, *, label: str = 'Waiting for install to finish',
                 paused_for_update: bool = True) -> None:
         if not self.enabled:
             return

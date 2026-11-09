@@ -92,7 +92,7 @@ class DiscoveryMetadataTests(unittest.TestCase):
 
     def test_fixed_batch_finishes_without_detail_open_or_polling_new_batch(self):
         def movie_for(code, **_):
-            return {"number": code, "tags": [{"name": "制服"}], "score": 4, "duration": 120}
+            return {"number": code, "tags": [{"name": "Uniform"}], "score": 4, "duration": 120}
         with patch.object(self.api, "movie", side_effect=movie_for) as movie:
             self.cache.ensure([f"EXM-{index:03d}" for index in range(1, 105)])
             self.cache.job.thread.join(5)

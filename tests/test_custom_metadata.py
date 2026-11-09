@@ -39,13 +39,13 @@ class CustomMetadataTests(unittest.TestCase):
             custom.validate(dict(definition(), fields={'code': 'eval()'}))
 
     def test_response_identity_must_come_from_response(self):
-        with self.assertRaisesRegex(ValueError, '番号'):
+        with self.assertRaisesRegex(ValueError, 'Code'):
             custom.parse(definition(), 'ABW-001', {'data': {'id': 'ABW-002', 'title': '错片'}})
-        record = custom.parse(definition(), 'ABW-001', {'data': {'id': 'ABW-001', 'title': '标题', 'cast': ['演员']}})
+        record = custom.parse(definition(), 'ABW-001', {'data': {'id': 'ABW-001', 'title': 'Title', 'cast': ['演员']}})
         self.assertEqual(record.payload()['actresses'], [{'japanese_name': '演员'}])
         self.assertEqual(record.confidence, 0.5)
         self.assertEqual(source_tier(record.source), CHAIN_UNKNOWN)
-        self.assertEqual(_evidence_candidates({'candidates': [{'source': record.source, 'value': '标题'}]}, 'title'), [])
+        self.assertEqual(_evidence_candidates({'candidates': [{'source': record.source, 'value': 'Title'}]}, 'title'), [])
 
     def test_private_dns_is_refused_before_connecting(self):
         with patch.object(custom, 'host_addresses', return_value=('127.0.0.1',)), patch.object(custom.requests, 'Session') as session:
@@ -104,17 +104,17 @@ class CustomMetadataTests(unittest.TestCase):
             config = SimpleNamespace(directory=lambda name: root / name)
             remote = _RemoteSession(config, Mock, Mock(), retrying=True)
             self.assertEqual(remote._chain('ABW-001')[-1], key)
-            with patch.object(custom, 'fetch_json', return_value={'data': {'id': 'ABW-001', 'title': '标题', 'cast': []}}):
+            with patch.object(custom, 'fetch_json', return_value={'data': {'id': 'ABW-001', 'title': 'Title', 'cast': []}}):
                 answer = remote._ask(key, 'ABW-001', (key,), [], required=['title'],
                                      deadline=time.monotonic() + 10, evidence=())
             self.assertEqual(answer[0][0], key)
-            self.assertEqual(answer[0][1]['title'], '标题')
+            self.assertEqual(answer[0][1]['title'], 'Title')
             remote = _RemoteSession(config, Mock, Mock(), retrying=True, routes={'censored': ()})
-            with patch.object(custom, 'fetch_json', return_value={'data': {'id': 'ABW-001', 'title': '标题', 'cast': []}}):
+            with patch.object(custom, 'fetch_json', return_value={'data': {'id': 'ABW-001', 'title': 'Title', 'cast': []}}):
                 entries, _covers = remote.collect({'id': 1, 'code': 'ABW-001', 'path': 'R:/ABW-001.mp4',
                     'name': 'ABW-001.mp4'}, 'ABW-001', ['title'], root / 'covers', update=Mock(), issue=Mock())
             self.assertEqual(entries[0][0], key)
-            self.assertEqual(entries[0][1]['title'], '标题')
+            self.assertEqual(entries[0][1]['title'], 'Title')
             self.assertTrue(entries[0][2].is_file())
             custom.save(root / 'secrets', dict(source, enabled=False))
             self.assertNotIn(key, remote._chain('ABW-001'))

@@ -38,7 +38,7 @@ from .follow_store import FollowStore
 from .followups import FollowupType, register
 
 TASK_KEY = "follow-creator"
-TASK_LABEL = "关注作者建档"
+TASK_LABEL = "File followed creators"
 
 #: 这条后继写下的一切都带这个归属串，撤回按它认。
 SOURCE = "auto:follow-creator"

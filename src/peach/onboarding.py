@@ -99,10 +99,10 @@ class Answers:
 def validate_data_root(raw: str) -> Path:
     text = raw.strip()
     if not text:
-        raise ValueError("Peach 数据目录不能为空")
+        raise ValueError("The Peach data directory can't be empty")
     path = Path(text).expanduser()
     if path.is_file():
-        raise ValueError(f"{path} 是一个文件，Peach 数据目录要是目录")
+        raise ValueError(f"{path} is a file; the Peach data directory must be a folder")
     return path
 
 
@@ -110,14 +110,14 @@ def media_dir_validator(*, windows: bool) -> Callable[[str], Path]:
     def validate(raw: str) -> Path:
         text = raw.strip()
         if not text:
-            raise ValueError("媒体目录不能为空")
+            raise ValueError("Media folders can't be empty")
         path = Path(text).expanduser()
         if not path.is_dir():
-            raise ValueError(f"目录不存在，或者不是目录：{path}。先建好再填。")
+            raise ValueError(f"{path} does not exist, or is not a folder. Create it first.")
         # Windows 媒体目录保留盘符；挂载盘的最终路径可能是 UNC。
         resolved = Path(os.path.abspath(path)) if windows else path.resolve()
         if windows and not is_windows_path(str(resolved)):
-            raise ValueError(f"{resolved} 不是盘符路径；网络位置先映射成盘符再来")
+            raise ValueError(f"{resolved} is not a drive-letter path; map the network location to a drive letter first")
         return resolved
     return validate
 
@@ -135,9 +135,9 @@ def check_media_dirs(dirs: Sequence[Path]) -> dict[int, str]:
                 continue
             if path == other:
                 if other_index < index:
-                    problems[index] = f"和上面的 {other} 重复了"
+                    problems[index] = f"Same as {other} above"
             elif path.is_relative_to(other):
-                problems[index] = f"已经在 {other} 里面，不用再加"
+                problems[index] = f"Already inside {other}; no need to add it again"
     return problems
 
 
@@ -189,13 +189,13 @@ def validate_host(raw: str) -> str:
     try:
         return _HOST_CHOICES[key]
     except KeyError:
-        raise ValueError("填 1（只有这台电脑）或 2（同一局域网的设备）") from None
+        raise ValueError("Enter 1 (this computer only) or 2 (devices on the same LAN)") from None
 
 
 def validate_port(raw: str) -> int:
     text = raw.strip()
     if not text.isdigit() or not 1 <= int(text) <= 65535:
-        raise ValueError("端口要是 1 到 65535 之间的整数")
+        raise ValueError("The port must be a whole number between 1 and 65535")
     return int(text)
 
 
@@ -206,13 +206,13 @@ def check_available_port(port: int, current: int) -> None:
         with socket.socket() as candidate:
             candidate.bind(("127.0.0.1", port))
     except OSError as exc:
-        raise ValueError("这个端口已被占用，请换一个端口") from exc
+        raise ValueError("That port is already in use; pick another one") from exc
 
 
 def validate_mdns_name(raw: str) -> str:
     text = raw.strip()
     if not _DNS_LABEL.match(text):
-        raise ValueError("名字只能用字母、数字和连字符，不能以连字符开头或结尾")
+        raise ValueError("The name can only use letters, digits, and hyphens, and cannot start or end with a hyphen")
     return text
 
 

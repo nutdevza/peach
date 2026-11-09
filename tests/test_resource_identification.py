@@ -146,7 +146,7 @@ class ResourceIngestTests(unittest.TestCase):
         ), [{
             "item_key": "asset:1:title", "code": "", "query": "梓怡-背著老公.mp4",
             "asset_id": 1, "asset_path": r"B:\xxr\0208 (23)\梓怡-背著老公.mp4",
-            "field": "title", "field_label": "标题", "current_value": "",
+            "field": "title", "field_label": "Title", "current_value": "",
             "candidates_json": json.dumps([{
                 "candidate_key": "local_nfo:abc", "source": "local_nfo",
                 "value": "旧标题", "display_value": "旧标题", "confidence": 0.9,
@@ -203,7 +203,7 @@ class ResourceIngestTests(unittest.TestCase):
         try:
             stats = ingest_results(connection, self.candidates, [
                 {"asset_id": "1", "field": "release_date", "value": "2026/01/01"},
-                {"asset_id": "1", "field": "tags", "value": "有码"},
+                {"asset_id": "1", "field": "tags", "value": "Censored"},
                 {"asset_id": "1", "field": "title", "value": "   "},
                 {"asset_id": "404", "field": "title", "value": "不存在"},
             ])

@@ -49,9 +49,9 @@ def load(path: Path | None) -> dict:
 
 def validate_password(password: str, confirmation: str) -> None:
     if password != confirmation:
-        raise ValueError("两次输入的密码不一致")
+        raise ValueError("The two passwords don't match")
     if password and not 8 <= len(password) <= 256:
-        raise ValueError("访问密码需为 8–256 个字符")
+        raise ValueError("The access password must be 8–256 characters")
 
 
 def _digest(password: str, salt: str) -> str:

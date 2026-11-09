@@ -109,7 +109,7 @@ class LibraryNfoTests(unittest.TestCase):
         config = PeachConfig(self.root, self.root / 'config.toml', present=True)
         provider = stub_provider()
         payload = dict(id='FC2-PPV-1234567', title='作品标题', maker='', release_date='2024-01-01',
-                       actresses=[{'japanese_name': name}] if name else [], genres=['素人'],
+                       actresses=[{'japanese_name': name}] if name else [], genres=['Amateur'],
                        javdb_rule=2, source_id='Example')
         provider.community.side_effect = None
         provider.community.return_value = [('javdb', payload)]
@@ -377,7 +377,7 @@ class LibraryNfoTests(unittest.TestCase):
         config = PeachConfig(self.root, self.root / 'config.toml', present=True, locations={'local': (str(media),)})
         process_library(config, db, self.root / 'generated', self.root / 'covers', stage='scan')
         provider = stub_provider()
-        provider.query.return_value = {'id': 'ABW-101', 'title': '同一作品', 'maker': '厂牌',
+        provider.query.return_value = {'id': 'ABW-101', 'title': '同一作品', 'maker': 'Studio',
             'release_date': '2026-01-01', 'actresses': [{'japanese_name': '测试演员'}]}
         provider.cover.side_effect = NotFound('没有封面')
         result = process_library(config, db, self.root / 'generated', self.root / 'covers', stage='metadata',
@@ -412,12 +412,12 @@ class LibraryNfoTests(unittest.TestCase):
 
         def query(code, source='r18dev', **kwargs):
             if source == 'javdb':
-                self.assertIn('巨乳', tags())
+                self.assertIn('Big Breasts', tags())
                 return {'id': code, 'genres': ['高跟鞋', '絲襪'], 'javdb_rule': 2, 'source_id': 'Ssis057'}
             if source == 'dmm':
                 raise NotFound('没有')
             return {'id': code, 'title': '本地标题', 'maker': 'Prestige', 'release_date': '2023-05-26',
-                    'actresses': [{'japanese_name': '涼森れむ'}], 'genres': ['巨乳']}
+                    'actresses': [{'japanese_name': '涼森れむ'}], 'genres': ['Big Breasts']}
 
         provider.query.side_effect = query
         with patch('peach.library_processing._enrich_finished_performers',
@@ -425,7 +425,7 @@ class LibraryNfoTests(unittest.TestCase):
             process_library(config, db, self.root / 'generated', self.root / 'covers',
                             provider_factory=lambda: provider, database=database,
                             route_overrides='censored=r18dev,javdb')
-        self.assertEqual(tags(), {'巨乳', '高跟', '丝袜'})
+        self.assertEqual(tags(), {'Big Breasts', 'High Heels', 'Stockings'})
         group = next(row for row in read_rows(self.root / 'generated/library-metadata-field-candidates.csv')
                      if row['field'] == 'tags')
         choice = next(item for item in json.loads(group['candidates_json']) if item['source'] == 'javdb')
@@ -797,7 +797,7 @@ class LibraryNfoTests(unittest.TestCase):
         self.assertEqual(payload['id'], 'ABW-358')
         self.assertEqual(payload['source_generator'], 'JavBoss')
         tags = _fields(payload)['tags']['value']
-        self.assertEqual(tags, ['自定义标签', '有码', '主观视角', '苗条'])
+        self.assertEqual(tags, ['自定义标签', 'Censored', 'POV', 'Slim'])
         self.assertEqual(payload['runtime'], '210')
         self.assertEqual(raw, path.read_bytes())
 
@@ -1109,7 +1109,7 @@ class LibraryNfoTests(unittest.TestCase):
         database.after_commit = lambda: commits.append(alive['value'])
 
         def report(state):
-            if state.get('stage') == '保存待确认资料':
+            if state.get('stage') == 'Save details pending confirmation':
                 alive['value'] = False
 
         with self.assertRaises(InterruptedError):
@@ -1207,7 +1207,7 @@ class LibraryNfoTests(unittest.TestCase):
             tags = {row[0] for row in connection.execute(
                 "SELECT tag FROM asset_tag WHERE tag NOT LIKE '演员:%'")}
         self.assertEqual(aliases, {'すずもりれむ', 'Remu Suzumori'})
-        self.assertEqual(tags, {'主观视角', '苗条'})
+        self.assertEqual(tags, {'POV', 'Slim'})
         self.assertTrue((self.root / 'generated' / 'avatars'
                          / f'performer-{entity_id}.img').is_file())
         transport.assert_called_once()
@@ -1254,7 +1254,7 @@ class LibraryNfoTests(unittest.TestCase):
                                      report=lambda state: reports.append(dict(state)))
         self.assertEqual((result['checked'], result['total'], result['covers']), (2, 2, 1))
         self.assertEqual(result['issue_count'], 1)
-        self.assertEqual(result['issue_preview'][0]['message'], '读取配套图片超时，可稍后重试')
+        self.assertEqual(result['issue_preview'][0]['message'], 'Reading companion images timed out. Try again later.')
         self.assertEqual(len(result['retryable_asset_ids']), 1)
         reading = next(state for state in reports if state['current_action'] == 'reading_local_cover')
         self.assertAlmostEqual(reading['current_deadline_at'] - reading['current_started_at'], 20, places=2)
@@ -1447,7 +1447,7 @@ class LibraryNfoTests(unittest.TestCase):
                                ('ふわとろ巨乳の年下義母 胡桃さくら', 'Das', 'ふわとろ巨乳の年下義母',
                                 '2024-09-06', asset_id))
             connection.execute("INSERT INTO asset_tag(asset_id, tag, confidence, source) VALUES(?,?,?,?)",
-                               (asset_id, '巨乳', 1.0, 'user'))
+                               (asset_id, 'Big Breasts', 1.0, 'user'))
             connection.execute("INSERT INTO entity(kind, canonical_name, normalized_name, created_at, updated_at) "
                                "VALUES(?,?,?,?,?)",
                                ('performer', '胡桃樱花', 'hutaoyinghua', '2026-09-15', '2026-09-15'))
@@ -1576,13 +1576,13 @@ class LibraryNfoTests(unittest.TestCase):
     def test_javdb_tags_are_collected_with_their_community_identity_after_maker_scalars(self):
         provider, rows = self._collect_with_maker('SSIS-057', 'makers', {
             'title': '標題', 'maker': 'エスワン ナンバーワンスタイル', 'release_date': '2021-05-07',
-            'genres': ['巨乳'], 'actresses': [{'japanese_name': '葵つかさ'}]},
+            'genres': ['Big Breasts'], 'actresses': [{'japanese_name': '葵つかさ'}]},
             javdb={'id': 'SSIS-057', 'genres': ['高跟鞋', '絲襪', '待收錄分類']})
         self.assertEqual([call.args[1] for call in provider.query.call_args_list], ['javdb'])
         provider.community.assert_not_called()
         tags = next(row for row in rows if row['field'] == 'tags')
         candidate = next(c for c in json.loads(tags['candidates_json']) if c['source'] == 'javdb')
-        self.assertEqual(candidate['value'], ['高跟', '丝袜'])
+        self.assertEqual(candidate['value'], ['High Heels', 'Stockings'])
         self.assertEqual(candidate['unmapped_genres'], ['待收錄分類'])
         self.assertEqual((candidate['source_kind'], candidate['official']), ('community', False))
 
@@ -1591,7 +1591,7 @@ class LibraryNfoTests(unittest.TestCase):
         """片商官网给齐标量后，只额外请求 JavDB 内容类别。"""
         provider, rows = self._collect_with_maker('SSIS-057', 'makers', {
             'title': '標題', 'maker': 'エスワン ナンバーワンスタイル', 'release_date': '2021-05-07',
-            'genres': ['巨乳'], 'actresses': [{'japanese_name': '葵つかさ'}]})
+            'genres': ['Big Breasts'], 'actresses': [{'japanese_name': '葵つかさ'}]})
         self.assertEqual(provider.amane.call_args.kwargs['route'], ('makers',))
         self.assertEqual([call.args[1] for call in provider.query.call_args_list], ['javdb'])
         provider.community.assert_not_called()
@@ -1604,7 +1604,7 @@ class LibraryNfoTests(unittest.TestCase):
         provider, rows = self._collect_with_maker('FSDSS-437', 'faleno', {
             'title': '標題', 'maker': 'FALENO', 'release_date': '2022-07-07',
             'actresses': [{'japanese_name': '女優'}]},
-            r18dev={'id': 'FSDSS-437', 'genres': ['巨乳']})
+            r18dev={'id': 'FSDSS-437', 'genres': ['Big Breasts']})
         self.assertEqual(provider.amane.call_args.kwargs['route'], ('faleno',))
         self.assertEqual([call.args[1] for call in provider.query.call_args_list], ['r18dev', 'javdb'])
         provider.community.assert_not_called()
@@ -1699,7 +1699,7 @@ class LibraryNfoTests(unittest.TestCase):
             payload = provider.query('MIAD-573')
         self.assertEqual(payload['genres'], ['企画', 'その他フェチ', 'スレンダー'])
         tags, unmapped = map_genres(payload['genres'])
-        self.assertEqual(tags, ['苗条'])
+        self.assertEqual(tags, ['Slim'])
         self.assertEqual(unmapped, [], '`企画` 是发行企划、`その他フェチ` 是兜底格，都按非内容排除')
 
     def test_without_the_japanese_page_r18_gives_no_english_title_or_romaji_cast(self):
@@ -2301,7 +2301,7 @@ class LibraryNfoTests(unittest.TestCase):
         self.assertEqual((result['status'], result['issue_count'], result['checked']), ('complete', 0, 1))
         self.assertTrue((self.root / 'generated' / 'posters' / '1_4.jpg').is_file(), '本地海报照常登记')
         local = next(state for state in reports if state.get('current_action') == 'reading_local')
-        self.assertEqual(local['stage'], '检查配套文件')
+        self.assertEqual(local['stage'], 'Check companion files')
         self.assertEqual(local['eta_scope'], '整趟任务')
         prepared = next(state for state in reports if state.get('estimate_pending', {}).get('metadata') == 0)
         self.assertNotIn('local', prepared['estimate_pending'])
@@ -2536,7 +2536,7 @@ class LibraryNfoTests(unittest.TestCase):
                 for row in read_rows(self.root / 'generated/library-metadata-field-candidates.csv')}
         self.assertEqual([entry['source'] for entry in rows['title']], ['r18dev'])
         self.assertEqual([(entry['source'], entry['value']) for entry in rows['tags']],
-                         [('javdb', ['高跟', '屁眼'])])
+                         [('javdb', ['High Heels', 'Butthole'])])
         self.assertEqual(Path(rows['tags'][0]['raw_snapshot']), directory / 'DASS-468-javdb.json')
 
     def test_javdb_snapshot_requires_current_identity_evidence_without_removing_raw_json(self):
@@ -2586,7 +2586,7 @@ class LibraryNfoTests(unittest.TestCase):
         config = PeachConfig(self.root, self.root / 'config.toml', present=True)
         path = config.directory('sources') / 'library-metadata' / 'DASS-468-javdb.json'
         path.parent.mkdir(parents=True)
-        path.write_text(json.dumps({'id': 'DASS-468', 'genres': ['口交']}), encoding='utf-8')
+        path.write_text(json.dumps({'id': 'DASS-468', 'genres': ['Oral']}), encoding='utf-8')
         os.utime(path, (time.time() - 8 * 24 * 3600,) * 2)
         provider = Mock()
         provider.query.return_value = {'id': 'DASS-468', 'genres': ['高跟鞋']}
@@ -2623,7 +2623,7 @@ class LibraryNfoTests(unittest.TestCase):
                                  _MissCache(misses_path(config)), retrying=False)
         issue = Mock()
         options = dict(update=Mock(), issue=issue, deadline=time.monotonic() + 60)
-        official = [('makers', {'id': 'MIAB-086', 'genres': ['痴女', '护士']}, None)]
+        official = [('makers', {'id': 'MIAB-086', 'genres': ['Nympho', 'Nurse']}, None)]
         try:
             self.assertEqual(session._preferred_tags({}, 'MIAB-086', ['tags'], ('makers', 'javdb'),
                                                      official, set(), **options), [])
@@ -3367,17 +3367,17 @@ class LibraryWatchdogTests(unittest.TestCase):
         self.assertTrue(state['issues_truncated'])
 
     def test_finished_issues_and_interruption_have_distinct_outcomes(self):
-        finished = dict(status='failed', stage='处理结束', completed_at=123,
+        finished = dict(status='failed', stage='Processing complete', completed_at=123,
                         issue_count=14, retryable_asset_ids=[1, 2])
         self.assertEqual(decorate(finished)['outcome'], 'partial')
         self.assertNotIn('outcome', finished)
-        for state in ({**finished, 'stage': '生成预览图'},
+        for state in ({**finished, 'stage': 'Generate preview images'},
                       {**finished, 'outcome': 'interrupted'},
                       {**finished, 'completed_at': None}):
             self.assertEqual(decorate(state)['outcome'], 'interrupted')
         from peach.web_library_processing import public_state
         self.assertEqual(public_state(decorate(finished))['outcome'], 'partial')
-        legacy = dict(status='failed', stage='处理结束', completed_at=123,
+        legacy = dict(status='failed', stage='Processing complete', completed_at=123,
                       issues=[{'asset_id': 1, 'message': '视频抽帧超时'}])
         self.assertEqual(decorate(legacy)['outcome'], 'partial')
 
@@ -3615,7 +3615,7 @@ class LibraryWatchdogTests(unittest.TestCase):
             initial = w_library_processing(contract, {'stage': 'collect'})
             self.assertEqual(run.call_args.kwargs['stage'], 'collect')
             self.assertEqual(initial['requested_stage'], 'collect')
-            self.assertEqual(initial['stage'], '准备采集资料')
+            self.assertEqual(initial['stage'], 'Prepare to collect details')
             w_library_processing(contract, {})
             self.assertEqual(run.call_args.kwargs['stage'], 'all')
             w_library_processing(contract, {'incremental':True})
@@ -3963,7 +3963,7 @@ class LibraryPreviewCompletionTests(unittest.TestCase):
         self.assertIn('Invalid data', detail['stderr'])
         self.assertNotIn(str(self.media), detail['stderr'])
         self.assertNotIn('private-token', detail['stderr'])
-        self.assertIn('导出诊断报告', issue['message'])
+        self.assertIn('Export diagnostics report', issue['message'])
         with patch.object(support_bundle.error_reporting, 'log_directories', return_value=[]):
             payload = support_bundle.bundle_bytes(config=self.config)
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:

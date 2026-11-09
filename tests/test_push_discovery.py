@@ -51,7 +51,7 @@ class CloudPathTests(unittest.TestCase):
 
     def test_the_longest_matching_prefix_decides_the_declared_root(self):
         self.assertEqual(push.map_cloud_path("/115/纪录片/a.mp4", self.PREFIXES),
-                         str(PureWindowsPath(CLOUD_ROOT, "纪录片", "a.mp4")))
+                         str(PureWindowsPath(CLOUD_ROOT, "Documentary", "a.mp4")))
         self.assertEqual(push.map_cloud_path("/115/影视/b.mp4", self.PREFIXES),
                          str(PureWindowsPath(r"A:\影视", "b.mp4")))
 
@@ -59,7 +59,7 @@ class CloudPathTests(unittest.TestCase):
         for raw in ("115//纪录片//a.mp4", "\\115\\纪录片\\a.mp4"):
             with self.subTest(raw=raw):
                 self.assertEqual(push.map_cloud_path(raw, self.PREFIXES),
-                                 str(PureWindowsPath(CLOUD_ROOT, "纪录片", "a.mp4")))
+                                 str(PureWindowsPath(CLOUD_ROOT, "Documentary", "a.mp4")))
 
     def test_a_path_that_could_escape_the_root_is_refused(self):
         for bad in ("/115/../secret.mp4", "/115/C:x.mp4", "/115/a\nb.mp4"):

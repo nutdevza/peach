@@ -189,7 +189,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual([(row['id'], row['name']) for row in people], [(person, '河北彩花'), (None, '未登记女优')])
         self.assertTrue(people[0]['avatar'].startswith('data:image/jpeg;base64,'))
         for params in ({'codes': 'ABC-123,XYZ-999', 'performers': ['河北彩花']},
-                       {'codes': 'XYZ-999', 'performers': ['女优'] * 11},
+                       {'codes': 'XYZ-999', 'performers': ['JAV'] * 11},
                        {'codes': 'XYZ-999', 'performers': ['长' * 61]}):
             self.assertEqual(self.client.get('/api/jav-browser/people', params=params,
                                              headers=self.script_headers).status_code, 400)

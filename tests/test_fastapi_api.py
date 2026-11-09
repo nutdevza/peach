@@ -1738,7 +1738,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader(); writer.writerow({
                 "item_key": "ABC-001:studio", "code": "ABC-001", "query": "ABC-001",
-                "field": "studio", "field_label": "厂牌", "current_value": "Studio A",
+                "field": "studio", "field_label": "Studio", "current_value": "Studio A",
                 "candidates_json": json.dumps([candidate]), "source_count": "1",
                 "status": "candidate", "size_gb": "1", "videos": "1", "fetched_at": "now",
             })
@@ -1774,7 +1774,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader(); writer.writerow({
                 "item_key": "ABC-001:studio", "code": "ABC-001", "query": "ABC-001",
-                "field": "studio", "field_label": "厂牌", "current_value": "Studio A",
+                "field": "studio", "field_label": "Studio", "current_value": "Studio A",
                 "candidates_json": json.dumps([candidate]), "source_count": "1",
                 "status": "candidate", "size_gb": "1", "videos": "1", "fetched_at": "now",
             })
@@ -1810,7 +1810,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             "candidate_key": "ABC-001:tags:r18dev:abc", "source": "r18dev",
             "source_url": "https://r18.dev/example", "confidence": 0.9,
             "provider_id": "ABC-001",
-            "value": ["美乳", "颜射"], "display_value": "美乳、颜射", "warnings": [],
+            "value": ["Beautiful Breasts", "Facial"], "display_value": "美乳、颜射", "warnings": [],
         }
         fields = ["item_key", "code", "query", "field", "field_label", "current_value",
                   "candidates_json", "source_count", "status", "size_gb", "videos", "fetched_at"]
@@ -1819,7 +1819,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader(); writer.writerow({
                 "item_key": "ABC-001:tags", "code": "ABC-001", "query": "ABC-001",
-                "field": "tags", "field_label": "标签", "current_value": "美乳",
+                "field": "tags", "field_label": "标签", "current_value": "Beautiful Breasts",
                 "candidates_json": json.dumps([candidate], ensure_ascii=False), "source_count": "1",
                 "status": "candidate", "size_gb": "1", "videos": "1", "fetched_at": "now",
             })
@@ -1833,8 +1833,8 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
                 "SELECT tag,confidence,source FROM asset_tag WHERE asset_id=1 "
                 "AND tag IN ('美乳','颜射') ORDER BY tag"
             ).fetchall(), [
-                ("美乳", 0.9, "javinizer:r18dev:tag"),
-                ("颜射", 0.9, "javinizer:r18dev:tag"),
+                ("Beautiful Breasts", 0.9, "javinizer:r18dev:tag"),
+                ("Facial", 0.9, "javinizer:r18dev:tag"),
             ])
 
     async def _tags_candidate_with_unmapped_genres(self, candidate: dict) -> None:
@@ -1865,7 +1865,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         await self._tags_candidate_with_unmapped_genres({
             "candidate_key": "CARIB-001:tags:caribbeancom:abc", "source": "caribbeancom",
             "source_url": "https://example.invalid/carib", "confidence": 0.9,
-            "provider_id": "CARIB-001", "value": ["中出内射"], "display_value": "中出内射",
+            "provider_id": "CARIB-001", "value": ["Creampie"], "display_value": "Creampie",
             "unmapped_genres": ["まだ決めていない分類", "まだ知らない分類"],
             "warnings": ["来源还有 2 个未收录 genre：まだ決めていない分類、まだ知らない分類"],
         })
@@ -1877,14 +1877,14 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         # 词可测，而扩词表的人跑不到 web 域。2026-09-21 先后拿 `シャワー` 和 `温泉`
         # 当素材，两次都是这样把测试跑红的。
         recorded = await self.client.post("/api/review/genre?t=secret",
-                                          json={"genre": "まだ知らない分類", "tag": "浴室"})
+                                          json={"genre": "まだ知らない分類", "tag": "Bathroom"})
         self.assertEqual(recorded.status_code, 200, recorded.text)
         excluded = await self.client.post("/api/review/genre?t=secret",
                                           json={"genre": "まだ決めていない分類", "tag": ""})
         self.assertEqual(excluded.status_code, 200, excluded.text)
 
         after = await self._review_tags_candidate()
-        self.assertEqual(after["value"], ["中出内射", "浴室"])
+        self.assertEqual(after["value"], ["Creampie", "Bathroom"])
         self.assertEqual(after["display_value"], "中出内射、浴室")
         self.assertEqual(after["unmapped_genres"], [], "两个都有了结论，不该再回来问")
 
@@ -1897,7 +1897,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([row[0] for row in connection.execute(
                 "SELECT tag FROM asset_tag WHERE asset_id=1 AND tag IN ('中出内射','浴室') "
                 "ORDER BY tag")],
-                ["中出内射", "浴室"], "页面上多出来的那个标签必须真的落库")
+                ["Creampie", "Bathroom"], "页面上多出来的那个标签必须真的落库")
 
     async def test_an_old_candidate_carries_its_unmapped_genres_in_the_warning_only(self):
         """2026-09-11 之前写下的候选文件没有结构化那一份，收录按钮同样要能出现。"""
@@ -1907,7 +1907,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         await self._tags_candidate_with_unmapped_genres({
             "candidate_key": "CARIB-001:tags:caribbeancom:old", "source": "caribbeancom",
             "source_url": "https://example.invalid/carib", "confidence": 0.9,
-            "provider_id": "CARIB-001", "value": ["中出内射"], "display_value": "中出内射",
+            "provider_id": "CARIB-001", "value": ["Creampie"], "display_value": "Creampie",
             "warnings": ["来源还有 1 个未收录 genre：まだ知らない分類"],
         })
         self.assertEqual((await self._review_tags_candidate())["unmapped_genres"],
@@ -1930,7 +1930,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         with closing(sqlite3.connect(self.db)) as connection:
             self.assertEqual(connection.execute(
                 "SELECT peach_tag FROM genre_decision WHERE source_genre='シャワー'").fetchone(),
-                ("浴室",))
+                ("Bathroom",))
 
     async def test_catalog_keeps_missing_performers_separate_from_release_code(self):
         with closing(sqlite3.connect(self.db)) as con:
@@ -1973,7 +1973,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
             {"k": "local", "n": 1, "played": 0},
         ])
         self.assertEqual(scoped.json()["orientations"], [
-            {"k": "横屏", "n": 1},
+            {"k": "Landscape", "n": 1},
         ])
 
     async def test_global_facets_supply_recommendations_for_an_untagged_detail(self):
@@ -3240,11 +3240,11 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
                 'fields': {'code': 'id', 'title': 'title'}, 'content_types': ['censored'], 'enabled': False}
         with patch.object(self.app.state.web_contract, 'follow_secrets_root', root):
             self.assertEqual((await self.client.get('/api/custom-metadata')).status_code, 401)
-            with patch('peach.custom_metadata.fetch_json', return_value={'id': 'ABW-001', 'title': '标题'}):
+            with patch('peach.custom_metadata.fetch_json', return_value={'id': 'ABW-001', 'title': 'Title'}):
                 preview = await self.client.post('/api/custom-metadata', json=dict(body, action='preview', code='ABW-001'),
                                                  headers={'X-Token': 'secret'})
             self.assertEqual(preview.status_code, 200, preview.text)
-            self.assertEqual(preview.json()['record']['title'], '标题')
+            self.assertEqual(preview.json()['record']['title'], 'Title')
             self.assertFalse((root / 'custom-metadata.json').exists())
             saved = await self.client.post('/api/custom-metadata', json=body, headers={'X-Token': 'secret'})
             self.assertEqual(saved.status_code, 200, saved.text)
@@ -3955,7 +3955,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         def factory(_secrets_root):
             def download(url):
                 asked.append(url)
-                raise OSError("来源连接未取得")
+                raise OSError("Source connection not reached")
             return download
 
         headers = {"X-Token": "secret"}
@@ -4157,7 +4157,7 @@ class UnconfiguredMachineTests(unittest.IsolatedAsyncioTestCase):
             calls.append(kwargs['stage'])
             entered.set()
             checkpoint.wait(5)
-            kwargs['report']({'stage': '生成预览图'})
+            kwargs['report']({'stage': 'Generate preview images'})
             completed.set()
             return {'status': 'complete'}
         with patch('peach.settings_file.active', return_value=config), patch(

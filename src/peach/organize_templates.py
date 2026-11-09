@@ -24,20 +24,20 @@ from dataclasses import dataclass
 
 #: 模板认识的占位符，以及它在界面上的说明。顺序就是界面上列出来的顺序。
 PLACEHOLDERS: dict[str, str] = {
-    "code": "番号",
-    "title": "标题",
-    "studio": "厂牌",
-    "series": "系列",
-    "year": "发行年",
-    "actors": "出演者",
-    "cd": "分片号",
-    "mosaic": "有码无码",
-    "definition": "画质",
+    "code": "Code",
+    "title": "Title",
+    "studio": "Studio",
+    "series": "Series",
+    "year": "Year",
+    "actors": "Performers",
+    "cd": "Part number",
+    "mosaic": "Censored/Uncensored",
+    "definition": "Quality",
 }
 
 EXAMPLE_VALUES = {
-    "code": "ABC-123", "title": "标题", "studio": "厂牌", "series": "系列",
-    "year": "2024", "actors": "甲、乙", "cd": "2", "mosaic": "无码", "definition": "1080p",
+    "code": "ABC-123", "title": "Title", "studio": "Studio", "series": "Series",
+    "year": "2024", "actors": "A, B", "cd": "2", "mosaic": "Uncensored", "definition": "1080p",
 }
 
 #: 单个路径组件的长度上限。Windows 的组件上限是 255 个字符，但长名字在资源管理器、
@@ -285,5 +285,5 @@ def example_path(file_template: str, dir_template: str) -> dict:
             parts[field], _missing = render(text, EXAMPLE_VALUES, directory=directory)
         except TemplateError as error:
             return {"ok": False, "error": str(error), "field": field}
-    filename = (parts["file"] if file_template.strip() else "ABC-123 标题") + ".mp4"
+    filename = (parts["file"] if file_template.strip() else "ABC-123 Title") + ".mp4"
     return {"ok": True, "example": "/".join(filter(None, (parts["dir"], filename)))}

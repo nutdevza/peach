@@ -394,7 +394,7 @@ def _runtime_evidence(raw: object) -> dict | None:
     if not 0 < minutes <= 24 * 60:
         return None
     value: int | float = int(minutes) if minutes.is_integer() else round(minutes, 2)
-    return {"value": value, "display_value": f"{value:g} 分钟", "warnings": []}
+    return {"value": value, "display_value": f"{value:g} minutes", "warnings": []}
 
 
 def _safe_evidence_url(raw: object) -> str:

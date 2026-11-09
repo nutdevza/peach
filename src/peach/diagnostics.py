@@ -133,10 +133,10 @@ def writable_root(root):
             probe.write(b"peach")
             probe.flush()
     except PermissionError:
-        return item("数据目录", "failed", "没有权限写入数据目录", action="调整数据目录的写入权限")
+        return item("Data directory", "failed", "没有权限写入数据目录", action="调整数据目录的写入权限")
     except OSError:
-        return item("数据目录", "failed", "数据目录无法写入", action="检查数据目录与可用空间")
-    return item("数据目录", "ok", "临时写入与清理通过")
+        return item("Data directory", "failed", "数据目录无法写入", action="检查数据目录与可用空间")
+    return item("Data directory", "ok", "临时写入与清理通过")
 
 
 def port_status(host, port):
@@ -194,7 +194,7 @@ def report(settings, snapshot, *, config=None):
     checks = component_checks(settings, snapshot, config=config)
     checks.update(data_root=writable_root(config.data_root), port=port_status(settings.host, settings.port),
                   tasks=recent_failure(settings.db_path),
-                  version=item("版本", "ok", f"Peach {__version__} · Python {platform.python_version()}",
+                  version=item("Version", "ok", f"Peach {__version__} · Python {platform.python_version()}",
                                details={"peach": __version__, "python": platform.python_version()}))
     statuses = {check["status"] for check in checks.values()}
     state = "failed" if "failed" in statuses else "warning" if statuses & {"warning", "unknown"} else "ok"

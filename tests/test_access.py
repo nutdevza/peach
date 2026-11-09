@@ -593,7 +593,7 @@ class DockerFirstAccessTests(ConfigurationPageCase):
     async def test_setting_a_password_writes_the_policy_and_lets_this_browser_in(self):
         desk = self.device(peer=("192.0.2.20", 1))
         self.assertEqual((await self.submit(desk, mode="password", password="short", confirmation="short")).json()["detail"]["errors"],
-                         {"password": "访问密码需为 8–256 个字符"})
+                         {"password": "The access password must be 8–256 characters"})
         mismatch = await self.submit(desk, mode="password", password="correct-password", confirmation="other-password")
         self.assertEqual(set(mismatch.json()["detail"]["errors"]), {"confirmation"})
         self.assertEqual((await self.submit(desk, password="correct-password")).status_code, 400)

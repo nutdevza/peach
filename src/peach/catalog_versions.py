@@ -27,7 +27,7 @@ def resolution_label(row: dict) -> str:
 def version_signature(row: dict) -> tuple[str, str, str]:
     name = str(row.get('name') or '')
     processing = '修复' if '修复' in name else '美颜' if '美颜' in name else ''
-    return str(row.get('edition') or '有码'), resolution_label(row), processing
+    return str(row.get('edition') or 'Censored'), resolution_label(row), processing
 
 
 def filename_matches_code(row: dict) -> bool:

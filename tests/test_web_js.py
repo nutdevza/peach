@@ -198,8 +198,8 @@ class WebJsBehaviourTests(unittest.TestCase):
             # display_code 是对外显示的写法，前缀判定和输出都用它。
             ("jav-title.js", "javTitleParts",
              [{"is_jav": True, "code": "ABC123", "display_code": "ABC-123",
-               "name": "ABC-123 标题"}],
-             {"code": "ABC-123", "title": "标题", "badges": []}),
+               "name": "ABC-123 Title"}],
+             {"code": "ABC-123", "title": "Title", "badges": []}),
             # 不是 JAV，或者没有番号，就只有一个标题，连 badges 字段都不给。
             ("jav-title.js", "javTitleParts",
              [{"is_jav": False, "name": "普通作品"}],
@@ -236,11 +236,11 @@ class WebJsBehaviourTests(unittest.TestCase):
         # 版本徽章是白名单：其它 edition_badges（画质、分卷之类）不进标题行。
         self.assertJsResults([
             ("jav-title.js", "javTitleParts",
-             [{"is_jav": True, "code": "ABC-123", "name": "ABC-123 标题",
+             [{"is_jav": True, "code": "ABC-123", "name": "ABC-123 Title",
                "edition_badges": ["中字", "4K", "无码破解"]}],
-             {"code": "ABC-123", "title": "标题", "badges": ["中字", "无码破解"]}),
+             {"code": "ABC-123", "title": "Title", "badges": ["中字", "无码破解"]}),
             ("jav-title.js", "javDisplayName",
-             [{"is_jav": True, "code": "ABC-123", "name": "ABC-123 标题",
+             [{"is_jav": True, "code": "ABC-123", "name": "ABC-123 Title",
                "edition_badges": ["中字"]}],
              "ABC-123 中字 标题"),
             # 没标题就只剩番号，不留下尾随空格。
@@ -263,7 +263,7 @@ class WebJsBehaviourTests(unittest.TestCase):
              '</span> <span class="ui-javtitle" lang="en">&lt;b&gt;x&lt;/b&gt;</span>'),
             ("jav-title.js", "javTitleHtml",
              [{"is_jav": True, "code": "ABC-123", "display_title": "",
-               "name": "ABC-123", "edition_badges": ["无码"]}],
+               "name": "ABC-123", "edition_badges": ["Uncensored"]}],
              '<span class="ui-javidentity"><strong class="ui-javcode">ABC-123</strong>'
              '<small class="javedition uncensored">无码</small></span>'),
         ])
@@ -274,16 +274,16 @@ class WebJsBehaviourTests(unittest.TestCase):
         # 浏览、收藏与编辑使用服务端当前名称，大小写与词形由同一个身份提供。
         self.assertJsResults([
             # `足交` 是通行写法，不改成 `脚交`。
-            ("tags.js", "tagLabel", ["足交"], "足交"),
-            ("tags.js", "tagLabel", ["美腿"], "美腿"),
+            ("tags.js", "tagLabel", ["Footjob"], "Footjob"),
+            ("tags.js", "tagLabel", ["Beautiful legs"], "Beautiful legs"),
             ("tags.js", "tagLabel", ["1080P"], "1080P"),
-            ("tags.js", "tagLabel", ["眼镜"], "眼镜"),
-            ("tags.js", "tagLabel", ["AI去码"], "AI去码"),
-            ("tags.js", "tagLabel", ["OL制服"], "OL制服"),
-            ("tags.js", "tagLabel", ["JK制服"], "JK制服"),
-            ("tags.js", "tagLabel", ["秘书OL"], "秘书OL"),
-            ("tags.js", "tagLabel", ["深喉"], "深喉"),
-            ("tags.js", "tagLabel", ["无码"], "无码"),
+            ("tags.js", "tagLabel", ["Glasses"], "Glasses"),
+            ("tags.js", "tagLabel", ["AI decensoring"], "AI decensoring"),
+            ("tags.js", "tagLabel", ["Office uniform"], "Office uniform"),
+            ("tags.js", "tagLabel", ["JK uniform"], "JK uniform"),
+            ("tags.js", "tagLabel", ["Secretary / OL"], "Secretary / OL"),
+            ("tags.js", "tagLabel", ["Deep throat"], "Deep throat"),
+            ("tags.js", "tagLabel", ["Uncensored"], "Uncensored"),
             ("tags.js", "tagLabel", ["没有别名的标签"], "没有别名的标签"),
             ("tags.js", "tagLabel", [""], ""),
         ])

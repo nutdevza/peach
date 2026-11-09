@@ -69,7 +69,7 @@ class Fc2SellerTests(unittest.TestCase):
         self.assertEqual(len(result['entity_ids']),1)
         contract = WebContract(self.db)
         page = q_index(contract,'creators')
-        self.assertEqual(page['items'][0]['identity_labels'],['卖家'])
+        self.assertEqual(page['items'][0]['identity_labels'],['Seller'])
         self.assertEqual(page['items'][0]['n'],1)
         self.assertEqual(len(q_entity(contract,{'kind':'creator','name':'Seller'})['links']),1)
         self.assertEqual([tuple(row) for row in self.connection.execute('SELECT * FROM asset ORDER BY id')],before)

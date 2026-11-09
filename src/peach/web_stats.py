@@ -266,9 +266,9 @@ def w_taste_refresh(contract: WebContract, body, *, progress=None, checkpoint=No
             result = w_taste_refresh(contract, {**body, "background": False},
                 progress=lambda **fields: job.update(job_id, **fields),
                 checkpoint=lambda **fields: job.checkpoint(job_id, **fields), resume_state=job.snapshot())
-            job.update(job_id, **result, status="complete", message="部分浏览记录未取得" if result["warnings"] else "口味分析已更新", completed_at=time.time())
+            job.update(job_id, **result, status="complete", message="Completed with warnings" if result["warnings"] else "Refresh complete", completed_at=time.time())
         return job.start(work, restart=True, initial={
-            "stage": "discovering", "message": "正在查找 Peach 主机上的浏览器资料"},
+            "stage": "discovering", "message": "Scanning Peach profiles for browsing history"},
             recovery={'background': True, 'window': body.get('window') or 'all'})
     window = str(body.get("window") or "all")
     sources = enabled_history_sources(contract.taste_history_store)
@@ -303,7 +303,7 @@ def w_taste_refresh(contract: WebContract, body, *, progress=None, checkpoint=No
         write_manifest(contract.taste_history_manifest, results, analysis)
     contract.cache_bust()
     if progress:
-        progress(stage="dashboard", checked=0, total=None, message="正在汇总口味分布、标签与创作者排名")
+        progress(stage="dashboard", checked=0, total=None, message="Generating dashboard and insights")
     return {"refresh": results, "warnings": [f"{row['browser']} · {row['profile']}：{row['error']}"
             for row in results if row.get("status") == "failed"], "dashboard": q_taste(contract, {"window": window})}
 
@@ -402,7 +402,7 @@ PRESENT_A = "COALESCE(a.disposal,'')<>'vanished' AND NOT peach_is_local_extra(a.
 
 #: 视频的时长与画质分档，顺序同 `media_probe.context_fields` 的判据：由短到长、由高到低。
 LENGTH_BANDS = ("速食", "短", "中", "长")
-QUALITY_BANDS = ("4K", "2K", "1080P", "720P", "低画质")
+QUALITY_BANDS = ("4K", "2K", "1080P", "720P", "Low quality")
 
 
 def _bands(c, column: str, order: tuple[str, ...]) -> list[dict[str, object]]:

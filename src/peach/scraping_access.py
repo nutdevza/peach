@@ -562,13 +562,13 @@ class SourceTransport:
         if reason is FailureReason.GEO_RESTRICTED:
             _pause(cooldown, time.time() + FIRST_BLOCKED_PAUSE, blocks, via)
             raise SourceRefused(
-                f"{label} 不对当前出口所在的地区开放，请在代理里给它换一个它接受的地区的出口；"
-                f"暂停向它请求 {FIRST_BLOCKED_PAUSE // 60} 分钟", reason.value)
+                f"{label} is not available in the region of the current exit; give it an exit in a region it accepts in the proxy; pausing requests to it for "
+                f"{FIRST_BLOCKED_PAUSE // 60} minutes", reason.value)
         blocks += 1
         limit = SOURCES.get(source or "", {}).get("blocked_pause") or 24 * 3600
         _pause(cooldown, time.time() + min(FIRST_BLOCKED_PAUSE * 2 ** (blocks - 1), limit), blocks, via)
-        raise SourceRefused(f"{label} 封禁了当前出口 IP，暂停向它请求一段时间，"
-                            "也可以在代理里给它换一个出口", reason.value)
+        raise SourceRefused(f"{label} banned the current exit IP; pausing requests for a while, "
+                            "or give it another exit in the proxy", reason.value)
 
     def hold(self, source: str, action: str) -> None:
         """契约报的冷却细档（`SourceFailure.cooldown_action`）写回这个来源的冷却记录。

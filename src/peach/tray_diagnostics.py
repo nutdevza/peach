@@ -20,7 +20,7 @@ def _template(path: Path) -> bytes:
 
     # WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_CENTER | DS_SETFONT
     data = bytearray(struct.pack('<IIHhhhh', 0x80C808C0, 0, 5, 0, 0, 360, 136))
-    data.extend(b'\0\0\0\0' + text('Peach 诊断报告') + struct.pack('<H', 9) + text('Segoe UI'))
+    data.extend(b'\0\0\0\0' + text('Peach diagnostic report') + struct.pack('<H', 9) + text('Segoe UI'))
 
     def control(identifier, class_id, label, x, y, width, height, style):
         data.extend(b'\0' * (-len(data) % 4))

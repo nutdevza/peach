@@ -46,12 +46,12 @@ _UNMEASURED = f"medium='video' AND duration IS NULL AND location=? AND {ACTIVE_A
 def context_fields(width: int, height: int, duration: float) -> tuple[str | None, str | None, str | None]:
     orientation = quality = length = None
     if width and height:
-        orientation = "竖屏" if height > width else "横屏"
+        orientation = "Portrait" if height > width else "Landscape"
         longest = max(width, height)
         quality = (
             "4K" if longest >= 3000 else "2K" if longest >= 1900
             else "1080P" if longest >= 1300 else "720P" if longest >= 900
-            else "低画质"
+            else "Low quality"
         )
     if duration and duration > 0:
         length = "速食" if duration < 300 else "短" if duration < 900 else "中" if duration < 2400 else "长"

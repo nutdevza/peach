@@ -86,7 +86,7 @@ class EntityMergeTests(unittest.TestCase):
         self.assertEqual(self.con.execute("SELECT target_id FROM entity_redirect WHERE old_id=11").fetchone(), (10,))
 
     def test_tag_merge_keeps_the_retired_name_as_alias(self):
-        for entity_id, name in ((20, "合集"), (21, "混合集")):
+        for entity_id, name in ((20, "Collection"), (21, "混合集")):
             self.con.execute(
                 "INSERT INTO entity(id,kind,canonical_name,normalized_name,created_at,updated_at)"
                 " VALUES(?,'tag',?,?,'t','t')", (entity_id, name, name))

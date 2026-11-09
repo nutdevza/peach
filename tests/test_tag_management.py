@@ -61,7 +61,7 @@ class TagManagementTests(unittest.TestCase):
         self.execute('rename', [original], name='Alpha')
         self.tag('Beta')
         self.tag('gamma', (1, 2, 3))
-        self.tag('眼镜')
+        self.tag('Glasses')
         hidden = self.tag('Dormant')
         self.execute('hide', [hidden])
         self.c.commit()
@@ -69,7 +69,7 @@ class TagManagementTests(unittest.TestCase):
         first = q_tag_management(contract, dict(limit='2'))
         second = q_tag_management(contract, dict(limit='2', offset='2'))
         self.assertEqual([row['k'] for row in first['items']], ['gamma', 'Alpha'])
-        self.assertEqual([row['k'] for row in second['items']], ['Beta', '眼镜'])
+        self.assertEqual([row['k'] for row in second['items']], ['Beta', 'Glasses'])
         self.assertEqual((first['total'], first['has_more'], first['limit'], first['offset']), (4, True, 2, 0))
         self.assertEqual((second['total'], second['has_more']), (4, False))
         alphabet = q_tag_management(contract, dict(limit='2', view='alphabet'))
@@ -78,7 +78,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertEqual([row['k'] for row in found['items']], ['Alpha'])
         self.assertEqual((found['total'], found['categories']), (1, {'general': 1}))
         category = q_tag_management(contract, dict(limit='1', category='appearance'))
-        self.assertEqual([row['k'] for row in category['items']], ['眼镜'])
+        self.assertEqual([row['k'] for row in category['items']], ['Glasses'])
         self.assertEqual((category['total'], category['categories']), (1, {'general': 3, 'appearance': 1}))
         hidden_page = q_tag_management(contract, dict(limit='20', state='hidden'))
         self.assertEqual([row['k'] for row in hidden_page['items']], ['Dormant'])
@@ -90,7 +90,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertEqual(len(complete['items']), 5)
 
     def test_management_page_limits_duplicate_groups_and_cache_invalidation(self):
-        self.tag('眼镜')
+        self.tag('Glasses')
         self.c.execute("INSERT INTO entity(kind,canonical_name,normalized_name,created_at,updated_at) VALUES('tag','眼镜娘','眼镜娘','now','now')")
         self.c.commit()
         contract = self.management_contract()
@@ -118,7 +118,7 @@ class TagManagementTests(unittest.TestCase):
     def test_local_browse_tag_total_counts_filtered_rows_on_every_page(self):
         self.tag('Alpha')
         self.tag('Beta')
-        self.tag('眼镜')
+        self.tag('Glasses')
         self.c.commit()
         contract = self.management_contract()
         first = q_index(contract, 'tags', limit=1)
@@ -130,7 +130,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertNotIn('total', q_index(contract, 'performers', limit=1))
 
     def test_rename_preserves_unrelated_historical_reference_violations(self):
-        entity_id = self.tag('眼镜')
+        entity_id = self.tag('Glasses')
         self.c.commit()
         self.c.execute('PRAGMA foreign_keys=OFF')
         self.c.execute('CREATE TABLE historical_parent(id INTEGER PRIMARY KEY)')
@@ -144,7 +144,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertEqual(self.c.execute('SELECT canonical_name FROM entity WHERE id=?', (entity_id,)).fetchone()[0], '我的眼镜')
 
     def test_tag_operation_rejects_new_foreign_key_violations(self):
-        entity_id = self.tag('眼镜')
+        entity_id = self.tag('Glasses')
         self.c.commit()
         self.c.execute('PRAGMA foreign_keys=OFF')
         self.c.execute('CREATE TABLE tag_reference(entity_id REFERENCES entity(id))')
@@ -153,14 +153,14 @@ class TagManagementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '外键检查'):
             self.execute('rename', [entity_id], name='我的眼镜')
         self.c.rollback()
-        self.assertEqual(self.c.execute('SELECT canonical_name FROM entity WHERE id=?', (entity_id,)).fetchone()[0], '眼镜')
+        self.assertEqual(self.c.execute('SELECT canonical_name FROM entity WHERE id=?', (entity_id,)).fetchone()[0], 'Glasses')
         self.assertEqual(self.c.execute('SELECT count(*) FROM tag_reference').fetchone()[0], 0)
 
     def test_display_spellings_and_width_share_one_identity(self):
-        self.assertEqual(current_tags(['眼镜娘', '眼镜', '３Ｐ', '3P多人', 'ＶＲ', 'vr']), ['眼镜', '3P多人', 'VR'])
-        first = self.tag('眼镜')
+        self.assertEqual(current_tags(['眼镜娘', 'Glasses', '３Ｐ', 'Group', 'ＶＲ', 'vr']), ['Glasses', 'Group', 'VR'])
+        first = self.tag('Glasses')
         self.assertEqual(self.tag('眼镜娘', (2,)), first)
-        self.assertEqual([row[0] for row in self.c.execute('SELECT DISTINCT tag FROM asset_tag')], ['眼镜'])
+        self.assertEqual([row[0] for row in self.c.execute('SELECT DISTINCT tag FROM asset_tag')], ['Glasses'])
 
     def test_renamed_tag_accepts_old_names_and_keeps_hidden_decision(self):
         entity_id = self.tag('自定义标签')
@@ -224,7 +224,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertEqual(len(con_tags(contract, [1], '?')), 1)
 
     def test_repair_unifies_registered_spellings_and_is_idempotent(self):
-        first = self.tag('眼镜')
+        first = self.tag('Glasses')
         self.c.execute("INSERT INTO entity(kind,canonical_name,normalized_name,created_at,updated_at) VALUES('tag','眼镜娘','眼镜娘','now','now')")
         second = self.c.execute('SELECT last_insert_rowid()').fetchone()[0]
         self.c.execute("INSERT INTO asset_entity(asset_id,entity_id,role,source) VALUES(2,?,'tag','legacy')", (second,))
@@ -250,7 +250,7 @@ class TagManagementTests(unittest.TestCase):
         self.assertEqual(self.c.execute('SELECT canonical_name FROM entity').fetchone()[0], '乙')
 
     def test_maintenance_script_previews_and_requires_backup_for_apply(self):
-        self.tag('眼镜')
+        self.tag('Glasses')
         self.c.execute("INSERT INTO entity(kind,canonical_name,normalized_name,created_at,updated_at) VALUES('tag','眼镜娘','眼镜娘','now','now')")
         self.c.commit()
         script = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'scripts' / 'repair_duplicate_tags.py'))
@@ -299,7 +299,7 @@ class OnlineTagManagementTests(unittest.TestCase):
 
     def test_online_management_pages_share_inventory_and_partition_blocked_hidden_active(self):
         self.seed()
-        self.execute('rename', ['outdoors'], name='户外')
+        self.execute('rename', ['outdoors'], name='Outdoor')
         self.execute('hide', ['outdoors'])
         self.execute('block', ['outdoors'])
         args = dict(scope='online', limit='1')
@@ -316,7 +316,7 @@ class OnlineTagManagementTests(unittest.TestCase):
             hidden = q_tag_management(self.contract, dict(args, state='hidden'))
             self.assertEqual((hidden['items'], hidden['total']), ([], 0))
             blocked = q_tag_management(self.contract, dict(args, state='blocked', q='ＯＵＴＤＯＯＲＳ'))
-            self.assertEqual([row['k'] for row in blocked['items']], ['户外'])
+            self.assertEqual([row['k'] for row in blocked['items']], ['Outdoor'])
             self.assertEqual((blocked['total'], blocked['categories'], blocked['duplicate_groups']), (1, {'general': 1}, []))
             complete = q_tag_management(self.contract, dict(scope='online'))
             self.assertEqual(set(complete), {'items', 'duplicate_groups'})
@@ -327,7 +327,7 @@ class OnlineTagManagementTests(unittest.TestCase):
             q_tag_management(self.contract, args)
             self.assertEqual(inventory.call_count, 2)
         self.execute('unblock', ['outdoors'])
-        self.assertEqual([row['k'] for row in q_tag_management(self.contract, dict(args, state='hidden'))['items']], ['户外'])
+        self.assertEqual([row['k'] for row in q_tag_management(self.contract, dict(args, state='hidden'))['items']], ['Outdoor'])
 
     def test_online_browse_tag_total_follows_search_and_type_before_paging(self):
         self.seed()
@@ -341,18 +341,18 @@ class OnlineTagManagementTests(unittest.TestCase):
     def test_rename_merge_and_source_updates_share_one_online_identity(self):
         source = self.seed()
         originals = list(map(tuple, self.c.execute('SELECT id,metadata_json FROM follow_item ORDER BY id')))
-        self.execute('rename', ['outdoors'], name='户外')
+        self.execute('rename', ['outdoors'], name='Outdoor')
         self.execute('merge', ['outdoors', 'landscape'], target_id='outdoors')
         rows = web_follow.q_follow_tags(self.contract, {'types': 'all'})['items']
         tag = next(row for row in rows if row['id'] == 'outdoors')
-        self.assertEqual((tag['k'], tag['n'], tag['cat']), ('户外', 3, 'general'))
+        self.assertEqual((tag['k'], tag['n'], tag['cat']), ('Outdoor', 3, 'general'))
         self.assertIn('landscape', tag['aliases'])
         self.assertEqual(list(map(tuple, self.c.execute('SELECT id,metadata_json FROM follow_item ORDER BY id'))), originals)
-        for name in ['户外', 'landscape', 'outdoors']:
+        for name in ['Outdoor', 'landscape', 'outdoors']:
             feed = web_follow.q_follow(self.contract, {'tag': name})
             self.assertEqual(len(feed['groups']), 3)
-            self.assertEqual([name for name, _count in feed['facets']['tags']], ['户外'])
-            self.assertTrue(all(group['primary']['tags'] == ['户外'] for group in feed['groups']))
+            self.assertEqual([name for name, _count in feed['facets']['tags']], ['Outdoor'])
+            self.assertTrue(all(group['primary']['tags'] == ['Outdoor'] for group in feed['groups']))
         with self.database.write_transaction() as connection:
             self.record(FollowStore(lambda: connection), source, 4, ['landscape'])
         self.assertEqual(next(row for row in web_follow.q_follow_tags(self.contract, {'types': 'all'})['items']
@@ -408,13 +408,13 @@ class OnlineTagManagementTests(unittest.TestCase):
         self.assertNotIn('outdoors', [row['k'] for row in web_follow.q_follow_tags(self.contract, {'types': 'all'})['items']])
         blocked = next(row for row in web_follow.online_tag_inventory(self.c) if row['id'] == 'outdoors')
         self.assertTrue(blocked['blocked'])
-        self.execute('rename', ['outdoors'], name='户外')
+        self.execute('rename', ['outdoors'], name='Outdoor')
         with self.database.write_transaction() as connection:
             self.record(FollowStore(lambda: connection), source, 4, ['outdoors'])
         self.assertEqual(sum(web_follow.q_follow(self.contract, {})['counts'].values()), 1)
         item_id = self.c.execute("SELECT id FROM follow_item WHERE external_id='2'").fetchone()[0]
         detail = web_follow.q_follow(self.contract, {'item': item_id})['groups'][0]['primary']
-        self.assertEqual(detail['blocked_tags'], ['户外'])
+        self.assertEqual(detail['blocked_tags'], ['Outdoor'])
         self.execute('unblock', ['outdoors'])
         self.assertEqual(sum(web_follow.q_follow(self.contract, {})['counts'].values()), 4)
         self.assertTrue(next(row for row in web_follow.online_tag_inventory(self.c) if row['id'] == 'outdoors')['hidden'])
@@ -440,11 +440,11 @@ class OnlineTagManagementTests(unittest.TestCase):
         self.assertNotIn('outdoors', removed['item']['tags'])
         self.assertEqual(self.c.execute('SELECT metadata_json FROM follow_item WHERE id=?', (item_id,)).fetchone()[0], original)
         self.assertNotIn(item_id, [row['primary']['id'] for row in web_follow.q_follow(self.contract, {'tag': 'outdoors'})['groups']])
-        self.execute('rename', ['outdoors'], name='户外')
+        self.execute('rename', ['outdoors'], name='Outdoor')
         renamed = web_follow.q_follow(self.contract, {'item': item_id})['groups'][0]['primary']
-        self.assertNotIn('户外', renamed['tags'])
-        restored = web_follow.w_follow_tag(self.contract, dict(id=item_id, operation='restore', tag='户外'))
-        self.assertIn('户外', restored['item']['tags'])
+        self.assertNotIn('Outdoor', renamed['tags'])
+        restored = web_follow.w_follow_tag(self.contract, dict(id=item_id, operation='restore', tag='Outdoor'))
+        self.assertIn('Outdoor', restored['item']['tags'])
         self.assertEqual(restored['item']['custom_tags'], [])
         with self.assertRaisesRegex(ValueError, '不存在'):
             web_follow.w_follow_tag(self.contract, dict(id=987654, operation='add', tag='精选'))
@@ -468,7 +468,7 @@ class OnlineTagManagementTests(unittest.TestCase):
             online_tag_management.preview(self.c, dict(operation='merge', ids=['outdoors', 'preview_artist'], target_id='outdoors'), web_follow.online_tag_inventory(self.c))
         with self.assertRaisesRegex(ValueError, '合并标签'):
             online_tag_management.preview(self.c, dict(operation='rename', ids=['outdoors'], name='landscape'), web_follow.online_tag_inventory(self.c))
-        command = dict(scope='online', operation='rename', ids=['outdoors'], name='户外')
+        command = dict(scope='online', operation='rename', ids=['outdoors'], name='Outdoor')
         command['token'] = online_tag_management.preview(self.c, command, web_follow.online_tag_inventory(self.c))['token']
         self.execute('hide', ['outdoors'])
         with self.assertRaisesRegex(ValueError, '重新预览'):
@@ -476,17 +476,17 @@ class OnlineTagManagementTests(unittest.TestCase):
 
     def test_online_favorites_follow_rename_merge_and_keep_local_tags_independent(self):
         self.seed()
-        entity_id = upsert_asset_entity(self.c, kind='tag', name='户外', asset_id=1, role='tag', source='web-user')
+        entity_id = upsert_asset_entity(self.c, kind='tag', name='Outdoor', asset_id=1, role='tag', source='web-user')
         self.c.commit()
         web_library_shortcuts.w_library_shortcuts(self.contract, dict(action='favorite', entity_id=entity_id, on=True))
         for tag in ['outdoors', 'landscape']:
             web_library_shortcuts.w_library_shortcuts(self.contract,
                 dict(action='favorite', scope='online', kind='tag', tag_id=tag, name='客户端名称', on=True))
-        self.execute('rename', ['outdoors'], name='户外')
+        self.execute('rename', ['outdoors'], name='Outdoor')
         self.execute('merge', ['outdoors', 'landscape'], target_id='outdoors')
         favorites = web_library_shortcuts.q_library_shortcuts(self.contract)['favorites']
         self.assertEqual(len(favorites), 2)
-        self.assertEqual([row['name'] for row in favorites], ['户外', '户外'])
+        self.assertEqual([row['name'] for row in favorites], ['Outdoor', 'Outdoor'])
         self.assertEqual(len(favorite_entities(self.c)), 1)
         online = next(row for row in favorites if row.get('scope') == 'online')
         self.assertEqual(online['tag_id'], 'outdoors')

@@ -217,7 +217,7 @@ class ProbeProcessTests(unittest.TestCase):
                     mock.patch.object(media_probe, 'resolve_case_insensitive', return_value='sample.mp4'):
                 result = media_probe.measure('ffprobe', 1, 'sample.mp4')
             self.assertEqual(result[1:3], (width, 1280))
-            self.assertEqual(result[7], '横屏' if width > 1280 else '竖屏')
+            self.assertEqual(result[7], 'Landscape' if width > 1280 else 'Portrait')
             self.assertEqual(result[8], '2K' if width > 1280 else '720P')
 
     def test_probe_reads_metadata_with_a_hidden_windows_process(self):

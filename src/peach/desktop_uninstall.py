@@ -70,7 +70,7 @@ def snapshot(config) -> dict:
         return result
     try:
         if not distribution.standalone():
-            raise ValueError("源码安装请先关闭开机自启并退出托盘，再手动移除项目与数据目录")
+            raise ValueError("For a source install, turn off start-at-sign-in and quit the tray first, then remove the project and data directory manually")
         plan(config, delete_data=False)
         result.update(available=True, message="")
         try:

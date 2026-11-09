@@ -925,7 +925,7 @@ def follow_avatar(request: Request, service: str = "", id: str = "",
                     failures.append(str(error))
                     continue
                 except OSError:
-                    failures.append("头像来源暂不可用")
+                    failures.append("Avatar source temporarily unavailable")
                     continue
             return follow_assets.largest_image(client, tier_lists)
     else:
@@ -945,7 +945,7 @@ def follow_avatar(request: Request, service: str = "", id: str = "",
     path = follow_assets.cached_image(_asset_root(state), "avatars", key,
                                       AVATAR_REFRESH_SECONDS, fetch)
     if path is None and service == "profile":
-        reason = "；".join(failures) or "社媒头像未取得，来源暂不可用或仍在重试等待中"
+        reason = "；".join(failures) or "Social avatar not obtained; the source is temporarily unavailable or still waiting to retry"
         return JSONResponse({"error": reason}, status_code=404,
                             headers={"cache-control": "no-store"})
     return _asset_response(request, path, placeholder=False)

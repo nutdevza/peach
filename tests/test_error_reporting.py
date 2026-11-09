@@ -949,7 +949,7 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertNotIn('private-result-token', str(result))
 
     def test_export_keeps_safe_source_health_without_source_response_content(self):
-        source = {'source': 'javdb', 'status': 'warning', 'reason': '来源正在冷却',
+        source = {'source': 'javdb', 'status': 'warning', 'reason': 'The source is cooling down',
                   'cooldown_until': '2026-10-18T01:00:00Z', 'raw': 'private-source-response',
                   'url': 'https://private.example/?token=private-token'}
         with zipfile.ZipFile(io.BytesIO(support_bundle.bundle_bytes(report={'sources': [source]}))) as archive:
@@ -1398,11 +1398,11 @@ class DiagnosticExportJobTests(unittest.TestCase):
         started, release = threading.Event(), threading.Event()
         def generate(config, destination, **options):
             Path(destination).write_bytes(b'partial')
-            options['progress'](stage='整理来源快照', done=1, total=3)
+            options['progress'](stage='Tidy source snapshots', done=1, total=3)
             started.set()
             release.wait(5)
             if options['cancelled']():
-                raise scraping_diagnostics.ExportCancelled('导出已取消')
+                raise scraping_diagnostics.ExportCancelled('Export cancelled')
         with mock.patch.object(scraping_diagnostics, 'bundle_to', side_effect=generate):
             first = self.exports.start('scraping', 'ABC-123')
             try:

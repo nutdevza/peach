@@ -120,7 +120,7 @@ class MetadataProviderTests(unittest.TestCase):
         self.assertEqual(fields["studio"]["value"], "Studio")
         self.assertEqual(fields["release_date"]["value"], "2020-09-13")
         self.assertIn("已规范化", fields["release_date"]["warnings"][0])
-        self.assertEqual(fields["tags"]["value"], ["屁眼"])
+        self.assertEqual(fields["tags"]["value"], ["Butthole"])
 
     def test_performer_profile_names_are_aliases_not_separate_people(self):
         fields = extract_peach_fields({"actresses": [{

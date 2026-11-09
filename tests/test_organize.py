@@ -19,8 +19,8 @@ ROOT_DECLARATION = "R:\\media"
 DECLARED = {"local": (ROOT_DECLARATION,)}
 
 VALUES = {
-    "code": "ABC-123", "title": "标题", "studio": "厂牌", "series": "系列",
-    "year": "2024", "actors": "甲、乙", "cd": "2", "mosaic": "无码",
+    "code": "ABC-123", "title": "Title", "studio": "Studio", "series": "Series",
+    "year": "2024", "actors": "A, B", "cd": "2", "mosaic": "Uncensored",
     "definition": "1080p",
 }
 
@@ -29,11 +29,11 @@ class TemplateRenderTests(unittest.TestCase):
     CASES = [
         # (模板, 取值覆盖, 期望)
         ("{code}", {}, "ABC-123"),
-        ("{code}[ {title}]", {}, "ABC-123 标题"),
+        ("{code}[ {title}]", {}, "ABC-123 Title"),
         ("{number}", {}, "ABC-123"),
-        ("{number} {title}", {}, "ABC-123 标题"),
+        ("{number} {title}", {}, "ABC-123 Title"),
         ("{number}[ {title}]", {"title": ""}, "ABC-123"),
-        ("{number}[ {title}]", {}, "ABC-123 标题"),
+        ("{number}[ {title}]", {}, "ABC-123 Title"),
         ("{number}[ CD{cd}]", {"cd": ""}, "ABC-123"),
         ("{number}[ CD{cd}]", {}, "ABC-123 CD2"),
         ("[{mosaic} ]{number}", {"mosaic": ""}, "ABC-123"),
@@ -185,8 +185,8 @@ class PlanTests(unittest.TestCase):
     def test_rename_in_place_and_move_into_template_directory(self):
         _seed(self.db_path, [
             {"id": 1, "path": "R:\\media\\旧\\[site.com]abc123.mp4",
-             "name": "[site.com]abc123.mp4", "code": "ABC-123", "title": "标题",
-             "studio": "厂牌"},
+             "name": "[site.com]abc123.mp4", "code": "ABC-123", "title": "Title",
+             "studio": "Studio"},
         ])
         plan = _plan(self.db_path, file_template="{number}[ {title}]")
         self.assertEqual(plan["counts"]["change"], 1)
@@ -210,13 +210,13 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(_plan(self.db_path, file_template='{number}', path='')['counts']['total'], 3)
 
     def test_scope_rejects_relative_outside_and_parent_paths(self):
-        for path in ('合集', r'S:\media', r'R:\media2', r'R:\media\..\other'):
+        for path in ('Collection', r'S:\media', r'R:\media2', r'R:\media\..\other'):
             with self.subTest(path=path), self.assertRaisesRegex(organize.OrganizeError, '整理路径'):
                 _plan(self.db_path, file_template='{number}', path=path)
 
     def test_directory_template_uses_scope_as_base_and_checks_outside_scope_collisions(self):
         _seed(self.db_path, [
-            {'id': 1, 'path': r'R:\media\合集\旧\a.mp4', 'name': 'a.mp4', 'code': 'ABC-001', 'studio': '厂牌'},
+            {'id': 1, 'path': r'R:\media\合集\旧\a.mp4', 'name': 'a.mp4', 'code': 'ABC-001', 'studio': 'Studio'},
             {'id': 2, 'path': r'R:\media\合集\厂牌\ABC-001.mp4', 'name': 'ABC-001.mp4', 'code': 'ABC-001'},
         ])
         plan = _plan(self.db_path, file_template='{number}', dir_template='{studio}', path=r'R:\media\合集', asset_ids=[1])
@@ -228,7 +228,7 @@ class PlanTests(unittest.TestCase):
         mount = self.holder / 'mounted'
         mount.mkdir()
         with mock.patch.object(organize, 'location_mounts', return_value={'local': (mount,)}):
-            self.assertEqual(organize.scope_path('local', str(mount / '合集'), DECLARED), r'R:\media\合集')
+            self.assertEqual(organize.scope_path('local', str(mount / 'Collection'), DECLARED), r'R:\media\合集')
 
     def test_filename_cleanup_needs_no_template_or_metadata(self):
         _seed(self.db_path, [{'id': 1, 'path': r'R:\media\★标题⧹⧹片段.mp4',
@@ -353,12 +353,12 @@ class ApplyTests(unittest.TestCase):
         self._file("旧/abc123.mp4")
         _seed(self.db_path, [
             {"id": 1, "path": "R:\\media\\旧\\abc123.mp4", "name": "abc123.mp4",
-             "code": "ABC-123", "studio": "厂牌"},
+             "code": "ABC-123", "studio": "Studio"},
         ])
         plan = _plan(self.db_path, file_template="{number}", dir_template="{studio}")
         result = self._apply(plan)
         self.assertEqual((result["moved"], result["failed"]), (1, 0))
-        self.assertTrue((self.media / "厂牌" / "ABC-123.mp4").is_file())
+        self.assertTrue((self.media / "Studio" / "ABC-123.mp4").is_file())
         self.assertFalse((self.media / "旧" / "abc123.mp4").exists())
         with closing(sqlite3.connect(self.db_path)) as connection:
             row = connection.execute("SELECT path,name FROM asset WHERE id=1").fetchone()
@@ -425,7 +425,7 @@ class ApplyTests(unittest.TestCase):
         self._file("旧/abc123.mp4")
         _seed(self.db_path, [
             {"id": 1, "path": "R:\\media\\旧\\abc123.mp4", "name": "abc123.mp4",
-             "code": "ABC-123", "studio": "厂牌"},
+             "code": "ABC-123", "studio": "Studio"},
         ])
         self._apply(_plan(self.db_path, file_template="{number}", dir_template="{studio}"))
         batch = organize.latest_batch(self.holder)
@@ -527,7 +527,7 @@ class EndpointTests(unittest.TestCase):
         self.db_path = fresh_ledger(self.holder)
         _seed(self.db_path, [
             {"id": 1, "path": "R:\\media\\旧\\abc123.mp4", "name": "abc123.mp4",
-             "code": "ABC-123", "title": "标题"},
+             "code": "ABC-123", "title": "Title"},
         ])
         self.contract = WebContract(self.db_path, candidate_root=self.holder)
         for target, value in (("location_roots", lambda: DECLARED),

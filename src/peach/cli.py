@@ -301,7 +301,7 @@ def _status(args: argparse.Namespace) -> int:
 
         print("\n  情境层：")
         for column, label in (("ctx_length", "时长档"), ("ctx_orient", "屏向"),
-                              ("ctx_quality", "画质")):
+                              ("ctx_quality", "Quality")):
             rows = connection.execute(
                 f"SELECT {column},COUNT(*) FROM asset WHERE {column} IS NOT NULL "
                 "GROUP BY 1 ORDER BY 2 DESC").fetchall()
@@ -542,7 +542,7 @@ def _processing_line(state: dict) -> str:
     """一行进度，口径同页面的 `processingLine`：总量已知写完成数，扫描目录时写已发现的文件数。"""
     if state.get('total'):
         return f"{state['stage']}：{state.get('checked', 0)}/{state['total']}"
-    if state.get('current_action') == 'scanning_files' or state.get('stage') == '扫描文件':
+    if state.get('current_action') == 'scanning_files' or state.get('stage') == 'Scan files':
         return f"{state['stage']}：已发现 {state.get('scanned', 0):,} 个文件"
     return str(state['stage'])
 

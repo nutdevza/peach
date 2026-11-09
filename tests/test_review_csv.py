@@ -24,7 +24,7 @@ class ReviewCsvTests(unittest.TestCase):
     def test_written_file_carries_the_bom_excel_needs(self):
         """没有 BOM，一份中文复核表在 Excel 里就是一屏问号。"""
         target = self.root / "out.csv"
-        write_rows(target, FIELDS, [{"code": "ABW-232", "name": "白虎"}])
+        write_rows(target, FIELDS, [{"code": "ABW-232", "name": "Shaved"}])
         self.assertTrue(target.read_bytes().startswith(b"\xef\xbb\xbf"), "缺少 UTF-8 BOM")
         self.assertEqual(ENCODING, "utf-8-sig")
 
@@ -44,7 +44,7 @@ class ReviewCsvTests(unittest.TestCase):
 
     def test_round_trip_through_the_shared_reader(self):
         target = self.root / "out.csv"
-        rows = [{"code": "ABW-232", "name": "白虎"}, {"code": "FC2-PPV-1", "name": "レキシントンⅡ"}]
+        rows = [{"code": "ABW-232", "name": "Shaved"}, {"code": "FC2-PPV-1", "name": "レキシントンⅡ"}]
         write_rows(target, FIELDS, rows)
         self.assertEqual(read_rows(target), rows)
 

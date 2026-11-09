@@ -28,8 +28,8 @@ def mapping(table: dict[str, str]) -> types.SimpleNamespace:
 
 
 #: 改动之前：`巨尻` 并进美臀，`可愛い` 并进高颜值。
-BEFORE = mapping({"巨尻": "美臀", "美尻": "美臀", "可愛い": "高颜值", "美少女": "高颜值",
-                  "中出し": "中出内射"})
+BEFORE = mapping({"巨尻": "Nice butt", "美尻": "Nice butt", "可愛い": "Gorgeous", "美少女": "Gorgeous",
+                  "中出し": "Creampie"})
 
 
 class ReprojectTests(unittest.TestCase):
@@ -76,87 +76,87 @@ class ReprojectTests(unittest.TestCase):
 
     def test_fill_adds_what_the_snapshot_maps_to_now(self):
         """NHDTB-455：批准时的映射认不得 `Hard Sex`、`Big Asses`、`Anal Sex`，账本只剩潮吹。"""
-        self.land(7, "NHDTB-455", ["Hard Sex", "Big Asses", "Squirting", "Anal Sex", "Hi-Def"], ["潮吹"])
+        self.land(7, "NHDTB-455", ["Hard Sex", "Big Asses", "Squirting", "Anal Sex", "Hi-Def"], ["Squirting"])
         self.fill()
-        self.assertEqual(self.tags_of(7), ["巨臀", "潮吹", "肛交", "调教"])
-        self.assertTrue(self.sources_of(7)["巨臀"].startswith("auto:metadata-tags@"))
-        self.assertEqual(self.sources_of(7)["潮吹"], "javinizer:javbus:tag")
+        self.assertEqual(self.tags_of(7), ["Big ass", "Squirting", "Anal", "Training"])
+        self.assertTrue(self.sources_of(7)["Big ass"].startswith("auto:metadata-tags@"))
+        self.assertEqual(self.sources_of(7)["Squirting"], "javinizer:javbus:tag")
 
     def test_fill_never_removes_and_never_duplicates_another_source(self):
-        self.land(8, "ABC-008", ["巨尻", "中出し"], ["自慰"])
+        self.land(8, "ABC-008", ["巨尻", "中出し"], ["Masturbation"])
         self.connection.execute(
             "INSERT INTO asset_tag(asset_id,tag,confidence,source) VALUES(8,'中出内射',1.0,'web-user')")
         self.connection.commit()
         self.fill()
-        self.assertEqual(self.tags_of(8), ["中出内射", "巨臀", "自慰"])
-        self.assertEqual(self.sources_of(8)["中出内射"], "web-user")
+        self.assertEqual(self.tags_of(8), ["Creampie", "Big ass", "Masturbation"])
+        self.assertEqual(self.sources_of(8)["Creampie"], "web-user")
 
     def test_a_hidden_tag_is_not_brought_back(self):
         """页面删标签只记隐藏、行还在，补齐按行看，不会把它补回来再显示。"""
-        self.land(9, "ABC-009", ["巨尻", "中出し"], ["中出内射"])
+        self.land(9, "ABC-009", ["巨尻", "中出し"], ["Creampie"])
         self.connection.execute(
             "INSERT INTO asset_tag_preference(profile_id,asset_id,normalized_tag,hidden,updated_at) "
             "VALUES('local-default',9,'中出内射',1,'2026-09-02T00:00:00Z')")
         self.connection.commit()
         self.fill()
-        self.assertEqual(self.tags_of(9), ["中出内射", "巨臀"])
+        self.assertEqual(self.tags_of(9), ["Creampie", "Big ass"])
         self.assertEqual(self.connection.execute(
             "SELECT hidden FROM asset_tag_preference WHERE asset_id=9").fetchone()[0], 1)
 
     def test_tags_landed_by_union_survive_a_reprojection(self):
         """按差写只动这一组来源下的那几行，这部片已有的并集补标签原样留着。"""
-        self.land(10, "ABC-010", ["可愛い", "中出し"], ["高颜值", "中出内射"])
+        self.land(10, "ABC-010", ["可愛い", "中出し"], ["Gorgeous", "Creampie"])
         self.connection.execute(
             "INSERT INTO asset_tag(asset_id,tag,confidence,source) "
             "VALUES(10,'单体作品',0.9,'auto:metadata-tags@20260910T000000')")
         self.connection.commit()
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(10), ["中出内射", "单体作品", "可爱"])
+        self.assertEqual(self.tags_of(10), ["Creampie", "单体作品", "Cute"])
 
     def test_an_old_mapping_without_decisions_still_reads(self):
-        legacy = types.SimpleNamespace(map_genres=lambda genres: (["美臀"], []))
-        self.assertEqual(reproject.mapped_by(legacy, ["巨尻"], {}), ["美臀"])
+        legacy = types.SimpleNamespace(map_genres=lambda genres: (["Nice butt"], []))
+        self.assertEqual(reproject.mapped_by(legacy, ["巨尻"], {}), ["Nice butt"])
 
     def test_a_split_word_moves_to_its_own_tag(self):
-        self.land(1, "ABC-001", ["可愛い", "中出し"], ["高颜值", "中出内射"])
+        self.land(1, "ABC-001", ["可愛い", "中出し"], ["Gorgeous", "Creampie"])
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(1), ["中出内射", "可爱"])
+        self.assertEqual(self.tags_of(1), ["Creampie", "Cute"])
 
     def test_a_tag_another_word_still_backs_stays(self):
         """`巨尻` 与 `美尻` 都在时「美臀」有 `美尻` 撑着，只加上「巨臀」。"""
-        self.land(2, "ABC-002", ["巨尻", "美尻", "美少女", "可愛い"], ["美臀", "高颜值"])
+        self.land(2, "ABC-002", ["巨尻", "美尻", "美少女", "可愛い"], ["Nice butt", "Gorgeous"])
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(2), ["可爱", "巨臀", "美臀", "高颜值"])
+        self.assertEqual(self.tags_of(2), ["Cute", "Big ass", "Nice butt", "Gorgeous"])
 
     def test_drift_unrelated_to_the_mapping_change_is_left_alone(self):
         """账本和快照早就对不上的地方不是这次改动造成的，不借机改。"""
-        self.land(3, "ABC-003", ["中出し", "可愛い"], ["高颜值", "自慰"])
+        self.land(3, "ABC-003", ["中出し", "可愛い"], ["Gorgeous", "Masturbation"])
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(3), ["可爱", "自慰"])
+        self.assertEqual(self.tags_of(3), ["Cute", "Masturbation"])
 
     def test_a_group_the_change_does_not_touch_is_not_rewritten(self):
-        self.land(4, "ABC-004", ["中出し"], ["中出内射"])
+        self.land(4, "ABC-004", ["中出し"], ["Creampie"])
         rows = [reproject.judge(group, BEFORE, {})
                 for group in reproject.ledger_groups(self.connection)]
         self.assertEqual([row["status"] for row in rows], [reproject.SAME])
 
     def test_a_missing_snapshot_is_reported_not_guessed(self):
-        self.land(5, "ABC-005", ["可愛い"], ["高颜值"])
+        self.land(5, "ABC-005", ["可愛い"], ["Gorgeous"])
         (self.root / "ABC-005.json").unlink()
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(5), ["高颜值"])
+        self.assertEqual(self.tags_of(5), ["Gorgeous"])
         self.assertIn(reproject.NO_SNAPSHOT,
                       (self.root / "reproject.csv").read_text(encoding="utf-8-sig"))
 
     def test_a_preview_leaves_the_ledger_alone(self):
-        self.land(6, "ABC-006", ["可愛い"], ["高颜值"])
+        self.land(6, "ABC-006", ["可愛い"], ["Gorgeous"])
         self.run_script()
-        self.assertEqual(self.tags_of(6), ["高颜值"])
+        self.assertEqual(self.tags_of(6), ["Gorgeous"])
 
     def test_the_old_mapping_is_read_from_git(self):
         module = reproject.taxonomy_at("HEAD")
         self.assertTrue(callable(module.map_genres))
-        self.assertEqual(module.map_genres(['护士', '4小时以上作品']), (['护士'], []))
+        self.assertEqual(module.map_genres(['Nurse', '4小时以上作品']), (['Nurse'], []))
 
 
 if __name__ == "__main__":

@@ -1593,7 +1593,7 @@ class FeedFollowByNameTest(FeedFollowByNameFixture):
     def test_cards_held_by_two_different_people_are_refused_by_name(self):
         self._performer("甲", ["Kn01"])
         self._performer("乙", ["Kn02"])
-        with self.assertRaisesRegex(ValueError, "甲、乙"):
+        with self.assertRaisesRegex(ValueError, "A, B"):
             self._follow(["Kn01", "Kn02"])
         self.assertEqual(self._sources(), [])
 
@@ -1736,13 +1736,13 @@ class JavDiscoveryTest(FeedWebFixture):
         for code, score in zip(codes, (None, "4.23")):
             metadata.remember(code, {"number": code, "tags": [{"name": "中出"}], "score": score, "duration": 180})
         with patch.object(web_jav_discovery, "preference_profile", return_value=self._preference_fixture(
-                {"browser_tags": [{"name": "中出内射", "score": 4}]})), \
+                {"browser_tags": [{"name": "Creampie", "score": 4}]})), \
                 patch("peach.javdb_public.PUBLIC_API.movie") as movie:
             result = web_jav_discovery.q_jav_discoveries(self.contract, {"sort": "source_score"})
         movie.assert_not_called()
         self.assertIsNone(metadata.job.thread, "GET 只读，不起外网任务")
         self.assertEqual([row["source_score"] for row in result["items"]], [4.23, None])
-        self.assertTrue(all(row["tags"] == ["中出内射"] for row in result["items"]))
+        self.assertTrue(all(row["tags"] == ["Creampie"] for row in result["items"]))
         self.assertTrue(all(row["duration"] == 10800 for row in result["items"]))
         self.assertEqual(result["ranking_method"], "field-sort")
         self.assertEqual([row["rank"] for row in result["items"]], [1, 2])
@@ -1804,7 +1804,7 @@ class JavDiscoveryTest(FeedWebFixture):
         movies = {"SSIS-950": {"actors": [{"name": "女优甲"}], "tags": [{"name": "中出"}], "maker_name": "厂牌甲",
                                "score": "3.5", "duration": 120},
                   "HMN-071": {"actors": [{"name": "女优乙"}], "tags": [], "maker_name": "厂牌乙", "score": "4.5"},
-                  "OWN-001": {"actors": [{"name": "馆藏女优"}], "tags": [{"name": "巨乳"}], "maker_name": "馆藏厂牌"}}
+                  "OWN-001": {"actors": [{"name": "馆藏女优"}], "tags": [{"name": "Big Breasts"}], "maker_name": "馆藏厂牌"}}
 
         reads = []
 
@@ -1823,7 +1823,7 @@ class JavDiscoveryTest(FeedWebFixture):
         self.assertEqual(([row["code"] for row in every["items"]], every["total"]), (["SSIS-950", "HMN-071"], 2))
         self.assertEqual([(ref["name"], ref["count"]) for ref in every["facets"]["performers"]], [("女优乙", 1), ("女优甲", 1)])
         self.assertEqual([ref["name"] for ref in every["facets"]["studios"]], ["厂牌乙", "厂牌甲"])
-        self.assertEqual(every["facets"]["tags"], [{"name": "中出内射", "count": 1}])
+        self.assertEqual(every["facets"]["tags"], [{"name": "Creampie", "count": 1}])
         one = releases(performer="女优乙")
         self.assertEqual([row["code"] for row in one["items"]], ["HMN-071"])
         self.assertEqual(len(one["facets"]["performers"]), 2, "本维度不计，另一位女优照样能点")
@@ -1896,12 +1896,12 @@ class JavDiscoveryTest(FeedWebFixture):
     def test_external_discovery_projects_obtained_metadata_and_canonical_tags(self):
         self._add()
         self._check()
-        rankings = {"browser_tags": [{"name": "恋足", "score": 4}],
+        rankings = {"browser_tags": [{"name": "Foot fetish", "score": 4}],
                     "peach_series": [{"name": "示例系列", "score": 2}]}
         self.assertEqual(self._discover(rankings=rankings)["items"], [])
-        rows = self._discover(rankings=rankings, metadata={"tags": [{"name": "恋足"}], "series_name": "示例系列"})["items"]
+        rows = self._discover(rankings=rankings, metadata={"tags": [{"name": "Foot fetish"}], "series_name": "示例系列"})["items"]
         self.assertEqual(len(rows), 2)
-        self.assertEqual(rows[0]["tags"], ["恋足"])
+        self.assertEqual(rows[0]["tags"], ["Foot fetish"])
         self.assertEqual(rows[0]["reasons"], ["标签偏好：恋足（浏览记录）", "系列偏好：示例系列（观看与反馈）"])
 
     def test_library_exploration_excludes_completed_disliked_and_frequently_watched(self):
@@ -1916,9 +1916,9 @@ class JavDiscoveryTest(FeedWebFixture):
                     " VALUES(?,'local',?,'示例作品','video',?,'示例厂牌',100,?,?,?,?)",
                     (aid, f"R:\\media\\SSIS-{aid:03d}.mp4", f"SSIS-{aid:03d}", plays, reached, feedback, disposal))
                 connection.execute("INSERT INTO asset_entity(asset_id,entity_id,role,source) VALUES(?,?,'tag','test')", (aid, entity_id))
-        result = self._discover("library", {"peach_tags": [{"name": "恋足", "entity_id": entity_id, "score": 4}]})
+        result = self._discover("library", {"peach_tags": [{"name": "Foot fetish", "entity_id": entity_id, "score": 4}]})
         self.assertEqual({row["asset_id"] for row in result["items"]}, {1, 2})
-        self.assertTrue(all(row["tags"] == ["恋足"] for row in result["items"]))
+        self.assertTrue(all(row["tags"] == ["Foot fetish"] for row in result["items"]))
         self.assertTrue(all(row["reasons"] == ["标签偏好：恋足（观看与反馈）"] for row in result["items"]))
 
 

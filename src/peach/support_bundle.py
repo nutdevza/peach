@@ -242,7 +242,7 @@ def _archive_scraping(archive, config, entries, *, progress, cancelled, include_
                         with details.open(item) as source, archive.open('scraping/' + item.filename, 'w', force_zip64=True) as target:
                             while chunk := source.read(256 * 1024):
                                 if cancelled():
-                                    raise ExportCancelled('导出已取消')
+                                    raise ExportCancelled('Export cancelled')
                                 target.write(chunk)
                 index['detail'] = '详细刮削记录已包含在 scraping/ 目录'
             else:
@@ -308,8 +308,8 @@ def bundle_to(destination, *, report: dict | None = None, config=None, browser: 
         for index, directory in enumerate(dict.fromkeys(directories)):
             if cancelled():
                 from .scraping_diagnostics import ExportCancelled
-                raise ExportCancelled('导出已取消')
-            progress(stage='整理诊断日志', done=index, total=len(directories))
+                raise ExportCancelled('Export cancelled')
+            progress(stage='Tidy diagnostic logs', done=index, total=len(directories))
             try:
                 candidates = _log_candidates(directory, entries)
                 _archive_files(archive, directory, candidates, f'logs/{index}', entries)

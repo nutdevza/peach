@@ -130,7 +130,7 @@ class CreatorAttributionTests(unittest.TestCase):
         self.assertNotEqual(found,artist_id)
 
     def test_content_month_quality_and_repost_directories_are_not_accounts(self):
-        names = ['zj','11月','AI修复','黑丝','美腿足交','7sht.me','98T.la202202092146']
+        names = ['zj','11月','AI restoration','Black stockings','美腿足交','7sht.me','98T.la202202092146']
         for name in names:
             asset_id, _ = self.asset(name)
             self.assertIsNone(upsert_asset_entity(self.connection,kind='creator',name=name,
@@ -156,7 +156,7 @@ class CreatorAttributionTests(unittest.TestCase):
                      'someone V12 80GB', 'someone(2)', 'someone 去重版 4K', 'someone 120GB', 'someone 1080p'):
             with self.subTest(name=name):
                 self.assertEqual(creator_collection_base(name), 'someone')
-        for name in ('someone 2509', 'someone', 'v12', '合集'):
+        for name in ('someone 2509', 'someone', 'v12', 'Collection'):
             with self.subTest(name=name):
                 self.assertEqual(creator_collection_base(name), name)
 

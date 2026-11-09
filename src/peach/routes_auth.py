@@ -323,7 +323,7 @@ def set_auth_cookie(response: Response, request: Request, *, days: int = 30, log
 
 
 #: Docker 首次设置或访问设置的来源不满足时给的那句话；页面上的同一句写在页面包里。
-FIRST_ACCESS_DENIED = "请从部署 Peach 的机器或同一局域网打开 Peach 完成设置，或在启动容器时设置 PEACH_ACCESS_PASSWORD。"
+FIRST_ACCESS_DENIED = "Open Peach from the machine that hosts it or from the same LAN to finish setup, or set PEACH_ACCESS_PASSWORD when the container starts."
 
 
 def login_mode(request: Request) -> str:

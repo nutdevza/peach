@@ -58,6 +58,6 @@ class JavBusSource(SiteSource):
             title=clean(heading.group(1)).removeprefix(shown).strip() if heading else "",
             performers=tuple({"japanese_name": clean(name)} for name in _ACTRESS.findall(text)),
             studio=fields.get("製作商", ""), label=fields.get("發行商", ""),
-            series=fields.get("系列", ""), director=fields.get("導演", ""),
+            series=fields.get("Series", ""), director=fields.get("導演", ""),
             release_date=fields.get("發行日期", ""), runtime=int(runtime.group()) if runtime else None,
             cover_urls=(urllib.parse.urljoin(self.config.base_url, cover.group(1)),) if cover else ())

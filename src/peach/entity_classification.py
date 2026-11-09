@@ -9,13 +9,13 @@ from .entry_links import EXTERNAL_KIND, JAV_DIRECTORIES
 VALUES = {
     'identity': {'person':'个人', 'account':'发布账号', 'organization':'机构',
                  'platform':'平台', 'collection':'合集目录', 'release':'作品标识', 'unknown':'身份待核验'},
-    'occupation': {'adult_performer':'成人出演者', 'amateur_performer':'非职业出演者', 'model':'模特', 'actor':'演员',
-                   'artist':'艺术创作者', 'animator':'动画作者', 'content_creator':'内容创作者'},
+    'occupation': {'adult_performer':'成人出演者', 'amateur_performer':'非职业出演者', 'model':'Model', 'actor':'演员',
+                   'artist':'艺术创作者', 'animator':'Animator', 'content_creator':'内容创作者'},
     'market': {'japanese_av':'日本 AV', 'western_adult':'西方成人发行'},
-    'account_role': {'seller':'卖家', 'publisher':'发布者', 'studio':'发行厂牌'},
+    'account_role': {'seller':'Seller', 'publisher':'发布者', 'studio':'发行厂牌'},
 }
-CATEGORIES = {'japanese_av': '女优', 'amateur': '素人', 'western': '西方',
-              'blogger': '网黄博主', 'seller': '卖家', 'animation': '动画作者'}
+CATEGORIES = {'japanese_av': 'JAV', 'amateur': 'Amateur', 'western': 'Western',
+              'blogger': 'Creator', 'seller': 'Seller', 'animation': 'Animator'}
 #: observed 只属于代码判据（ADR-0052 决策一）：`source:` 是抓取器从来源页解析出的事实，
 #: `script:fc2-seller@` 由 FC2 作品页快照的卖家字段解析，`script:creator-identity-wiki@` 由查创作者
 #: 身份后继按页名直取资料站、按作品表结构判定（ADR-0098）。研究与检索结论只写 candidate。

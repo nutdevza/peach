@@ -159,7 +159,7 @@ def is_pausing(db: Path) -> bool:
 def check_pause(db: Path | None) -> None:
     if db is not None and is_pausing(db):
         from .jobs import JobPaused
-        raise JobPaused('任务已暂停，安装完成后自动继续。')
+        raise JobPaused('The task is paused and resumes after the install.')
 
 
 def running(db: Path, *, own_files=(), own_runs=(), task_rows: bool = True) -> list[str]:

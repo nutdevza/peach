@@ -495,7 +495,7 @@ class TasteHistoryTests(unittest.TestCase):
         self.assertIn("big_breasts", browser_tags)
         self.assertTrue({"ai", "generated", "ai_generated", "gay"}.isdisjoint(browser_tags))
         categories = {row["name"] for row in dashboard["rankings"]["categories"]}
-        self.assertIn("游戏同人", categories)
+        self.assertIn("Game doujin", categories)
         self.assertIn("乳系", categories)
         self.assertNotIn("中片-10分内", json.dumps(dashboard, ensure_ascii=False))
         self.assertNotIn("negative_tags", dashboard["rankings"])
@@ -505,7 +505,7 @@ class TasteHistoryTests(unittest.TestCase):
         self.assertEqual(analysis["confidence"]["level"], "early")
         self.assertTrue(any("足系" in row["text"] for row in analysis["points"]))
         explore_tags = {row["tag"] for row in analysis["explore"]}
-        self.assertTrue({"游戏同人", "恋足"}.issubset(explore_tags))
+        self.assertTrue({"Game doujin", "Foot fetish"}.issubset(explore_tags))
         self.assertTrue(all(row["items"] > 0 for row in analysis["explore"]))
         self.assertIn("不合口味", analysis["next_steps"][-1]["detail"])
 

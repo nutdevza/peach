@@ -508,7 +508,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         """提交一份填错的答卷，返回按题目 key 收集的 errors。"""
         response = self._send("POST", self.SUBMIT, json=body, **kwargs)
         self.assertEqual(response.status_code, 400, response.text)
-        self.assertEqual(response.json()["error"], "有几项需要修改")
+        self.assertEqual(response.json()["error"], "A few fields need your attention")
         self.assertFalse((self.data_root / "config.toml").exists(), "校验失败不写设置")
         return response.json()["errors"]
 
@@ -628,7 +628,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         missing = self.root / "nope"
         errors = self._errors(self._body(media_dir=self._rows(missing), port="0"))
         self.assertIn("目录不存在", errors["media_dir"][0])
-        self.assertIn("端口要是 1 到 65535 之间的整数", errors["port"])
+        self.assertIn("The port must be a whole number between 1 and 65535", errors["port"])
         self.assertFalse(missing.exists(), "校验不替人建目录")
         self.assertFalse(self.data_root.exists(), "校验失败不落任何文件")
 
@@ -741,7 +741,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         self.assertEqual([item["key"] for item in questions], [question.key for question in asked])
         self.assertEqual([item["default"] for item in questions],
                          ["" if question.key == "media_dir" else question.default for question in asked])
-        self.assertEqual([item["label"] for item in questions], ["数据目录", "媒体目录", "谁可以访问", "端口", "局域网访问地址"])
+        self.assertEqual([item["label"] for item in questions], ["Data directory", "媒体目录", "谁可以访问", "端口", "局域网访问地址"])
         by_key = {item["key"]: item for item in questions}
         self.assertEqual([key for key, item in by_key.items() if not item["required"]], ["host"])
         self.assertEqual([key for key, item in by_key.items() if not item["advanced"]], ["data_root", "media_dir", "host"])
@@ -763,7 +763,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         else:
             self.assertIsNone(data["media_root"])
             self.assertEqual(by_key["media_dir"]["help"][-1],
-                             "填写这台设备实际读取媒体的文件夹；Docker 部署填写容器内目录，例如 /media。")
+                             "Enter the folder this machine actually reads media from; for a Docker deployment, enter the in-container directory, for example /media.")
         self.assertEqual(data["cloud"]["link"]["url"], "https://www.clouddrive2.com/help.html")
         # 默认对局域网开放，所以访问密码开关第一次出现就开着；扫描默认勾上，导入历史默认不勾。
         self.assertEqual((data["access_enabled"], data["scan_now"], data["history_guide"]), (True, True, False))
@@ -861,7 +861,7 @@ class SetupJsonContractTests(_SetupHttpCase):
                 self.assertEqual(response.json(), {"error": message}, "/api/ 下一律回 JSON")
         with self.subTest("独立包的非回环主机名"), mock.patch.object(distribution, "standalone", return_value=True):
             response = self._send("GET", self.QUESTIONS, base_url="http://peach.local:8900")
-            self.assertEqual((response.status_code, response.json()), (403, {"error": "请使用本机地址打开设置"}))
+            self.assertEqual((response.status_code, response.json()), (403, {"error": "Open setup from an address on this machine"}))
         with self.subTest("读题不看 Origin"):
             response = self._send("GET", self.QUESTIONS, headers={"Origin": "http://elsewhere.example"})
             self.assertEqual(response.status_code, 200)
@@ -870,7 +870,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         cases = (
             ("已配置", {"configured": True}, 404, "not found"),
             ("非回环调用方", {"client": ("198.51.100.7", 51000)}, 403, "setup is loopback-only"),
-            ("别的页面发来", {"headers": {"Origin": "http://elsewhere.example"}}, 403, "请从 Peach 设置页提交"),
+            ("别的页面发来", {"headers": {"Origin": "http://elsewhere.example"}}, 403, "Submit from Peach's setup page"),
         )
         for name, kwargs, status, message in cases:
             with self.subTest(name):
@@ -878,11 +878,11 @@ class SetupJsonContractTests(_SetupHttpCase):
                 self.assertEqual((response.status_code, response.json()), (status, {"error": message}))
         with self.subTest("独立包的非回环主机名"), mock.patch.object(distribution, "standalone", return_value=True):
             response = self._send("POST", self.SUBMIT, json=self._body(), base_url="http://peach.local:8900")
-            self.assertEqual((response.status_code, response.json()), (403, {"error": "请使用本机地址打开设置"}))
+            self.assertEqual((response.status_code, response.json()), (403, {"error": "Open setup from an address on this machine"}))
         self.assertFalse(self.data_root.exists(), "被守卫挡下的提交不落任何文件")
         with self.subTest("不是 JSON 对象"):
             response = self._send("POST", self.SUBMIT, json=["not", "an", "object"])
-            self.assertEqual((response.status_code, response.json()), (400, {"error": "请求正文要是 JSON 对象"}))
+            self.assertEqual((response.status_code, response.json()), (400, {"error": "The request body must be a JSON object"}))
 
     def test_the_submission_trusts_the_browser_asserted_origin_over_the_origin_header(self):
         """本机代理改写 Host、浏览器发 `Origin: null` 时，以浏览器自己标的 Sec-Fetch-Site 为准。"""
@@ -893,7 +893,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         for name, headers in refused:
             with self.subTest(name):
                 response = self._send("POST", self.SUBMIT, json=self._body(), headers=headers)
-                self.assertEqual((response.status_code, response.json()), (403, {"error": "请从 Peach 设置页提交"}))
+                self.assertEqual((response.status_code, response.json()), (403, {"error": "Submit from Peach's setup page"}))
         self.assertFalse(self.data_root.exists())
         response = self._send("POST", self.SUBMIT, json=self._body(),
                               headers={"Origin": "null", "Sec-Fetch-Site": "same-origin"})
@@ -984,7 +984,7 @@ class SetupJsonContractTests(_SetupHttpCase):
             holder.listen()
             port = holder.getsockname()[1]
             data = self._errors(self._body(port=str(port)), base_url="http://127.0.0.1:8900")
-        self.assertEqual(data, {"port": "这个端口已被占用，请换一个端口"})
+        self.assertEqual(data, {"port": "That port is already in use; pick another one"})
 
     def test_a_failed_apply_is_reported_on_the_data_root(self):
         with mock.patch.object(onboarding, "apply", side_effect=OSError("数据目录写不进去")):
@@ -1076,7 +1076,7 @@ class DockerFirstSetupTests(_SetupHttpCase):
                 self.assertIn('data-page="setup"', page.text)
         foreign = self._send("POST", self.SUBMIT, json=self._body(), client=self.LAN,
                              headers={"Origin": "http://elsewhere.example"})
-        self.assertEqual((foreign.status_code, foreign.json()), (403, {"error": "请从 Peach 设置页提交"}))
+        self.assertEqual((foreign.status_code, foreign.json()), (403, {"error": "Submit from Peach's setup page"}))
         self.assertFalse(self.data_root.exists(), "被拒的提交不落任何文件")
 
     def test_a_lan_submission_initializes_the_fixed_data_root_and_writes_the_access_policy(self):
@@ -1311,7 +1311,7 @@ class StandaloneConfigurationTests(_Case):
             self.assertEqual(snapshot["media_dirs"], [str(self.media)])
             self.assertEqual(snapshot["port"], 9123)
             # 运行信息和首启完成页共用同一份 `runtime_facts`，不再各写一份。
-            self.assertIn("版本", [fact["term"] for fact in snapshot["facts"]])
+            self.assertIn("Version", [fact["term"] for fact in snapshot["facts"]])
             self.config.directory("state").mkdir(parents=True, exist_ok=True)
             response = client.post("/api/configuration", headers=headers, json={
                 "revision": snapshot["revision"], "media_dirs": [str(self.media)], "port": "9124"})
@@ -1357,7 +1357,7 @@ class StandaloneConfigurationTests(_Case):
                 "port": "not-a-port"})
             self.assertEqual(response.status_code, 400)
             body = response.json()
-            self.assertEqual(body["error"], "有几项需要修改")
+            self.assertEqual(body["error"], "A few fields need your attention")
             self.assertEqual(body["errors"]["media_dirs"][0], "", "没问题的行给空串，页面据此不画红字")
             self.assertTrue(body["errors"]["media_dirs"][1], "重复的那一行要点名")
             self.assertTrue(body["errors"]["port"])
@@ -1514,7 +1514,7 @@ class StandaloneConfigurationTests(_Case):
         from peach.versioning import VersionManager
         execute = mock.Mock(side_effect=AssertionError("Git must not run"))
         manager = VersionManager(execute=execute)
-        self.assertEqual(manager.inspect().branch, "测试包")
+        self.assertEqual(manager.inspect().branch, "standalone test build")
         with mock.patch("peach.release_updates.check", return_value={"state":"available", "latest_version":"1.0.0", "message":"有新版本可下载。"}):
             self.assertEqual(manager.check().state, "available")
             self.assertEqual(manager.update().state, "available")

@@ -203,13 +203,13 @@ class VerificationSettlementTests(unittest.TestCase):
         self.assertKept(key, "adr-0139-user-owned", asset_id, "release_date", "2016-05-29")
 
     def test_tag_candidates_that_are_a_subset_keep_the_current_tags(self):
-        asset_id = self.asset("DASS-468", tags=("中出内射", "巨乳", "母子设定", "痴女"))
+        asset_id = self.asset("DASS-468", tags=("Creampie", "Big Breasts", "Mother and son", "Nympho"))
         key = self.row("DASS-468", "tags", "中出内射、巨乳、母子设定、痴女",
-                       ("javdb", ["痴女", "巨乳", "中出内射"]))
+                       ("javdb", ["Nympho", "Big Breasts", "Creampie"]))
         self.assertEqual(self.outcome(key).rule, "adr-0139-no-new-information")
         self.assertNotIn(key, self.queue())
         self.settle()
-        self.assertEqual(self.tags(asset_id), {"中出内射", "巨乳", "母子设定", "痴女"})
+        self.assertEqual(self.tags(asset_id), {"Creampie", "Big Breasts", "Mother and son", "Nympho"})
         self.assertEqual(self.decisions(), {})
 
     def test_row_pinned_to_an_id_now_holding_another_code_is_kept(self):
@@ -230,40 +230,40 @@ class VerificationSettlementTests(unittest.TestCase):
         self.assertEqual(self.value(asset_id, "release_date"), ("2017-08-05", "auto:makers"))
 
     def test_human_approved_tags_grow_and_keep_the_human_record(self):
-        asset_id = self.asset("ROYD-083", tags=("中出内射", "辣妹"))
+        asset_id = self.asset("ROYD-083", tags=("Creampie", "Gyaru"))
         key = self.row("ROYD-083", "tags", "中出内射、辣妹",
-                       ("makers", ["中出内射", "辣妹", "痴女"]))
+                       ("makers", ["Creampie", "Gyaru", "Nympho"]))
         human = {"candidate_key": "earlier", "source": "dmm", "user_note": "批量复核"}
         with contextlib.closing(sqlite3.connect(self.db_path)) as connection, connection:
             connection.execute("INSERT INTO review_decision(category,item_key,status,note,updated_at)"
                                " VALUES('metadata_fields',?,'approved',?,'2026-10-01')",
                                (key, json.dumps(human, ensure_ascii=False)))
         self.settle()
-        self.assertEqual(self.tags(asset_id), {"中出内射", "辣妹", "痴女"})
+        self.assertEqual(self.tags(asset_id), {"Creampie", "Gyaru", "Nympho"})
         with contextlib.closing(sqlite3.connect(self.db_path)) as connection:
             status, note, updated = connection.execute(
                 "SELECT status,note,updated_at FROM review_decision WHERE item_key=?", (key,)).fetchone()
         note = json.loads(note)
         self.assertEqual((status, updated), ("approved", "2026-10-01"))
         self.assertEqual({name: note[name] for name in human}, human)
-        self.assertEqual(note["added_tags"], ["痴女"])
+        self.assertEqual(note["added_tags"], ["Nympho"])
         self.assertNotIn(key, self.queue())
 
     # ---- 可撤写入 ----
 
     def test_tag_union_adds_only_missing_tags_and_reverts_by_rule(self):
-        asset_id = self.asset("ROYD-083", tags=("中出内射", "御姐", "辣妹"))
+        asset_id = self.asset("ROYD-083", tags=("Creampie", "Mature Woman", "Gyaru"))
         key = self.row("ROYD-083", "tags", "中出内射、御姐、辣妹",
-                       ("dmm", ["辣妹", "痴女", "中出内射", "姐弟"], False),
-                       ("makers", ["中出内射", "姐弟", "辣妹", "痴女"]),
-                       ("r18dev", ["辣妹", "痴女", "姐弟", "中出内射"]))
+                       ("dmm", ["Gyaru", "Nympho", "Creampie", "Sister and brother"], False),
+                       ("makers", ["Creampie", "Sister and brother", "Gyaru", "Nympho"]),
+                       ("r18dev", ["Gyaru", "Nympho", "Sister and brother", "Creampie"]))
         self.assertEqual(self.outcome(key).kind, rm_auto.VERIFY_UNION)
         self.assertNotIn(key, self.queue())
         self.assertEqual(self.settle()["applied"], 1)
-        self.assertEqual(self.tags(asset_id), {"中出内射", "御姐", "辣妹", "痴女", "姐弟"})
+        self.assertEqual(self.tags(asset_id), {"Creampie", "Mature Woman", "Gyaru", "Nympho", "Sister and brother"})
         note = self.decisions()[key]
         self.assertEqual(note["rule"], rm_auto.VERIFIED_UNION_RULE)
-        self.assertEqual(set(note["added_tags"]), {"痴女", "姐弟"})
+        self.assertEqual(set(note["added_tags"]), {"Nympho", "Sister and brother"})
         self.assertEqual(self.settle()["applied"], 0)
         self.assertNotIn(key, self.queue())
 
@@ -271,7 +271,7 @@ class VerificationSettlementTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             _revert_script().main(["--db", str(self.db_path), "--source", rm_auto.VERIFIED_UNION_RULE,
                                    "--apply", "--backup", str(Path(self.db_path).with_suffix(".bak"))])
-        self.assertEqual(self.tags(asset_id), {"中出内射", "御姐", "辣妹"})
+        self.assertEqual(self.tags(asset_id), {"Creampie", "Mature Woman", "Gyaru"})
         self.assertEqual(self.decisions(), {})
 
     def test_official_date_replaces_an_unowned_value_and_reverts_to_it(self):
@@ -327,10 +327,10 @@ class VerificationSettlementTests(unittest.TestCase):
     def test_review_page_lists_each_write_by_work_and_reverts_the_chosen_ones(self):
         replaced = self.asset("DASS-468", release_date="2024-09-06")
         edited = self.asset("DASS-469", release_date="2024-09-07")
-        tagged = self.asset("ROYD-083", tags=("中出内射",))
+        tagged = self.asset("ROYD-083", tags=("Creampie",))
         first = self.row("DASS-468", "release_date", "2024-09-06", ("makers", "2024-09-10"))
         second = self.row("DASS-469", "release_date", "2024-09-07", ("makers", "2024-09-12"))
-        union = self.row("ROYD-083", "tags", "中出内射", ("makers", ["中出内射", "痴女"]))
+        union = self.row("ROYD-083", "tags", "Creampie", ("makers", ["Creampie", "Nympho"]))
         self.settle()
         with contextlib.closing(sqlite3.connect(self.db_path)) as connection, connection:
             write_owned_fields(connection, [edited], {"release_date": "2024-09-13"}, USER_MANUAL)
@@ -341,7 +341,7 @@ class VerificationSettlementTests(unittest.TestCase):
                           for key, item in listed.items() if key != union},
                          {first: (replaced, "DASS-468", "发行日期", "2024-09-10", ["2024-09-06"]),
                           second: (edited, "DASS-469", "发行日期", "2024-09-12", ["2024-09-07"])})
-        self.assertEqual((listed[union]["asset_id"], listed[union]["tags"]), (tagged, ["痴女"]))
+        self.assertEqual((listed[union]["asset_id"], listed[union]["tags"]), (tagged, ["Nympho"]))
         # 一次结算一个运行时刻：覆盖与并集的批次号带同一个时刻。
         self.assertEqual(len({item["batch"].rpartition("@")[2] for item in listed.values()}), 1)
         self.assertIsNotNone(listed[first]["at"])
@@ -361,21 +361,21 @@ class VerificationSettlementTests(unittest.TestCase):
         self.assertEqual([row["asset_id"] for row in result["changed"]], [edited])
         self.assertEqual(self.value(replaced, "release_date"), ("2024-09-06", ""))
         self.assertEqual(self.value(edited, "release_date"), ("2024-09-13", USER_MANUAL))
-        self.assertIn("痴女", self.tags(tagged))
+        self.assertIn("Nympho", self.tags(tagged))
         backup = Path(self.db_path).with_name(result["backup"])
         self.assertTrue(backup.is_file())
         self.assertEqual(ledger_backups.describe(backup, "database")["purpose"], "撤回自动写入前")
         self.assertEqual([item["item_key"] for item in self.auto_landings()["items"]], [union])
 
     def test_review_page_reverts_union_tags_like_the_script(self):
-        tagged = self.asset("ROYD-083", tags=("中出内射",))
-        key = self.row("ROYD-083", "tags", "中出内射", ("makers", ["中出内射", "痴女"]))
+        tagged = self.asset("ROYD-083", tags=("Creampie",))
+        key = self.row("ROYD-083", "tags", "Creampie", ("makers", ["Creampie", "Nympho"]))
         self.settle()
         preview = self.auto_landings(items=key)
-        self.assertEqual([(row["code"], row["tag"]) for row in preview["tags"]], [("ROYD-083", "痴女")])
+        self.assertEqual([(row["code"], row["tag"]) for row in preview["tags"]], [("ROYD-083", "Nympho")])
         result = self.revert([key], preview["token"])
         self.assertEqual((result["removed_tags"], result["decisions"]), (1, 1))
-        self.assertEqual(self.tags(tagged), {"中出内射"})
+        self.assertEqual(self.tags(tagged), {"Creampie"})
         self.assertEqual(self.decisions(), {})
 
     def test_review_page_refuses_writes_it_does_not_list(self):
