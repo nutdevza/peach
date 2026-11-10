@@ -51,10 +51,17 @@ export function entityWriting(kind: string, name: string, id?: number | null): N
 }
 export function entityDisplayName(kind: string, name: string, id?: number | null): string {
   const row = entityWriting(kind, name, id);
-  if (language === 'ja') return row?.ja || name;
-  if (row?.zh_cn) return row.zh_cn;
-  if ((kind !== 'performer' && kind !== 'creator') || !/^[\p{Script=Han}々\s]+$/u.test(name)) return name;
-  const written: string[] = [];
-  for (const char of name) written.push(char === '々' ? written.at(-1) || char : glyphs[char] || char);
-  return written.join('');
+  const base = language === 'ja'
+    ? row?.ja || name
+    : row?.zh_cn || (() => {
+        if ((kind !== 'performer' && kind !== 'creator') || !/^[\p{Script=Han}々\s]+$/u.test(name)) return name;
+        const written: string[] = [];
+        for (const char of name) written.push(char === '々' ? written.at(-1) || char : glyphs[char] || char);
+        return written.join('');
+      })();
+  // The owner reads the library in English: people whose profile carries a
+  // romanized name show it in parentheses after the original writing.
+  if (row?.en && row.en !== base && row.en !== name
+      && (kind === 'performer' || kind === 'creator')) return `${base} (${row.en})`;
+  return base;
 }

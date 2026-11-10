@@ -119,14 +119,14 @@ def category_predicates(column='e.id', kind_column='e.kind', connection=None):
            f"OR {claim('market', 'japanese_av')}")
     west_work = work("av.region='west'")
     western = f"{claim('market', 'western_adult')} OR {west_work}"
-    # 素人发行：FC2-PPV 番号，或作品带「素人」标签（标签表与标签实体任一处）。
+    # 素人发行：FC2-PPV 番号，或作品带「Amateur」标签（标签表与标签实体任一处）。
     # 视觉模型读画面得出的标签（`vision*` 来源，含复核页整批通过的创作者风格标签）只描述观感，
     # 不参与身份判定；刮削、文件名、用户与发行元数据来源照收。
     amateur_release = ("COALESCE(av.code,'') LIKE 'FC2-PPV-%' "
-                       f"OR EXISTS (SELECT 1 FROM asset_tag t WHERE t.asset_id=av.id AND t.tag='素人' "
+                       f"OR EXISTS (SELECT 1 FROM asset_tag t WHERE t.asset_id=av.id AND t.tag='Amateur' "
                        f"AND t.source NOT LIKE '{MODEL_TAG_SOURCE_PREFIX}%') "
                        "OR EXISTS (SELECT 1 FROM asset_entity ta JOIN entity te ON te.id=ta.entity_id "
-                       "WHERE ta.asset_id=av.id AND te.kind='tag' AND te.canonical_name='素人' "
+                       "WHERE ta.asset_id=av.id AND te.kind='tag' AND te.canonical_name='Amateur' "
                        f"AND ta.source NOT LIKE '{MODEL_TAG_SOURCE_PREFIX}%')")
     only_amateur_releases = f"{work('1')} AND NOT {work(f'NOT ({amateur_release})')}"
     amateur = (f"({claim('occupation', 'amateur_performer')} OR ({only_amateur_releases})) "
