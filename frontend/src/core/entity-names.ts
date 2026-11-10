@@ -1,7 +1,7 @@
 /** The display wording is for labels only. Queries, routing and writes always use the raw names and IDs the caller holds. */
 export type NameLanguage = 'zh-CN' | 'ja';
 export interface NameWriting {
-  id: number; kind: string; canonical_name: string; zh_cn: string | null; ja: string | null;
+  id: number; kind: string; canonical_name: string; zh_cn: string | null; ja: string | null; en?: string | null;
 }
 const names = new Map<string, NameWriting>();
 const identities = new Map<string, NameWriting>();
