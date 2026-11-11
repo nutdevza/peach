@@ -13,6 +13,7 @@ VENDORS = {
     "Claude Code": "noreply@anthropic.com",
     "Codex": "noreply@openai.com",
     "opencode": "noreply@opencode.ai",
+    "ZCode": "noreply@z.ai",
 }
 
 #: 署名形态：`工具 (模型 版本) <厂商 noreply>`。括号里那一段是重点——同一个工具换代
