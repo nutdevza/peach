@@ -63,6 +63,19 @@ describe('The read-only display projection of entity names', () => {
     expect(entityDisplayName('performer', '枫花恋', 1)).toBe('枫花恋');
   });
 
+  it('A single-person writing refresh keeps the romanization the shapes roster delivered', () => {
+    registerNameWritings([{ ...writing, en: 'Karen Yuzuki' }]);
+    registerNameWriting({ ...writing });
+    expect(entityDisplayName('performer', '枫花恋', 1)).toBe('枫花恋 (Karen Yuzuki)');
+  });
+
+  it('Rebuilding the whole roster replaces the romanization with the fresh value', () => {
+    registerNameWritings([{ ...writing, en: 'Old spelling' }]);
+    registerNameWriting({ ...writing });
+    registerNameWritings([{ ...writing, en: 'New spelling' }]);
+    expect(entityDisplayName('performer', '枫花恋', 1)).toBe('枫花恋 (New spelling)');
+  });
+
   it('Refreshing the details set clears stale names while keeping the user\'s language preference', () => {
     registerNameWritings([writing]);
     setNameLanguage('ja');

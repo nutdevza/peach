@@ -26,13 +26,17 @@ export function registerNameWritings(rows: NameWriting[], sharedGlyphs: Record<s
   notify();
 }
 function indexNameWriting(row: NameWriting): void {
-  identities.set(`${row.kind}/${row.id}`, row);
-  names.set(`${row.kind}/${row.canonical_name}`, row);
-  for (const name of [row.zh_cn, row.ja]) {
+  // The per-entity details projection (`name_display.current`) carries no romanization of its
+  // own: refreshing one person's writing must not drop the `en` the shapes roster delivered.
+  const previous = identities.get(`${row.kind}/${row.id}`);
+  const merged = previous?.en && !row.en ? { ...row, en: previous.en } : row;
+  identities.set(`${merged.kind}/${merged.id}`, merged);
+  names.set(`${merged.kind}/${merged.canonical_name}`, merged);
+  for (const name of [merged.zh_cn, merged.ja]) {
     if (!name) continue;
-    const key = `${row.kind}/${name}`;
+    const key = `${merged.kind}/${name}`;
     const candidates = spellings.get(key) || new Map<number, NameWriting>();
-    candidates.set(row.id, row);
+    candidates.set(merged.id, merged);
     spellings.set(key, candidates);
   }
 }
