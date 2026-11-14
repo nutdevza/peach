@@ -68,7 +68,7 @@ async function open(over: Partial<SetupQuestions> = {}, routes: Record<string, R
 }
 
 const rows = (root: ParentNode) => [...root.querySelectorAll('[data-folder-row]')];
-const paths = (root: ParentNode) => [...root.querySelectorAll<HTMLInputElement>('input[aria-label^="Media folder "]')];
+const paths = (root: ParentNode) => [...root.querySelectorAll<HTMLInputElement>('input[aria-label^="Media catalog "]')];
 const field = (root: ParentNode, key: string) => root.querySelector<HTMLInputElement>(`#f-${key}`);
 const radio = (root: ParentNode, label: string) =>
   [...root.querySelectorAll('label')].find((node) => node.textContent?.trim() === label);
@@ -107,9 +107,9 @@ it('The edit draft matches the scene title, description, and action text per ste
   } }).PeachCopyEditorCore;
   const originals = new WeakMap<Node, string>();
   const edits = {
-    '你的私人媒体空间。': 'Private library.',
-    '把喜欢的内容，整理成自己的收藏。': 'Organize your favorites.',
-    '开始设置': 'Start organizing', '继续': 'Next step', '完成设置': 'Save settings',
+    'Your private media space.': 'Private library.',
+    'Organize what you love into your own collection.': 'Organize your favorites.',
+    'Start setup': 'Start organizing', 'Continue': 'Next step', 'Finish setup': 'Save settings',
   };
   const apply = () => core.applyDrafts(host, edits, originals);
   const caption = () => [...host.querySelectorAll('[data-setup-scene-caption] p')].map(node => node.textContent);
@@ -193,7 +193,7 @@ it('A new library carries its own name and handling', async () => {
   const { host, sent } = await open({}, { [SETUP_URL]: { status: 200, body: done() } });
   await chooseProcessing(host, 'Use local profiles only');
   await click(buttonNamed('Add library', host));
-  await type(host.querySelector<HTMLInputElement>('input[aria-label="Library 2 name"]'), 'Movies');
+  await type(host.querySelector<HTMLInputElement>('input[aria-label="Name of Library 2"]'), 'Movies');
   await type(paths(host)[1], 'E:\\Films');
   await submitForm(host);
   const libraries = sent(SETUP_URL).media_dir;
@@ -309,11 +309,11 @@ describe('Peach proxy', () => {
     await choose(proxyMode(host), 'Custom');
     const address = host.querySelector<HTMLInputElement>('#setupProxyAddress');
     await type(address, 'http://127.0.0.1:7890');
-    expect(host.textContent?.includes('Loopback address points to the container itself')).toBe(docker);
+    expect(host.textContent?.includes('Loopback addresses point at the container itself')).toBe(docker);
     await type(address, 'http://host.docker.internal:7890');
-    expect(host.textContent).not.toContain('Loopback address points to the container itself');
+    expect(host.textContent).not.toContain('Loopback addresses point at the container itself');
     await choose(proxyMode(host), 'Follow the environment');
-    expect(host.textContent).not.toContain('Loopback address points to the container itself');
+    expect(host.textContent).not.toContain('Loopback addresses point at the container itself');
   });
 });
 
@@ -323,13 +323,13 @@ describe('Media library', () => {
       status: 200, body: done({ skip_media: true, scan_requested: false }),
     } });
     await type(paths(host)[0], 'E:\\Films');
-    await click(radio(host, 'Add the library later'));
+    await click(radio(host, 'Add library later'));
     expect(paths(host)).toHaveLength(0);
     expect(host.textContent).not.toContain('Scan after setup is complete');
     expect(host.querySelector('[aria-labelledby="setup-summary-title"]')?.textContent).toContain('Add later');
-    await click(radio(host, 'Add the library later'));
+    await click(radio(host, 'Add library later'));
     expect(paths(host)[0]?.value).toBe('E:\\Films');
-    await click(radio(host, 'Add the library later'));
+    await click(radio(host, 'Add library later'));
     await submitForm(host);
     expect(sent(SETUP_URL)).toMatchObject({ media_dir: [], skip_media: true, scan_now: false });
     expect(host.textContent).toContain('Add media directories under "Media Library & Ingest" to start scanning.');
@@ -338,10 +338,10 @@ describe('Media library', () => {
   it('Library icon and source color save with every folder of that library', async () => {
     const { host, sent } = await open({}, { [SETUP_URL]: { status: 200, body: done() } });
     await type(paths(host)[0], 'D:\\Videos');
-    await click(host.querySelector('[aria-label="My library icon"]'));
+    await click(host.querySelector('[aria-label="Icon of My library"]'));
     await click(document.querySelector('[aria-label="Movies"]'));
-    await click(buttonNamed('App', document));
-    await click(host.querySelector('[aria-label="My library source color: no color"]'));
+    await click(buttonNamed('Apply', document));
+    await click(host.querySelector('[aria-label="Source color of My library: No color"]'));
     await click(document.querySelector('[data-library-colors] [aria-label="Emerald"]'));
     await click(buttonNamed('Add folder', host));
     await type(paths(host)[1], 'E:\\More');
@@ -359,7 +359,7 @@ describe('Media library', () => {
     expect(policy?.textContent).toContain('Choose the read policy');
     await submitForm(host);
     expect(host.textContent).toContain('Select a media reading strategy');
-    await choose(policy, 'Normal read');
+    await choose(policy, 'Normal reading');
     await submitForm(host);
     expect(sent(SETUP_URL).media_dir).toMatchObject([
       { path: 'D:\\Videos', location: 'onedrive', root: '', cost: 'free' },
@@ -383,7 +383,7 @@ describe('Media library', () => {
 
   it('Choose folder opens this computer\'s dialog, and the picked path fills back into the row', async () => {
     const { host, sent } = await open({}, { [PICK_FOLDER_URL]: { status: 200, body: { path: 'F:\\Picked' } } });
-    await click(rows(host)[0]!.querySelector('button[aria-label="Choose folder"]'));
+    await click(rows(host)[0]!.querySelector('button[aria-label="Select folder"]'));
     await settle();
     expect(sent(PICK_FOLDER_URL)).toEqual({ initial: '' });
     expect(paths(host)[0]!.value).toBe('F:\\Picked');
@@ -520,7 +520,7 @@ describe('Docker', () => {
     expect(buttonNamed('Use existing data', host)).toBeNull();
     expect(host.querySelector('[aria-label^="First-time setup"]')?.getAttribute('aria-label')).toBe('First-time setup, step 1 of 4');
     await click(buttonNamed('Start setup', host)); await settle();
-    expect(paths(host)[0]?.value).toBe(undefined);
+    expect(paths(host)[0]?.value).toBe('/media');
     expect(host.querySelector('#f-data_root')).toBeNull();
     await click(buttonNamed('Continue', host)); await settle();
     expect(host.querySelector('h1')?.textContent).toBe('Access and network');
@@ -532,7 +532,7 @@ describe('Docker', () => {
     await type(host.querySelector<HTMLInputElement>('#access-confirm'), 'correct-password');
     await click(buttonNamed('Continue', host)); await settle();
     expect(host.textContent).toContain('/data');
-    expect(host.textContent).toContain('By Compose port mapping · Using the access password');
+    expect(host.textContent).toContain('By Compose port mapping · Use an access password');
     await click(buttonNamed('Finish setup', host)); await settle();
     const body = sent(SETUP_URL);
     expect(body.media_dir[0]).toMatchObject({ path: '/media' });

@@ -107,7 +107,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
         } catch (cause) {
           /* If it breaks midway, say where it stopped: the already-closed groups drop back into the list, and clicking again sends only what remains. */
           if (done) void reloadFollowManage();
-          throw new Error(`${errorMessage(cause)} (${items.length - done} groups left unmerged)`);
+          throw new Error(`${errorMessage(cause)} (${items.length - done} ${items.length - done === 1 ? 'group' : 'groups'} still unmerged)`);
         }
         done += 1;
       }
@@ -119,7 +119,7 @@ export function AliasManager({ groups, suggestions, sources = [], readOnly, toas
       void reloadFollowManage();
       toast(`Merged ${result.done} creator alias groups`);
     },
-    onError: (cause) => setProblem(errorMessage(cause)),
+    onError: (cause) => setProblem(cause instanceof Error ? cause.message : errorMessage(cause)),
   });
 
   const save = useMutation({

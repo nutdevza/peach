@@ -92,8 +92,8 @@ describe('Fetching', () => {
     vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.startsWith('/api/tag-management')
       ? Promise.resolve({ ok:true, json:async () => ({ items:[
         { k:'3D', n:4, cat:'general', aliases:[], hidden:false },
-        { k:'Roles', n:2, cat:'character', aliases:[], hidden:false },
-        { k:'Unknown', n:1, cat:'unknown', aliases:[], hidden:false },
+        { k:'角色', n:2, cat:'character', aliases:[], hidden:false },
+        { k:'未知', n:1, cat:'unknown', aliases:[], hidden:false },
       ] }) }) : fallback(url, init)));
     const { host } = await show(data(item(8, { tags:['3d'], detail_tags:['3d'], tag_types:{ '3d':'general' } })));
     await click(host.querySelector('[aria-label="Add tag"]')); await settle();
@@ -101,8 +101,8 @@ describe('Fetching', () => {
     expect(selected.getAttribute('aria-pressed')).toBe('true');
     expect(selected.getAttribute('data-tag-cat')).toBe('r34-general');
     expect(selected.querySelector('use')?.getAttribute('href')).toBe('#i-check');
-    expect(host.querySelector('[data-pick="role"]')?.getAttribute('data-tag-cat')).toBe(undefined);
-    expect(host.querySelector('[data-pick="unknown"]')?.getAttribute('data-tag-cat')).toBe('r34-unknown');
+    expect(host.querySelector('[data-pick="角色"]')?.getAttribute('data-tag-cat')).toBe('r34-character');
+    expect(host.querySelector('[data-pick="未知"]')?.getAttribute('data-tag-cat')).toBe('r34-unknown');
   });
 
   it('Manual tag submission keeps input and busy state, updates details on success, and can then be removed', async () => {
@@ -122,19 +122,19 @@ describe('Fetching', () => {
     await click(host.querySelector('[aria-label="Add tag"]'));
     const input = host.querySelector<HTMLInputElement>('#tagPickSearch')!;
     await type(input, 'Featured');
-    await click(host.querySelector('[data-pick="featured"]'));
-    expect(host.querySelector('[data-pick="featured"]')).toBeNull();
+    await click(host.querySelector('[data-pick="Featured"]'));
+    expect(host.querySelector('[data-pick="Featured"]')).toBeNull();
     expect(fetcher.mock.calls.filter(([url]) => url === '/api/follow/tag')).toHaveLength(1);
     expect(input.value).toBe('Featured');
     expect(host.querySelector('[aria-label="Add tag"]')?.getAttribute('aria-busy')).toBe('true');
     expect(receipts.toast).not.toHaveBeenCalled();
     await waiting.release({ ok: true, json: async () => ({ item: updated, group: group(updated, { variants: [sibling] }) }) });
     await settle();
-    expect(host.querySelector('[data-follow-tag="featured"]')).not.toBeNull();
+    expect(host.querySelector('[data-follow-tag="Featured"]')).not.toBeNull();
     expect(queryClient.getQueryData<FollowDetailData>(followItemKey(sibling.id))?.group?.primary.tags).toContain('Featured');
     expect(receipts.toast).toHaveBeenCalledWith('Added tag "Featured"', expect.objectContaining({ undo: expect.any(Function) }));
     await click(host.querySelector('[aria-label="Delete tag Featured"]')); await settle();
-    expect(host.querySelector('[data-follow-tag="featured"]')).toBeNull();
+    expect(host.querySelector('[data-follow-tag="Featured"]')).toBeNull();
     expect(host.querySelector('[data-follow-tag="source"]')).not.toBeNull();
   });
 
@@ -451,7 +451,7 @@ describe('Copy and sorting', () => {
 
   it('Compilation row heads: release strings never treat a release time as an edition tag, and bodies carry the author', () => {
     const reply = item(30, { author: 'kou', summary: 'Second update section', variant_kind: '', published_at: '2026-09-18T00:00:00Z' });
-    expect(collectionCopy(group(item(29), { is_release: true }), reply)).toEqual({ label: 'Videos', title: 'kou: second update batch' });
+    expect(collectionCopy(group(item(29), { is_release: true }), reply)).toEqual({ label: 'Videos', title: 'kou: Second update section' });
     expect(collectionCopy(group(item(29)), item(31, { variant_kind: 'wip' }))).toEqual({ label: 'WIP', title: 'Update 31' });
   });
 

@@ -69,13 +69,13 @@ it('Checks define the merge scope, and header select-all can cancel them togethe
 
   expect(buttonNamed('Merge selected (0)', host)).toBeNull();
 
-  await click(box(host, 'Pick alias Alias B, filed under Author B'));
+  await click(box(host, 'Choose alias Alias B to merge into Author B'));
   expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(true);
 
   await click(buttonNamed('Merge selected (1)', host));
   // Confirm was not clicked yet, so nothing should be sent.
   expect(aliasWrites(fetcher)).toHaveLength(0);
-  expect(asked[0]!.body).toContain('"Alias B" files under "Author B"');
+  expect(asked[0]!.body).toContain('"Alias B" into "Author B"');
   expect(asked[0]!.body).not.toContain('Alias A');
 
   await asked[0]!.onConfirm();
@@ -94,14 +94,14 @@ it('Reordering and extending the merge list keeps checks by alias; the merge use
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
-  await click(box(host, 'Pick alias Alias B, filed under Author B'));
+  await click(box(host, 'Choose alias Alias B to merge into Author B'));
   await renderProps({ suggestions: [
     { ...SUGGESTIONS[1]!, canonical: 'Canonical name of Author B' },
     { canonical: 'Author C', alias: 'Alias C', evidence: 'Source C' },
     SUGGESTIONS[0]!,
   ] });
-  expect(box(host, 'Select alias Alias B, merging it into Author B\'s canonical name')?.checked).toBe(true);
-  expect(box(host, 'Pick alias Alias C, filed under Author C')?.checked).toBe(false);
+  expect(box(host, 'Choose alias Alias B to merge into Canonical name of Author B')?.checked).toBe(true);
+  expect(box(host, 'Choose alias Alias C to merge into Author C')?.checked).toBe(false);
   expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(true);
   await click(buttonNamed('Merge selected (1)', host));
   await asked[0]!.onConfirm();
@@ -116,7 +116,7 @@ it('Vanished candidates never join the merge scope, and reselecting all processe
   const asked = stubConfirm();
   const fetcher = okFetch();
   const { host, renderProps } = await open(fetcher);
-  await click(box(host, 'Pick alias Alias B, filed under Author B'));
+  await click(box(host, 'Choose alias Alias B to merge into Author B'));
   await renderProps({ suggestions: [SUGGESTIONS[0]!] });
   expect(buttonNamed('Merge selected (0)', host)).toBeNull();
   expect(box(host, 'Select all pending-merge aliases')?.indeterminate).toBe(false);
@@ -136,7 +136,7 @@ it('Saved alias list refreshes and read-only state both update through cell acti
     aliases: [{ key: 'name:new alias', name: 'New alias' }] }];
   await renderProps({ groups, readOnly: true });
   const remove = () => host.querySelector<HTMLButtonElement>('button[aria-label="Remove alias New alias"]');
-  expect(host.querySelector('button[aria-label="Remove alias Saved alias"]')).toBeNull();
+  expect(host.querySelector('button[aria-label="Remove alias Saved aliases"]')).toBeNull();
   expect(host.textContent).toContain('Canonical name of Author A');
   expect(remove()?.disabled).toBe(true);
   await renderProps({ groups, readOnly: false });
@@ -204,7 +204,7 @@ it('Removing a saved alias asks first too', async () => {
   const fetcher = okFetch();
   const { host, toast } = await open(fetcher);
 
-  await click(host.querySelector('button[aria-label="Remove alias Saved alias"]'));
+  await click(host.querySelector('button[aria-label="Remove alias Saved aliases"]'));
   expect(aliasWrites(fetcher)).toHaveLength(0);
   expect(asked[0]!.body).toContain('"Saved aliases"');
 
@@ -225,7 +225,7 @@ it('Alias pagination keeps cross-page selection, and bulk-removing saved aliases
   await renderProps({ groups });
   const saved = () => host.querySelector('[aria-label="Saved creator aliases"]')!;
   expect(saved().querySelectorAll('tbody tr')).toHaveLength(20);
-  await click(box(host, 'Select saved alias, creator 0'));
+  await click(box(host, 'Select saved alias Creator 0'));
   await click(buttonNamed('Next page', host));
   await click(box(host, 'Select saved alias Creator 20'));
   await click(buttonNamed('Remove selected aliases (2)', host));
@@ -246,22 +246,22 @@ it('Clicking blank space in an alias row selects the group, editing the canonica
   const { host, toast } = await open(fetcher);
   const saved = host.querySelector('[aria-label="Saved creator aliases"]')!;
   await click(saved.querySelector('tbody [data-table-space]'));
-  expect(box(saved, 'Select saved alias, author A')?.checked).toBe(undefined);
+  expect(box(saved, 'Select saved alias Author A')?.checked).toBe(true);
   await click(saved.querySelector('tbody [data-table-space]'));
-  await click(saved.querySelector('button[aria-label="Edit canonical name of Author A"]'));
-  expect(box(saved, 'Select saved alias, author A')?.checked).toBe(false);
-  const dialog = document.querySelector('[role="dialog"][aria-label="Edit canonical name"]')!;
+  await click(saved.querySelector('button[aria-label="Edit the canonical name of Author A"]'));
+  expect(box(saved, 'Select saved alias Author A')?.checked).toBe(false);
+  const dialog = document.querySelector('[role="dialog"][aria-label="Edit the canonical name"]')!;
   await click(buttonNamed('Saved aliases', dialog));
   fetcher.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ ok: false, error: 'Name already taken' }) });
-  await click(buttonNamed('Edit the unified name', dialog));
+  await click(buttonNamed('Edit the canonical name', dialog));
   await settle();
   expect(dialog.textContent).toContain('Name already taken');
   expect(document.contains(dialog)).toBe(true);
-  await click(buttonNamed('Edit the unified name', dialog));
+  await click(buttonNamed('Edit the canonical name', dialog));
   await settle();
   expect(aliasWrites(fetcher)).toEqual([
     { action: 'rename', canonical_key: 'name:Author A', canonical: 'Saved aliases' },
     { action: 'rename', canonical_key: 'name:Author A', canonical: 'Saved aliases' },
   ]);
-  expect(toast).toHaveBeenCalledWith('The canonical name was changed to the saved alias');
+  expect(toast).toHaveBeenCalledWith('Changed the canonical name to Saved aliases');
 });

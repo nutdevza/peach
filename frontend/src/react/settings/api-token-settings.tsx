@@ -41,11 +41,11 @@ const URL = '/api/configuration/access/token/rotate';
 export function rotationEffect(mode: AccessState['mode'], paired: boolean): string {
   const scripts = 'Scripts and API calls using the old token stop working immediately.';
   const sentence = mode === 'legacy'
-    ? `Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.${scripts}`
+    ? `Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in. ${scripts}`
     : mode === 'open'
-      ? `Browsers without sign-in are unaffected.${scripts}`
-      : `Browsers signed in with the access password are unaffected.${scripts}`;
-  return paired ? `${sentence}another computer needs the same token file for the two to keep exchanging review results.` : sentence;
+      ? `Browsers without sign-in are unaffected. ${scripts}`
+      : `Browsers signed in with the access password are unaffected. ${scripts}`;
+  return paired ? `${sentence} Another computer needs the same token file for the two to keep exchanging review results.` : sentence;
 }
 
 export function ApiTokenSettings({ initial, mode, receipt }: {

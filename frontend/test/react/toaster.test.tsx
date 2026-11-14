@@ -21,8 +21,8 @@ it('Undo writes its result back to the same entry without starting another stack
   await act(async () => showToast('undo', {
     html: 'Deleted the tag "<b>Drama</b>"', alert: false, timeout: 8000, action: { label: 'Undo', run },
   }));
-  await vi.waitFor(() => expect(toastsWith('Tag deleted')).toHaveLength(1));
-  const [receipt] = toastsWith('Tag deleted');
+  await vi.waitFor(() => expect(toastsWith('Deleted the tag')).toHaveLength(1));
+  const [receipt] = toastsWith('Deleted the tag');
   const button = receipt.querySelector<HTMLButtonElement>('[data-action]')!;
   expect(button.textContent).toBe('Undo');
   await act(async () => button.click());
@@ -32,7 +32,7 @@ it('Undo writes its result back to the same entry without starting another stack
 
   await act(async () => showToast('undo', { html: 'Undone', alert: false, timeout: 4000, action: null }));
   await vi.waitFor(() => expect(toastsWith('Undone')).toHaveLength(1));
-  expect(toastsWith('Tag deleted')).toHaveLength(0);
+  expect(toastsWith('Deleted the tag')).toHaveLength(0);
   // The same node was replaced with new content, so the undo button went away with it.
   expect(toastsWith('Undone')[0]).toBe(receipt);
   expect(receipt.querySelector('[data-action]')).toBeNull();

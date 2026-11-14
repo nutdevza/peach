@@ -122,7 +122,7 @@ it('Expanding source evidence selects no candidate and submits no detail verdict
   entry.candidates![0]!.catalog_evidence = { runtime: { display_value: '120 min' } };
   const { host, fetcher } = await open({ data: review({ sections: { metadata_fields: [entry] } }) });
   const card = cards(host)[0]!;
-  const toggle = card.querySelector('button[aria-label="Expand javdb source evidence"]')!;
+  const toggle = card.querySelector('button[aria-label="Expand source evidence for javdb"]')!;
   expect(toggle.getAttribute('aria-expanded')).toBe('false');
   await click(toggle);
   expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -163,10 +163,10 @@ it('Source evidence compares same-named fields only, never treating cast or titl
       catalog_evidence: { title: { display_value: `Shared start, ${at ? 'new' : 'old'} content; shared end` } } })) };
   const { host } = await open({ data: review({ sections: { metadata_fields: [entry] } }) });
   const card = cards(host)[0]!;
-  const trigger = card.querySelector('button[aria-label="Expand javdb source evidence"]')!;
+  const trigger = card.querySelector('button[aria-label="Expand source evidence for javdb"]')!;
   await click(trigger);
   const panel = document.getElementById(trigger.getAttribute('aria-controls')!)!;
-  expect(panel.textContent).toContain('Shared opening, old content; shared ending');
+  expect(panel.textContent).toContain('Shared start, old content; shared end');
   expect([...panel.querySelectorAll('mark')].map(mark => mark.textContent)).toEqual(['old']);
   expect(card.querySelector('[aria-label="Current info"]')!.querySelectorAll('mark')).toHaveLength(0);
 });
@@ -221,7 +221,7 @@ it('One page paints twenty cards, and paging swaps which twenty', async () => {
 
 it('Filtering out a group returns to the first page', async () => {
   const { host } = await open();
-  await choose(host.querySelector('button[aria-label="Filter current category"]'), 'Single source · 3');
+  await choose(host.querySelector('button[aria-label="Filter the current category"]'), 'Single source · 3');
   expect(keys(host)).toEqual(['row-100', 'row-101', 'row-102']);
   expect(buttonIn(host, 'Next page')).toBeNull();
 });
@@ -292,10 +292,10 @@ it('Batch verdicts remove the successful ones; the ones that failed stay behind 
   const { host, props } = await open({
     decisions: [{ ok: true }, { ok: false, error: 'Source expired' }, { ok: true }],
   });
-  await choose(host.querySelector('button[aria-label="Filter current category"]'), 'Single source · 3');
+  await choose(host.querySelector('button[aria-label="Filter the current category"]'), 'Single source · 3');
   await click(buttonIn(host, 'Select all in the current category'));
   expect(statusText(host)).toContain('Selected 3 items');
-  expect(actionOrder(buttonIn(host, 'Approve selected')!.parentElement).filter((name) => name.endsWith('Selected') || name === 'Clear selection'))
+  expect(actionOrder(buttonIn(host, 'Approve selected')!.parentElement).filter((name) => name.endsWith('selected') || name === 'Handle selected later' || name === 'Clear selection'))
     .toEqual(['Ignore selected', 'Handle selected later', 'Approve selected', 'Clear selection']);
   await click(buttonIn(host, 'Approve selected'));
   await settle();
@@ -338,7 +338,7 @@ it('Bulk approval reuses the server\'s per-row version receipts and keeps confli
   await settle();
   expect(sentDecisions(fetcher).map((body) => body.expected_revision)).toEqual([1, 4, 0]);
   expect(keys(host)).toEqual(['row-2']);
-  expect(cards(host)[0]?.textContent).toContain('TitleABC-2No coverOpen original video Original videoOpen original videoCandidate sources · 1javdbTitle from javdb 2IgnoreHandle laterApproveThe operation did not finish; please retry. If it keeps failing, check the tray log.');
+  expect(cards(host)[0]?.textContent).toContain('TitleABC-2No coverOpen original video Original videoOpen original videoCandidate sources · 1javdbTitle from javdb 2IgnoreHandle laterApproveAsset profile changed');
 });
 
 it('Bulk-approving multi-source candidates without a chosen source says so first instead of deciding for you', async () => {
@@ -448,7 +448,7 @@ it('Bulk handle-later leaves failed rows in pending while successful rows enter 
   await click(buttonIn(host, 'Handle selected later'));
   await settle();
   expect(keys(host)).toEqual(['row-1']);
-  expect(cards(host)[0]?.textContent).toContain('TitleABC-1Candidate sources · 1nfoTitle from nfo 1IgnoreHandle laterApproveThe operation did not finish; please retry. If it keeps failing, check the tray log.');
+  expect(cards(host)[0]?.textContent).toContain('TitleABC-1Candidate sources · 1nfoTitle from nfo 1IgnoreHandle laterApproveCandidates changed');
   expect(queueOf().counts.metadata_fields).toBe(1);
   expect(queueOf().queues.later.counts.metadata_fields).toBe(2);
   await click(stateNamed(host, 'Handle later'));
@@ -500,7 +500,7 @@ it('Under metadata fields it lists auto-writes one by one: the work, what was wr
   const { host } = await open({ autoLandings: WRITES }, { readOnly: true });
   const section = host.querySelector('[aria-labelledby="auto-landings-title"]')!;
   const text = section.textContent ?? '';
-  for (const expected of ['The profiles auto-written', 'DASS-468', '某部作品的标题', 'Release date: 2024-09-10', 'Was "2024-09-06"',
+  for (const expected of ['Auto-written metadata', 'DASS-468', '某部作品的标题', 'Release date: 2024-09-10', 'Was "2024-09-06"',
     'ROYD-083', 'Tags: Nympho, 姐弟', 'Original tags kept']) expect(text).toContain(expected);
 });
 

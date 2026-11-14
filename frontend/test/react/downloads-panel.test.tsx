@@ -81,8 +81,8 @@ it.each([
   [{ title: 'ABC-123 production notes' }, 'ABC-123 · production notes'],
   [{ title: 'ABC-123' }, 'ABC-123'],
   [{ title: null, display_title: '', display_code: 'ABC-123' }, 'ABC-123'],
-  [{ title: 'ABC-123', display_title: 'Title from video details' }, 'ABC-123 · title from video details'],
-  [{ code: null, display_code: 'XYZ-456', display_title: 'Behind the scenes' }, 'XYZ-456 · behind the scenes'],
+  [{ title: 'ABC-123', display_title: 'Title from video details' }, 'ABC-123 · Title from video details'],
+  [{ code: null, display_code: 'XYZ-456', display_title: 'Behind the scenes' }, 'XYZ-456 · Behind the scenes'],
   [{ code: null, title: 'Production notes', display_name: '' }, 'Production notes'],
 ] as [Partial<DownloadTask>, string][])('Cloud download cards identify videos by code and title: %j', async (patch, expected) => {
   serve(snapshot({ tasks: [task(patch)] }));
@@ -223,7 +223,7 @@ it('Cloud download pagination failure keeps the list; retry replaces the current
   }));
   const host = await show();
   await click(buttonNamed('Next page', host));
-  await vi.waitFor(() => expect(host.textContent).toContain('Cloud downloadThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.No coverABC-123Downloading remotely115/115/cloud-download · 01/10 15:00Expand titleCopy magnetCancelABC-123No coverABC-123Downloading remotely115/115/cloud-download · 01/10 15:00Expand titleCopy magnetCancelABC-1231–20 / 21 records20 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page12Next page'));
+  await vi.waitFor(() => expect(host.textContent).toContain('Cloud downloadLoad failedNo coverABC-123Downloading remotely115/115/cloud-download · 01/10 15:00Expand titleCopy magnetCancelABC-123No coverABC-123Downloading remotely115/115/cloud-download · 01/10 15:00Expand titleCopy magnetCancelABC-1231–20 / 21 records20 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page12Next page'));
   expect(host.querySelectorAll('[data-download-id]')).toHaveLength(2);
   fail = false;
   await click(buttonNamed('Next page', host));

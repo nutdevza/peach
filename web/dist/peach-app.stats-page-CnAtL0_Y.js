@@ -1,11 +1,11 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "ffe16128-a24c-4aca-9d7c-daf3963a6fa9", e._sentryDebugIdIdentifier = "sentry-dbid-ffe16128-a24c-4aca-9d7c-daf3963a6fa9");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "388c7e49-69b7-4250-9d8e-adbef78c750d", e._sentryDebugIdIdentifier = "sentry-dbid-388c7e49-69b7-4250-9d8e-adbef78c750d");
 	} catch {}
 })();
 import { $b4f18e3395fe64d7$export$3d96ec278d3efce4 as e, $b4f18e3395fe64d7$export$3e41faf802a29e71 as t, $b4f18e3395fe64d7$export$b2539bed5023c21c as n, $b4f18e3395fe64d7$export$e51a686c67fdaa2d as r, ButtonLink as i, EmptyState as a, LOC as o, MEDIA_SOURCE_ICONS as s, NR as c, Note as l, Progress as u, SEGMENT as d, SEGMENTED_TRACK as f, STATS_KEY as p, STAT_STRIP as m, SegmentedTabList as h, SourceMark as g, StatCard as _, StatusLabel as v, Xc as y, Xt as b, _8 as x, __toESM as S, bandRows as C, cardClass as w, clsx as T, errorMessage as E, fetchStats as ee, fmtCount as D, fmtSize as O, known as k, lengthRows as te, mM as A, mediumRows as ne, percentText as j, playedFor as re, playedItemUrl as ie, radialArc as ae, radialBarSize as oe, radialCeiling as se, radialSlices as ce, reachedShare as le, replayRows as ue, require_jsx_runtime as de, require_react as fe, settingsPath as pe, statCardClass as me, uo as he, useQuery as ge, watchNote as _e, watchedShare as ve } from "./peach-app.js";
-import { ActivityHeat as ye, BarCard as M, ExpandableRanking as be, PolarAngleAxis as xe, selectPolarAxisScale as Se, selectPolarAxisTicks as Ce, selectPolarGraphicalItemAxisTicks as we } from "./peach-app.expandable-ranking-CjXvQmDM.js";
+import { ActivityHeat as ye, BarCard as M, ExpandableRanking as be, PolarAngleAxis as xe, selectPolarAxisScale as Se, selectPolarAxisTicks as Ce, selectPolarGraphicalItemAxisTicks as we } from "./peach-app.expandable-ranking-qXEmuz36.js";
 import { AnimatedItems as Te, CHART_CARD as Ee, CHART_COLORS as De, Cell as Oe, ChartBackground as ke, ChartContainer as Ae, ChartEmpty as je, ChartLegend as Me, ChartLegendContent as Ne, ChartTip as Pe, ChartTooltip as Fe, ChartTooltipContent as Ie, DefaultZIndexes as Le, LabelListFromLabelProp as Re, Layer as N, LoadingIndicator as ze, PolarChart as Be, PolarLabelListContextProvider as Ve, RegisterGraphicalItemId as He, Sector as P, SetPolarGraphicalItem as Ue, SetPolarLegendPayload as We, SetTooltipEntrySettings as Ge, Shape as Ke, ZIndexLayer as qe, adaptEventsOfChild as Je, arrayTooltipSearcher as Ye, combineAllBarPositions as Xe, combineBarPosition as Ze, combineBarSizeList as Qe, combineDisplayedStackedData as $e, combineStackGroups as et, combineStackedData as tt, createSelector as F, defaultPolarChartProps as nt, findAllByType as rt, getBandSizeOfAxis as I, getBaseValueOfBar as it, getCateCoordinateOfBar as at, getColorsCount as ot, getNormalizedStackId as st, getTooltipNameProp as ct, getValueByDataKey as lt, getZIndexFromUnknown as ut, interpolate as dt, isCategoricalAxis as ft, isNullish as pt, isStacked as mt, matchAppend as ht, mathSign as gt, noop as _t, resolveDefaultProps as vt, selectActiveTooltipIndex as yt, selectAngleAxis as bt, selectBarCategoryGap as xt, selectBarGap as St, selectChartDataAndAlwaysIgnoreIndexes as Ct, selectChartDataWithIndexes as wt, selectChartLayout as L, selectPolarItemsSettings as Tt, selectPolarViewBox as Et, selectRadiusAxis as Dt, selectReverseStackOrder as Ot, selectRootBarSize as kt, selectRootMaxBarSize as At, selectStackOffsetType as jt, selectTooltipAxis as Mt, selectUnfilteredPolarItems as Nt, sliceConfig as Pt, sliceKey as Ft, svgPropertiesNoEvents as It, svgPropertiesNoEventsFromUnknown as Lt, truncateByDomain as Rt, useAnimationCallbacks as zt, useAppSelector as R, useMouseClickItemDispatch as Bt, useMouseEnterItemDispatch as Vt, useMouseLeaveItemDispatch as Ht, usePolarChartLayout as Ut } from "./peach-app.chart-tip-CRxYp6KT.js";
 import { ConnectionStatus as Wt } from "./peach-app.connection-status-B0tSnjj0.js";
 import { Page as Gt } from "./peach-app.page-QAncjzM1.js";
@@ -1029,7 +1029,7 @@ function Pr({ data: e }) {
 	return /* @__PURE__ */ (0, Y.jsxs)(Y.Fragment, { children: [/* @__PURE__ */ (0, Y.jsx)(ye, {
 		activity: e.play_activity,
 		title: "Play time",
-		dailyTitle: "'Daily plays'",
+		dailyTitle: "Daily plays",
 		words: {
 			unit: "videos",
 			series: "Videos",
@@ -1326,7 +1326,7 @@ function Vr(i) {
 						label: "Space usage",
 						icon: y,
 						accent: 3,
-						figure: `${c.online.toLocaleString()} volumes`,
+						figure: `${c.online.toLocaleString()} ${c.online === 1 ? "volume" : "volumes"}`,
 						detail: c.measured ? `${O(c.used)} used` : "Capacity not fetched"
 					})
 				]
@@ -1355,7 +1355,7 @@ function Vr(i) {
 								value: s.library_played
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
-								term: "'Watch online directly'",
+								term: "Watch online directly",
 								value: s.online_played
 							}),
 							/* @__PURE__ */ (0, Y.jsx)(Z, {
@@ -1390,7 +1390,7 @@ function Vr(i) {
 				id: "coverage",
 				children: /* @__PURE__ */ (0, Y.jsx)(Mr, {
 					headline: /* @__PURE__ */ (0, Y.jsx)(jr, {
-						term: "'Content tag coverage'",
+						term: "Content tag coverage",
 						figure: _,
 						unit: v
 					}),
@@ -1403,7 +1403,7 @@ function Vr(i) {
 					headline: /* @__PURE__ */ (0, Y.jsx)(jr, {
 						term: "Space usage",
 						figure: c.measured.toLocaleString(),
-						unit: " volumes have capacity fetched"
+						unit: ` ${c.measured === 1 ? "volume has" : "volumes have"} capacity fetched`
 					}),
 					children: /* @__PURE__ */ (0, Y.jsx)(Lr, {
 						volumes: o.storage_volumes,
@@ -1470,4 +1470,4 @@ function Vr(i) {
 }
 export { Vr as StatsPage };
 
-//# debugId=ffe16128-a24c-4aca-9d7c-daf3963a6fa9
+//# debugId=388c7e49-69b7-4250-9d8e-adbef78c750d

@@ -440,8 +440,11 @@ const QUEUE_LABEL: Record<QueueKind, string> = { mix: 'Mix', parts: 'Volumes', e
  *  and the title bar already says "Editions"; three places saying one thing, so only the count stays here. Other queues' titles carry real information (playlist name,
  *  Mix seed) and cannot be cut along with it. */
 export function queueCopy(queue: DetailQueue): { title: string; summary: string } {
-  const count = (queue.kind === 'editions' ? queue.versionCount ?? queue.items.length : queue.items.length).toLocaleString();
-  const countLabel = queue.kind === 'parts' ? `${count} volumes` : queue.kind === 'editions' ? `${count} editions` : `${count} videos`;
+  const n = queue.kind === 'editions' ? queue.versionCount ?? queue.items.length : queue.items.length;
+  const count = n.toLocaleString();
+  const unit = (one: string, many: string) => `${count} ${n === 1 ? one : many}`;
+  const countLabel = queue.kind === 'parts' ? unit('volume', 'volumes')
+    : queue.kind === 'editions' ? unit('edition', 'editions') : unit('video', 'videos');
   return { title: QUEUE_LABEL[queue.kind], summary: queue.kind === 'editions' ? countLabel : `${queue.title} · ${countLabel}` };
 }
 

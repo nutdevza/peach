@@ -81,7 +81,7 @@ const shown = (value: string) => (value ? `"${value}"` : 'empty');
 
 /** 这一条写下了什么：覆盖是新值，并集是补上的标签。 */
 export const writtenText = (item: AutoLandingWrite) =>
-  item.tags.length ? item.tags.join('、') : item.value;
+  item.tags.length ? item.tags.join(', ') : item.value;
 
 /** 写入前的样子：覆盖写原值，并集写「只增不删」。 */
 export const previousText = (item: AutoLandingWrite) => item.tags.length

@@ -40,7 +40,7 @@ it('External entries: one address box each for the two mirrorable sites, empty b
 it('External entry: the description is the first block in the card, with no line drawn above it', async () => {
   const host = await mount(<EntryLinksForm initial={state} receipt={vi.fn()} />);
   const help = [...host.querySelectorAll('p')]
-    .find((node) => node.textContent?.startsWith('When JavDB or MISSAV will not open'));
+    .find((node) => node.textContent?.startsWith('If JavDB or MISSAV will not open'));
   const block = help?.parentElement;
   // That divider is for blocks placed after the settings rows, separating them from the group above. In this card it is itself the first block,
   // The line renders with nothing on it, so it reads as a section title's built-in bottom border.

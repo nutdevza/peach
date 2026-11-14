@@ -141,7 +141,7 @@ export function pickerNote(name: string, data: AvatarChoices | undefined): strin
   const elsewhere = data.matched_names.filter((one) => one !== name);
   if (elsewhere.length) {
     const named = `"${elsewhere.slice(0, NOTE_NAMES).join('", "')}"`;
-    const more = elsewhere.length > NOTE_NAMES ? `Waiting for ${elsewhere.length.toLocaleString()} names` : '';
+    const more = elsewhere.length > NOTE_NAMES ? `, ${elsewhere.length.toLocaleString()} names in all` : '';
     return `${name}: found in the image library by ${named}${more}.`;
   }
   return data.choices.length ? name : `${name}: no alternate image yet. Enter a code, an image URL, or pick a local file.`;

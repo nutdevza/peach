@@ -97,7 +97,7 @@ describe('Unified playback file memory', () => {
       return fail ? new Response('{"error":"disk not writable"}', { status: 503 }) : new Response('{}');
     }));
     const view = mounted(), memory = playerMemory(view.player);
-    await expect(memory.save({ rotation: 90 })).rejects.toThrow('Disk not writable');
+    await expect(memory.save({ rotation: 90 })).rejects.toThrow('disk not writable');
     fail = false;
     await memory.save({ rate: 2 });
     expect(writes).toEqual([{ rotation: 90 }, { rotation: 90, rate: 2 }]);

@@ -145,7 +145,7 @@ it('Searching a resource opens the cloud download dialog in place with the code 
   await click(buttons[0]);
   await settle();
   const dialog = document.querySelector('[role=dialog]');
-  expect(dialog?.textContent).toContain('Find resourcesABC-123 · Name one.mp462 minEdition target:Chinese subs. Search priorities adjust below; completeness and watermarks need per-item review.Find resources by codeFind firstChinese subs HDChinese subsUncensoredMin size (GiB)Max size (GiB)Magnet linkDownload to选择一个项目 No download channel configured yet.Download channel settingsTarget folderCancelSubmit download');
+  expect(dialog?.textContent).toContain('Find resourcesABC-123 · Name one.mp462 minEdition target: Chinese subs. Search priorities adjust below; completeness and watermarks need per-item review.Find resources by codeFind firstChinese subs HDChinese subsUncensoredMin size (GiB)Max size (GiB)Magnet linkDownload to选择一个项目 No download channel configured yet.Download channel settingsTarget folderCancelSubmit download');
 });
 
 it('With no targets at all it gives an empty state, never a blank white page', async () => {
@@ -158,8 +158,8 @@ it('When the first-screen fetch fails only one error shows and no empty list pai
   const { host } = await open(null);
   const alert = host.querySelector('[role=alert]');
   // Copy goes through the legacy layer's `requestErrorMessage`: when the server supplies a reason message, use it; the page does not say it a second time.
-  expect(alert?.textContent).toContain('HD edition target fetch failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
-  expect(alert?.textContent).toContain('HD edition target fetch failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(alert?.textContent).toContain('HD edition target fetch failedDatabase is currently browse-only');
+  expect(alert?.textContent).toContain('HD edition target fetch failedDatabase is currently browse-only');
   expect(host.querySelector('ul')).toBeNull();
 });
 

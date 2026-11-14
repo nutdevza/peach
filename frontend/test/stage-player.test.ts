@@ -170,7 +170,7 @@ describe('Shared player for the play wall', () => {
     const signal = new AbortController().signal;
     for (const extra of [{ cost: 'metered' }, { location: 'online' }]) {
       response(extra);
-      await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('Please open details');
+      await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('Open details to');
     }
     response(); offline = true;
     await expect(stage.mountWallPlayer(item(1), frame, signal)).rejects.toThrow('Source not mounted');

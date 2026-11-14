@@ -446,7 +446,7 @@ describe('Action button', () => {
     await open();
     expect(action('Log a climax').closest('[data-immerse-action]')!.textContent).toBe('Climaxes 2');
     await click(action('Log a climax'));
-    await until(() => action('Log a climax').closest('[data-immerse-action]')!.textContent === 'Climax 3');
+    await until(() => action('Log a climax').closest('[data-immerse-action]')!.textContent === 'Climaxes 3');
     expect(card()).toMatchObject({ o_count: 3 });
     expect(host.toast).toHaveBeenCalledWith('Climax recorded', expect.anything());
   });

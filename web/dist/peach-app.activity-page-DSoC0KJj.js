@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "682ff499-deab-4856-a26d-b82b2e05c90f", e._sentryDebugIdIdentifier = "sentry-dbid-682ff499-deab-4856-a26d-b82b2e05c90f");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "7f0e9ed7-158d-48c4-bb53-dc9aa3cd46bc", e._sentryDebugIdIdentifier = "sentry-dbid-7f0e9ed7-158d-48c4-bb53-dc9aa3cd46bc");
 	} catch {}
 })();
 import { Button as e, Bx as t, Chip as n, DataTableFooter as r, Disclosure as i, DownloadsPanel as a, EmptyState as o, Gg as s, HN as c, IssueRow as l, LinkButton as u, Lo as d, LoadingDots as f, Ma as p, NameLink as m, Note as h, OV as g, Pf as _, ProcessingMode as v, Progress as y, RB as b, Rk as x, Su as S, TASKS_KEY as C, TRIGGER_LABELS as w, Xl as T, __toESM as E, apiGet as D, apiSend as ee, busyProps as O, cardClass as k, confirmModal as A, controlTask as te, cx as ne, elapsedText as j, errorMessage as M, fetchTasks as re, fmtSize as ie, foldByKind as ae, foldRoutine as oe, followupDetail as se, followupTally as N, groupFollowups as ce, hasResultProblems as P, i2 as F, isActive as I, isRoutine as le, latestOfKind as ue, momentText as L, notifyManager as de, oe as fe, pollInterval as pe, problemDestination as me, progressText as R, readableErrorHeadline as z, replaceEqualDeep as he, require_jsx_runtime as ge, require_react as _e, setTaskSpeed as ve, statusLabel as ye, summaryItems as be, taskIssues as xe, taskSubject as B, um as Se, uo as Ce, useMutation as V, useQuery as H, useQueryClient as U, vl as we } from "./peach-app.js";
@@ -133,7 +133,7 @@ function Fe({ run: t, runs: n = [t] }) {
 			t ??= e;
 		}
 		if (t !== null) throw t;
-	}, s = n.length > 1 ? `These ${n.length} batches` : "This round", c = V({
+	}, s = n.length > 1 ? ` from these ${n.length} batches` : " from this round", c = V({
 		mutationKey: [
 			...Y,
 			t.id,
@@ -172,7 +172,7 @@ function Fe({ run: t, runs: n = [t] }) {
 			if (i.current.cancel || i.current.confirmation || l.isSuccess) return;
 			i.current.confirmation = !0, A({
 				title: p ? `Cancel every follow-up of "${t.task_label}"` : `Cancel task "${t.task_label}"`,
-				body: p ? `Will stop${s}every follow-up task already dispatched, including running and queued items. Saved data and results are kept.These follow-up tasks cannot resume once cancelled; start them again if needed.` : "This stops the rest of this round's processing and its follow-up tasks. Saved details and results are kept.Once this round is cancelled it cannot continue; start it again when needed.",
+				body: p ? `Will stop every follow-up task already dispatched${s}, including running and queued items. Saved data and results are kept. These follow-up tasks cannot resume once cancelled; start them again if needed.` : "This stops the rest of this round's processing and its follow-up tasks. Saved details and results are kept. Once this round is cancelled it cannot continue; start it again when needed.",
 				confirmLabel: p ? "Cancel follow-up tasks" : "Cancel task",
 				danger: !0,
 				onConfirm: async () => (i.current.cancel = !0, await l.mutateAsync(n))
@@ -527,7 +527,7 @@ function Z({ run: e, meta: t, children: n, error: r, issues: a, followups: o, fo
 				className: "border-t border-separator-border",
 				children: /* @__PURE__ */ (0, J.jsxs)(i, {
 					row: !0,
-					summary: `Task details · ${x.toLocaleString()} items`,
+					summary: `Task details · ${x.toLocaleString()} ${x === 1 ? "item" : "items"}`,
 					contentClassName: "pb-5",
 					isOpen: d,
 					onOpenChange: f,
@@ -541,7 +541,8 @@ function Z({ run: e, meta: t, children: n, error: r, issues: a, followups: o, fo
 							children: [
 								"Listing ",
 								b.toLocaleString(),
-								" items"
+								" ",
+								b === 1 ? "item" : "items"
 							]
 						}) : null,
 						/* @__PURE__ */ (0, J.jsx)(Je, { rows: y })
@@ -615,7 +616,7 @@ function Xe({ run: e, followups: t, runs: r, latest: a, followupTotal: o, follow
 		controlled: r,
 		issues: p.length ? /* @__PURE__ */ (0, J.jsx)(i, {
 			row: !0,
-			summary: `Issue details · ${p.length} items`,
+			summary: `Issue details · ${p.length} ${p.length === 1 ? "item" : "items"}`,
 			contentClassName: "pb-5",
 			children: /* @__PURE__ */ (0, J.jsx)(K, {
 				label: "Task issue details",
@@ -827,7 +828,7 @@ function Qe() {
 					label: "Recently completed",
 					total: u.finished_total ?? y.length,
 					unit: "rounds",
-					pageUnit: "round",
+					pageUnit: "rounds",
 					pagination: {
 						pageIndex: (u.finished_page || e) - 1,
 						pageSize: n
@@ -843,4 +844,4 @@ function Qe() {
 }
 export { Qe as ActivityPage };
 
-//# debugId=682ff499-deab-4856-a26d-b82b2e05c90f
+//# debugId=7f0e9ed7-158d-48c4-bb53-dc9aa3cd46bc

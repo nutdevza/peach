@@ -17,7 +17,7 @@ it('Bulk actions and per-row checks share selection state, and the popover stays
   }
   const host = await mount(<Picker />);
   await click(buttonNamed('Select source', host));
-  const dialog = () => document.querySelector('[role="dialog"][aria-label="Example filter"]')!;
+  const dialog = () => document.querySelector('[role="dialog"][aria-label="Sample filter"]')!;
   const checkbox = () => dialog().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
   expect(actionOrder(dialog().querySelector('[data-selection-actions]'))).toEqual(['Select all', 'Deselect all', 'Credential setup']);
   await click(buttonNamed('Select all', dialog()));

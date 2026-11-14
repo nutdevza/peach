@@ -72,7 +72,7 @@ export function ResourceSearch({ initialCode, reason, choose, onSearch, onWork }
   };
   return (
     <section aria-label="Find resources" aria-busy={Boolean(action.busy)} className="flex min-w-0 flex-col gap-4">
-      {reason ? <Help>Edition target:{reason}. Search priorities adjust below; completeness and watermarks need per-item review.</Help> : null}
+      {reason ? <Help>Edition target: {reason}. Search priorities adjust below; completeness and watermarks need per-item review.</Help> : null}
       <Input label="Find resources by code" value={code} maxLength={80} placeholder="Enter a code and press Enter to search" enterKeyHint="search"
         leadingIcon={action.busy ? SearchSpinner : RiSearchLine}
         isReadOnly={Boolean(action.busy)} aria-busy={Boolean(action.busy)} onChange={setCode} onKeyDown={(event) => {

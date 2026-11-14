@@ -22,7 +22,7 @@ describe('Shared data table', () => {
     await choose(host.querySelector('[role="toolbar"] button[aria-haspopup="listbox"]'), 'Name');
     expect(rows()[0]!.textContent).toContain('Video 1');
     expect(host.querySelector('th[data-key="name"]')?.getAttribute('aria-sort')).toBe('ascending');
-    await click(host.querySelector('button[aria-label="Sort test video descending"]'));
+    await click(host.querySelector('button[aria-label="Sort Test video descending"]'));
     expect(rows()[0]!.textContent).toContain('Video 23');
     expect(host.querySelector('th[data-key="name"]')?.getAttribute('aria-sort')).toBe('descending');
     await choose(host.querySelector('[data-table-pagination] button[aria-haspopup="listbox"]'), '50 items per page');
@@ -38,7 +38,7 @@ describe('Shared data table', () => {
     expect(buttonNamed('Process selected', host)).toBeNull();
     await click(checkbox(host, 'Select Video 23'));
     await click(buttonNamed('Next page', host));
-    await click(checkbox(host, 'Select video 3'));
+    await click(checkbox(host, 'Select Video 3'));
     await click(buttonNamed('Process selected', host));
     expect(run).toHaveBeenLastCalledWith([1, 21]);
     await click(host.querySelector('th[data-key="name"]'));
@@ -48,7 +48,7 @@ describe('Shared data table', () => {
     await click(buttonNamed('Next page', host));
     await rerender(<Fixture data={[items[0]!, items[1]!]} run={run} />);
     expect(rows()).toHaveLength(2);
-    expect(host.textContent).toContain('1-2 / 2 records');
+    expect(host.textContent).toContain('1–2 / 2 records');
     await click(buttonNamed('Process selected', host));
     expect(run).toHaveBeenLastCalledWith([1]);
     await click(buttonNamed('Clear selection', host));
@@ -58,12 +58,12 @@ describe('Shared data table', () => {
   it('Select-all covers every page, and selecting all again cancels the whole batch', async () => {
     const run = vi.fn();
     const { host } = await mountRoot(<Fixture run={run} />);
-    await click(checkbox(host, 'Select all test videos'));
+    await click(checkbox(host, 'Select all Test video'));
     await click(buttonNamed('Process selected', host));
     expect(run).toHaveBeenLastCalledWith(items.map((item) => item.id));
     await click(buttonNamed('Next page', host));
-    expect(checkbox(host, 'Select video 3')?.checked).toBe(true);
-    await click(checkbox(host, 'Select all test videos'));
+    expect(checkbox(host, 'Select Video 3')?.checked).toBe(true);
+    await click(checkbox(host, 'Select all Test video'));
     expect(host.querySelector('[data-selection-dock]:not([aria-hidden="true"])')).toBeNull();
   });
 

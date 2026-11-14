@@ -181,8 +181,8 @@ export function ReviewPage(props: ReviewProps) {
         setFeedback(`Processing ${at} / ${rows.length}`);
         try {
           const result = await submitDecision(decisionPayload(target, currentReviewRow(target, row), status, choiceOf(row)));
-          if (!result.ok) throw new Error(result.error || 'The server did not adopt this entry');
-          done.push(row.item_key);
+          if (!result.ok) failures.push([row.item_key, result.error || 'The server did not adopt this entry']);
+          else done.push(row.item_key);
         } catch (cause) {
           failures.push([row.item_key, errorMessage(cause)]);
         }
@@ -194,8 +194,8 @@ export function ReviewPage(props: ReviewProps) {
       forget(done);
       failures.forEach(([key, message]) => fail(key, message));
       setFeedback('');
-      const action = { approved: 'Approve', rejected: 'Ignore', skipped: 'Move to handle-later', restore: 'Restore pending' }[status];
-      toast(`${action} ${done.length} items`
+      const action = { approved: 'approved', rejected: 'ignored', skipped: 'moved to handle-later', restore: 'restored' }[status];
+      toast(`${done.length} ${action}`
         + (failures.length ? `, ${failures.length} unfinished` : ''));
     },
     onError: (cause) => { setFeedback(errorMessage(cause)) },

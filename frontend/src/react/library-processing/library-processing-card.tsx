@@ -69,7 +69,7 @@ const profileText = (state: LibraryProcessingData) => {
   const failed = state.performer_profile_failed || 0;
   if (!aliases && !avatars && !conflicts && !failed) return '';
   const parts = [`Fill in performer profiles: ${aliases} aliases, ${avatars} avatars`];
-  if (conflicts) parts.push(`${conflicts} profiles share a name and need confirmation they are the same person`);
+  if (conflicts) parts.push(`${conflicts} ${conflicts === 1 ? 'profile shares' : 'profiles share'} a name and ${conflicts === 1 ? 'needs' : 'need'} confirmation they are the same person`);
   if (failed) parts.push(`${failed} avatars could not be fetched`);
   return `${parts.join(', ')}.`;
 };
@@ -168,7 +168,7 @@ function Outcome(
                 </div> : null}
               {/* The log address and divider use the secondary text color; export reads the same record and is placed next to “open location”. */}
               {log ? <div className="-mx-3 mt-3 border-t border-current/20 px-3 pt-3 text-text-secondary">
-                  <PathLine path={log} prefix="Full log:" className="text-caption-1-regular"
+                  <PathLine path={log} prefix="Full log: " className="text-caption-1-regular"
                     action={exportButton} onRevealed={toast} />
                 </div>
               : exportButton ? <div className="-mx-3 mt-3 flex justify-end border-t border-current/20 px-3 pt-3">{exportButton}</div>
@@ -261,7 +261,7 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
           </div>
           <p className="text-body-2-regular text-text-secondary">{SCAN_CARD_TEXT}</p>
           <div className="w-full max-w-80">
-            <p id="processingLibraryLabel" className="mb-1 text-body-2-medium text-text-secondary">媒体库</p>
+            <p id="processingLibraryLabel" className="mb-1 text-body-2-medium text-text-secondary">Media library</p>
             <Select aria-labelledby="processingLibraryLabel" selectedKey={libraryId || 'all'} isDisabled={start.isPending || !libraries.length}
               renderValue={<LibraryLabel library={selectedLibrary} />}
               onSelectionChange={key => { if (key !== null) setLibraryId(key === 'all' ? '' : String(key)) }}>
@@ -271,7 +271,7 @@ export function LibraryProcessingCard(props: LibraryProcessingProps) {
               </SelectItem>)}
             </Select>
           </div>
-          {processingActive(state) && state.library_name ? <p className="text-body-2-regular text-text-secondary">Current task library:{state.library_name}
+          {processingActive(state) && state.library_name ? <p className="text-body-2-regular text-text-secondary">Current task library: {state.library_name}
           </p> : null}
           {state.status === 'paused' && !state.total
             ? <span className="self-start"><StatusLabel>Paused</StatusLabel></span>

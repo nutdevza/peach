@@ -152,7 +152,7 @@ export function Credentials(
   if (!rows.length) {
     return <EmptyState size="compact" icon={RiKey2Line} title="No configurable sources">Connected sites and their credential states show here.</EmptyState>;
   }
-  const pendingLabel = pending.length ? <span className="text-body-2-regular text-text-error-primary">{`${pending.length} items to configure`}</span> : null;
+  const pendingLabel = pending.length ? <span className="text-body-2-regular text-text-error-primary">{`${pending.length} ${pending.length === 1 ? 'item' : 'items'} to configure`}</span> : null;
   const groups = <>{[
         { title: 'Configurable credentials', rows: rows.filter((row) => row.requirement !== 'none' && row.requirement !== 'blocked') },
         { title: 'No credentials needed', rows: rows.filter((row) => row.requirement === 'none') },

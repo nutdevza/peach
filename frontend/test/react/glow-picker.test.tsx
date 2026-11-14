@@ -79,7 +79,7 @@ describe('Two sets of balls', () => {
     const { root } = await setup({ preset: 'ash' }, 'teal');
     const grids = [...root.querySelectorAll('[role="group"]')].map((grid) => grid.getAttribute('aria-label'));
     expect(grids).toEqual(['Glow', 'Accent color']);
-    expect([...root.querySelectorAll('[data-glow-head]')].map((head) => head.textContent)).toEqual(['Glow reset', 'Accent color']);
+    expect([...root.querySelectorAll('[data-glow-head]')].map((head) => head.textContent)).toEqual(['GlowReset', 'Accent color']);
     expect(pressed(root, '[data-glow-preset]')).toEqual(['Mist gray']);
     expect([...root.querySelectorAll('[data-accent]')].map((chip) => chip.getAttribute('data-accent')))
       .toEqual(ACCENTS.map(([key]) => key));

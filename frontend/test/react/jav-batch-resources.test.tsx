@@ -34,6 +34,6 @@ it('When the download configuration fails it shows the reason; the resource quer
   await mount(<QueryClientProvider client={queryClient}><JavBatchResources items={[works[0]!]} close={vi.fn()} readOnly={false} receipt={vi.fn()} /></QueryClientProvider>);
   await settle();
   expect(document.body.textContent).toContain('Download configuration not obtained');
-  expect(document.body.textContent).toContain('Find resources for the selection · 1 部\'Download configuration not obtained:\'The Peach service is temporarily unavailable; please retry later.DEMO-001Video 1Resource linksQuery againNo resource links found yet.');
+  expect(document.body.textContent).toContain('Find resources for the selection · 1 部\'Download configuration not obtained:\'The service is temporarily unavailableDEMO-001Video 1Resource linksQuery againNo resource links found yet.');
   expect(buttonNamed('Add download')).toBeNull();
 });

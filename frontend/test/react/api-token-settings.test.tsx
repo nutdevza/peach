@@ -35,8 +35,8 @@ const render = (node: ReactNode) => mount(<QueryClientProvider client={queryClie
 
 it('The confirmation copy says, per access method, who must sign in again', () => {
   expect(rotationEffect('password', false)).toContain('Browsers signed in with the access password are unaffected');
-  expect(rotationEffect('legacy', false)).toContain('Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.Scripts and API calls using the old token stop working immediately.');
-  expect(rotationEffect('open', false)).toContain('Browsers without sign-in are unaffected.Scripts and API calls using the old token stop working immediately.');
+  expect(rotationEffect('legacy', false)).toContain('Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in. Scripts and API calls using the old token stop working immediately.');
+  expect(rotationEffect('open', false)).toContain('Browsers without sign-in are unaffected. Scripts and API calls using the old token stop working immediately.');
   expect(rotationEffect('password', true)).toContain('Another computer needs the same token file');
   for (const mode of ['password', 'legacy', 'open'] as const) {
     expect(rotationEffect(mode, false)).toContain('Scripts and API calls using the old token stop working immediately');
@@ -48,18 +48,18 @@ it('Canceling the confirmation sends no request; confirming shows the new token 
   const receipt = vi.fn();
   const seen = confirmWith(false);
   const host = await render(<ApiTokenSettings initial={rotatable} mode="legacy" receipt={receipt} />);
-  await click(buttonNamed('Change token', host)!);
+  await click(buttonNamed('Rotate token', host)!);
   expect(seen[0]!.body).toBe(rotationEffect('legacy', false));
   expect(fetcher).not.toHaveBeenCalled();
 
   vi.restoreAllMocks();
   confirmWith(true);
-  await click(buttonNamed('Change token', host)!);
+  await click(buttonNamed('Rotate token', host)!);
   await settle();
   expect(fetcher).toHaveBeenCalledWith('/api/configuration/access/token/rotate', expect.objectContaining({ method: 'POST' }));
-  const card = section(host, 'Access passphrase')!;
+  const card = section(host, 'Access token')!;
   expect(card.querySelector<HTMLInputElement>('input[readonly]')!.value).toBe('new-token-value');
-  expect(card.textContent).toContain('The new token shows only this once');
+  expect(card.textContent).toContain('The new token is shown only once');
   expect(receipt).toHaveBeenCalledWith('Access token rotated; 2 devices must sign in again');
 });
 
@@ -67,7 +67,7 @@ it('When the token is overridden by a startup argument only the reason is writte
   const host = await render(<ApiTokenSettings initial={{ rotatable: false, reason: '口令由启动参数指定。', paired: false }}
     mode="password" receipt={vi.fn()} />);
   expect(buttonNamed('Change token', host)).toBeNull();
-  expect(section(host, 'Access passphrase')!.textContent).toContain('口令由启动参数指定。');
+  expect(section(host, 'Access token')!.textContent).toContain('口令由启动参数指定。');
 });
 
 it('The certificate section draws the QR code, the segmented fingerprint and the download link', async () => {
@@ -78,10 +78,10 @@ it('The certificate section draws the QR code, the segmented fingerprint and the
     qr: ['101', '010', '101'],
   };
   const host = await render(<CertificateTrust initial={state} />);
-  const card = section(host, 'Other devices trust the HTTPS certificate')!;
+  const card = section(host, 'Other devices trusting the HTTPS certificate')!;
   expect(card.querySelector('svg[role="img"] path')!.getAttribute('d')).toBe('M4 4h1v1h-1zM6 4h1v1h-1zM5 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z');
   expect([...card.querySelectorAll('.font-mono > span')].map(node => node.textContent)).toEqual([
     '00:01:02:03:04:05:06:07', '08:09:0A:0B:0C:0D:0E:0F', '10:11:12:13:14:15:16:17', '18:19:1A:1B:1C:1D:1E:1F']);
   expect(card.querySelector('a[download]')!.getAttribute('href')).toBe(state.download);
-  expect(card.textContent).toContain('Certificate trust settings');
+  expect(card.textContent).toContain('Other devices trusting the HTTPS certificate');
 });

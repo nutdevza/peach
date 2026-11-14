@@ -81,11 +81,11 @@ it('Uncleanable checkboxes are disabled with the reason stated; checking clears 
   expect(box(host, 'logs').disabled).toBe(true);
   expect(host.querySelector('[data-category="logs"]')!.textContent).toContain('No files to clean up');
   expect(host.querySelector('[data-category="playback"]')!.textContent).toContain('Playback cacheWhat is Playback cacheAfter cleanup, Re-transcode when played again1.0 GBReleasable 1.0 GB');
-  expect(buttonNamed('Clear selected', host)!.disabled).toBe(true);
+  expect(buttonNamed('Clean selected', host)!.disabled).toBe(true);
 
   await click(box(host, 'playback'));
-  expect(host.textContent).toContain('1 category selected, 1.0 GB releasable');
-  await click(buttonNamed('Clear selected', host));
+  expect(host.textContent).toContain('1 category selected, 1.0 GB reclaimable');
+  await click(buttonNamed('Clean selected', host));
   await settle();
   expect(seen[0]!.danger).toBe(false);
   expect(sentBody(fetcher)).toEqual({ categories: ['playback'] });
@@ -94,11 +94,11 @@ it('Uncleanable checkboxes are disabled with the reason stated; checking clears 
   const again = await mount(<StorageSettings initial={measured} receipt={vi.fn()} />);
   const all = fetchMock(200, measured);
   vi.stubGlobal('fetch', all);
-  await click(buttonNamed('Clear all', again));
+  await click(buttonNamed('Clean all', again));
   await settle();
   // When a backup is inside, the confirm dialog uses the danger style; the body spells out per category what cleanup does.
   expect(seen[1]!.danger).toBe(true);
-  expect(String(seen[1]!.body)).toContain('Database backup 512 MB (older ones cannot be restored after cleanup)');
+  expect(String(seen[1]!.body)).toContain('Database backup 512 MB (Older ones can never be restored after cleanup)');
   expect(sentBody(all)).toEqual({ categories: ['backups', 'playback'] });
 });
 
@@ -110,8 +110,8 @@ it('Stats draw progress from the last file count, and readings show files and by
   const host = await mount(<StorageSettings initial={measuring} receipt={vi.fn()} />);
   const bar = host.querySelector('[role="progressbar"]')!;
   expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-valuemax')]).toEqual(['120', '300']);
-  expect(host.textContent).toContain('Counted 120 files · 1.0 GB; 300 total last time');
-  expect(buttonNamed('Clear all', host)!.disabled).toBe(true);
+  expect(host.textContent).toContain('Measured 120 files · 1.0 GB, last time 300 items');
+  expect(buttonNamed('Clean all', host)!.disabled).toBe(true);
 });
 
 it('Container deployments offer no location change; list the steps to migrate on the host machine', async () => {
@@ -141,7 +141,7 @@ it('Capacity fields carry the GiB unit, saves integer limits and leaves-empty me
   expect(field?.value).toBe('');
   expect([...host.querySelectorAll('[aria-hidden="true"]')].filter(node => node.textContent === 'GiB')).toHaveLength(4);
   expect(host.querySelector('[data-storage-result]')).not.toBeNull();
-  expect(buttonNamed('Clear selected', host)).not.toBeNull();
+  expect(buttonNamed('Clean selected', host)).not.toBeNull();
   await type(field, '80');
   await submit(host.querySelector('#storageBudgetSettings'));
   await settle();

@@ -152,7 +152,7 @@ describe('Media catalog', () => {
       { location: 'local', root: 'D:\\JAV', path: 'D:\\JAV', root_id: 'root-one', library_id: 'library-one', library: 'JAV', cost: 'free' },
     ] });
     await type(paths(host)[0], 'F:\\JAV');
-    await choose(host.querySelector('[aria-label="Folder change method 1"]'), 'Relocate this folder and keep the file records');
+    await choose(host.querySelector('[aria-label="Folder change method 1"]'), 'Relocate this folder, keeping file records');
     await submit(host.querySelector('form'));
     expect(sentBody(fetcher).media_sources[0]).toMatchObject({
       root_id: 'root-one', root: 'D:\\JAV', path: 'F:\\JAV', change_mode: 'relocate',
@@ -228,7 +228,7 @@ describe('Media catalog', () => {
     ] });
     const policy = rows(host)[0]?.querySelector('[data-media-read-policy] [aria-haspopup="listbox"]');
     expect(policy?.textContent).toContain('Proxy protection');
-    await choose(policy, 'Normal read');
+    await choose(policy, 'Normal reading');
     await submit(host.querySelector('form'));
     expect(sentBody(fetcher).media_sources).toMatchObject([
       { location: 'onedrive', root: 'O:\\Movies', path: 'O:\\Movies', library: '', library_icon: '', cost: 'free' },
@@ -247,7 +247,7 @@ describe('Media catalog', () => {
     await submit(host.querySelector('form'));
     expect(fetcher).not.toHaveBeenCalled();
     expect(host.textContent).toContain('Select a media reading strategy');
-    await choose(policy, 'Normal read');
+    await choose(policy, 'Normal reading');
     await submit(host.querySelector('form'));
     expect(sentBody(fetcher).media_sources[0]).toMatchObject({ location: 'pikpak', cost: 'free' });
   });
@@ -275,7 +275,7 @@ describe('Select folder', () => {
     const fetcher = fetchMock(200, { path: 'E:\\Movies' });
     vi.stubGlobal('fetch', fetcher);
     const host = await open();
-    const pick = host.querySelector('[aria-label="Choose folder"]')!;
+    const pick = host.querySelector('[aria-label="Select folder"]')!;
     await click(pick);
     await settle();
     const [url, init] = fetcher.mock.calls[0] ?? [];
@@ -289,12 +289,12 @@ describe('Select folder', () => {
   it('Cancel changes nothing; if the dialog cannot open, the reason is written on this line', async () => {
     vi.stubGlobal('fetch', fetchMock(200, { path: null }));
     const host = await open();
-    await click(host.querySelector('[aria-label="Choose folder"]'));
+    await click(host.querySelector('[aria-label="Select folder"]'));
     await settle();
     expect(paths(host)[0]?.value).toBe('D:\\Media');
     expect(paths(host)[0]?.getAttribute('aria-invalid')).toBeNull();
     vi.stubGlobal('fetch', fetchMock(501, { error: 'No folder dialog is available on this system' }));
-    await click(host.querySelector('[aria-label="Choose folder"]'));
+    await click(host.querySelector('[aria-label="Select folder"]'));
     await settle();
     expect(rows(host)[0]?.textContent).toContain('No folder dialog is available');
     expect(paths(host)[0]?.getAttribute('aria-invalid')).toBe('true');
@@ -311,7 +311,7 @@ describe('Save', () => {
       await submit(host.querySelector('form'));
       await settle();
       const dialog = document.querySelector('dialog');
-      expect(dialog?.textContent).toContain('Started from the command line or tray, running in a separate process, unaffected by restart');
+      expect(dialog?.textContent).toContain('This task is started from the command line or tray, runs in a separate process, and is unaffected by restart.');
       await click(dialog!.querySelector('[data-modal-cancel]'));
       await settle();
       expect(fetcher).not.toHaveBeenCalled();
@@ -363,7 +363,7 @@ describe('Save', () => {
     const host = await open();
     await submit(host.querySelector('form'));
     await settle();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Not savedThe current state does not allow this action; refresh and try again.');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Not savedThe config changed, refresh before saving');
     expect(host.querySelector('form')).not.toBeNull();
     expect(buttonNamed('Save configuration', host)?.getAttribute('aria-busy'), 'The busy state must clear after failure').toBeNull();
   });
@@ -371,7 +371,7 @@ describe('Save', () => {
 
 it('CloudDrive recommends three tiers by disk; the page keeps only how to fill it in, with the rationale linked to the repository docs', async () => {
   const host = await mount(<CloudDriveGuide />);
-  const tiers = host.querySelectorAll('[aria-label="Tier by drive holding the cache"] > li');
+  const tiers = host.querySelectorAll('[aria-label="Tiered by cache disk"] > li');
   expect(tiers).toHaveLength(3);
   expect([...tiers[0]!.querySelectorAll('dt')].map((dt) => dt.textContent))
     .toEqual(['Cache cap', 'Read length (default / min)', 'Process videos too']);

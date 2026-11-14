@@ -16,7 +16,8 @@ export class ApiError extends Error {
   readonly body: unknown;
 
   constructor(message: string, status: number, body: unknown = null) {
-    super(requestErrorMessage(message,status));
+    /* A server-supplied reason is already the final wording; only the no-reason placeholder is rewritten by the shared map. */
+    super(message && !/^(?:Request|Import) failed \(\d+\)$/.test(message) ? message : requestErrorMessage(message,status));
     this.name = 'ApiError';
     this.status = status;
     this.body = body;

@@ -46,6 +46,6 @@ it('Save failure keeps the current mode and shows a recoverable error', async ()
   await click(control);
   await settle();
   expect(control?.checked).toBe(false);
-  expect(host.textContent).toContain('Video previewsGenerate video previewsGenerates the nine-grid and timeline previews for local videos.Timeline previewExtract frames at the chosen interval, processing only videos on local disks.Off OffOne per 10 secondsOne per 30 secondsFrame extraction decoderUsed to generate covers, contact sheets, and timelines.Automatic (hardware first) Automatic (hardware first)Software decodeThe submission was invalid; check the input and retry.');
+  expect(host.textContent).toContain('Video previewsGenerate video previewsGenerates the nine-grid and timeline previews for local videos.Timeline previewExtract frames at the chosen interval, processing only videos on local disks.Off OffOne per 10 secondsOne per 30 secondsFrame extraction decoderUsed to generate covers, contact sheets, and timelines.Automatic (hardware first) Automatic (hardware first)Software decodeSettings could not be saved');
   expect(receipt).not.toHaveBeenCalled();
 });

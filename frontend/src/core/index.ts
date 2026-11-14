@@ -224,7 +224,7 @@ const seededRank=(seed:number|string,value:string)=>{
 /* Roll one sampling seed. The XOR result is signed 32-bit, so convert to unsigned before the modulo: the seed goes into the address and the backend only accepts non-negative integers. */
 const newSeed=()=>String(((Date.now()^(Math.random()*1e9|0))>>>0)%99991);
 /* The four duration tiers are duration segments on the filter bar, not content tags: the catalog's tag filter excludes them, and any arriving on the address are stripped too. */
-const DURATION_TAGS:ReadonlySet<string>=new Set(['Short - under 2 min','Medium - under 10 min','Long - under 30 min','Extra long - 30 min and up']);
+const DURATION_TAGS:ReadonlySet<string>=new Set(['短片-2分内','中片-10分内','长片-30分内','超长片-30分上']);
 const cleanTagFilter=(value:unknown)=>String(value||'').split(',').filter(tag=>tag&&!DURATION_TAGS.has(tag)).join(',');
 
 export {

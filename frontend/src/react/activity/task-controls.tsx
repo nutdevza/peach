@@ -65,7 +65,7 @@ export function TaskControls({ run, runs = [run] }: { run: TaskRunPayload; runs?
     }
     if (failure !== null) throw failure;
   };
-  const batches = runs.length > 1 ? `These ${runs.length} batches` : 'This round';
+  const batches = runs.length > 1 ? ` from these ${runs.length} batches` : ' from this round';
   const change = useMutation({
     mutationKey: [...CONTROL_KEY, run.id, 'change'],
     mutationFn: send,
@@ -98,10 +98,10 @@ export function TaskControls({ run, runs = [run] }: { run: TaskRunPayload; runs?
       void confirmModal({
         title: followups ? `Cancel every follow-up of "${run.task_label}"` : `Cancel task "${run.task_label}"`,
         body: followups
-          ? `Will stop${batches}every follow-up task already dispatched, including running and queued items. Saved data and results are kept.`
-            + 'These follow-up tasks cannot resume once cancelled; start them again if needed.'
+          ? `Will stop every follow-up task already dispatched${batches}, including running and queued items. Saved data and results are kept.`
+            + ' These follow-up tasks cannot resume once cancelled; start them again if needed.'
           : 'This stops the rest of this round\'s processing and its follow-up tasks. Saved details and results are kept.'
-            + 'Once this round is cancelled it cannot continue; start it again when needed.',
+            + ' Once this round is cancelled it cannot continue; start it again when needed.',
         confirmLabel: followups ? 'Cancel follow-up tasks' : 'Cancel task',
         danger: true,
         onConfirm: async () => {

@@ -274,8 +274,9 @@ export function currentLine(state: LibraryProcessingData): string {
 
 /** With a known total, show the actual completed count; while scanning a directory, show the count of files discovered so far. */
 export function processingLine(state: LibraryProcessingData): string {
+  // The stage phrase is the server's own wording, so the comparison keeps it verbatim.
   const count = state.total ? `${progressText(state.checked, state.total)} items`
-    : state.current_action === 'scanning_files' || state.stage === 'Scan files'
+    : state.current_action === 'scanning_files' || /^(?:扫描文件|Scan files)$/.test(state.stage || '')
       ? `${(state.scanned || 0).toLocaleString()} files discovered` : '';
   return currentLine(state) + (count ? ` · ${count}` : '');
 }
@@ -330,7 +331,7 @@ export function announceCompletion(
     toast(`Video previews generated: ${state.previews || 0}`);
     return;
   }
-  toast(`Scan and profile collection finished: identified ${state.identified || 0} codes,`
+  toast(`Scan and profile collection finished: identified ${state.identified || 0} codes, `
     + `Fetched ${state.candidates || 0} sets of video details, auto-saved ${state.auto_applied || 0}`
     + (state.previews ? `, generating ${state.previews} video previews` : ''));
 }

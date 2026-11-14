@@ -58,7 +58,7 @@ it('Without a LAN address this machine explains what generates one', async () =>
     <PushDiscoveryForm initial={state({ origin: '', config_toml: '' })} receipt={vi.fn()} />);
   expect(host.querySelector('pre')).toBeNull();
   expect(buttonNamed('Copy configuration', host)).toBeNull();
-  expect(host.textContent).toContain('"Discover new files automaticallyWatch this machineRunningAuto-intake after finding new files3 files added to libraryWatch local foldersWatching R:\\mediaReceive CloudDrive2 notificationsWhen a cloud-drive directory changes, CloudDrive2 pushes the change over.Webhook configurationA LAN address CloudDrive2 can reach must exist before this can be generated.Cloud path prefixMatching foldersB:\\ B:\\R:\\mediaAdd prefixSave configuration"');
+  expect(host.textContent).toContain('Discover new files automaticallyWatch this machineRunningAuto-intake after finding new files3 files added to libraryWatch local foldersWatching R:\\mediaReceive CloudDrive2 notificationsWhen a cloud-drive directory changes, CloudDrive2 pushes the change over.Webhook configurationA LAN address CloudDrive2 can reach must exist before this can be generated.Cloud path prefixMatching foldersB:\\ B:\\R:\\mediaAdd prefixSave configuration');
 });
 
 it('The configuration block follows the saved switch; a flick alone does not count', async () => {
@@ -84,7 +84,7 @@ it('When intake fails it shows the server-recorded reason and failure count, and
   const alert = failing.querySelector('[role="alert"]');
   expect(alert?.textContent).toContain('The most recent intake failure');
   expect(alert?.textContent).toContain('database is locked');
-  expect(failing.textContent).toContain('Intaked 3 files, 2 failed intake');
+  expect(failing.textContent).toContain('3 files added to library, 2 failed intake');
 
   const healthy = await mount(<PushDiscoveryForm initial={state()} receipt={vi.fn()} />);
   expect(healthy.querySelector('[role="alert"]')).toBeNull();

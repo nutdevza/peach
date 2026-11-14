@@ -176,7 +176,7 @@ describe('读数卡', () => {
 
   it('复核列前三类、其余合成一项；垃圾分项只列有东西的类别', () => {
     expect(reviewSummary({ counts: { metadata_fields: 12, performer_avatars: 3, studio_logos: 2, creator_tags: 1 } }))
-      .toEqual({ figure: '18 条待复核', meta: '元数据字段 12 · 女优头像 3 · 厂牌 Logo 2 · 其余 1' });
+      .toEqual({ figure: '18 条待复核', meta: 'Metadata fields 12 · Performer avatars 3 · Label logo 2 · 其余 1' });
     expect(junkBreakdown({ pending_total: 5, dismissed_total: 2, counts: { video: 4, image: 0, url: 1 } }))
       .toBe('视频 4 · 网址 1 · 已忽略 2');
   });
@@ -296,7 +296,7 @@ describe('资源同步', () => {
     await act(async () => { queryClient.setQueryData(RESOURCE_SCAN_KEY, {
       ...state, status: 'failed', error: '第二个来源无法读取',
     }); });
-    expect(host.textContent).toContain('本地磁盘');
+    expect(host.textContent).toContain('Local disk');
     expect(host.textContent).toContain('第二个来源无法读取');
   });
 
@@ -598,9 +598,9 @@ describe('孤儿记录', () => {
     const toast = vi.fn();
     const host = await wrap(<OrphanRecordsCard toast={toast} />);
     await settle();
-    await click(host.querySelector('input[aria-label="选择 作品 0"]'));
-    await click(buttonNamed('下一页', host));
-    await click(host.querySelector('input[aria-label="选择 作品 20"]'));
+    await click(host.querySelector('input[aria-label="Select 作品 0"]'));
+    await click(host.querySelector('button[aria-label="Page 2"]'));
+    await click(host.querySelector('input[aria-label="Select 作品 20"]'));
     confirmWith(false);
     await click(buttonNamed('删除所选记录（2）', host));
     expect(server.posts('/api/batch')).toEqual([]);

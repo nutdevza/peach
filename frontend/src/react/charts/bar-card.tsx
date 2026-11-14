@@ -18,15 +18,16 @@ export const BAR_DOMAIN: [number, (max: number) => number] = [0, (max) => max * 
 /** Space reserved to the right of horizontal bars for the bar-end number, in pixels: the longest bar's number lands inside this strip, not clipped by the chart frame. */
 export const BAR_LABEL_ROOM = 56;
 
-/** The bar-end number: values past 100k read in ten-thousand and hundred-million units so the strip at the bar end fits; the exact figure is in the hover popover. */
+/** The bar-end number: values past 100k read in thousands, millions and billions so the strip at the bar end fits; the exact figure is in the hover popover. */
 export function shortCount(value: number): string {
   const abs = Math.abs(value);
   const scaled = (unit: number, name: string) => {
     const figure = value / unit;
-    return `${figure.toLocaleString(undefined, { maximumFractionDigits: Math.abs(figure) < 100 ? 1 : 0 })}${name}`;
+    return `${figure.toLocaleString(undefined, { maximumFractionDigits: Math.abs(figure) < 10 ? 2 : Math.abs(figure) < 100 ? 1 : 0 })}${name}`;
   };
-  if (abs >= 1e8) return scaled(1e8, 'B');
-  if (abs >= 1e5) return scaled(1e4, 'K');
+  if (abs >= 1e9) return scaled(1e9, 'B');
+  if (abs >= 1e6) return scaled(1e6, 'M');
+  if (abs >= 1e5) return scaled(1e3, 'K');
   return value.toLocaleString();
 }
 

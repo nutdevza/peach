@@ -110,7 +110,7 @@ it('This person from the URL: decode the whole thing first, then split by segmen
   const r = await load();
   expect(r.entityTarget('/performers/A%2FB')).toEqual({ segment: 'performers', kind: 'performer', name: 'A/B' });
   expect(r.entityTarget('/series/x/y')).toEqual({ segment: 'series', kind: 'series', name: 'x/y' });
-  expect(r.entityTarget('/agencies/%E6%9F%90%20Co')).toEqual({ segment: 'agencies', kind: 'agency', name: 'Some Co' });
+  expect(r.entityTarget('/agencies/%E6%9F%90%20Co')).toEqual({ segment: 'agencies', kind: 'agency', name: '某 Co' });
   expect(r.entityTarget('/performers/')).toBeNull();
   expect(r.entityTarget('/tags/x')).toEqual({ segment: 'tags', kind: 'tag', name: 'x' });
   expect(r.entityTarget('/performers/%E0')).toBeNull();

@@ -108,12 +108,12 @@ it('In-library toasts: the first round only records the baseline; each new arriv
   expect(shown).not.toHaveBeenCalled();
   seen = announceIngests(seen, { epoch: 'a', items: [notice(1), notice(2), notice(3), notice(4, 'discovered', '<b>x</b>')] }, go);
   expect(shown.mock.calls.map(([, request]) => request.html)).toEqual(
-    ['"SSIS-3" is in the library and organized', 'New files in library: "&#60;b&#62;x&#60;/b&#62;"']);
+    ['"SSIS-3" landed in the library and finished processing', 'New file landed in the library: "&#60;b&#62;x&#60;/b&#62;"']);
   shown.mock.calls[0]![1].action!.run(document.createElement('button'));
   expect(go).toHaveBeenCalledWith(103);
   shown.mockClear();
   seen = announceIngests(seen, { epoch: 'a', items: [5, 6, 7, 8].map(id => notice(id)) }, go);
-  expect(shown.mock.calls.map(([, request]) => [request.html, request.action])).toEqual([['4 works added to the library', null]]);
+  expect(shown.mock.calls.map(([, request]) => [request.html, request.action])).toEqual([['4 works landed in the library', null]]);
   shown.mockClear();
   announceIngests(seen, { epoch: 'b', items: [notice(1)] }, go);
   expect(shown).not.toHaveBeenCalled();

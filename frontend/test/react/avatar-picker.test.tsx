@@ -105,7 +105,7 @@ it('Candidates fetch only on open, and images carry only refs the server listed'
 it('When the gallery name differs from the page name, state clearly which one was matched', async () => {
   server(listing([choice()]));
   await openPicker();
-  expect(dialog()?.textContent).toContain('Found in the gallery by searching "Aoi Tsukasa"');
+  expect(dialog()?.textContent).toContain('found in the image library by "葵つかさ"');
 });
 
 it('When several names each bring back a batch of images, every cell states which name it was found by', async () => {
@@ -116,9 +116,9 @@ it('When several names each bring back a batch of images, every cell states whic
       choice({ ref: 'gfriends:3-Prestige/葵ツカサ.jpg', label: '3-Prestige', found_by: '葵ツカサ' })],
     { matched_names: ['葵つかさ', '葵ツカサ'] }));
   await openPicker();
-  expect(dialog()?.textContent).toContain('Found in the gallery by searching "葵つかさ" and "葵ツカサ"');
-  expect(cells()[0]?.getAttribute('title')).toContain('Found via "葵つかさ"');
-  expect(cells()[1]?.getAttribute('title')).toContain('Found via "葵ツカサ"');
+  expect(dialog()?.textContent).toContain('found in the image library by "葵つかさ", "葵ツカサ"');
+  expect(cells()[0]?.getAttribute('title')).toContain('found via "葵つかさ"');
+  expect(cells()[1]?.getAttribute('title')).toContain('found via "葵ツカサ"');
 });
 
 it('Opening a gallery portrait starts with a box selection; the default box lands on the server-detected face, and finishing closes the popover and lets the host rerender', async () => {
@@ -225,7 +225,7 @@ it('Local images preview from conversion candidates, and confirming submits the 
   await click(buttonNamed('Use this region'));
   await settle();
   expect(sent(calls, 2)[0])
-    .toBe('/api/avatar-pick?kind=performer&id=7792&name=%E6%88%91%E7%9A%84%E5%9B%BE.jpg&crop=90,20,210,140');
+    .toBe('/api/avatar-pick?kind=performer&id=7792&name=My%20image.jpg&crop=90,20,210,140');
   expect(sent(calls, 2)[1].body).toBe(file);
 });
 
@@ -252,7 +252,7 @@ it('When framing fails the reason stays on the candidates screen', async () => {
   await type(document.querySelector<HTMLInputElement>('input[aria-label="Image address"]'), 'https://192.0.2.1/a.jpg');
   await click(buttonNamed('Use this address'));
   await settle();
-  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('The submission was invalid; check the input and retry.');
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('Only https addresses pointing at the public internet are accepted');
   expect(dialog()?.textContent).toContain('Change avatar');
 });
 
@@ -267,7 +267,7 @@ it('When the swap fails the popover stays put with the reason inside', async () 
   await settle();
   await click(buttonNamed('Use the whole image'));
   await settle();
-  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('The submission was invalid; check the input and retry.');
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('This image was never downloaded and going online is not allowed this time');
   expect(picked).not.toHaveBeenCalled();
   expect(dialog()).not.toBeNull();
 });
@@ -335,10 +335,10 @@ it('When found under many names the note names the first two and counts the rest
   server(listing([choice({ found_by: names[4] })], { matched_names: names }));
   await openPicker();
   const note = dialog()?.textContent || '';
-  expect(note).toContain('Found in the gallery by searching 5 names such as "葵つかさ" and "葵ツカサ"');
+  expect(note).toContain('found in the image library by "葵つかさ", "葵ツカサ", 5 names in all');
   expect(note).not.toContain('あおいつかさ');
   // The ones not named still land in their own cell's title as before.
-  expect(cells()[0]?.getAttribute('title')).toContain('Found by searching "葵司 (AV女優)"');
+  expect(cells()[0]?.getAttribute('title')).toContain('found via "葵司 (AV performer)"');
 });
 
 it('With no candidates at all the grid strip is omitted, and the two manual paths stay put', async () => {
@@ -356,7 +356,7 @@ it('When candidates fail to load, a "Retry" sits next to the reason; clicking fe
     : { ok: true, status: 200, json: async () => listing([choice()]) }));
   vi.stubGlobal('fetch', fetched);
   await openPicker();
-  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('The Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.Retry now');
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('Candidates cannot be readRetry now');
   expect(document.querySelector('[role="listbox"]')).toBeNull();
   fail = false;
   await click(buttonNamed('Retry now'));
@@ -393,7 +393,7 @@ it('After a failed save returns candidates and a new image is picked, only the c
   await reportSize(300, 400);
   await click(buttonNamed('Use this region'));
   await settle();
-  expect(dialog()?.textContent).toContain('Boxes the avatar region7-S1: drag the box to pick an area; the wheel or the corner square resizes it.The submission was invalid; check the input and retry.Return to alternate imagesUse the whole imageUse this region');
+  expect(dialog()?.textContent).toContain('Boxes the avatar region7-S1: drag the box to pick an area; the wheel or the corner square resizes it.Image data is incomplete or undecodableReturn to alternate imagesUse the whole imageUse this region');
   await click(buttonNamed('Return to alternate images'));
   await settle();
   expect(dialog()?.textContent).not.toContain('Image data is incomplete or undecodable');
@@ -508,8 +508,8 @@ it('Covers fetched by code go straight into box selection; the default box is th
     return { ok: true, status: 200, json: async () => answer };
   }));
   await openPicker();
-  expect(buttonNamed('Fetch cover to frame')?.disabled).toBe(undefined);
-  const input = document.querySelector<HTMLInputElement>('input[aria-label="code"]');
+  expect(buttonNamed('Use cover to frame')?.disabled).toBe(true);
+  const input = document.querySelector<HTMLInputElement>('input[aria-label="Code"]');
   await type(input, ' abw-999 ');
   // Enter submits, the same thing as pressing that button.
   await act(async () => { input?.form?.requestSubmit() });
@@ -537,8 +537,8 @@ it('When a code cannot fetch a cover the reason stays in the popover', async () 
       : { ok: true, status: 200, json: async () => listing([]) }
   )));
   await openPicker();
-  await type(document.querySelector<HTMLInputElement>('input[aria-label="code"]'), 'ABW-999');
-  await click(buttonNamed('Fetch cover to frame'));
+  await type(document.querySelector<HTMLInputElement>('input[aria-label="Code"]'), 'ABW-999');
+  await click(buttonNamed('Use cover to frame'));
   await settle();
   expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain('Official channels have no cover for this code');
   expect(dialog()?.textContent).toContain('Change avatar');
@@ -582,7 +582,7 @@ it('Changing the base image swaps to another image, leaving none of the previous
   await click(cells()[0]);
   await settle();
   const bases = [...document.querySelectorAll<HTMLElement>('[data-crop-base]')];
-  expect(bases.map((one) => one.textContent?.trim())).toEqual(['Cover', 'Slot 5']);
+  expect(bases.map((one) => one.textContent?.trim())).toEqual(['Cover', 'Cell 5']);
   await reportSize(800, 540);
   await click(bases[1]);
   await settle();

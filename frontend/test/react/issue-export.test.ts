@@ -26,7 +26,7 @@ it('Mixed exports are refused when a task resumes or the total changes',async()=
       total:201,rows:Array.from({length:calls===1?200:1},()=>({asset_id:1,message:'Issues'}))})};
   }));
   await expect(exportProcessingIssues({status:'failed',job_id:'one'},new AbortController().signal))
-    .rejects.toThrow('Issue records have changed');
+    .rejects.toThrow('The issue records changed, export again');
 });
 
 it('Canceled pagination or missing rows never return partial content',async()=>{
@@ -39,5 +39,5 @@ it('Canceled pagination or missing rows never return partial content',async()=>{
   vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({job_id:'one',revision:'fixed',offset:0,total:2,
     rows:[{asset_id:1,message:'Issues'}]})})));
   await expect(exportProcessingIssues({status:'failed',job_id:'one'},new AbortController().signal))
-    .rejects.toThrow('Incomplete');
+    .rejects.toThrow('The issue records are incomplete, export again');
 });

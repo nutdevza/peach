@@ -35,7 +35,7 @@ function helpers(patch: Partial<ItemDetailHelpers> = {}): ItemDetailHelpers {
   return {
     badgeHtml: () => '', titleHtml: (shown) => String(shown.name), displayName: (shown) => String(shown.name),
     javImage: () => 'cover',
-    tagLabel: (tag) => tag, isDurationTag: (tag) => tag.startsWith('Long videos'), tagCandidates: () => [], sourceOffline: () => false,
+    tagLabel: (tag) => tag, isDurationTag: (tag) => tag.startsWith('Long - over 30 min'), tagCandidates: () => [], sourceOffline: () => false,
     offlineReason: () => 'The drive is not mounted', relatedSkeletonHtml: () => '', mixRelated: async () => [], wireDrag: vi.fn(),
     wireDragReorder: vi.fn(), ...patch,
   };
@@ -216,7 +216,7 @@ describe('Which queue entry it stopped on', () => {
     expect(queueCopy(queue('parts', [1, 2, 3], { title: 'Volumes · PCH-021' }))).toEqual({ title: 'Volumes', summary: 'Volumes · PCH-021 · 3 volumes' });
     expect(queueCopy(queue('playlist', [1], { title: 'Weekend playlist' }))).toEqual({ title: 'Playlists', summary: 'Weekend playlist · 1 video' });
     const many = Array.from({ length: 1284 }, (_, i) => i + 1);
-    expect(queueCopy(queue('parts', many, { title: 'Volumes' })).summary).toBe('Volumes · 1,284');
+    expect(queueCopy(queue('parts', many, { title: 'Volume set' })).summary).toBe('Volume set · 1,284 volumes');
   });
 
   it('The new order after dragging: placed before or after the target', () => {
@@ -240,7 +240,7 @@ describe('Identity and tags', () => {
 
   it('Tags drop duration tiers, and deduping by display name keeps the entry that is itself the canonical name', () => {
     const tags = detailTags(item(1, { tags: [{ k: 'Long - over 30 min' }, { k: 'Old name' }, { k: 'Canonical name' }, { k: 'Drama' }] }),
-      { tagLabel: (tag) => (tag === 'Old name' ? 'Canonical name' : tag), isDurationTag: (tag) => tag.startsWith('Long videos') });
+      { tagLabel: (tag) => (tag === 'Old name' ? 'Canonical name' : tag), isDurationTag: (tag) => tag.startsWith('Long - over 30 min') });
     expect(tags.map((tag) => tag.k)).toEqual(['Canonical name', 'Drama']);
   });
 
@@ -406,10 +406,10 @@ describe('After the write', () => {
   it('Tag deletion writes to cache; undo adds it back', async () => {
     const fetcher = serve(() => ({ ok: true }));
     const { host, actions: done } = await show(item(1));
-    await click(host.querySelector('[data-remove-tag="plot"]'));
+    await click(host.querySelector('[data-remove-tag="Drama"]'));
     await settle();
     expect(host.querySelector('[data-tag="Drama"]')).toBeNull();
-    expect(done.toast.mock.calls[0]![0]).toBe('Deleted tag "Story"');
+    expect(done.toast.mock.calls[0]![0]).toBe('Deleted tag "Drama"');
     await done.toast.mock.calls[0]![1]!.undo!();
     await settle();
     expect(host.querySelector('[data-tag="Drama"]')).not.toBeNull();
@@ -585,11 +585,11 @@ describe('How the sidebar reads', () => {
   it('Each edition queue row carries an edition badge colored by edition', async () => {
     serve();
     queryClient.setQueryData(queueKey({ kind: 'editions', seedId: 1 }), queue('editions', [1, 2], {
-      items: [row(1, { edition_label: 'Chinese subs' }), row(2, { edition_label: 'Uncensored' })],
+      items: [row(1, { edition_label: '中字' }), row(2, { edition_label: '无码' })],
     }));
     const { host } = await show(item(1), { queue: { kind: 'editions', seedId: 1 } });
     expect([...host.querySelectorAll('[data-queue-edition]')].map((badge) => [badge.textContent, badge.className])).toEqual([
-      ['Chinese subs', 'javedition subtitle'], ['Uncensored', 'javedition uncensored'],
+      ['中字', 'javedition subtitle'], ['无码', 'javedition uncensored'],
     ]);
   });
 
@@ -620,9 +620,9 @@ describe('How the sidebar reads', () => {
     await act(async () => { input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })) });
     await type(input, 'zhon');
     expect(names()).toEqual(['Big breasts', 'Creampie']);
-    await type(input, 'medium');
+    await type(input, 'Crea');
     await act(async () => { input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })) });
-    expect(names()).toEqual(['Creampie', 'medium']);
+    expect(names()).toEqual(['Creampie', 'Crea']);
     await key('ArrowDown');
     await key('Enter');
     await settle();

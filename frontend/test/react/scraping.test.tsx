@@ -119,16 +119,24 @@ it('The first screen paints sources and tasks from the prefetch cache; mounting 
   expect(section(host, 'HD cover')).not.toBeNull();
   const bridge = section(host, 'amane');
   expect(bridge).not.toBeNull();
-  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
-  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
-  expect(bridge?.textContent).toContain('amanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
-  expect(bridge?.textContent).toContain('When the installer already carries a usable environment it is used directly');
+  expect(bridge?.textContent).toContain('Installed version0.16.1');
+  expect(bridge?.textContent).toContain('FC2PPVDB, AVSOX');
+  expect(bridge?.textContent).toContain('Peach automatically prepares the pinned 0.16.1 version');
+  expect(bridge?.textContent).toContain('used directly when the installer already ships a working environment');
+  expect(bridge?.textContent).toContain('Installed version0.16.1');
+  expect(bridge?.textContent).toContain('FC2PPVDB, AVSOX');
+  expect(bridge?.textContent).toContain('Peach automatically prepares the pinned 0.16.1 version');
+  expect(bridge?.textContent).toContain('used directly when the installer already ships a working environment');
+  expect(bridge?.textContent).toContain('Installed version0.16.1');
+  expect(bridge?.textContent).toContain('FC2PPVDB, AVSOX');
+  expect(bridge?.textContent).toContain('Peach automatically prepares the pinned 0.16.1 version');
+  expect(bridge?.textContent).toContain('used directly when the installer already ships a working environment');
   expect(buttonNamed('Reinstall', bridge!)).not.toBeNull();
   // The connection method is a BoardUI Select, which paints a button; the native select is the one React Aria hides behind
   // The one the form reads its value from, not how this row looks.
   expect(host.querySelector('[aria-haspopup=listbox]')?.textContent?.trim()).toBe('Peach proxy');
   expect(host.querySelector<HTMLAnchorElement>('a[href="/settings/library#peachProxy"]')?.textContent)
-    .toContain('Configure the Peach proxy');
+    .toContain('Configure Peach proxy');
   expect(host.querySelector<HTMLAnchorElement>('a[href="https://www.javbus.com/"]')?.target).toBe('_blank');
 });
 
@@ -159,8 +167,8 @@ it('Saving clears the secret input, the list swaps in the server\'s returned row
     },
   });
   expect(password(host)?.value, 'After the save returns, the page no longer keeps the copy just submitted').toBe('');
-  expect(host.textContent).toContain('HD images may need the proxy to download; check the connection first.Connectivity checkChecks each source page and the DMM HD image servers. Reachable only means the address answers, not that the login works.All checksHD coverScrape coverCustom metadata sourceAdd sourceJavBuswww.javbus.comConnection methodPeach proxy Peach proxyDirect connectionConfigure Peach proxyCookies savedLogin validity pending verification.Paste cookiesImport fileCookieRevoke CookieCheck connectionSaveamanehttps://github.com/sqzw-x/amaneInstalled version0.16.1Latest upstream versionNot checked yetRuntime environmentInstalledBuilt-in sites2 itemsView built-in sitesFC2PPVDB、AVSOXamane (GPL-3.0\') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned \'0.16.1 Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream.Check upstream versionReinstall');
-  expect(buttonNamed('Revoke cookies', host)).not.toBeNull();
+  expect(host.textContent).toContain('Login validity pending verification');
+  expect(buttonNamed('Revoke Cookie', host)).not.toBeNull();
   expect(toast).toHaveBeenCalledWith('Source settings saved');
   expect(calls.filter((call) => call.path === '/api/scraping' && call.method === 'GET'),
     'Saving replaces one row in the list; it does not refetch the whole page for it').toHaveLength(1);
@@ -171,11 +179,11 @@ it('Undo takes the same write path, with the receipt saying undo', async () => {
     ...quiet({ cookie_saved: true }),
     'POST /api/scraping/settings': () => ({ body: { saved: source({ cookie_saved: false }) } }),
   });
-  await click(buttonNamed('Revoke cookies', host));
+  await click(buttonNamed('Revoke Cookie', host));
   await settle();
   expect(calls[FIRST_SCREEN.length]?.body).toMatchObject({ source: 'javbus', revoke: true });
   expect(toast).toHaveBeenCalledWith('Cookies revoked');
-  expect(buttonNamed('Revoke cookies', host), 'After undoing, this key has nothing left to undo').toBeNull();
+  expect(buttonNamed('Revoke Cookie', host), 'After undoing, this key has nothing left to undo').toBeNull();
 });
 
 it('On save failure the reason stays in the card, with the list and just-entered content untouched', async () => {
@@ -187,9 +195,9 @@ it('On save failure the reason stays in the card, with the list and just-entered
   await submit(section(host, 'JavBus'));
   await settle();
 
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('The submission was invalid; check the input and retry.');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('The Cookie is not in Netscape format');
   expect(password(host)?.value, 'Clearing input after failure makes people type it all again').toBe('session=fixture');
-  expect(buttonNamed('Revoke cookies', host)).toBeNull();
+  expect(buttonNamed('Revoke Cookie', host)).toBeNull();
   expect(toast).not.toHaveBeenCalled();
 });
 
@@ -267,8 +275,8 @@ it('Cover scraping follows through to the terminal state: every two seconds whil
   await prefetchScraping(new AbortController().signal);
   const host = await mount(page(toast));
 
-  await type(host.querySelector<HTMLInputElement>('input[aria-label=library code]'), 'ABW-232');
-  await click(buttonNamed('Fetch cover', host));
+  await type(host.querySelector<HTMLInputElement>('input[aria-label="Library code"]'), 'ABW-232');
+  await click(buttonNamed('Scrape cover', host));
   await settle();
   expect(calls[FIRST_SCREEN.length]).toMatchObject({ path: '/api/scraping/cover', method: 'POST', body: { code: 'ABW-232' } });
   expect(host.textContent).toContain('Scraping covers');
@@ -324,7 +332,7 @@ it('All checks advance by the number of checked sources; when done it groups iss
   });
   await prefetchScraping(new AbortController().signal);
   const host = await mount(page(toast));
-  const card = () => section(host, 'Connection check')!;
+  const card = () => section(host, 'Connectivity check')!;
 
   await click(buttonNamed('All checks', card()));
   await settle();
@@ -339,10 +347,10 @@ it('All checks advance by the number of checked sources; when done it groups iss
     expect.stringContaining('JavDB'), expect.stringContaining('片商官网'),
   ]);
   expect(problems[0]).toContain('来源返回人机验证页');
-  expect(card().textContent).toContain('1 reachable item');
+  expect(card().textContent).toContain('1 reachable');
   expect(card().textContent).toContain('Took 4.2 s');
   expect(toast).toHaveBeenCalledTimes(1);
-  expect(toast).toHaveBeenCalledWith('Checks finished, 1 item failed');
+  expect(toast).toHaveBeenCalledWith('Check finished, 1 failed');
   expect(calls.filter((call) => call.path === '/api/scraping' && call.method === 'GET'),
     '冷却会变，跑完重读来源列表').toHaveLength(2);
 });
@@ -355,7 +363,7 @@ it('Leaving the page and returning keeps the previous results of all checks, but
       results: [{ source: 'javdb', label: 'JavDB', results: [reported('cooldown', '冷却', '来源正在冷却')] }],
     } }),
   });
-  const card = section(host, 'Connection check')!;
+  const card = section(host, 'Connectivity check')!;
   expect(card.textContent).toContain('冷却');
   expect(card.textContent).toContain('来源正在冷却');
   expect(card.textContent).toContain('Last check');
@@ -378,11 +386,11 @@ it('amane bridge: checking upstream only fills the "Upstream latest version" row
   const bridge = section(host, 'amane')!;
   expect(bridge.textContent).toContain('Not checked yet');
 
-  await click(buttonNamed('Check the upstream version', bridge));
+  await click(buttonNamed('Check upstream version', bridge));
   await settle();
   expect(calls[FIRST_SCREEN.length]).toMatchObject({ path: '/api/scraping/amane-bridge/check', method: 'POST' });
   expect(bridge.textContent).toContain('v0.17.0');
-  expect(bridge.textContent, 'Checking upstream leaves the installed version alone').toContain('Installed version 0.16.1');
+  expect(bridge.textContent, 'Checking upstream leaves the installed version alone').toContain('Installed version0.16.1');
 
   await click(buttonNamed('Reinstall', bridge));
   await settle();

@@ -32,7 +32,7 @@ describe('Follow domain URL and session control', () => {
   it('Single-value dimensions read the first item, tags dedupe, invalid states and durations become unbounded, and random seeds use unsigned values', () => {
     const roll = vi.fn(() => 29);
     const actual = readFollowView('?author=foo,bar&provider=a,b&work=w,x&tag=t,t,u&status=seen&dur_min=-1&dur_max=bad&sort=rand&seed=-1', 7, roll);
-    expect(actual).toMatchObject({ author: 'Alpha', provider: 'a', work: 'w', tags: ['t', 'u'], status: '',
+    expect(actual).toMatchObject({ author: 'foo', provider: 'a', work: 'w', tags: ['t', 'u'], status: '',
       durMin: 0, durMax: 0, sort: 'rand', seed: 4294967295 });
     expect(roll).not.toHaveBeenCalled();
     expect(readFollowView('', 0, roll).seed).toBe(29);

@@ -11,10 +11,10 @@ it('Locate requests submit only this path, with one receipt line on success', as
   const fetcher = fetchMock(200, { ok: true, path: LOG });
   vi.stubGlobal('fetch', fetcher);
   const revealed = vi.fn();
-  const host = await mount(<PathLine path={LOG} prefix="Full log:" onRevealed={revealed} />);
+  const host = await mount(<PathLine path={LOG} prefix="Full log: " onRevealed={revealed} />);
 
-  expect(host.textContent).toContain(`Full record: ${LOG}`);
-  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
+  expect(host.textContent).toContain(`Full log: ${LOG}`);
+  await click(host.querySelector('button[aria-label="Show in File Explorer"]'));
 
   expect(fetcher.mock.calls[0]?.[0]).toBe('/api/reveal');
   expect(sentBody(fetcher)).toEqual({ path: LOG });
@@ -27,7 +27,7 @@ it('When it cannot open, the reason stays next to the path instead of faking a s
   const revealed = vi.fn();
   const host = await mount(<PathLine path={LOG} onRevealed={revealed} />);
 
-  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
+  await click(host.querySelector('button[aria-label="Show in File Explorer"]'));
 
   expect(host.textContent).toContain('This position no longer exists');
   expect(revealed).not.toHaveBeenCalled();
@@ -41,7 +41,7 @@ it('When the server rejects this path it says so plainly instead of hiding behin
   }));
   const host = await mount(<PathLine path={'C:\\Windows'} />);
 
-  await click(host.querySelector('button[aria-label="Show in Explorer"]'));
+  await click(host.querySelector('button[aria-label="Show in File Explorer"]'));
 
   expect(host.textContent).toContain('This location is not managed by Peach and can only be opened manually');
 });

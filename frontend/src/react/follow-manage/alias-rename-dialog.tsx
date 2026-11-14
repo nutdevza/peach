@@ -5,6 +5,7 @@ import { Input } from '@/components/base/input/input';
 import { ModalFrame } from '../components/modal-frame';
 import { Note } from '../components/note';
 import { FieldLabel } from '../settings/section';
+import { errorMessage } from '../../api';
 import { busyProps, useAction } from '../settings/use-action';
 import { renameAliasGroup, reloadFollowManage, type AliasGroup } from './follow-manage';
 
@@ -22,6 +23,11 @@ function RenameForm({ group, close, receipt }: { group: AliasGroup; close(): voi
     if (!name.trim() || name.trim() === group.canonical_name) return;
     void action.run('rename', signal => renameAliasGroup(group.canonical_key, name.trim(), signal), () => {
       void reloadFollowManage(); receipt(`Changed the canonical name to ${name.trim()}`); close();
+    }, (cause) => {
+      // The server's own reason (a taken name, for example) reads better than the generic retry line.
+      const body = (cause as { body?: unknown })?.body as Record<string, unknown> | null | undefined;
+      const reason = body && typeof body.error === 'string' ? body.error : '';
+      action.setError(reason || errorMessage(cause));
     });
   };
   return <form onSubmit={submit} className="flex min-h-0 flex-col gap-4 p-5">

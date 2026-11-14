@@ -154,7 +154,7 @@ it('The first screen reads the prefetched cache entry, and the two evidence sets
   expect(tasteGets(fetcher)).toHaveLength(1);
   expect(tasteGets(fetcher)[0]?.[0]).toBe(`${TASTE_URL}?window=all`);
   expect([...host.querySelectorAll('[role=tab]')].map((tab) => tab.textContent).slice(0, 2))
-    .toEqual(['Peach watch and rating', 'Browser data']);
+    .toEqual(['Peach watches and ratings', 'Browser history']);
   expect(host.textContent).toContain('900');
   expect(host.textContent).not.toContain(' videos have internal behavior evidence');
 });
@@ -174,10 +174,10 @@ it('The taste dimensions readout counts only dimensions with a positive score, t
 it('Numbers under data sources and rankings get thousands separators, and without a date range only the source count reads', () => {
   expect(historySpan({ history_sources: 12345 })).toBe(`${(12345).toLocaleString()} data sources`);
   expect(historySpan({ history_sources: 2, range_start: '2026-01-01', range_end: '2026-09-01' }))
-    .toMatch(/^2 个数据源 · .+–.+$/);
+    .toMatch(/^2 data sources · .+–.+$/);
   expect(rankDetail({ name: 'Alpha', web_visits: 12345, peach_items: 6789 }))
-    .toBe(`Browse ${(12345).toLocaleString()} · Peach ${(6789).toLocaleString()}`);
-  expect(rankDetail({ name: 'Beta', web_visits: 5, web_bookmarks: 3 })).toBe('Browsing 2 · bookmarks 3');
+    .toBe(`Browsed ${(12345).toLocaleString()} · Peach ${(6789).toLocaleString()}`);
+  expect(rankDetail({ name: 'Beta', web_visits: 5, web_bookmarks: 3 })).toBe('Browsed 2 · Bookmarks 3');
 });
 
 it('When one side of the flow diagram exceeds twelve nodes the tail is merged; the canvas grows with the node count and nodes never crowd together', () => {
@@ -203,7 +203,7 @@ it('With fewer than three dimensions the profile card omits the radar but still 
 
 it('Rankings without a rank offer one line on how to fill it, never repeating "not enough evidence yet"', async () => {
   const { host } = await open();
-  await click([...host.querySelectorAll('[role=tab]')].find((tab) => tab.textContent === 'Peach watch and rating') ?? null);
+  await click([...host.querySelectorAll('[role=tab]')].find((tab) => tab.textContent === 'Peach watches and ratings') ?? null);
   await click([...host.querySelectorAll('[role=tab]')].find((tab) => tab.textContent === 'Creators') ?? null);
   const panel = [...host.querySelectorAll('[role=tabpanel]')].at(-1)!;
   expect(panel.textContent).toContain('Not enough records');

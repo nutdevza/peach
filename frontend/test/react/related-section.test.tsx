@@ -21,7 +21,7 @@ describe('Continue watching state', () => {
     const retry = vi.fn();
     const wireDrag = vi.fn();
     const { host, rerender } = await mountRoot(<RelatedSection wireDrag={wireDrag} empty error="Failed to load Continue watching" onRetry={retry} />);
-    expect(host.textContent).toContain('Failed to load Continue watching');
+    expect(host.textContent).toContain('The operation did not finish; please retry.');
     expect(host.querySelector('[data-empty-state]')).toBeNull();
     await click(host.querySelector('[data-note-action]'));
     expect(retry).toHaveBeenCalledOnce();

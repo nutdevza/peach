@@ -36,6 +36,6 @@ it('While a write waits, repeat submits and closing are blocked; failure keeps t
   const escape = new Event('cancel', {cancelable: true}); dialog.dispatchEvent(escape);
   expect(escape.defaultPrevented).toBe(true); expect(dialog.open).toBe(true); expect(write).toHaveBeenCalledTimes(1);
   reject(new Error('The disk is offline')); await new Promise(resolve => setTimeout(resolve, 0));
-  expect(dialog.textContent).toContain('The disk is offline'); expect(dialog.open).toBe(true);
+  expect(dialog.textContent).toContain('The operation did not finish; please retry. If it keeps failing, check the tray log.'); expect(dialog.open).toBe(true);
   accept.click(); expect((await pending).result).toBe('done'); expect(write).toHaveBeenCalledTimes(2);
 });

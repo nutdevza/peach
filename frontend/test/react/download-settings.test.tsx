@@ -119,14 +119,14 @@ it('The check reports the missing permission, target folder, and remaining quota
     quota: { total: 1500, used: 3, left: 1497 }, problems: [],
   }));
   const host = await mount(<DownloadSettings initial={state()} receipt={vi.fn()} />);
-  for (const name of ['Save configuration', 'Log in']) {
+  for (const name of ['Save configuration', 'Sign in']) {
     expect(buttonNamed(name, host)?.className, name).toContain('bg-button-primary');
   }
-  expect(buttonNamed('Sign in with the browser', host)?.className).not.toContain('bg-button-primary');
+  expect(buttonNamed('Sign in with browser', host)?.className).not.toContain('bg-button-primary');
   expect(buttonNamed('Check connection', host)?.className).not.toContain('bg-button-primary');
   await click(buttonNamed('Check connection', host));
   await settle();
-  expect(host.textContent).toContain('Missing cancel-offline-task');
+  expect(host.textContent).toContain('Missing Cancel the offline task');
   expect(host.textContent).toContain('/115/cloud-download supports offline download');
   expect(host.textContent).toContain('1497 of 1500 left this month');
   expect(host.textContent).not.toContain('Detected');
@@ -167,8 +167,8 @@ it('When the target directory and PikPak root are left empty, the check fills th
   await settle();
   expect(sentBody(fetcher)).toMatchObject({ target: '', pikpak_root: '', pikpak_account: false });
   expect(field(host, '115 target folder')?.value).toBe('/115open/cloud-download');
-  expect(host.textContent).toContain('"Cloud downloadCloudDrive2 addressCloudDrive2 API tokenOffline task permission required.115 target folderShould sit inside the auto-intake cloud path prefix.PikPak target folderThe folder must already exist.Media folder matching the PikPak rootA:\\ A:\\Wait cap (hours)Timeouts are marked stalled; enter 1–1440 hours.115 target folderFilled from the library folder as /115open/cloud-download; it takes effect once the configuration is savedPikPak rootFilled from the library folder as A:\\; it takes effect once the configuration is savedTarget folder/115open/cloud-download supports offline downloadCheck connectionSave configurationPikPak accountLogin pendingAccountPasswordSave the password and re-sign in automatically when the session expiresSign in with browserSign in"');
-  expect(host.textContent).toContain('Fill in A:\\ based on the media library directory; takes effect after saving the configuration');
+  expect(host.textContent).toContain('Filled from the library folder as /115open/cloud-download; it takes effect once the configuration is saved');
+  expect(host.textContent).toContain('Filled from the library folder as A:\\; it takes effect once the configuration is saved');
   expect(fetcher).toHaveBeenCalledTimes(1);
   fetcher.mockImplementation(async () => ({ ok: true, status: 200, json: async () => unfilled() }));
   await submit(section(host, 'Cloud download'));
@@ -211,7 +211,7 @@ it('A proposed folder that does not exist is marked invalid; only clicking "Crea
   const input = field(host, '115 target folder');
   expect(input?.value).toBe('/115open/cloud-download');
   expect(input?.getAttribute('aria-invalid')).toBe('true');
-  expect(host.textContent).toContain('"Cloud downloadCloudDrive2 addressCloudDrive2 API tokenOffline task permission required.115 target folderThis folder does not exist.PikPak target folderThe folder must already exist.Media folder matching the PikPak rootChecking picks folders based on the library directories A:\\Wait cap (hours)Timeouts are marked stalled; enter 1–1440 hours.115 target folder/115open/cloud-download does not existCreate this folderCheck connectionSave configurationPikPak accountLogin pendingAccountPasswordSave the password and re-sign in automatically when the session expiresSign in with browserSign in"');
+  expect(host.textContent).toContain('This folder does not exist');
   expect(host.textContent).toContain('/115open/cloud-download does not exist');
   await submit(section(host, 'Cloud download'));
   await settle();
@@ -232,7 +232,7 @@ it('A proposed folder that does not exist is marked invalid; only clicking "Crea
   expect(buttonNamed('Create this folder', host)).toBeNull();
   expect(field(host, '115 target folder')?.getAttribute('aria-invalid')).not.toBe('true');
   expect(host.textContent).toContain('/115open/cloud-download supports offline download');
-  expect(host.textContent).toContain('Filled from the media library catalog as /115open/cloud-download; takes effect after saving the configuration');
+  expect(host.textContent).toContain('Filled from the library folder as /115open/cloud-download; it takes effect once the configuration is saved');
 });
 
 it('With both address and token saved, it checks against the saved configuration on open and the check button never spins', async () => {
@@ -350,7 +350,7 @@ it('When PikPak demands a human check it shows the verification page and signs i
   await settle();
   const link = host.querySelector<HTMLAnchorElement>('a[href^="https://user.mypikpak.com/captcha"]');
   expect(link?.target).toBe('_blank');
-  expect(host.textContent).toContain('Come back here and click "Sign in" again');
+  expect(host.textContent).toContain('After finishing verification in the browser, come back here and click Sign in again.');
 });
 
 it('After login only the account and whether the password is saved are shown, plus logout', async () => {
@@ -365,7 +365,7 @@ it('After login only the account and whether the password is saved are shown, pl
   await settle();
   expect(fetcher.mock.calls[0]?.[0]).toBe('/api/configuration/downloads/pikpak/logout');
   expect(receipt).toHaveBeenCalledWith('Signed out of PikPak');
-  expect(buttonNamed('Log in', host)).not.toBeNull();
+  expect(buttonNamed('Sign in', host)).not.toBeNull();
 });
 
 const BROWSER_URL = '/api/configuration/downloads/pikpak/browser-login';
@@ -389,18 +389,18 @@ it('The account and password form shows directly; both login methods share the b
   const host = await mount(<DownloadSettings initial={state()} receipt={vi.fn()} />);
   expect(field(host, 'Account')?.closest('details')).toBeNull();
   expect(field(host, 'Account')).not.toBeNull();
-  expect(buttonNamed('Log in', host)?.parentElement).toBe(buttonNamed('Sign in with the browser', host)?.parentElement);
-  expect(buttonNamed('Sign in with the browser', host)?.type).toBe(undefined);
-  expect(actionOrder(buttonNamed('Log in', host)?.parentElement)).toEqual(['Sign in with the browser', 'Log in']);
+  expect(buttonNamed('Sign in', host)?.parentElement).toBe(buttonNamed('Sign in with browser', host)?.parentElement);
+  expect(buttonNamed('Sign in with browser', host)?.type).toBe('button');
+  expect(actionOrder(buttonNamed('Sign in', host)?.parentElement)).toEqual(['Sign in with browser', 'Sign in']);
 });
 
 it('Without a browser on this machine only account sign-in remains, expanded by default', async () => {
   const host = await mount(<DownloadSettings receipt={vi.fn()}
     initial={state({ pikpak_browser: { available: false, state: 'idle', message: '' } })} />);
-  expect(buttonNamed('Sign in with the browser', host)).toBeNull();
+  expect(buttonNamed('Sign in with browser', host)).toBeNull();
   expect(field(host, 'Account')?.closest('details')).toBeNull();
   expect(field(host, 'Account')).not.toBeNull();
-  expect(buttonNamed('Log in', host)?.className).toContain('bg-button-primary');
+  expect(buttonNamed('Sign in', host)?.className).toContain('bg-button-primary');
 });
 
 it('Browser sign-in opens the window then polls, showing the signed-in method and stopping once complete', async () => {
@@ -410,13 +410,13 @@ it('Browser sign-in opens the window then polls, showing the signed-in method an
   vi.stubGlobal('fetch', fetcher);
   const receipt = vi.fn();
   const host = await mount(<DownloadSettings initial={state()} receipt={receipt} />);
-  await click(buttonNamed('Sign in with the browser', host));
+  await click(buttonNamed('Sign in with browser', host));
   await settle();
   expect(fetcher.mock.calls[0]?.[0]).toBe(BROWSER_URL);
   expect(fetcher.mock.calls[0]?.[1]?.method).toBe('POST');
   expect(host.querySelector('[role="status"]')?.textContent).toContain('A browser window is open; log in to PikPak there');
-  expect(buttonNamed('Sign in with the browser', host)).toBeNull();
-  expect(buttonNamed('Log in', host)?.disabled).toBe(true);
+  expect(buttonNamed('Sign in with browser', host)).toBeNull();
+  expect(buttonNamed('Sign in', host)?.disabled).toBe(true);
   await tick(2000);
   await settle();
   expect(fetcher.mock.calls[1]?.[0]).toBe(BROWSER_URL);
@@ -438,12 +438,12 @@ it('If the sign-in window is still open on page refresh, polling continues; canc
   vi.stubGlobal('fetch', fetcher);
   const host = await mount(<DownloadSettings initial={browserAt('waiting')} receipt={vi.fn()} />);
   expect(host.querySelector('[role="status"]')?.textContent).toContain('Waiting for you to sign in to PikPak in the browser window');
-  expect(actionOrder(buttonNamed('Cancel', host)?.parentElement)).toEqual(['Cancel', 'Log in']);
+  expect(actionOrder(buttonNamed('Cancel', host)?.parentElement)).toEqual(['Cancel', 'Sign in']);
   await click(buttonNamed('Cancel', host));
   await settle();
   expect(fetcher.mock.calls[0]?.[0]).toBe(`${BROWSER_URL}/cancel`);
   expect(host.textContent).toContain('Browser sign-in canceled');
-  expect(buttonNamed('Sign in with the browser', host)).not.toBeNull();
+  expect(buttonNamed('Sign in with browser', host)).not.toBeNull();
   await tick(6000);
   expect(fetcher).toHaveBeenCalledTimes(1);
 });

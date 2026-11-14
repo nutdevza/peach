@@ -37,9 +37,9 @@ it('Match by physical key: Option+S that types “ß” also counts; one more or
 it('Recording: modifier-only is still waiting; a single key, arrow keys, and browser-taken combos each get a reason', () => {
   expect(recordShortcut(press('ShiftLeft', { shiftKey: true }))).toEqual({ state: 'waiting' });
   expect(recordShortcut(press('MetaRight', { metaKey: true }))).toEqual({ state: 'waiting' });
-  expect(recordShortcut(press('KeyS'))).toMatchObject({ state: 'invalid', problem: expect.stringContaining('Modifier key') });
+  expect(recordShortcut(press('KeyS'))).toMatchObject({ state: 'invalid', problem: expect.stringContaining('modifier key') });
   expect(recordShortcut(press('ArrowLeft', { shiftKey: true }))).toMatchObject({ state: 'invalid' });
-  expect(recordShortcut(press('KeyW', { metaKey: true }))).toMatchObject({ state: 'invalid', problem: expect.stringContaining('Browser') });
+  expect(recordShortcut(press('KeyW', { metaKey: true }))).toMatchObject({ state: 'invalid', problem: expect.stringContaining('browser') });
   expect(recordShortcut(press('KeyH', { metaKey: true, shiftKey: true })))
     .toEqual({ state: 'done', shortcut: { code: 'KeyH', ctrl: false, alt: false, shift: true, meta: true } });
 });

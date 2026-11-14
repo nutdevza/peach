@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "7549f6ef-1720-482f-b1dd-2ee29850e999", e._sentryDebugIdIdentifier = "sentry-dbid-7549f6ef-1720-482f-b1dd-2ee29850e999");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "8c077ecd-8aa7-4286-9b31-e7d20fff082d", e._sentryDebugIdIdentifier = "sentry-dbid-8c077ecd-8aa7-4286-9b31-e7d20fff082d");
 	} catch {}
 })();
 import { $2ec61d1d4f780267$export$a8a3e93435678ff9 as e, $76d00c5a4edb230a$export$76ccd210b9029917 as t, $76d00c5a4edb230a$export$816b5d811295e6bc as n, $76d00c5a4edb230a$export$b59bdbef9ce70de2 as r, $76d00c5a4edb230a$export$f6f0c3fe4ec306ea as i, $76d00c5a4edb230a$export$f850895b287ef28e as a, $fe21c36db05242bb$export$d7b12c4107be0d61 as o, ArtSlot as s, Button as c, ButtonLink as l, Bx as u, COVER_STATE_TITLE as d, CatalogViewToggle as f, Checkbox as p, ChevronSortDown as m, Chip as h, CloudDownloadDialog as g, CoverQueue as _, DISCOVERY_METADATA_KEY as v, DISCOVERY_REFRESH_MS as y, DISCOVERY_SORTS as b, DOWNLOADS_KEY as x, DOWNLOADS_URL as S, DataTableFooter as C, DataTableFrame as w, E3 as T, EmptyFocusButton as E, EmptyState as ee, FilterGlassRows as te, FilterIconButton as ne, FilterPill as re, GlassPill as ie, Help as D, IndexSearch as O, Input as ae, JAV_LAYOUTS as oe, JAV_RECOMMENDATION_GRID as se, JAV_SELECTION_EVENT as k, JavHeader as A, LibraryShortcuts as j, M6 as M, ModalFrame as N, Note as P, P7 as ce, PHASES as F, RELEASE_COLUMN_VISIBILITY_KEY as I, RELEASE_COLUMN_WIDTHS_KEY as L, RELEASE_PAGE_SIZES as le, RELEASE_SORTS as ue, RELEASE_SORT_COLUMNS as R, SEGMENT as z, SEGMENTED_TRACK as B, SegmentedRadioGroup as V, Segments as de, SelectionDock as H, Shuffle as fe, SortKeys as pe, SourceAvatar as me, Table as he, TableColumnControls as ge, TableColumnResizer as U, TaskProgress as _e, WANTS_KEY as W, WantMagnets as ve, Wt as ye, __toESM as be, addWant as xe, apiGet as Se, appSettingsStore as Ce, avatarInner as we, busyProps as G, cachedMagnetStates as Te, cardClass as Ee, cardRatio as De, catalogListSkeletonCellHtml as Oe, composingKey as ke, controlDiscoveryMetadata as Ae, controlReleaseMetadata as je, coverArrived as Me, coverFetching as Ne, coverFetchingHtml as Pe, coverStateAction as Fe, coverUrl as Ie, discoveryArtwork as Le, discoveryKey as Re, discoveryScore as ze, entityDisplayName as Be, entityFaceImg as Ve, entityPath as He, errorMessage as K, esc as Ue, facePos as We, fetchCoverNow as Ge, fetchDiscoveries as Ke, fetchDiscoveryMetadata as qe, fetchReleases as Je, fetchWants as Ye, firstGrapheme as Xe, fmtDur as Ze, gridLayout as Qe, invalidateWants as q, javContentSkeleton as $e, javLayout as et, javTagSkeleton as tt, keepPreviousData as nt, leadingGraphemes as rt, logoUrl as it, pageWindow as at, qE as ot, queryClient as st, recommendationScore as ct, relayoutCovers as lt, releaseColumns as ut, releaseFilters as dt, releaseKey as ft, removeWants as pt, require_jsx_runtime as mt, require_react as ht, resetWants as gt, searchNote as _t, selectRange as vt, selectionSummary as yt, spriteGlyph as bt, storeJavLayout as xt, suppressShiftTextSelection as St, textLang as Ct, tierPlaceholdersHtml as wt, useAction as J, useCatalogView as Tt, useEntityNames as Et, useQuery as Y, useTablePreferences as Dt, wantName as X, wireHorizontalScroller as Ot, writeJavQuery as Z } from "./peach-app.js";
@@ -301,7 +301,7 @@ function It({ readOnly: e, toast: t, query: n = "", clearQuery: r }) {
 					onClick: r,
 					children: "Clear the search"
 				}) : !n && !e ? /* @__PURE__ */ (0, $.jsx)(E, {
-					target: "input[aria-label=\"code\"]",
+					target: "input[aria-label=\"Code\"]",
 					children: "Add videos"
 				}) : void 0,
 				children: n ? "Try another code, performer or title." : "Enter a code to add a video to watch."
@@ -1748,4 +1748,4 @@ function ln({ readOnly: e, receipt: t, resource: n, query: r, navigate: i, clear
 }
 export { cn as JavPage };
 
-//# debugId=7549f6ef-1720-482f-b1dd-2ee29850e999
+//# debugId=8c077ecd-8aa7-4286-9b31-e7d20fff082d

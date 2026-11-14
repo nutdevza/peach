@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "d276476b-29c1-48bd-99e3-565917ad981c", e._sentryDebugIdIdentifier = "sentry-dbid-d276476b-29c1-48bd-99e3-565917ad981c");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "81dfdbdb-b849-4aaa-ab9f-5c1b8f7a1fc9", e._sentryDebugIdIdentifier = "sentry-dbid-81dfdbdb-b849-4aaa-ab9f-5c1b8f7a1fc9");
 	} catch {}
 })();
 import { $2ec61d1d4f780267$export$a8a3e93435678ff9 as e, $542a13ca2fa5b484$export$5b6b19405a83ff9d as t, $76d00c5a4edb230a$export$76ccd210b9029917 as n, $76d00c5a4edb230a$export$816b5d811295e6bc as r, $76d00c5a4edb230a$export$b59bdbef9ce70de2 as i, $76d00c5a4edb230a$export$f6f0c3fe4ec306ea as a, $76d00c5a4edb230a$export$f850895b287ef28e as o, $ea3928288112382f$export$439d29a4e110a164 as s, $l as c, Button as l, ButtonLink as u, Bx as d, COLUMN_SORT as f, Checkbox as p, ChevronSortDown as m, Chip as h, CollapseChevron as g, CollapseRegion as _, DataTableFooter as v, DataTableFrame as y, DataTableSort as b, EmptyFocusButton as x, EmptyState as S, ErrorText as C, ExternalLink as w, FEEDS_KEY as ee, FOLLOW_CHECK_KEY as T, FOLLOW_CREDENTIALS_KEY as te, FOLLOW_MANAGE_KEY as E, FOLLOW_MANAGE_NAV as D, FOLLOW_RESOLVE_KEY as O, FieldLabel as k, Help as A, Input as j, LAYOUTS as M, LoadingDots as N, M6 as P, MENU_ITEM as F, MENU_ITEM_INTERACTIVE as I, MENU_POPOVER_SURFACE as L, ModalFrame as R, Note as z, P7 as ne, SORT_DEFAULT_DIR as B, SORT_OPTIONS as re, STAT_STRIP_SIX as ie, Select as ae, SelectItem as V, SelectionDock as oe, SelectionPopover as H, SiteLabel as U, SortDirectionIcon as se, SortableBoardTabs as ce, Switch as le, Table as ue, TableColumnControls as de, TableColumnResizer as fe, TableSelectionHeader as pe, TagManager as W, TaskProgress as me, Un as he, Wt as G, Xf as ge, __toESM as _e, addAlias as ve, addSource as ye, authorGroups as be, authorName as xe, avatarInner as Se, busyProps as K, cardClass as Ce, checkEvidenceGap as we, checkFailures as Te, checkFeeds as Ee, checkReceipt as De, checkSummary as Oe, checkedText as ke, clickedBlank as Ae, columnVisibilityFeature as je, composingKey as Me, confirmModal as Ne, createColumnHelper as Pe, credentialDone as Fe, cx as Ie, dZ as Le, dropSources as Re, du as ze, errorHeadline as Be, errorMessage as q, feedIntervalText as Ve, fetchCheckJob as He, fetchCredentials as J, fetchFeeds as Ue, fetchFollow as We, fetchResolveJob as Ge, fetchSuggestions as Y, flexRender as Ke, followFeedByName as qe, followFeedEntity as Je, followSuggestKey as Ye, groupByAuthor as Xe, isBroken as Ze, isLayout as Qe, keepSelected as $e, l7 as et, localTime as tt, lookupFeedActor as nt, mapLimit as rt, markAllPending as it, pageSizeOf as at, pageWindow as ot, patchSource as st, pv as ct, queryClient as lt, reloadFollowManage as ut, removeAlias as dt, removeFeed as ft, removeSource as pt, renameAliasGroup as mt, require_jsx_runtime as ht, require_react as gt, resolveFollowSort as _t, rowPaginationFeature as vt, rowSelectionFeature as yt, rowSortingFeature as bt, selectionState as xt, setFeedEnabled as St, setSourceEnabled as Ct, sortLabel as wt, startCheck as Tt, startResolve as Et, tableFeatures as Dt, tableRows as Ot, toggleGroup as kt, useAction as At, useBackgroundJob as jt, useMutation as Mt, useQuery as Nt, useTable as Pt, useTablePreferences as Ft } from "./peach-app.js";
@@ -62,7 +62,7 @@ function tn({ credentials: e, hidden: t, onHidden: n }) {
 		label: "Source filter",
 		triggerLabel: a,
 		leadingIcon: c,
-		empty: "'No sources available yet'",
+		empty: "No sources available yet",
 		items: r.map((e) => ({
 			id: e.provider_label,
 			selected: !t.has(e.provider_label),
@@ -552,6 +552,9 @@ function dn({ group: t, close: n, receipt: r }) {
 		onSubmit: (e) => {
 			e.preventDefault(), i.trim() && i.trim() !== t.canonical_name && o.run("rename", (e) => mt(t.canonical_key, i.trim(), e), () => {
 				ut(), r(`Changed the canonical name to ${i.trim()}`), n();
+			}, (e) => {
+				let t = e?.body, n = t && typeof t.error == "string" ? t.error : "";
+				o.setError(n || q(e));
 			});
 		},
 		className: "flex min-h-0 flex-col gap-4 p-5",
@@ -699,7 +702,7 @@ function Sn({ groups: e, suggestions: t, sources: s = [], readOnly: c, toast: u 
 				try {
 					await ve(n.canonical, n.alias);
 				} catch (n) {
-					throw t && ut(), Error(`${q(n)} (${e.length - t} groups left unmerged)`);
+					throw t && ut(), Error(`${q(n)} (${e.length - t} ${e.length - t === 1 ? "group" : "groups"} still unmerged)`);
 				}
 				t += 1;
 			}
@@ -711,7 +714,7 @@ function Sn({ groups: e, suggestions: t, sources: s = [], readOnly: c, toast: u 
 		onSuccess: (e) => {
 			B(""), w({}), ut(), u(`Merged ${e.done} creator alias groups`);
 		},
-		onError: (e) => B(q(e))
+		onError: (e) => B(e instanceof Error ? e.message : q(e))
 	}), U = Mt({
 		mutationFn: (e) => ve(e.canonical, e.alias),
 		onSuccess: () => {
@@ -1561,7 +1564,7 @@ function Fn({ readOnly: e, toast: t, onAdd: c, selection: u }) {
 					className: "flex flex-col gap-3",
 					children: [H.length ? /* @__PURE__ */ (0, Z.jsx)(z, {
 						tone: "error",
-						title: `${H.length.toLocaleString()} feeds failed to fetch`,
+						title: `${H.length.toLocaleString()} ${H.length === 1 ? "feed" : "feeds"} failed to fetch`,
 						extra: /* @__PURE__ */ (0, Z.jsx)("ul", {
 							className: "flex flex-col gap-0.5 text-body-2-regular",
 							children: H.map((e) => /* @__PURE__ */ (0, Z.jsx)("li", {
@@ -1576,7 +1579,7 @@ function Fn({ readOnly: e, toast: t, onAdd: c, selection: u }) {
 				/* @__PURE__ */ (0, Z.jsxs)(oe, {
 					visible: V.length > 0,
 					label: "Feed bulk actions",
-					count: `Selected ${V.length} follow sources`,
+					count: `Selected ${V.length} ${V.length === 1 ? "follow source" : "follow sources"}`,
 					children: [
 						/* @__PURE__ */ (0, Z.jsx)(l, {
 							variant: "secondary",
@@ -1676,7 +1679,7 @@ function Fn({ readOnly: e, toast: t, onAdd: c, selection: u }) {
 				x.length ? /* @__PURE__ */ (0, Z.jsx)(v, {
 					label: "JAV subscriptions",
 					total: F.total,
-					unit: " follow sources",
+					unit: "follow sources",
 					pagination: {
 						pageIndex: F.page - 1,
 						pageSize: k
@@ -1815,7 +1818,7 @@ function Un({ source: e, selected: t, onToggle: n, handlers: r }) {
 	});
 }
 function Wn({ group: e, name: t, open: n, selected: r, handlers: i, onOpen: a, onToggleGroup: o, onToggle: c }) {
-	let u = e.map((e) => e.id), d = e.filter((e) => e.enabled).map((e) => e.id), f = e.filter(Ze).length, p = [...new Set(e.map((e) => e.provider_label || e.provider))].join("、"), m = `follow-author-${e[0].id}`, h = xt(r, u);
+	let u = e.map((e) => e.id), d = e.filter((e) => e.enabled).map((e) => e.id), f = e.filter(Ze).length, p = [...new Set(e.map((e) => e.provider_label || e.provider))].join(", "), m = `follow-author-${e[0].id}`, h = xt(r, u);
 	return /* @__PURE__ */ (0, Z.jsxs)("section", {
 		"aria-label": `Follow sources for ${t}`,
 		className: Ce({
@@ -2264,7 +2267,7 @@ function Gn(e) {
 			/* @__PURE__ */ (0, Z.jsxs)(oe, {
 				label: "Follow source bulk actions",
 				visible: $e.length > 0,
-				count: `Selected ${$e.length} sources`,
+				count: `Selected ${$e.length} ${$e.length === 1 ? "source" : "sources"}`,
 				children: [
 					/* @__PURE__ */ (0, Z.jsx)(l, {
 						variant: "secondary",
@@ -4270,4 +4273,4 @@ function Rs(e) {
 }
 export { Rs as FollowManagePage };
 
-//# debugId=d276476b-29c1-48bd-99e3-565917ad981c
+//# debugId=81dfdbdb-b849-4aaa-ab9f-5c1b8f7a1fc9

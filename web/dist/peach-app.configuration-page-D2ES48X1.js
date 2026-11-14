@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "8e63bf87-00ef-4280-90a5-a9d316ed1ded", e._sentryDebugIdIdentifier = "sentry-dbid-8e63bf87-00ef-4280-90a5-a9d316ed1ded");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "2e44d577-8d4d-4ed5-b827-b0b22ede9f98", e._sentryDebugIdIdentifier = "sentry-dbid-2e44d577-8d4d-4ed5-b827-b0b22ede9f98");
 	} catch {}
 })();
 import { $2ec61d1d4f780267$export$a8a3e93435678ff9 as e, $3a442827418ebe87$export$eb2fcfdbd7ba97d4 as t, $542a13ca2fa5b484$export$5b6b19405a83ff9d as n, $72abaeab4d80592f$export$78efe591171d7d45 as r, $bd263d78e9bf3c56$export$f5c9f3c2c4054eec as i, $ea3928288112382f$export$439d29a4e110a164 as a, $f2ff30fde7b014be$export$3ddf2d174ce01153 as o, $fe21c36db05242bb$export$a98f0dcb43a68a25 as s, $fe21c36db05242bb$export$d7b12c4107be0d61 as c, ACCENTS as l, ApiError as u, Button as d, ButtonLink as f, CLOUD_LOCATIONS as p, CLOUD_PROXY_HELP as m, CONFIGURATION_KEY as h, CONFIGURATION_URL as g, CREDENTIAL_STATE as _, Checkbox as v, Chip as y, CommandSteps as b, Disclosure as x, ENTRY_LINKS_HELP as S, ENTRY_LINKS_HINT as C, EmptyState as ee, ErrorText as w, Eu as T, ExternalLink as E, FEED_SCHEDULE_KEY as D, FOLLOW_CREDENTIALS_KEY as O, FOLLOW_INITIAL_RANGE_OPTIONS as te, FOLLOW_SCHEDULE_KEY as ne, Fact as k, FactList as A, FieldLabel as re, Footer as j, Help as M, HintText as ie, Input as N, L1 as ae, LIBRARY_FOLDER_HELP as oe, LIBRARY_PROCESSING_KEY as se, Label as ce, LinkButton as le, LoadingDots as ue, M6 as de, MEDIA_PROCESSING_KEY as fe, MEDIA_PROCESSING_URL as pe, MEDIA_SOURCE_ICONS as me, MENU_POPOVER_SURFACE as he, Note as P, PICK_FOLDER_URL as ge, POLICY_COLUMNS as _e, POLICY_COVER_NOTE as ve, POLICY_MATRIX as ye, POLICY_SUMMARY as be, PathLine as xe, ProcessingMode as Se, Progress as Ce, RELEASE_NOTICE_EVENT as we, REPAIR_CENTER_PATH as Te, Rows as F, SEGMENT as Ee, SEGMENTED_TRACK as De, SETTINGS_KEY as Oe, SETTINGS_URL as ke, Section as I, SectionSkeleton as Ae, SegmentedRadioGroup as je, Select as Me, Select$1 as L, SelectItem as R, SettingsCard as Ne, SettingsRow as z, SiteLabel as Pe, SortableBoardTabs as Fe, SourceLabel as Ie, SourceMark as Le, Stack as B, StatusLabel as V, Switch as H, THUMBNAIL_JOBS_KEY as Re, TaskCenterLink as ze, TextField as Be, TextFieldContext as Ve, Uz as He, __toESM as Ue, _p as We, animate as Ge, apiGet as U, apiSend as W, appSettingsStore as Ke, boundedPreference as qe, busyProps as G, cardClass as Je, cloudProxySkeleton as Ye, clsx as Xe, cn as Ze, confirmModal as K, credentialDone as Qe, credentialsSkeleton as $e, cx as et, d6 as tt, devicesSkeleton as nt, errorMessage as q, fetchConfiguration as rt, fetchCredentials as it, fetchFeedSchedule as at, fetchFollowSchedule as ot, fetchLibraryProcessing as st, fetchMediaProcessing as ct, fetchSettings as lt, fetchThumbnailJobs as ut, fmtSize as J, i2 as dt, indexersSkeleton as ft, javBrowserSkeleton as pt, l1 as mt, momentText as ht, motion as gt, overlayHost as _t, peachHistory$1 as vt, previewLibraryColor as yt, processingActive as bt, providerIcon as xt, queryClient as St, randomId as Ct, rememberShape as wt, require_jsx_runtime as Tt, require_react as Et, restartEffectText as Dt, saveCredential as Ot, schedulePollInterval as kt, settingsPath as At, shellNavigate as jt, sortCx as Mt, sourceDefaultCost as Nt, useAction as Y, useClientUpdates as Pt, useLibraryTints as Ft, useMutation as It, useOrderedLibraries as Lt, useQuery as X, useQueryClient as Rt, useReducedMotion as zt, useRunSchedule as Bt, useSaveFollowSchedule as Vt, useSaveSettings as Ht, useSaveThumbnailMode as Ut, we as Wt, z3 as Gt } from "./peach-app.js";
@@ -892,7 +892,7 @@ function Gr({ initial: e, receipt: t }) {
 					tone: p.pending_state ? "progress" : h[p.status] || "neutral",
 					children: p.pending_state ? `About to send the ${p.pending_state === "disabled" ? "off" : "on"} state` : m[p.status] || "Results not obtained"
 				})
-			}) }), n.last_sent_at ? /* @__PURE__ */ (0, Q.jsxs)(M, { children: ["'Last sent:'", new Date(n.last_sent_at).toLocaleDateString()] }) : null]
+			}) }), n.last_sent_at ? /* @__PURE__ */ (0, Q.jsxs)(M, { children: ["Last sent: ", new Date(n.last_sent_at).toLocaleDateString()] }) : null]
 		}) : null,
 		n.enabled && n.last_attempt?.status === "failed" ? /* @__PURE__ */ (0, Q.jsxs)(B, {
 			divided: !0,
@@ -931,11 +931,11 @@ function Gr({ initial: e, receipt: t }) {
 					i.data.coverage.uncoded_items,
 					" unnumbered summaries, about ",
 					(i.bytes / 1024).toFixed(1),
-					" ' KiB.'"
+					" KiB."
 				] }),
-				/* @__PURE__ */ (0, Q.jsx)(M, { children: "'The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent.'" }),
+				/* @__PURE__ */ (0, Q.jsx)(M, { children: "The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent." }),
 				/* @__PURE__ */ (0, Q.jsx)(x, {
-					summary: "'Upload data preview'",
+					summary: "Upload data preview",
 					defaultOpen: !0,
 					children: /* @__PURE__ */ (0, Q.jsx)(qt, {
 						code: u,
@@ -1046,7 +1046,7 @@ function qr({ initial: e, receipt: t }) {
 					/* @__PURE__ */ (0, Q.jsx)(M, { children: n.fields.errors }),
 					/* @__PURE__ */ (0, Q.jsx)(M, { children: n.notice })
 				]
-			}), o === null ? null : /* @__PURE__ */ (0, Q.jsxs)(M, { children: ["'Last sent:'", new Date(o).toLocaleDateString()] })]
+			}), o === null ? null : /* @__PURE__ */ (0, Q.jsxs)(M, { children: ["Last sent: ", new Date(o).toLocaleDateString()] })]
 		}),
 		i.error ? /* @__PURE__ */ (0, Q.jsx)(B, {
 			divided: !0,
@@ -2329,7 +2329,7 @@ function Pa({ initial: e, receipt: t }) {
 				}
 			}
 		});
-	}, () => void 0), v = n.relocation.last, y = v && (v.state === "error" || (v.notes?.length ?? 0) > 0 || Date.now() - v.finished_at * 1e3 < Oa), x = p?.categories.find((e) => e.key === n.job.category)?.label, S = i || (n.job.state === "cleaning" ? `Cleaning${x || ""}…` : n.job.state === "measuring" ? "Calculating disk usage…" : h.length ? `${h.length} categories selected, ${J(h.reduce((e, t) => e + t.reclaimable, 0))} reclaimable` : p ? `Measured at ${(/* @__PURE__ */ new Date(p.measured_at * 1e3)).toLocaleString()}` : ""), C = l || !!i, ee = (e) => (t) => s((n) => {
+	}, () => void 0), v = n.relocation.last, y = v && (v.state === "error" || (v.notes?.length ?? 0) > 0 || Date.now() - v.finished_at * 1e3 < Oa), x = p?.categories.find((e) => e.key === n.job.category)?.label, S = i || (n.job.state === "cleaning" ? `Cleaning${x || ""}…` : n.job.state === "measuring" ? "Calculating disk usage…" : h.length ? `${h.length} ${h.length === 1 ? "category" : "categories"} selected, ${J(h.reduce((e, t) => e + t.reclaimable, 0))} reclaimable` : p ? `Measured at ${(/* @__PURE__ */ new Date(p.measured_at * 1e3)).toLocaleString()}` : ""), C = l || !!i, ee = (e) => (t) => s((n) => {
 		let r = new Set(n);
 		return t ? r.add(e) : r.delete(e), r;
 	});
@@ -2809,7 +2809,7 @@ function Ya({ initial: e, initialJob: t }) {
 						className: "flex flex-col gap-2",
 						children: [
 							/* @__PURE__ */ (0, Q.jsx)(Ce, {
-								label: "'Update preparation progress'",
+								label: "Update preparation progress",
 								value: i.progress,
 								stops: Ka
 							}),
@@ -2841,7 +2841,7 @@ function Ya({ initial: e, initialJob: t }) {
 					/* @__PURE__ */ (0, Q.jsx)(d, {
 						variant: "ghost",
 						onClick: () => document.dispatchEvent(new Event(we)),
-						children: "'Release notes for this version'"
+						children: "Release notes for this version"
 					}),
 					/* @__PURE__ */ (0, Q.jsx)(d, {
 						variant: i.state === "ready" || h || n.state === "available" && n.installation === "Standalone test package" ? "secondary" : "primary",
@@ -4394,13 +4394,13 @@ function Vo({ receipt: e }) {
 			/* @__PURE__ */ (0, Q.jsx)(Ho, {}),
 			/* @__PURE__ */ (0, Q.jsx)(Uo, {}),
 			/* @__PURE__ */ (0, Q.jsx)(z, {
-				label: "'Initial scrape range'",
+				label: "Initial scrape range",
 				description: "How far back a newly followed source looks on its first pass.",
 				children: /* @__PURE__ */ (0, Q.jsx)("div", {
 					id: "followInitialDaysSetting",
 					className: "shrink-0",
 					children: /* @__PURE__ */ (0, Q.jsx)(L, {
-						"aria-label": "'Initial scrape range'",
+						"aria-label": "Initial scrape range",
 						selectedKey: String(i),
 						isDisabled: n.isFetching || r.isPending,
 						onSelectionChange: (n) => {
@@ -4453,13 +4453,13 @@ function Ho() {
 	}, u = t.error || e.error;
 	return /* @__PURE__ */ (0, Q.jsxs)(Q.Fragment, { children: [
 		/* @__PURE__ */ (0, Q.jsx)(z, {
-			label: "'Auto-check for updates'",
+			label: "Auto-check for updates",
 			description: "Sources updated in the last 7 days are checked at this interval; those not updated for a long time slow down step by step, at most once a day",
 			children: /* @__PURE__ */ (0, Q.jsxs)("div", {
 				id: "followScheduleSetting",
 				className: "flex min-h-9 shrink-0 flex-wrap items-center justify-end gap-2",
 				children: [/* @__PURE__ */ (0, Q.jsx)(H, {
-					"aria-label": "'Auto-check for updates'",
+					"aria-label": "Auto-check for updates",
 					isSelected: n?.enabled === !0,
 					isDisabled: c,
 					onChange: (e) => {
@@ -4472,7 +4472,7 @@ function Ho() {
 						inputMode: "numeric",
 						name: "follow-interval",
 						autoComplete: "off",
-						"aria-label": "'Auto-check interval'",
+						"aria-label": "Auto-check interval",
 						className: "w-21 sm:w-24",
 						value: i,
 						onChange: (e) => {
@@ -4912,8 +4912,8 @@ function ts({ initial: e, receipt: t, devices: n, after: r }) {
 // src/react/settings/api-token-settings.tsx
 var ns = "/api/configuration/access/token/rotate";
 function rs(e, t) {
-	let n = "Scripts and API calls using the old token stop working immediately.", r = e === "legacy" ? `Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in.${n}` : e === "open" ? `Browsers without sign-in are unaffected.${n}` : `Browsers signed in with the access password are unaffected.${n}`;
-	return t ? `${r}another computer needs the same token file for the two to keep exchanging review results.` : r;
+	let n = "Scripts and API calls using the old token stop working immediately.", r = e === "legacy" ? `Browsers signed in with this passphrase all sign out and must sign in again with the new one; this machine stays signed in. ${n}` : e === "open" ? `Browsers without sign-in are unaffected. ${n}` : `Browsers signed in with the access password are unaffected. ${n}`;
+	return t ? `${r} Another computer needs the same token file for the two to keep exchanging review results.` : r;
 }
 function is({ initial: e, mode: t, receipt: n }) {
 	let [r, i] = (0, Z.useState)(e), [a, o] = (0, Z.useState)(null), s = Y(), c = Rt();
@@ -5747,7 +5747,7 @@ function Vs({ data: e, readOnly: t, toast: n, embedded: r = !1 }) {
 	});
 	let o = a.length ? /* @__PURE__ */ (0, Q.jsx)("span", {
 		className: "text-body-2-regular text-text-error-primary",
-		children: `${a.length} items to configure`
+		children: `${a.length} ${a.length === 1 ? "item" : "items"} to configure`
 	}) : null, s = /* @__PURE__ */ (0, Q.jsx)(Q.Fragment, { children: [
 		{
 			title: "Configurable credentials",
@@ -6288,4 +6288,4 @@ function tc({ data: e, receipt: t, reopenTutorial: n, section: r, diagnostics: i
 }
 export { Qs as ConfigurationPage };
 
-//# debugId=8e63bf87-00ef-4280-90a5-a9d316ed1ded
+//# debugId=2e44d577-8d4d-4ed5-b827-b0b22ede9f98

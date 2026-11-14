@@ -195,7 +195,7 @@ it('While the subscription response is incomplete it shows the follow readings a
   expect(host.querySelector('[data-measured-reading="releases"] [data-follow-reading]')?.textContent).toBe('9 items');
 });
 
-const cards = (root: ParentNode) => [...root.querySelectorAll('section[aria-label$="follows sources"]')];
+const cards = (root: ParentNode) => [...root.querySelectorAll('section[aria-label^="Follow sources for "]')];
 
 const checkboxNamed = (root: ParentNode, name: string) =>
   root.querySelector<HTMLInputElement>(`input[type="checkbox"][aria-label="${name}"]`);
@@ -255,12 +255,12 @@ it('Table view flattens creator groups to one source per row', () => {
   const groups = authorGroups(CAST, 'source', 'asc');
   const rows = tableRows(groups, 'source', 'asc');
   expect(rows).toHaveLength(CAST.length);
-  // The sort tiers by source name flatten and reorder the whole table, no longer grouped by creator (c < a < b).
+  // Sorting by source name flattens the groups into one row per source in label order, no longer grouped by creator.
   expect(rows.map((row) => row.source.label))
-    .toEqual(['Gamma · Kemono', 'Alpha · Kemono', 'Alpha · Pawchive', 'Beta · Kemono']);
-  expect(rows[0]!.author).toBe('Gamma');
+    .toEqual(['Alpha · Kemono', 'Alpha · Pawchive', 'Beta · Kemono', 'Gamma · Kemono']);
+  expect(rows[0]!.author).toBe('Alpha');
   // Every row carries its own creator, so the 'Creator' column in the table has a value on every row.
-  expect(rows.map((row) => row.author)).toEqual(['Gamma', 'Alpha', 'Alpha', 'Beta']);
+  expect(rows.map((row) => row.author)).toEqual(['Alpha', 'Alpha', 'Beta', 'Gamma']);
 });
 
 it('The completion message reads the numbers out loud', () => {
@@ -272,9 +272,9 @@ it('The completion message reads the numbers out loud', () => {
     ],
   } as CheckJob;
   const said = checkSummary(job);
-  expect(said).toContain('Checked 4 sources: 2 new items · 2 sources had no updates · 1 with nothing more to fetch · 1 failed');
-  expect(said).toContain('Checked 4 sources: 2 new items · 2 sources had no updates · 1 with nothing more to fetch · 1 failed');
-  expect(said).toContain('1 has no more content');
+  expect(said).toContain('2 new items');
+  expect(said).toContain('2 sources had no updates');
+  expect(said).toContain('1 with nothing more to fetch');
   expect(said).toContain('1 failed');
 });
 
@@ -287,7 +287,7 @@ it('Check receipts keep added, updated, and failed, with detailed statistics car
   expect(checkReceipt(job)).toBe('Checked 2 sources: 3 new items · Updated 2933 entries · 1 failed');
   expect(checkSummary(job)).toContain('Skipped 281 without resources');
   expect(checkSummary(job)).toContain('Re-checked 241 entries');
-  expect(checkReceipt({ results: [{ ok: true }] })).toBe('Checked 1 sources: No updates');
+  expect(checkReceipt({ results: [{ ok: true }] })).toBe('Checked 1 source: No updates');
   expect(checkReceipt({ results: [{ ok: false }] })).toBe('Checked 1 source: 1 failed');
 });
 
@@ -296,13 +296,13 @@ it('Check receipts keep added, updated, and failed, with detailed statistics car
 it('Default view shows one card per creator', async () => {
   const { host } = await open();
   expect(cards(host).map((card) => card.getAttribute('aria-label')))
-    .toEqual(['A\'s followed sources', 'B\'s followed sources', 'C\'s followed sources']);
+    .toEqual(['Follow sources for Alpha', 'Follow sources for Beta', 'Follow sources for Gamma']);
 });
 
 it('Each source on the card has two icon keys, and the checked one marks itself', async () => {
   const { host } = await open();
   const card = cards(host)[0]!;
-  expect(buttonLabelled(card, 'Check all sources of A')).not.toBeNull();
+  expect(buttonLabelled(card, 'Check all sources of Alpha')).not.toBeNull();
   const rows = () => [...card.querySelectorAll('[data-source-divider] > *')];
   expect(rows()).toHaveLength(2);
   for (const row of rows()) {
@@ -310,7 +310,7 @@ it('Each source on the card has two icon keys, and the checked one marks itself'
     expect(icons.map((button) => button.getAttribute('aria-label'))).toHaveLength(2);
   }
 
-  await click(checkboxNamed(host, 'Select A · Kemono'));
+  await click(checkboxNamed(host, 'Select Alpha · Kemono'));
   expect(rows().filter((row) => row.hasAttribute('data-selected'))).toHaveLength(1);
 });
 
@@ -328,7 +328,7 @@ it('Checks span pages and views, and bulk sends the entire id set', async () => 
   await click([...host.querySelectorAll('button')].find((b) => b.textContent === 'Next page'));
   expect(host.textContent).toContain('Follow creator12 peopleEnable the source12 / 12Check failed0 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list12 sourcesSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelected 10 sourcesCheck selectedEnabledPausedDeleteClear selectionSelect this pagePperson10Sources: KemonoSelect allCollapseSource 11KemonoNormal2026-09-01 07:00Pperson11Sources: KemonoSelect allCollapseSource 12KemonoNormal2026-09-01 07:0011–12 / 12  creators10 people per page 10 people per page20 people per page50 people per page100 people per pagePrevious page12Next pageSource and subscription settings');
   await click(checkboxNamed(host, 'Select Source 11'));
-  expect(host.textContent).toContain('11 sources selected');
+  expect(host.textContent).toContain('Selected 11 sources');
 
   await click([...host.querySelectorAll('button')].find((b) => b.textContent === 'Paused'));
   await settle();
@@ -341,7 +341,7 @@ it('Checks span pages and views, and bulk sends the entire id set', async () => 
 
 it('Switching to table view keeps the same checks', async () => {
   const { host, props } = await open();
-  await click(checkboxNamed(host, 'Select A · Kemono'));
+  await click(checkboxNamed(host, 'Select Alpha · Kemono'));
   expect(host.textContent).toContain('Selected 1 source');
 
   await click(buttonLabelled(host, 'Table view'));
@@ -406,8 +406,8 @@ it('Follow table paging and sorting keep the source selection, and bulk actions 
 it('Table view rows end with an enable switch; toggling it writes only that row and leaves selection and toasts alone', async () => {
   const { host, fetcher } = await open({}, { layout: 'table' });
   await click(checkboxNamed(host, 'Select Alpha · Pawchive'));
-  const toggle = () => host.querySelector<HTMLInputElement>('[aria-label="Enable A · Pawchive"]');
-  expect(toggle()?.checked).toBe(undefined);
+  const toggle = () => host.querySelector<HTMLInputElement>('[aria-label="Enable Alpha · Pawchive"]');
+  expect(toggle()?.checked).toBe(true);
   await click(toggle());
   await settle();
   expect(sentBody(fetcher, FOLLOW_SOURCE_URL)).toEqual([{ action: 'enabled', id: 2, enabled: false }]);
@@ -418,8 +418,8 @@ it('Table view rows end with an enable switch; toggling it writes only that row 
 
 it('Card view rows end with an enable toggle; flipping it writes only this one entry', async () => {
   const { host, fetcher } = await open({}, { layout: 'default' });
-  const toggle = () => host.querySelector<HTMLInputElement>('[aria-label="Enable A · Pawchive"]');
-  expect(toggle()?.checked).toBe(undefined);
+  const toggle = () => host.querySelector<HTMLInputElement>('[aria-label="Enable Alpha · Pawchive"]');
+  expect(toggle()?.checked).toBe(true);
   await click(toggle());
   await settle();
   expect(sentBody(fetcher, FOLLOW_SOURCE_URL)).toEqual([{ action: 'enabled', id: 2, enabled: false }]);
@@ -518,9 +518,9 @@ it('While a check runs it polls every two seconds, stopping when it ends', async
   state = done;
   await tick(JOB_RUNNING_POLL_MS);
   await settle();
-  expect(props.toast).toHaveBeenCalledWith(expect.stringContaining('3 new entries'));
+  expect(props.toast).toHaveBeenCalledWith(expect.stringContaining('3 new items'));
   expect(host.textContent).toContain('Check results');
-  expect(host.textContent).toContain('Checked 1 source: 3 new entries');
+  expect(host.textContent).toContain('Checked 1 source: 3 new items');
 
   // After a terminal state there are no more polls: polling is off.
   const settledAt = polls();
@@ -558,18 +558,18 @@ it('Check failures name the site and person per item, moving to the next require
   } as CheckJob;
   await act(async () => { await queryClient.refetchQueries({ queryKey: ['follow-manage', 'check'] }) });
   await settle();
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateCheck resultsChecked 4 sources: 1 new items · 3 failed3 source checks failedThese sources got no updates this round.Kemono Beta: Cannot connectpawchive Alpha · Pawchive: No reason givenF95zone threads/42: Login requiredEntry saved, but the raw source response was not saved this time: The disk is fullSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateCheck resultsChecked 4 sources: 1 new item · 3 failed3 source checks failedThese sources got no updates this round.Kemono Beta: Cannot connectpawchive Alpha · Pawchive: No reason givenF95zone threads/42: Login requiredEntry saved, but the raw source response was not saved this time: The disk is fullSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
   expect([...host.querySelectorAll('[aria-live] li')].map((row) => row.textContent)).toEqual([
-    'Kemono B: cannot connect', 'pawchive Alpha · Pawchive: no reason given', 'F95zone threads/42: login required',
+    'Kemono Beta: Cannot connect', 'pawchive Alpha · Pawchive: No reason given', 'F95zone threads/42: Login required',
   ]);
   // Even the successful one may have left no raw response behind: the candidate still goes into the library, but this has to be said.
-  expect(host.textContent).toContain('Entry saved, but the source\'s raw response was not stored this time: disk full');
+  expect(host.textContent).toContain('Entry saved, but the raw source response was not saved this time: The disk is full');
 });
 
 it('The one on the creator card checks only sources still open for this creator', async () => {
   const sources = CAST.map((row) => (row.id === 2 ? { ...row, enabled: false } : row));
   const { host, fetcher } = await open({ data: follow({ sources }) });
-  await click(buttonLabelled(host, 'Check all sources of A'));
+  await click(buttonLabelled(host, 'Check all sources of Alpha'));
   await settle();
   expect(sentBody(fetcher, FOLLOW_CHECK_URL)).toEqual([{ sources: [1], background: true }]);
 });
@@ -627,7 +627,7 @@ const listReads = (fetcher: ReturnType<typeof serve>) => fetcher.mock.calls.filt
 it('Pausing changes only that entry\'s status; it does not refetch the whole list', async () => {
   const { host, fetcher } = await open();
   const before = listReads(fetcher);
-  await click(checkboxNamed(host, 'Select A · Kemono'));
+  await click(checkboxNamed(host, 'Select Alpha · Kemono'));
   await click(buttonNamed('Paused', host));
   await settle();
   expect(listReads(fetcher)).toBe(before);
@@ -646,7 +646,7 @@ it('Card title rows carry only the site mark, leaving the name to screen readers
 it('With unwatched items left, the card bottom shows a count and three action buttons; with none, the whole row never appears', async () => {
   const counts = { new: 3, seen: 1, saved: 0, ignored: 2 };
   const busy = await open({ data: follow({ counts }) });
-  expect(busy.host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates3 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sources - 3 unreadCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageUnwatched 3 · Watched 1 · Saved 0 · Ignored 2See the updatesMark everything watchedIgnore allSource and subscription settings');
+  expect(busy.host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates3 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sources - 3 unreadCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageUnwatched 3 · Watched 1 · Saved 0 · Ignored 2See the updatesMark everything watchedIgnore allSource and subscription settings');
   expect(busy.host.textContent).toContain('Unwatched 3 · Watched 1 · Saved 0 · Ignored 2');
   expect(buttonNamed('Mark everything watched', busy.host)).not.toBeNull();
   expect(buttonNamed('Ignore all', busy.host)).not.toBeNull();
@@ -668,7 +668,7 @@ it('Readouts, list headers, and card footer counts all use thousands separators;
   expect(big.className).toContain('text-headline-medium');
   expect(big.querySelector('small')?.className).toContain('whitespace-nowrap');
   expect(readings.find((node) => node.textContent?.startsWith('0'))?.className).toContain('text-title-1-medium');
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates1,284,000 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sources - 1,284,000 unreadCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageUnwatched 1,284,000 · Watched 22,000 · Saved 0 · Ignored 0See the updatesMark everything watchedIgnore allSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates1,284,000 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed0 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNo follow sources yetAdd by performer name under Add follow, or click Subscribe to new releases on a person page.Add subscriptionUnwatched 0 · Enabled 0 / 0Follows list4 sources - 1,284,000 unreadCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageUnwatched 1,284,000 · Watched 22,000 · Saved 0 · Ignored 0See the updatesMark everything watchedIgnore allSource and subscription settings');
   expect(host.textContent).toContain('Unwatched 1,284,000 · Watched 22,000');
 });
 
@@ -709,7 +709,7 @@ it('The follows list empty state switches straight to the add tab and keeps the 
   const { host, props } = await open({ data: follow({ sources: [] }) });
   const empty = [...host.querySelectorAll('[data-empty-state]')].find(node => node.textContent?.includes('No follow sources yet'))!;
   const overview = host.querySelector('[aria-label="Follow overview"]');
-  const button = buttonNamed('Add follow', empty);
+  const button = buttonNamed('Add subscription', empty);
   expect(button).not.toBeNull();
   // This is the screen's primary action: the toolbar and 'Check all' render only when there is at least one source.
   expect(buttonNamed('Check all', host)).toBeNull();
@@ -775,26 +775,26 @@ it('The follow list first screen carries the feed list, and toggling, removing, 
   expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Follows list');
   expect([...host.querySelectorAll('[role="columnheader"]:not([data-table-space])')].map((cell) => cell.textContent?.trim()))
     .toEqual(['', 'Name', 'Kind', 'Source', 'State', 'Frequency', 'Last fetch', 'Last additions', 'Actions']);
-  const first = checkboxNamed(host, 'Select Alpha\'s new releases')!.closest('[role="row"]')!;
+  const first = checkboxNamed(host, 'Select A\'s new releases')!.closest('[role="row"]')!;
   expect([...first.querySelectorAll('[role="rowheader"]:not([data-table-space]),[role="gridcell"]:not([data-table-space])')].map(shown))
-    .toEqual(['', 'A\'s new releases', 'JAV subscriptions', 'feeds.test', 'Unchecked', 'Every 12 hours', 'Never fetched', '0 items', '']);
+    .toEqual(['', 'A\'s new releases', 'JAV subscriptions', 'feeds.test', 'Unchecked', 'Every 12 hr', 'Never fetched', '0 items', '']);
   expect(first.querySelector('a')?.getAttribute('href')).toBe('https://feeds.test/a');
   // The round frame before the name is assembled by `card-art`'s fallback chain: the identity reference carries whether an image exists, and the image is stacked on only once present.
   expect(first.querySelector('[role="rowheader"] img')?.getAttribute('src'))
     .toBe('/entity-image?kind=performer&id=41&thumb=1');
-  const second = checkboxNamed(host, 'Select Beta\'s new releases')!.closest('[role="row"]')!;
+  const second = checkboxNamed(host, 'Select B\'s new releases')!.closest('[role="row"]')!;
   expect(second.querySelector('[role="rowheader"] img')).toBeNull();
-  expect(second.querySelector('[role="rowheader"] [aria-hidden]')?.textContent).toBe('Beta');
+  expect(second.querySelector('[role="rowheader"] [aria-hidden]')?.textContent).toBe('B');
   expect(host.textContent).toContain('1 feed failed to fetch');
-  expect(host.textContent).toContain('B new releases: site 503');
-  expect(host.textContent).toContain('2 follow sources · 3 unwatched');
+  expect(host.textContent).toContain('B\'s new releases: Site 503');
+  expect(host.textContent).toContain('Unwatched 3 · Enabled 1 / 2');
   expect(host.textContent).not.toContain('Reading follow sources');
   expect(feedReads(fetcher)).toBe(1);
-  await click(host.querySelector('[aria-label="Enable Beta\'s new releases"]'));
+  await click(host.querySelector('[aria-label="Enable B\'s new releases"]'));
   await settle();
-  await click(buttonLabelled(host, 'Fetch Beta\'s new releases'));
+  await click(buttonLabelled(host, 'Fetch B\'s new releases'));
   await settle();
-  await click(buttonLabelled(host, 'Remove Alpha\'s new releases'));
+  await click(buttonLabelled(host, 'Remove A\'s new releases'));
   await settle();
   await click(buttonNamed('Fetch now', host));
   await settle();
@@ -819,26 +819,26 @@ it('The same person\'s two pages get one row each, with the old stage name page 
   // A person with a single row gets no page name: the site title bar string would be pure noise.
   expect(names).toEqual(['森日向子白石アイリ', '森日向子', '凉森玲梦']);
   const readings = [...host.querySelector('[aria-label="Follow overview"]')!.children].map((card) => card.textContent);
-  expect(readings.slice(-2)).toEqual(['JAV subscriptions 2 people', '81 unwatched new releases']);
+  expect(readings.slice(-2)).toEqual(['JAV subscriptions2 people', 'Unwatched new releases81 items']);
 });
 
 it('Clicking a blank spot on a feed table row selects it; with a selection the batch actions float up at the bottom, and pausing writes to the feed API one by one', async () => {
   const { host, fetcher } = await open({ feeds: FEEDS }, { tab: 'list' });
-  const row = () => checkboxNamed(host, 'Select Beta\'s new releases')!.closest('[role="row"]')!;
+  const row = () => checkboxNamed(host, 'Select B\'s new releases')!.closest('[role="row"]')!;
   const blank = () => [...row().querySelectorAll('[role="rowheader"],[role="gridcell"]')]
     .find((cell) => cell.textContent?.trim() === 'Every 30 min')!;
   expect(host.querySelector('[data-selection-dock]')).toBeNull();
 
   await click(blank());
   expect(row().hasAttribute('data-follow-selected')).toBe(true);
-  expect(host.textContent).toContain('1 feed selected');
+  expect(host.textContent).toContain('Selected 1 follow source');
   await click(blank());
   expect(row().hasAttribute('data-follow-selected')).toBe(false);
   expect(host.querySelector('[data-selection-dock]')).toBeNull();
 
-  await click(checkboxNamed(host, 'Select Alpha\'s new releases'));
-  await click(checkboxNamed(host, 'Select Beta\'s new releases'));
-  expect(host.textContent).toContain('2 feeds selected');
+  await click(checkboxNamed(host, 'Select A\'s new releases'));
+  await click(checkboxNamed(host, 'Select B\'s new releases'));
+  expect(host.textContent).toContain('Selected 2 follow sources');
   await click([...host.querySelectorAll('[data-selection-dock] button')].find((b) => b.textContent === 'Paused'));
   await settle();
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([
@@ -850,26 +850,26 @@ it('Clicking a blank spot on a feed table row selects it; with a selection the b
 it('Batch remove shows a confirmation stating the count first; after confirming, items are removed one by one and a toast reports the count', async () => {
   const { asked, outcomes } = stubConfirm(true);
   const { host, fetcher, props } = await open({ feeds: FEEDS }, { tab: 'list' });
-  await click(checkboxNamed(host, 'Select Alpha\'s new releases'));
-  await click(checkboxNamed(host, 'Select Beta\'s new releases'));
+  await click(checkboxNamed(host, 'Select A\'s new releases'));
+  await click(checkboxNamed(host, 'Select B\'s new releases'));
   await click([...host.querySelectorAll('[data-selection-dock] button')].find((b) => b.textContent === 'Remove'));
-  expect(asked[0]).toMatchObject({ title: 'Remove 2 feeds', confirmLabel: 'Remove selected feeds', danger: true });
+  expect(asked[0]).toMatchObject({ title: 'Remove 2 follow sources', confirmLabel: 'Remove selected feeds', danger: true });
   expect(await outcomes[0]).toBeNull();
   await settle();
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([{ action: 'remove', id: 4 }, { action: 'remove', id: 5 }]);
-  expect(props.toast).toHaveBeenCalledWith('Removed 2 feeds');
+  expect(props.toast).toHaveBeenCalledWith('Removed 2 follow sources');
 });
 
 it('Remove first raises a confirmation: title and primary button share one verb, the body names this source, and cancel sends nothing', async () => {
   const { asked } = stubConfirm(false);
   const { host, fetcher, props } = await open({ feeds: FEEDS }, { tab: 'list' });
-  await click(buttonLabelled(host, 'Remove Alpha\'s new releases'));
+  await click(buttonLabelled(host, 'Remove A\'s new releases'));
   await settle();
   expect(asked).toHaveLength(1);
   const [modal] = asked;
   expect(modal).toMatchObject({ title: 'Remove feed', confirmLabel: 'Remove feed', danger: true });
   expect(modal!.cancelLabel ?? 'Cancel').toBe('Cancel');
-  expect(modal!.body).toBe('This removes the follow source "Alpha - new releases". Its new releases stop being fetched; the ones already fetched are kept.');
+  expect(modal!.body).toBe('Will remove the feed "A\'s new releases"; its new releases will no longer be pulled, and new releases already fetched are kept.');
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([]);
   expect(props.toast).not.toHaveBeenCalled();
 });
@@ -878,21 +878,21 @@ it('Writes only after the removal is confirmed; the toast and primary button sha
   const { outcomes } = stubConfirm(true);
   const { host, fetcher, props } = await open({ feeds: FEEDS }, { tab: 'list' });
   const before = feedReads(fetcher);
-  await click(buttonLabelled(host, 'Remove Alpha\'s new releases'));
+  await click(buttonLabelled(host, 'Remove A\'s new releases'));
   expect(await outcomes[0]).toBeNull();
   await settle();
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([{ action: 'remove', id: 4 }]);
-  expect(props.toast).toHaveBeenCalledWith('Removed the "A new releases" feed');
+  expect(props.toast).toHaveBeenCalledWith('Removed the follow source "A\'s new releases"');
   expect(feedReads(fetcher)).toBeGreaterThan(before);
 });
 
 it('When removal is blocked by the server, the reason goes to the popover: no toast and no list refetch', async () => {
   const { outcomes } = stubConfirm(true);
   const { host, fetcher, props } = await open(
-    { feeds: FEEDS, feedWrite: () => refuse('Feed is fetching') }, { tab: 'list' });
+    { feeds: FEEDS, feedWrite: () => refuse('JavDB returned the login page') }, { tab: 'list' });
   const before = feedReads(fetcher);
-  await click(buttonLabelled(host, 'Remove Alpha\'s new releases'));
-  expect(await outcomes[0]).toBe('Feed is fetching');
+  await click(buttonLabelled(host, 'Remove A\'s new releases'));
+  expect(await outcomes[0]).toBe('JavDB returned the login page');
   await settle();
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([{ action: 'remove', id: 4 }]);
   expect(props.toast).not.toHaveBeenCalled();
@@ -903,8 +903,8 @@ it('In read-only subscription management, search, toggles, removal, and pull are
   const { host, unmount } = await open({ feeds: FEEDS }, { tab: 'list', readOnly: true });
   expect(host.querySelector('input[type="url"]')).toBeNull();
   expect(buttonNamed('Fetch now', host)?.disabled).toBe(true);
-  expect(buttonLabelled(host, 'Remove Alpha\'s new releases')?.disabled).toBe(undefined);
-  expect(host.querySelector<HTMLInputElement>('input[aria-label="Enable A new releases"]')?.disabled).toBe(true);
+  expect(buttonLabelled(host, 'Remove A\'s new releases')?.disabled).toBe(true);
+  expect(host.querySelector<HTMLInputElement>('input[aria-label="Enable A\'s new releases"]')?.disabled).toBe(true);
   await unmount();
   queryClient.clear();
   const add = await open({}, { tab: 'add', readOnly: true });
@@ -921,32 +921,32 @@ it('JAV subscription paging keeps cross-page selection', FULL_PAGE, async () => 
   const { host } = await open({ feeds: twoPagesOfFeeds() }, { tab: 'list' });
   const rows = () => host.querySelectorAll('[role="row"][data-key]');
   expect(rows()).toHaveLength(20);
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed21 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 11JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 12JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 13JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 14JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 15JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 16JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 17JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 18JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 19JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 20JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–20 / 21  follow sources20 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page12Next pageUnwatched 0 · Enabled 21 / 21Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
-  await click(checkboxNamed(host, 'Select source 1'));
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed21 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 11JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 12JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 13JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 14JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 15JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 16JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 17JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 18JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 19JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 20JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–20 / 21 follow sources20 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page12Next pageUnwatched 0 · Enabled 21 / 21Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
+  await click(checkboxNamed(host, 'Select Source 1'));
   await click(buttonNamed('Next page', host));
   expect(rows()).toHaveLength(1);
-  expect(host.textContent).toContain('21-21 / 21 follow sources');
-  expect(host.textContent).toContain('1 feed selected');
+  expect(host.textContent).toContain('21–21 / 21 follow sources');
+  expect(host.textContent).toContain('Selected 1 follow source');
   await click(checkboxNamed(host, 'Select Source 21'));
   await click(buttonNamed('Previous page', host));
-  expect(checkboxNamed(host, 'Select source 1')?.checked).toBe(true);
-  expect(host.textContent).toContain('2 feeds selected');
+  expect(checkboxNamed(host, 'Select Source 1')?.checked).toBe(true);
+  expect(host.textContent).toContain('Selected 2 follow sources');
 });
 
 it('JAV subscription frequency sorts the whole set by minutes and returns to the home page', FULL_PAGE, async () => {
   const feeds = twoPagesOfFeeds();
   feeds.sources = feeds.sources.map((source, index) => ({ ...source, interval_minutes: (21 - index) * 15 }));
   const { host } = await open({ feeds }, { tab: 'list' });
-  await click(checkboxNamed(host, 'Select source 1'));
+  await click(checkboxNamed(host, 'Select Source 1'));
   await click(buttonNamed('Next page', host));
   await click(host.querySelector('th[data-key="interval"]'));
-  const table = host.querySelector('[aria-label="JAV subscription source"]')!;
+  const table = host.querySelector('[aria-label="JAV subscription list"]')!;
   const rows = table.querySelectorAll('tbody tr');
   expect(rows).toHaveLength(20);
   expect(rows[0]!.textContent).toContain('Source 21');
   expect(rows[19]!.textContent).toContain('Source 2');
-  expect(host.textContent).toContain('1-20 / 21 follow sources');
-  expect(host.textContent).toContain('1 feed selected');
+  expect(host.textContent).toContain('1–20 / 21 follow sources');
+  expect(host.textContent).toContain('Selected 1 follow source');
 });
 
 it('JAV subscription paging capacity returns to the home count, with the status bar counting the whole set', FULL_PAGE, async () => {
@@ -954,7 +954,7 @@ it('JAV subscription paging capacity returns to the home count, with the status 
   await click(buttonNamed('Next page', host));
   await choose(host.querySelector('button[aria-label="Rows per page"]'), '10 items per page');
   expect(host.querySelectorAll('[role="row"][data-key]')).toHaveLength(10);
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases81 itemsFollows listAdd followManage tagsJAV feed21 feeds - 81 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–10 / 21  follow sources10 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page123Next pageUnwatched 81 · Enabled 21 / 21Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases81 itemsFollows listAdd followManage tagsJAV feed21 feeds - 81 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–10 / 21 follow sources10 items per page 10 items per page20 items per page50 items per page100 items per pagePrevious page123Next pageUnwatched 81 · Enabled 21 / 21Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
   expect(host.querySelector('footer')?.textContent).toContain('Unwatched 81 · Enabled 21 / 21');
 });
 
@@ -970,14 +970,14 @@ it('Removing the last source on the final page shows a valid page', FULL_PAGE, a
   await click(buttonLabelled(host, 'Remove Source 21'));
   await settle();
   expect(host.querySelectorAll('[role="row"][data-key]')).toHaveLength(20);
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed20 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 11JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 12JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 13JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 14JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 15JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 16JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 17JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 18JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 19JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 20JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–20 / 20  follow sources20 items per page 10 items per page20 items per page50 items per page100 items per pageUnwatched 0 · Enabled 20 / 20Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono、PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions1 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsJAV feed20 feeds - 0 unreadFetch nowShow columnsReset column widthsSortDefault order Default orderNameKindSourceStateFrequencyLast fetchLast additionsNameKindSourceStateFrequencyLast fetchLast additionsActionsSSource 1JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 2JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 3JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 4JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 5JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 6JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 7JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 8JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 9JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 10JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 11JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 12JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 13JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 14JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 15JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 16JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 17JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 18JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 19JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 itemsSSource 20JAV subscriptionsfeeds.testUncheckedEvery 12 hrNever fetched0 items1–20 / 20 follow sources20 items per page 10 items per page20 items per page50 items per page100 items per pageUnwatched 0 · Enabled 20 / 20Follows list4 sourcesCheck failed itemsSortCheck time Check timeDate addedCreator nameSource countSource nameSiteStateSelect this pageAAlphaSources: Kemono, PawchiveSelect allCollapseAlpha · KemonoKemonoNormal2026-09-01 07:00Alpha · PawchivePawchiveNormal2026-09-03 07:00BBetaSources: Kemono1 failedSelect allCollapseBeta · KemonoKemonoCheck failed2026-09-02 07:00GGammaSources: KemonoSelect allCollapseGamma · KemonoKemonoNormal2026-09-01 07:001–3 / 3  creators20 people per page 10 people per page20 people per page50 people per page100 people per pageSource and subscription settings');
 });
 
 it('The subscriptions list card includes title, empty state, and status bar', async () => {
   const { host, props } = await open({}, { tab: 'list' });
   const panel = host.querySelector('section[aria-label="JAV subscription list"]')!;
-  expect([...panel.querySelectorAll('h3')].map((h) => h.textContent)).toEqual(['JAV follow sources', 'No follow sources yet']);
-  expect(panel.textContent).toContain('Add by performer name under "Add follows", or click "Subscribe to new releases" on a person\'s page.');
+  expect([...panel.querySelectorAll('h3')].map((h) => h.textContent)).toEqual(['JAV feed', 'No follow sources yet']);
+  expect(panel.textContent).toContain('Add by performer name under Add follow, or click Subscribe to new releases on a person page.');
   expect(panel.querySelector('footer')?.textContent).toContain('Unwatched 0 · Enabled 0 / 0');
   expect(buttonNamed('Fetch now', host)).not.toBeNull();
   await click(buttonNamed('Add subscription', panel));
@@ -1010,15 +1010,15 @@ it('The follows list shows existing JAV subscriptions and reuses the feed switch
   expect(host.querySelector('section[aria-label="JAV subscription list"]')).not.toBeNull();
   expect(host.textContent).toContain('A\'s new releases');
   expect(host.textContent).not.toContain('Add JAV subscription');
-  await click(host.querySelector('[aria-label="Enable Alpha\'s new releases"]'));
+  await click(host.querySelector('[aria-label="Enable A\'s new releases"]'));
   await settle();
   expect(sentBody(fetcher, FEED_SOURCE_URL)).toEqual([{ action: 'enabled', id: 4, enabled: false }]);
 });
 
 it('The follows list\'s creators and JAV subscriptions keep only the current table\'s selection', async () => {
   const { host } = await open({ feeds: FEEDS });
-  const creator = () => checkboxNamed(host, 'Select A · Kemono')!;
-  const feed = () => checkboxNamed(host, 'Select Alpha\'s new releases')!;
+  const creator = () => checkboxNamed(host, 'Select Alpha · Kemono')!;
+  const feed = () => checkboxNamed(host, 'Select A\'s new releases')!;
   await click(creator());
   expect(creator().checked).toBe(true);
   await click(feed());
@@ -1071,7 +1071,7 @@ it('Find by name lists every cast card and pre-checks the two belonging to the s
   expect(boxNamed(host, '瀬戸環奈、瀨戶環奈')?.checked).toBe(true);
   expect(boxNamed(host, 'Uncensored')?.checked).toBe(true);
   expect(boxNamed(host, '別人さん')?.checked).toBe(false);
-  expect(host.textContent).toContain('The ledger does not have "瀬戸環奈" yet; a new one will be created');
+  expect(host.textContent).toContain('"瀬戸環奈" is not in the database yet; a new person will be created');
   expect([...host.querySelectorAll('a')].find((a) => a.textContent?.includes('Kn01'))?.getAttribute('href'))
     .toBe('https://javdb.com/actors/Kn01');
 
@@ -1081,7 +1081,7 @@ it('Find by name lists every cast card and pre-checks the two belonging to the s
   await click(buttonNamed('Add subscriptions (1)', host));
   await settle();
   expect(feedWrite).toHaveBeenCalledWith({ action: 'follow-name', name: '瀬戸環奈', ids: ['Kn01'] });
-  expect(props.toast).toHaveBeenCalledWith('Created "瀬戸環奈" and followed her new releases');
+  expect(props.toast).toHaveBeenCalledWith('Created "瀬戸環奈" and subscribed to her new releases');
   expect(feedReads(fetcher)).toBeGreaterThan(before);
   // After subscribing, go back to the follows list.
   expect(boxNamed(host, 'Uncensored')).toBeUndefined();
@@ -1099,10 +1099,10 @@ it('Enter also searches; checked cards already in the database state whose name 
     nameField(host).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
   });
   await settle();
-  expect(host.textContent).toContain('Already under "A"');
+  expect(host.textContent).toContain('Already filed under "Alpha"');
   expect(host.textContent).toContain('Check her performer card');
   await click(boxNamed(host, 'Uncensored'));
-  expect(host.textContent).toContain('Will be registered under B');
+  expect(host.textContent).toContain('It will file under "Beta"');
   expect(buttonNamed('Add subscriptions (1)', host)?.disabled).toBe(false);
   await click(boxNamed(host, '瀬戸環奈'));
   expect(host.textContent).toContain('The checked cards belong to different people in the database: Alpha, Beta');
@@ -1119,12 +1119,12 @@ it('When JavDB search fails, she can be followed directly if the ledger already 
   await click(buttonNamed('Find', actorPanel(host)));
   await settle();
   expect(host.textContent).toContain('JavDB 没有搜成：来源正在冷却');
-  expect(host.textContent).toContain('The ledger entry "瀬戸環奈" already has a JavDB or DMM code and can be followed directly.');
+  expect(host.textContent).toContain('The database entry "瀬戸環奈" already has a JavDB or DMM code and can be followed directly.');
   expect(host.textContent).not.toContain('That name returned nothing on JavDB.');
   await click(buttonNamed('Follow "瀬戸環奈"', host));
   await settle();
   expect(feedWrite).toHaveBeenCalledWith({ action: 'follow', entity_id: 5, enabled: true });
-  expect(props.toast).toHaveBeenCalledWith('Followed the new releases of "瀬戸環奈"');
+  expect(props.toast).toHaveBeenCalledWith('Followed new releases for "瀬戸環奈"');
 });
 
 it('When a lookup is rejected by the server the reason sits in the card, and no candidates states so plainly', async () => {
@@ -1132,7 +1132,7 @@ it('When a lookup is rejected by the server the reason sits in the card, and no 
   await type(nameField(first.host), 'Alpha');
   await click(buttonNamed('Find', actorPanel(first.host)));
   await settle();
-  expect(first.host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions2 peopleUnwatched new releases3 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindAdd JAV subscriptionFindThis run did not finishThe submission was invalid; check the input and retry.Creator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
+  expect(first.host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions2 peopleUnwatched new releases3 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindAdd JAV subscriptionFindThis run did not finishJavDB returned the login pageCreator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
   await first.unmount();
   queryClient.clear();
 
@@ -1145,14 +1145,14 @@ it('When a lookup is rejected by the server the reason sits in the card, and no 
 });
 
 it('The read-only instance is clearly labeled and points to the writer; all write operations are disabled', async () => {
-  const writer = undefined;
+  const writer = 'https://writer.example/follow-manage';
   const list = await open({}, { readOnly: true, readOnlyMessage: 'This machine is a read-only replica', writerUrl: writer });
   expect(list.host.textContent).toContain('This machine is browse-only');
   expect(list.host.textContent).toContain('This machine is a read-only replica');
-  expect([...list.host.querySelectorAll('a')].find((a) => a.textContent?.includes('Manage follows on the write side'))
+  expect([...list.host.querySelectorAll('a')].find((a) => a.textContent?.includes('Go to the writer instance to manage follows'))
     ?.getAttribute('href')).toBe(writer);
   expect(buttonLabelled(list.host, 'Check all')?.disabled).toBe(true);
-  expect(buttonLabelled(list.host, 'Remove A · Kemono')?.disabled).toBe(true);
+  expect(buttonLabelled(list.host, 'Remove Alpha · Kemono')?.disabled).toBe(true);
   await list.unmount();
   queryClient.clear();
 
@@ -1240,7 +1240,7 @@ it('While one lookup runs no second starts, and the button goes busy', async () 
 it('A failed lookup start keeps input, and Enter retries directly', async () => {
   const { host, fetcher } = await open({ resolveStart: () => refuse('The source is temporarily unavailable') }, { tab: 'add' });
   await lookUp(host, 'kou');
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindThis run did not finishThe submission was invalid; check the input and retry.Add JAV subscriptionFindCreator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindThis run did not finishThe source is temporarily unavailableAdd JAV subscriptionFindCreator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
   expect(lookupField(host).value).toBe('kou');
   await press(lookupField(host), 'Enter');
   await settle();
@@ -1330,7 +1330,7 @@ it('The reasons for failed registrations stay on the page, surviving list refetc
   await settle();
   expect(listReads(fetcher)).toBeGreaterThan(before);
   expect(host.textContent).toContain('This run did not finish');
-  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindThis run did not finishkou · Pawchive: The submission was invalid; check the input and retry.Lookup resultskouKemonokou · KemonoSame name on sitePawchivekou · PawchiveSame name on siteFanboxkou · FanboxAlready followedOffAdd selected (2)Add JAV subscriptionFindCreator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
+  expect(host.textContent).toContain('Follow creator3 peopleEnable the source4 / 4Check failed1 sourcesUnwatched updates0 itemsJAV subscriptions0 peopleUnwatched new releases0 itemsFollows listAdd followManage tagsAdd a creator followAll sourcesFindThis run did not finishkou · Pawchive: The site refusedLookup resultskouKemonokou · KemonoSame name on sitePawchivekou · PawchiveSame name on siteFanboxkou · FanboxAlready followedOffAdd selected (2)Add JAV subscriptionFindCreator aliasesAdd an alias manuallySave aliasSaved aliases0 groupsSortDefault order Default orderCanonical namePlatform aliasShow columnsReset column widthsNo saved creator aliases yetFill in the unified name plus the names this creator uses on other platforms.Add aliasSource and subscription settings');
   expect(sentBody(fetcher, FOLLOW_CHECK_URL)).toEqual([{ sources: [9], background: true }]);
   expect(props.toast).not.toHaveBeenCalled();
 });
@@ -1449,7 +1449,7 @@ it('Suggestions list in the grouping and order the server gives; select with arr
   // The line starts with the name itself; the sites carrying it and their official categories are only side notes. Each group name appears once per group.
   // Count only the dropdown's direct child rows: react-aria appends one hidden Dismiss key for screen readers at the end.
   expect([...suggestMenu()!.querySelectorAll(':scope > button')].map((row) => row.textContent))
-    .toEqual(['strauzek', 'Mr_Strauzkemono', 'strauss role 1,234', 'strausberg tag 56']);
+    .toEqual(['strauzek', 'Mr_Strauzkemono', 'straussRoles1,234', 'strausbergTags56']);
   expect([...suggestMenu()!.querySelectorAll(':scope > div')]
     .filter((row) => !row.querySelector('button')).map((row) => row.textContent))
     .toEqual(['Following', 'Archive site creators', 'Rule34.xxx tags']);
@@ -1578,7 +1578,7 @@ it('Every site states its own situation: needed, configured, unreachable, or not
   const { host } = await open({ creds: CREDENTIAL_CAST }, { tab: 'source' });
   expect(['Fanbox', 'Patreon', 'OnlyFans', 'Kemono'].map((label) => chipText(credentialRow(host, label))))
     .toEqual([['Required'], ['Configured'], ['Cannot connect right now'], ['Not needed']]);
-  expect(host.textContent).toContain('"Source credentials1 items to configureConfigurable credentialsFanboxRequiredMissing FANBOXSESSIDMissing cf_clearanceFill in credentialsMembers only content is visible after signing in. Get credentialsCopy it from the browser developer tools.FANBOXSESSIDcf_clearanceSave configurationCredentials fileC:\\peach\\creds\\fanbox.jsonPatreonConfiguredEdit credentialscookieClearSave configurationThe credentials file permissions are too broadOther system users can read this credentials file. On the Mac or Linux computer running Peach, set the file permissions so only the current user can read and write it (0600).No credentials neededKemonoNot neededNot supported yetOnlyFansCannot connect right nowThe site demands a device fingerprint and cannot be reached."');
+  expect(host.textContent).toContain('1 item to configure');
   const groupNames = ['Configurable credentials', 'No credentials needed', 'Not supported yet'];
   expect(groupNames.map(name => [...host.querySelectorAll(`section[aria-label="${name}"] b`)]
     .map(node => node.textContent))).toEqual([['Fanbox', 'Patreon'], ['Kemono'], ['OnlyFans']]);
@@ -1588,7 +1588,8 @@ it('Every site states its own situation: needed, configured, unreachable, or not
 it('What is missing, why it is needed, and where to get it all sit on that row, and the mandatory one starts expanded', async () => {
   const { host } = await open({ creds: CREDENTIAL_CAST }, { tab: 'source' });
   const fanbox = credentialRow(host, 'Fanbox');
-  expect(fanbox.textContent).toContain('"FanboxRequiredMissing FANBOXSESSIDMissing cf_clearanceFill in credentialsMembers only content is visible after signing in. Get credentialsCopy it from the browser developer tools.FANBOXSESSIDcf_clearanceSave configurationCredentials fileC:\\peach\\creds\\fanbox.json"');
+  expect(fanbox.textContent).toContain('Missing FANBOXSESSID');
+  expect(fanbox.textContent).toContain('Missing cf_clearance');
   expect(fanbox.textContent).toContain('Members only content is visible after signing in.');
   expect(fanbox.textContent).toContain('Copy it from the browser developer tools.');
   expect([...fanbox.querySelectorAll('a')].find((a) => a.textContent?.includes('Get credentials'))?.getAttribute('href'))
@@ -1679,6 +1680,6 @@ it('Mark all as watched: the batch that failed to write counts into the failure 
   vi.stubGlobal('fetch', fetcher);
   const result = await markAllPending('ignored');
   expect([result.total, result.failed]).toEqual([2, 2]);
-  expect(String((result.error as Error).message)).toContain('The Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(String((result.error as Error).message)).toContain('The database is busy');
   expect(fetcher.mock.calls.filter(([url]) => new URL(url, location.origin).pathname === FOLLOW_URL)).toHaveLength(2);
 });

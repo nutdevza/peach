@@ -432,12 +432,12 @@ function AmaneBridgeCard({ toast }: ScrapingProps) {
       <Stack divided>
         {data.sites.length
           ? <Disclosure summary="View built-in sites">
-              <p className="text-body-2-regular text-text-secondary">{data.sites.map((site) => site.label).join('、')}</p>
+              <p className="text-body-2-regular text-text-secondary">{data.sites.map((site) => site.label).join(', ')}</p>
             </Disclosure>
           : null}
         {data.problem
           ? <Note tone="error">{data.problem}</Note>
-          : <Help>amane ({data.license}') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned '{data.version} Version; used directly when the installer already ships a working environment.
+          : <Help>amane ({data.license}) provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned {data.version} version; used directly when the installer already ships a working environment.
               Manual installs also use this version and do not auto-upgrade with upstream.
             </Help>}
         {running ? <LoadingDots label="Rebuilding the runtime environment" /> : null}

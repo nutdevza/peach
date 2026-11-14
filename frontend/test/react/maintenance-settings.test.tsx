@@ -86,7 +86,7 @@ describe('Auto-update', () => {
     expect(interval?.nextElementSibling).toBeNull();
     await submit(host.querySelector('form'));
     await settle();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('The submission was invalid; check the input and retry.');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Settings are saving');
     expect(receipt).not.toHaveBeenCalled();
   });
 });
@@ -95,8 +95,8 @@ describe('Check for updates', () => {
   it('States the app update package size and when tools download separately', async () => {
     const host = await mount(<ReleaseUpdates initial={{ ...release, state: 'available', latest_version: '1.0.0',
       package_kind: 'update', asset_size: 12 * 1048576 }} />);
-    expect(host.textContent).toContain('Check updatesUpdate availableCurrent version0.9.0Install methodStandalone test packageUpdate channelBetaLatest version1.0.0Download contentsApply update · 12.0 MBThe app update package reuses installed tools; missing, damaged, or changed-version tools are downloaded separately as needed.Update availableNot checked yetOfficial siteGitHubView release page\'Release notes for this version\'Check updatesDownload and install');
-    expect(host.textContent).toContain('Check updatesUpdate availableCurrent version0.9.0Install methodStandalone test packageUpdate channelBetaLatest version1.0.0Download contentsApply update · 12.0 MBThe app update package reuses installed tools; missing, damaged, or changed-version tools are downloaded separately as needed.Update availableNot checked yetOfficial siteGitHubView release page\'Release notes for this version\'Check updatesDownload and install');
+    expect(host.textContent).toContain('Check updatesUpdate availableCurrent version0.9.0Install methodStandalone test packageUpdate channelBetaLatest version1.0.0Download contentsApply update · 12.0 MBThe app update package reuses installed tools; missing, damaged, or changed-version tools are downloaded separately as needed.Update availableNot checked yetOfficial siteGitHubView release pageRelease notes for this versionCheck updatesDownload and install');
+    expect(host.textContent).toContain('Check updatesUpdate availableCurrent version0.9.0Install methodStandalone test packageUpdate channelBetaLatest version1.0.0Download contentsApply update · 12.0 MBThe app update package reuses installed tools; missing, damaged, or changed-version tools are downloaded separately as needed.Update availableNot checked yetOfficial siteGitHubView release pageRelease notes for this versionCheck updatesDownload and install');
     expect(host.textContent).not.toContain('First install');
     expect([...host.querySelectorAll('a')].some((a) => a.textContent === 'Full installer')).toBe(false);
   });
@@ -116,7 +116,7 @@ describe('Check for updates', () => {
     expect(host.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('100');
     expect(modal).toHaveBeenCalledTimes(1);
     expect(modal.mock.calls[0]?.[0]).toMatchObject({
-      title: 'The update is ready', body: 'Peach 0.10.0 will be installed after restart.', confirmLabel: 'Restart now', cancelLabel: 'Later',
+      title: 'The update is ready', body: 'Peach 0.10.0 will be installed after a restart.', confirmLabel: 'Restart now', cancelLabel: 'Later',
     });
     expect(fetcher).not.toHaveBeenCalled();
     await act(async () => { await modal.mock.calls[0]?.[0].onConfirm?.(); });
@@ -125,9 +125,9 @@ describe('Check for updates', () => {
 
   it('Explicit queries update, rapid clicks send once, failures can retry, and focus stays put', async () => {
     const host = await mount(<ReleaseUpdates initial={release} />);
-    const updates = section(host, 'Check for updates')!;
-    const check = buttonNamed('Check for updates', updates)!;
-    expect(updates.textContent).toContain('Current version 0.9.0');
+    const updates = section(host, 'Check updates')!;
+    const check = buttonNamed('Check updates', updates)!;
+    expect(updates.textContent).toContain('Current version0.9.0');
     const fetcher = fetchMock(200, { ...release, latest_version: '0.10.0', state: 'available', message: 'A new version is available for download.' });
     vi.stubGlobal('fetch', fetcher);
     check.focus();
@@ -135,10 +135,10 @@ describe('Check for updates', () => {
     await settle();
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0]?.[0]).toBe('/api/configuration/updates');
-    expect(updates.textContent).toContain('Latest version 0.10.0');
+    expect(updates.textContent).toContain('Latest version0.10.0');
     expect(updates.querySelector('[role="status"]')?.textContent).toContain('Update available');
     expect(buttonNamed('Download and install', updates)).not.toBeNull();
-    expect(actionOrder(check.parentElement)).toEqual(['Official site', 'GitHub', 'View release page', 'Release notes for this version', 'Check for updates', 'Download and install']);
+    expect(actionOrder(check.parentElement)).toEqual(['Official site', 'GitHub', 'View release page', 'Release notes for this version', 'Check updates', 'Download and install']);
     expect([...updates.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')]))
       .toEqual([
         ['Official site', 'https://peach.video/#download'],
@@ -159,9 +159,9 @@ describe('Check for updates', () => {
     const dmg = 'https://github.com/peach-mitao/peach/releases/download/v1.0.0/Peach-1.0.0-macos-arm64.dmg';
     const host = await mount(<ReleaseUpdates initial={{ ...release, in_app_update: false, state: 'available',
       latest_version: '1.0.0', message: 'A new version is available for download.', package_kind: 'installer', asset_url: dmg, asset_size: 300 * 1048576 }} />);
-    const updates = section(host, 'Check for updates')!;
+    const updates = section(host, 'Check updates')!;
     expect(updates.textContent).toContain('macOS install image · 300.0 MB');
-    expect(updates.textContent).toContain('Drag Peach into Applications');
+    expect(updates.textContent).toContain('drag Peach into Applications');
     expect(buttonNamed('Download and install', updates)).toBeNull();
     const link = [...updates.querySelectorAll('a')].find((a) => a.textContent === 'Download the new version');
     expect(link?.getAttribute('href')).toBe(dmg);
@@ -171,14 +171,14 @@ describe('Check for updates', () => {
     const steps = [{ text: '拉取新镜像', command: 'docker compose pull' }, { text: '重建容器', command: 'docker compose up -d' }];
     const docker = { ...release, installation: 'Docker 镜像', in_app_update: false, steps };
     const host = await mount(<ReleaseUpdates initial={{ ...docker, state: 'available', latest_version: '1.0.0', message: '有新镜像可拉取。' }} />);
-    const updates = section(host, 'Check for updates')!;
+    const updates = section(host, 'Check updates')!;
     expect(updates.textContent).toContain('Docker 镜像');
-    const list = updates.querySelector('ol[aria-label="Update on the host machine"]');
+    const list = updates.querySelector('ol[aria-label="Update on the host"]');
     expect([...list!.querySelectorAll('code')].map((code) => code.textContent)).toEqual(['docker compose pull', 'docker compose up -d']);
     expect(buttonNamed('Download and install', updates)).toBeNull();
     expect([...updates.querySelectorAll('a')].some((a) => a.textContent === 'Download the new version')).toBe(false);
     const current = await mount(<ReleaseUpdates initial={{ ...docker, state: 'current', latest_version: '0.9.0', message: 'Already the latest beta.' }} />);
-    expect(current.querySelector('ol[aria-label="Update on the host machine"]')).toBeNull();
+    expect(current.querySelector('ol[aria-label="Update on the host"]')).toBeNull();
   });
 
   it('Already up to date shows no available-update note and no install key', async () => {
@@ -200,15 +200,15 @@ it('Uninstall keeps data by default; after checking full uninstall the confirmat
   expect(full.checked).toBe(false);
   expect([...area.querySelectorAll('details p')].map(p => p.textContent)).toEqual(['fixture', 'fixture/cache']);
   // Each path carries its own open button: glancing once beats tracing each path back through the tree to see which directories get deleted.
-  expect([...area.querySelectorAll('details button[aria-label="Show in Explorer"]')]).toHaveLength(2);
+  expect([...area.querySelectorAll('details button[aria-label="Show in File Explorer"]')]).toHaveLength(2);
   await click(buttonNamed('Uninstall Peach', area));
   expect(modal.mock.calls[0]?.[0]).toMatchObject({ title: 'Uninstall Peach', danger: true, confirmLabel: 'Uninstall Peach' });
-  expect(String(modal.mock.calls[0]?.[0].body)).toContain('Settings, the local database, watch history, and caches are kept');
+  expect(String(modal.mock.calls[0]?.[0].body)).toContain('Settings, local database, watch history and cache are kept');
   expect(fetcher).not.toHaveBeenCalled();
   await click(full);
   await click(buttonNamed('Uninstall Peach', area));
   const options = modal.mock.calls[1]![0];
-  expect(String(options.body)).toContain('Credentials and cache');
+  expect(String(options.body)).toContain('credentials, and caches');
   await act(async () => { await options.onConfirm?.(); });
   expect(sentBody(fetcher)).toEqual({ delete_data: true, confirmation: 'Uninstall Peach' });
   expect(area.querySelector('[role="status"]')?.textContent).toBe('Peach will exit and uninstall in a few seconds.');

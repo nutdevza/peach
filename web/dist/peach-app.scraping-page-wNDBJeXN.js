@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "52ecc5de-4bc2-402e-bfb4-208892984398", e._sentryDebugIdIdentifier = "sentry-dbid-52ecc5de-4bc2-402e-bfb4-208892984398");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "ebb98433-2723-4a2d-843f-86c5c0f85fa5", e._sentryDebugIdIdentifier = "sentry-dbid-ebb98433-2723-4a2d-843f-86c5c0f85fa5");
 	} catch {}
 })();
 import { $fe21c36db05242bb$export$d7b12c4107be0d61 as e, AMANE_BRIDGE_CHECK_URL as t, AMANE_BRIDGE_KEY as n, AMANE_BRIDGE_REBUILD_URL as r, Button as i, CHECK_ALL_KEY as a, COVER_JOB_KEY as o, CUSTOM_SOURCES_KEY as s, CUSTOM_SOURCES_URL as c, Checkbox as l, Disclosure as u, ErrorText as d, ExternalLink as f, Fact as p, FactList as m, FieldLabel as h, Footer as g, Help as _, Input as v, IssueRow as y, LinkButton as ee, LoadingDots as b, Note as x, Progress as S, Rows as te, SCRAPING_CHECK_ALL_URL as C, SCRAPING_CHECK_URL as ne, SCRAPING_COVER_URL as w, SCRAPING_KEY as T, SCRAPING_SETTINGS_URL as re, SEGMENT as ie, SEGMENTED_TRACK as ae, Section as E, SegmentedRadioGroup as oe, Select$1 as se, SelectField as D, SelectItem as ce, SettingsRow as le, Stack as O, StatusLabel as k, __toESM as A, apiSend as j, busyProps as M, checkText as ue, composingKey as N, confirmModal as de, errorMessage as P, esc as F, fetchAmaneBridge as I, fetchCheckAllJob as L, fetchCoverJob as R, fetchCustomSources as z, fetchSources as fe, i2 as pe, momentText as me, queryClient as B, require_jsx_runtime as he, require_react as ge, spinnerHtml as _e, useAction as V, useBackgroundJob as H, useMutation as U, useQuery as W } from "./peach-app.js";
@@ -674,7 +674,7 @@ function je({ toast: e }) {
 						summary: "View built-in sites",
 						children: /* @__PURE__ */ (0, J.jsx)("p", {
 							className: "text-body-2-regular text-text-secondary",
-							children: d.sites.map((e) => e.label).join("、")
+							children: d.sites.map((e) => e.label).join(", ")
 						})
 					}) : null,
 					d.problem ? /* @__PURE__ */ (0, J.jsx)(x, {
@@ -683,9 +683,9 @@ function je({ toast: e }) {
 					}) : /* @__PURE__ */ (0, J.jsxs)(_, { children: [
 						"amane (",
 						d.license,
-						"') provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned '",
+						") provides resolution for these built-in sites. The first time one is needed, Peach automatically prepares the pinned ",
 						d.version,
-						" Version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream."
+						" version; used directly when the installer already ships a working environment. Manual installs also use this version and do not auto-upgrade with upstream."
 					] }),
 					o ? /* @__PURE__ */ (0, J.jsx)(b, { label: "Rebuilding the runtime environment" }) : null,
 					v ? /* @__PURE__ */ (0, J.jsx)(x, {
@@ -742,4 +742,4 @@ function Me({ toast: e }) {
 }
 export { Me as ScrapingPage, Z as linkHost, X as networkOptions };
 
-//# debugId=52ecc5de-4bc2-402e-bfb4-208892984398
+//# debugId=ebb98433-2723-4a2d-843f-86c5c0f85fa5

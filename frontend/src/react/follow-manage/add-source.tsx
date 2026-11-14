@@ -138,7 +138,7 @@ function SourceFilter(
     onHidden(next);
   };
   return <SelectionPopover label="Source filter" triggerLabel={label} leadingIcon={RiFilter3Line}
-    empty="'No sources available yet'"
+    empty="No sources available yet"
     items={rows.map(row => ({ id: row.provider_label, selected: !hidden.has(row.provider_label),
       label: <span className="flex min-w-0 items-center gap-1.5"><SourceIcon provider={row.provider} />{row.provider_label}</span> }))}
     onChange={toggle}

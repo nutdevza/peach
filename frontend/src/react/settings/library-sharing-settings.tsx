@@ -74,7 +74,7 @@ export function LibrarySharingSettings({ initial, receipt }: {
         {participation.pending_state
         ? `About to send the ${participation.pending_state === 'disabled' ? 'off' : 'on'} state`
         : deliveryNames[participation.status] || 'Results not obtained'}</StatusLabel></Fact></FactList>
-      {value.last_sent_at ? <Help>'Last sent:'{new Date(value.last_sent_at).toLocaleDateString()}</Help> : null}
+      {value.last_sent_at ? <Help>Last sent: {new Date(value.last_sent_at).toLocaleDateString()}</Help> : null}
     </Stack> : null}
     {value.enabled && value.last_attempt?.status === 'failed'
       ? <Stack divided><span className="self-start"><StatusLabel tone={value.last_attempt.attempted ? 'error' : 'warning'}>{value.last_attempt.attempted ? 'Upload failed' : 'Pending re-prep'}</StatusLabel></span><ErrorText>{value.last_attempt.attempted
@@ -84,9 +84,9 @@ export function LibrarySharingSettings({ initial, receipt }: {
     {value.enabled && value.last_attempt?.status === 'unknown'
       ? <Stack divided><span className="self-start"><StatusLabel tone="warning">Result not fetched</StatusLabel></span><Help>No upload result received; not sending again this week.</Help></Stack> : null}
     {preview ? <Stack divided>
-      <Help>The preview includes {preview.data.library.length} works and {preview.data.coverage.uncoded_items} unnumbered summaries, about {(preview.bytes / 1024).toFixed(1)} ' KiB.'</Help>
-      <Help>'The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent.'</Help>
-      <Disclosure summary="'Upload data preview'" defaultOpen>
+      <Help>The preview includes {preview.data.library.length} works and {preview.data.coverage.uncoded_items} unnumbered summaries, about {(preview.bytes / 1024).toFixed(1)} KiB.</Help>
+      <Help>The random ID deduplicates instances. State goes out once a day; after turning it off only one closing state is sent.</Help>
+      <Disclosure summary="Upload data preview" defaultOpen>
         <CodeBlock code={previewText} language="json" label="Library and taste upload preview" maxCharacters={24000} />
       </Disclosure>
       {previewText.length > 24000 ? <Help>Showing the first 24,000 characters; download to view the full content.</Help> : null}

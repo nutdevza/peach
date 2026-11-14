@@ -57,7 +57,7 @@ describe('Version stats and error diagnostics', () => {
     const host = await mount(<RemoteReportingSettings initial={{ ...initial, usage: true, errors: true }} receipt={receipt} />);
     for (const toggle of switches(host)) await click(toggle);
     await settle();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('This device does not have permission for this action. Do it on the computer running Peach.');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Save on this machine');
     expect(receipt).not.toHaveBeenCalled();
     await click(switches(host)[0]);
     await settle();

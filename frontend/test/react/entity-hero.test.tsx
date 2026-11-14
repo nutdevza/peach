@@ -168,7 +168,7 @@ describe('Pure functions for layout', () => {
       { type: 'icon', url: 'https://www.minnano-av.com/x', title: 'minnano-av', mark: { brand: 'minnano' } },
       { type: 'icon', url: 'https://www.nax.co.jp/talent/aoi', title: 'New Actor eXperience official profile', mark: { site: '/link-mark?id=3' } },
       { type: 'icon', url: 'https://x.com/aoi', title: 'X', mark: { brand: 'brand-x' } },
-      { type: 'gone', title: 'Legacy blog · Retired in 2024' },
+      { type: 'gone', title: 'Old blog · Retired in 2024' },
       { type: 'private', label: 'Private records' },
     ]);
   });
@@ -186,7 +186,7 @@ describe('Pure functions for layout', () => {
       { link_id: 4, clickable: false, label: 'Group chat screenshots' },
     ] }), 'performer');
     expect(links.map((link) => link.type)).toEqual(['icon', 'private']);
-    expect(links[1]).toEqual({ type: 'private', label: '3 private sources', sources: ['Private records', 'Forum post', 'Group chat screenshots'] });
+    expect(links[1]).toEqual({ type: 'private', label: '3 hidden sources', sources: ['Private records', 'Forum post', 'Group chat screenshots'] });
     expect(heroLinks(performer({ links: [{ link_id: 1, clickable: false, label: 'Private records' }] }), 'performer'))
       .toEqual([{ type: 'private', label: 'Private records' }]);
   });
@@ -201,7 +201,7 @@ describe('Pure functions for layout', () => {
 
   it('Without a language projection, existing aliases and original values are kept; the unified name sorts first with duplicates and blanks removed', () => {
     expect(nameChoices({ id: 1, canonical_name: '葵つかさ', asset_count: 0, aliases: ['Tsukasa Aoi', 'Tsukasa Aoi', 'Tsukasa Aoi', ''] }))
-      .toEqual(['葵つかさ', 'Tsukasa Aoi', 'Tsukasa Aoi'].map(value => ({ value, label: value })));
+      .toEqual(['葵つかさ', 'Tsukasa Aoi'].map(value => ({ value, label: value })));
   });
 });
 
@@ -228,7 +228,7 @@ describe('What paints', () => {
       id: 3, canonical_name: 'S1', asset_count: 9, display_aliases: names,
     } }));
     const inline = host.querySelectorAll('[data-company-names] [data-alias-names] > span');
-    expect([...inline].map((one) => one.textContent)).toEqual(['旧レーベル1', '旧レーベル2', '旧レーベル3']);
+    expect([...inline].map((one) => one.textContent)).toEqual(['Old label 1', 'Old label 2', 'Old label 3']);
     expect(host.querySelector('[data-hero-more="alias"]')?.textContent).toBe('+27');
     const pop = document.getElementById('entityAliasPop')!;
     expect(pop.querySelectorAll('[data-pop-name]')).toHaveLength(30);
@@ -305,7 +305,7 @@ describe('Clicking hands over to the shell', () => {
   it('Co-stars and agencies use in-site jumps, and agency links never full-page refresh', async () => {
     const acts = actions();
     const host = await open(props({ actions: acts }));
-    await click(host.querySelector('[data-related-performer="Kawakita Saika"]'));
+    await click(host.querySelector('[data-related-performer="河北彩花"]'));
     expect(acts.openEntity).toHaveBeenLastCalledWith('performer', '河北彩花');
     const agency = host.querySelector<HTMLAnchorElement>('a[data-agency]');
     expect(agency?.getAttribute('href')).toBe('/agencies/New%20Actor%20eXperience');
@@ -332,7 +332,7 @@ describe('Clicking hands over to the shell', () => {
     await click(document.querySelector('[data-namepick-name="葵つかさ"]'));
     expect(acts.chooseName).not.toHaveBeenCalled();
     await click(host.querySelector('[data-namepick-toggle]'));
-    await click(document.querySelector('[data-namepick-name="葵司"]'));
+    await click(document.querySelector('[data-namepick-name="Tsukasa Aoi"]'));
     expect(acts.chooseName).toHaveBeenCalledWith('Tsukasa Aoi');
     await click(host.querySelector('[data-namepick-toggle]'));
     await click(document.querySelector('[data-namepick-alias]'));

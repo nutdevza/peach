@@ -59,7 +59,7 @@ it('JAV sections restore from deep links, and unknown sections land on the libra
 });
 it('The new-releases page size restores from the address; query parameters and cache are isolated per page size', async () => {
   const filters = releaseFilters('?page=3&size=50&tag=剧情&sort=duration&dir=asc');
-  expect(filters).toMatchObject({ page: 3, size: 50, tag: 'Drama', sort: 'duration', dir: 'asc' });
+  expect(filters).toMatchObject({ page: 3, size: 50, tag: '剧情', sort: 'duration', dir: 'asc' });
   expect(releaseKey(filters)).not.toEqual(releaseKey({ ...filters, size: 20 }));
   for (const size of ['0', '-1', '2.5', '101', 'Infinity', 'unknown']) {
     expect(releaseFilters(`?size=${size}`).size).toBe(24);
@@ -70,7 +70,7 @@ it('The new-releases page size restores from the address; query parameters and c
   try {
     await fetchReleases(filters, new AbortController().signal);
     const params = new URL(String(fetcher.mock.calls[0]?.[0]), 'https://peach.test').searchParams;
-    expect(Object.fromEntries(params)).toEqual({ page: '3', size: '50', sort: 'duration', direction: 'asc', tag: 'Drama' });
+    expect(Object.fromEntries(params)).toEqual({ page: '3', size: '50', sort: 'duration', direction: 'asc', tag: '剧情' });
   } finally { vi.unstubAllGlobals() }
 });
 it('JAV library deep links keep search and filter conditions and use the catalog entry', () => {

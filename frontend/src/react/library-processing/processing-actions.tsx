@@ -74,7 +74,7 @@ function ProcessingPrompt({ command, speed, dialog, onSpeed, busy, libraryName }
     : command.scope === 'new' ? 'Registered videos pending completion'
     : command.stage === 'previews' ? 'Videos already in the library (skips traffic-protected folders)' : 'All files and videos';
   return <div className="flex flex-col gap-4">
-    <p data-processing-scope className="text-body-2-medium text-text-primary">Scope:{libraryName || 'All libraries'} · {scope}</p>
+    <p data-processing-scope className="text-body-2-medium text-text-primary">Scope: {libraryName || 'All libraries'} · {scope}</p>
     <div className="flex justify-center"><ProcessingEffort value={mode} busy={busy} onChange={value => { setMode(value); onSpeed(value) }} /></div>
     {traffic ? <TrafficProgress traffic={traffic} initial /> : null}
     {failure || !traffic ? <p role="status" className="text-body-2-regular text-text-secondary">{failure ? `No traffic estimate available: ${failure}` : 'Estimating bandwidth…'}</p> : null}

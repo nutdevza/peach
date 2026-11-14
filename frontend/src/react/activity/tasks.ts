@@ -338,7 +338,7 @@ export function readableErrorHeadline(text: string | null | undefined): string {
 const OUTCOME_LABELS: Record<string, string> = {
   partial: 'Processing ended, some items still need work', complete: 'Processing finished', interrupted: 'Processing interrupted',
   cancelled: 'Canceled',
-  '没有新写法': 'No new aliases found', '已装上': 'Details image saved',
+  '没有新写法': 'No new aliases found', '已装上': 'Detail image saved',
   '已装着认得准的小图': 'Small images that passed identity checks were kept',
   '档案已不存在': 'The detail record no longer exists', '资料未过期': 'Existing details are still within their validity',
   '图太小': 'The image resolution is too low', '官网未取得': 'Label website info not available',
@@ -355,9 +355,11 @@ const OPERATION_LABELS: Record<string, string> = {
   'dismiss-junk': 'Confirm not junk', 'reconsider-junk': 'Reclassify as junk', region: 'Decide origin',
 };
 const outcomeText = (text: string): string => OUTCOME_LABELS[text] || text
-  .replace(/(avwikidb|javdb|minnano-av) (绑定|写入)/gi, (_, site: string, action: string) =>
-    action === 'Binding' ? `Linked to the ${SOURCE_NAMES[site.toLowerCase()]} profile page`
-      : `Saved the profile from ${SOURCE_NAMES[site.toLowerCase()]}`);
+  // The verbs are the server's own words, so they stay verbatim: "绑定" links the profile, "写入" saves it.
+  .replace(/(avwikidb|javdb|minnano-av) 绑定/gi, (_, site: string) =>
+    `Linked to the ${SOURCE_NAMES[site.toLowerCase()]} profile page`)
+  .replace(/(avwikidb|javdb|minnano-av) 写入/gi, (_, site: string) =>
+    `Saved the profile from ${SOURCE_NAMES[site.toLowerCase()]}`);
 
 /** Timestamps are spoken as a local "month-day hour:minute". The database stores UTC; the UI always reads them in the machine's time zone. */
 export function momentText(stamp: string | null | undefined): string {
@@ -379,7 +381,7 @@ const SUMMARY_HIDDEN = new Set([
 export function summaryItems(summary: Record<string, unknown>): string[] {
   const items = fieldItems(summary);
   // "Problems found" must be able to say what the problem is. When the cause is already written into the conclusion ("face model unavailable: ...", "portrait gate not effective ..."), do not say it a second time.
-  if (summary?.face_match_unavailable === true && !items.some((line) => /不可用|未生效/.test(line))) {
+  if (summary?.face_match_unavailable === true && !items.some((line) => /unavailable|not effective/i.test(line))) {
     items.push('The face model is unavailable, so no face verification ran');
   }
   return items;
@@ -392,7 +394,7 @@ function fieldItems(summary: Record<string, unknown>): string[] {
       && (typeof value === 'number' || typeof value === 'string')
       && String(value) !== '' && (value !== 0 || key === 'checked' || key === 'total'))
     .map(([key, value]) => {
-      if (key === 'followups') return `${Number(value).toLocaleString()} backfill tasks scheduled`;
+      if (key === 'followups') return `Scheduled ${Number(value).toLocaleString()} backfill ${Number(value) === 1 ? 'task' : 'tasks'}`;
       if (key === 'error') return readableErrorHeadline(String(value));
       if (key === 'outcome' || key === 'result') return outcomeText(String(value));
       if (key === 'cache_bytes' || key === 'bytes_reclaimed') return `${SUMMARY_LABELS[key]} ${fmtSize(Number(value))}`;

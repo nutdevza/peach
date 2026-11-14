@@ -62,7 +62,7 @@ it('The default task tier is saved through shared settings and shows a saved rec
 it('Follow source fetches read their interval, and with no failures neither schedule shows a note', async () => {
   server();
   const host = await mountFollowRows();
-  expect(host.textContent).toContain('Follows harvesting\'Auto-check for updates\'Sources updated in the last 7 days are checked at this interval; those not updated for a long time slow down step by step, at most once a dayminFeed fetchEvery 6 hours\'Initial scrape range\'How far back a newly followed source looks on its first pass.Last 30 days Any durationLast 7 daysLast 30 daysLast 90 daysAvatar refreshRe-fetch the followed creators\' avatars.Every 3 monthsFavicon refreshRe-fetch the source site\'s icon.Yearly');
+  expect(host.textContent).toContain('Follows harvestingAuto-check for updatesSources updated in the last 7 days are checked at this interval; those not updated for a long time slow down step by step, at most once a dayminFeed fetchEvery 6 hoursInitial scrape rangeHow far back a newly followed source looks on its first pass.Last 30 days Any durationLast 7 daysLast 30 daysLast 90 daysAvatar refreshRe-fetch the followed creators\' avatars.Every 3 monthsFavicon refreshRe-fetch the source site\'s icon.Yearly');
   expect(host.textContent).toContain('Every 6 hours');
   expect(host.querySelector('[role="alert"]')).toBeNull();
 });
@@ -144,7 +144,7 @@ it('The auto-check interval rejects out-of-range values and writes to the origin
   await type(input, '2');
   await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
   expect(posts).toEqual([]);
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('15–10080');
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('from 15 to 10080');
   await type(input, '240');
   await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
   await settle();
@@ -176,20 +176,20 @@ it('Service settings read fresh state on re-entry, and turning off auto-check ke
     { url: '/api/follow/schedule', body: { enabled: false, interval_minutes: 60 } },
     { url: '/api/follow/schedule', body: { enabled: true, interval_minutes: 180 } },
   ]);
-  expect(second.querySelector<HTMLInputElement>('input[aria-label="Auto-check interval"]')?.value).toBe(undefined);
+  expect(second.querySelector<HTMLInputElement>('input[aria-label="Auto-check interval"]')?.value).toBe('180');
 });
 
 it('On first load "follows harvesting" shows the same five rows as the configuration page\'s full-page skeleton; the row count stays after the read returns', async () => {
   const hold = pending<unknown>();
   vi.stubGlobal('fetch', vi.fn(() => hold.answer));
   const host = await mount(<QueryClientProvider client={queryClient}><FollowPreferenceRows receipt={vi.fn()} /></QueryClientProvider>);
-  const labels = (root: ParentNode) => [...root.querySelectorAll('section[aria-label="Follow collection"] p.text-body-regular')].map((node) => node.textContent);
+  const labels = (root: ParentNode) => [...root.querySelectorAll('section[aria-label="Follows harvesting"] p.text-body-regular')].map((node) => node.textContent);
   const page = document.createElement('div');
   page.innerHTML = configurationContentSkeleton('Sources and subscriptions');
   const waiting = labels(host);
-  expect(waiting).toEqual(['Automatically check for updates', 'Follow source fetching', 'First scrape scope', 'Avatar refresh', 'Favicon refresh']);
+  expect(waiting).toEqual(['Auto-check for updates', 'Feed fetch', 'Initial scrape range', 'Avatar refresh', 'Favicon refresh']);
   expect(labels(page), 'The full-page skeleton paints these same five rows').toEqual(waiting);
-  expect(host.querySelector('[data-skeleton][aria-label="Reading subscription fetch interval"]')).not.toBeNull();
+  expect(host.querySelector('[data-skeleton][aria-label="Reading the follow source fetch interval"]')).not.toBeNull();
   server();
   await hold.release({ ok: true, status: 200, json: async () => ({ available: true, enabled: true, interval_minutes: 360 }) });
   await settle();

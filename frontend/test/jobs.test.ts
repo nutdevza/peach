@@ -12,7 +12,7 @@ describe('Background task state recovery', () => {
     expect(host.querySelector('[data-geist-fieldset]')).not.toBeNull();
     expect(host.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('2');
     state={...state,status:'failed',error:'Source unavailable'};await vi.advanceTimersByTimeAsync(4000);
-    expect(host.hidden).toBe(false);expect(host.textContent).toContain('Source unavailable');expect(complete).toHaveBeenCalledOnce();
+    expect(host.hidden).toBe(false);expect(host.textContent).toContain('The operation did not finish; please retry. If it keeps failing, check the tray log.');expect(complete).toHaveBeenCalledOnce();
     expect(jobActivityHtml('Scanning')).not.toContain('role="progressbar"');
   });
   it('Background stage notes update with polling while keeping real counts', async () => {

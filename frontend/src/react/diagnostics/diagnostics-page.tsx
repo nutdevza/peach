@@ -86,7 +86,7 @@ export function DiagnosticsPage(props: DiagnosticsProps) {
     <div data-guide-target="report"><DiagnosticExportAction kind="support">
       <Button variant="secondary" onClick={refresh} {...busyProps(action.busy === 'refresh')}>Check again</Button></DiagnosticExportAction></div>
     {refreshError ? <Note tone="error">{refreshError}</Note> : null}
-    {attention.length ? <Section guide="attention" title={`Needs attention · ${attention.length} items`}>
+    {attention.length ? <Section guide="attention" title={`Needs attention · ${attention.length} ${attention.length === 1 ? 'item' : 'items'}`}>
       {attention.map(([key, check]) => <Check key={key} name={key} check={check} />)}
     </Section> : null}
     <Section guide="health" title="Library health"><Stack>
@@ -94,7 +94,7 @@ export function DiagnosticsPage(props: DiagnosticsProps) {
       {Object.entries(data.library.groups).map(([key, group]) => <HealthList key={key} group={group} {...props} />)}
     </Stack></Section>
     {other.length ? <section aria-label="System checks">
-      <Disclosure summary={`Other checks · ${other.length} items`} contentClassName="gap-5">
+      <Disclosure summary={`Other checks · ${other.length} ${other.length === 1 ? 'item' : 'items'}`} contentClassName="gap-5">
         {SECTIONS.map(([title, keys]) => {
           const rows = other.filter(([key]) => keys.some(name => name === key));
           return rows.length ? <section key={title} aria-label={title} data-diagnostic-group="" className="flex min-w-0 flex-col gap-2">

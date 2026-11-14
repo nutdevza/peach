@@ -67,7 +67,7 @@ describe('Video view', () => {
     expect($(host, '[data-entity-states]')?.hidden).toBe(false);
     expect($(host, '[data-entity-state=""]')?.getAttribute('aria-pressed')).toBe('true');
     expect($$(host, '[data-entity-tag]').map((tag) => [tag.textContent, tag.getAttribute('aria-pressed')]))
-      .toEqual([['Big breasts 1,200', 'false'], ['Creampie36', 'true']]);
+      .toEqual([['Big breasts1,200', 'false'], ['Creampie36', 'true']]);
     expect($(host, '[data-entity-combo]')?.hidden).toBe(false);
     expect($$(host, '[data-combo-chip]').map((chip) => chip.firstChild?.textContent)).toEqual(['Creampie', 'Label S1']);
     expect($(host, '[data-entity-readout]')?.textContent).toBe('Video · 24 · creampie');
@@ -84,9 +84,9 @@ describe('Video view', () => {
     await click($(host, '[data-media-view="photos"]')!);
     await click($(host, '[data-entity-state="later"]')!);
     await click($(host, '[data-entity-state=""]')!);
-    await click($(host, '[data-entity-tag="big tits"]')!);
+    await click($(host, '[data-entity-tag="Big breasts"]')!);
     await click($(host, '[aria-label="Remove Creampie"]')!);
-    await click($(host, '[aria-label="Remove label S1"]')!);
+    await click($(host, '[aria-label="Remove Label S1"]')!);
     await click($(host, '[data-combo-clear]')!);
     await click($(host, '[data-entity-sort="rating"]')!);
     await click($(host, '[data-entity-batch]')!);

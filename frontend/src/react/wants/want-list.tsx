@@ -213,7 +213,7 @@ export function WantList({ readOnly, toast, query = '', clearQuery }: WantListPr
       {data && !items.length ? (
         <EmptyState size="compact" icon={RiStarLine} title={query ? 'No matching videos' : 'No wanted videos yet'}
           actions={query && clearQuery ? <Button size="small" onClick={clearQuery}>Clear the search</Button>
-            : !query && !readOnly ? <EmptyFocusButton target='input[aria-label="code"]'>Add videos</EmptyFocusButton> : undefined}>
+            : !query && !readOnly ? <EmptyFocusButton target='input[aria-label="Code"]'>Add videos</EmptyFocusButton> : undefined}>
           {query ? 'Try another code, performer or title.' : 'Enter a code to add a video to watch.'}
         </EmptyState>
       ) : null}

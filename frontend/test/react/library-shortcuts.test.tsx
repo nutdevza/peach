@@ -71,8 +71,8 @@ describe('My favorites', () => {
       <FavoriteButton item={{ entity_id: 2, kind: 'performer', name: 'New person', favorite: false }} />
       <FavoriteButton item={{ entity_id: 1, kind: 'performer', name: 'Merge target', favorite: true }} />
     </QueryClientProvider>);
-    expect(host.querySelector('[aria-label="Favorite new person"]')?.getAttribute('aria-pressed')).toBe(undefined);
-    expect(host.querySelector('[aria-label="Unfavorite merge target"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(host.querySelector('[aria-label="Favorite New person"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector('[aria-label="Unfavorite Merge target"]')?.getAttribute('aria-pressed')).toBe('true');
     expect(fetcher).not.toHaveBeenCalled();
   });
 
@@ -97,7 +97,7 @@ describe('My favorites', () => {
     await answer.release({ favorites: [{ key: 'entity:1', entity_id: 1, kind: 'studio', name: 'Labels' }], filters: [] });
     await settle();
     expect(button.getAttribute('aria-pressed')).toBe('true');
-    await click(host.querySelector('[aria-label="Unfavorite Label"]'));
+    await click(host.querySelector('[aria-label="Unfavorite Labels"]'));
     await settle();
     expect(calls[1]).toMatchObject({ action: 'favorite', entity_id: 1, on: false });
     expect(button.getAttribute('aria-pressed')).toBe('false');
@@ -120,9 +120,9 @@ describe('My favorites', () => {
     await settle();
     expect(document.querySelector('nav[aria-label="Saved videos list"] a[href="/flagged"]')?.textContent).toBe('Marked');
     expect(document.querySelector('nav[aria-label="Saved videos list"] a[href="/watch-later"]')?.textContent).toBe('Watch later');
-    expect(document.querySelector('form[aria-label="Save current filter"]')).toBeNull();
+    expect(document.querySelector('form[aria-label="Save the current filter"]')).toBeNull();
     await click(document.querySelector('[role="tab"][aria-label="Saved filters"]'));
-    await type(document.querySelector('form[aria-label="Save current filter"] input'), 'VR watch later');
+    await type(document.querySelector('form[aria-label="Save the current filter"] input'), 'VR watch later');
     await submit(document.querySelector('form'));
     await settle();
     expect(writes[0]).toEqual({ action: 'save_filter', name: 'VR watch later', href: '/watch-later?loc=&tag=VR&jav=1' });

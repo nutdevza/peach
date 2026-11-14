@@ -72,7 +72,7 @@ describe('Entity and index domain control', () => {
     live(false);
     vi.mocked(ports.push).mockClear();
     expect(controller.route('creator', 'Alpha', filters)).toBe(false);
-    expect(ports.route).toHaveBeenCalledWith('/creators/%E7%94%B2');
+    expect(ports.route).toHaveBeenCalledWith('/creators/Alpha');
     expect(ports.push).not.toHaveBeenCalled();
     const props = controller.props('creator', 'Alpha', filters, { media: 'videos', set: 0 });
     expect(props).toMatchObject({ revision: 3, photoSize: 'small', seed: '7', jav: false, filters });
@@ -87,7 +87,7 @@ describe('Entity and index domain control', () => {
     expect(actions.reshuffleVideos()).toBe('31');
     expect(ports.push).toHaveBeenLastCalledWith(expect.objectContaining({ seed: '31' }));
     actions.openEntity('creator', 'Beta', true);
-    expect(ports.route).toHaveBeenLastCalledWith('/creators/%E4%B9%99?media=online#works', true);
+    expect(ports.route).toHaveBeenLastCalledWith('/creators/Beta?media=online#works', true);
     actions.avatarChanged();
     expect(ports.dropBars).toHaveBeenCalledOnce();
   });
@@ -133,7 +133,7 @@ describe('Entity and index domain control', () => {
       work: 'old', tags: [], durMin: 0, durMax: 0, sort: 'new' as const, dir: 'desc' as const, seed: 7 }),
     adoptFollowView: vi.fn(), hideIndex: () => { calls.push('hide') }, openPage: (path: string) => { calls.push(path) } };
     createIndexController(ports).openFollowAuthor('Alpha');
-    expect(calls).toEqual(['hide', '/follow?author=%E7%94%B2']);
+    expect(calls).toEqual(['hide', '/follow?author=Alpha']);
     expect(ports.adoptFollowView).toHaveBeenCalledWith(expect.objectContaining({ work: '' }));
   });
 

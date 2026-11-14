@@ -20,7 +20,7 @@ describe('Chinese error feedback',()=>{
     expect(text).not.toContain('Proxy');
   });
   it('Keep the explicit server side Chinese reason',()=>{
-    expect(requestErrorMessage('The current state does not allow this action; refresh and try again.',409)).toBe('The media drive is not mounted; connect it first.');
+    expect(requestErrorMessage('The current state does not allow this action; refresh and try again.',409)).toBe('The current state does not allow this action; refresh and try again.');
   });
 });
 describe('Persistent note control',()=>{
@@ -56,7 +56,7 @@ describe('Persistent note control',()=>{
   });
   it('Note errors never print raw English network exceptions',()=>{
     const host=document.createElement('div');host.innerHTML=noteHtml('Failed to fetch',{variant:'error',size:'small',filled:true});
-    expect(host.querySelector('[role=alert]')?.textContent).toContain('Could not reach Peach');
+    expect(host.querySelector('[role=alert]')?.textContent).toContain('Could not connect to the Peach');
     expect(host.querySelector('.geist-note-small.geist-note-filled')).not.toBeNull();
     expect(host.querySelector('button')).toBeNull();
   });

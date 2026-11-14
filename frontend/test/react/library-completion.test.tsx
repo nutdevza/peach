@@ -143,7 +143,7 @@ it('A failed start keeps the entry and processing details and shows no completio
     : { ok: true, json: async () => ({ status: 'idle' }) }));
   const host = await mount(prompt());
   await click(buttonNamed('Sync these videos', host));
-  expect(host.textContent).toContain('The submission was invalid; check the input and retry. Open scan and captureSync these videos');
+  expect(host.textContent).toContain('Add media folders first Open scan and captureSync these videos');
   expect(host.textContent).not.toContain('Completion finished');
   expect(host.querySelector('a[href="/data-cleanup#libraryProcessing"]')?.textContent).toBe('Open scan and capture');
   expect(buttonNamed('Sync these videos', host)?.disabled).toBe(false);

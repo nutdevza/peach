@@ -27,7 +27,7 @@ describe('Standalone entry for the play wall', () => {
     expect(target.pathname).toBe('/wall');
     expect(target.searchParams.get('q')).toBe('test');
     expect(target.searchParams.get('tag')).toBe('landscape');
-    expect(target.searchParams.get('returnTo')).toBe('/?q=%E6%B5%8B%E8%AF%95&tag=%E9%A3%8E%E6%99%AF&loc=local');
+    expect(target.searchParams.get('returnTo')).toBe('/?q=test&tag=landscape&loc=local');
   });
   it('The entity profile converts to that entity\'s video range', () => {
     for (const [section, kind] of [['performers','performer'],['studios','studio'],['creators','creator'],['series','series']]) {

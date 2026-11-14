@@ -39,6 +39,6 @@ it('Clicking edits only the draft, cancel keeps original values, and Apply is wh
   await click(trigger(host));
   expect(radio('heart')?.checked).toBe(true);
   await click(radio('cherry'));
-  await click(buttonNamed('App'));
+  await click(buttonNamed('Apply'));
   expect(change).toHaveBeenCalledWith('cherry');
 });

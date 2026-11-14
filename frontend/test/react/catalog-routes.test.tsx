@@ -338,7 +338,7 @@ it('Category, generation, and selection are pushed in place: the trash queue nev
   const revision = r.managedEntry(grid)?.revision;
   const countHost = open.countRow?.firstElementChild;
   await act(async () => { r.updateManagedRoute(grid, { kind: 'image', revision: 1 }) });
-  await until(() => Boolean(grid.textContent?.includes('Junk 11 image')), 'Paint the copy refetched with the new category');
+  await until(() => Boolean(grid.textContent?.includes('junk 11 image')), 'Paint the copy refetched with the new category');
   await act(async () => { r.updateManagedRoute(grid, { selectMode: true, selected: new Set([12]) }) });
   expect(fetch.calls('/api/ads').map((url) => url.searchParams.get('kind')), 'Refetches once under the new key only').toEqual([null, 'image']);
   expect([r.managedEntry(grid)?.host, r.managedEntry(grid)?.revision]).toEqual([host, revision]);

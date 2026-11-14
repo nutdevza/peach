@@ -46,7 +46,7 @@ function FavoriteChoice({ item }: { item: Favorite }) {
     : item.favorite ?? (query.data ? isFavorite(query.data.favorites || [], item) : false);
   return <span className="inline-flex min-w-0 flex-col gap-1">
     <EntityActionButton data-favorite="" aria-pressed={!!selected}
-      label={`${selected ? 'Unfavorite' : 'Favorite'}${entityDisplayName(item.kind, item.name, item.entity_id)}`}
+      label={`${selected ? 'Unfavorite' : 'Favorite'} ${entityDisplayName(item.kind, item.name, item.entity_id)}`}
       {...busyProps(write.isPending)} onClick={() => {
         if (!write.isPending) write.mutate({ action: 'favorite', ...item, on: !selected });
       }}>{write.isPending ? <span aria-hidden dangerouslySetInnerHTML={{ __html: spinnerHtml('') }} /> : <Star />}</EntityActionButton>

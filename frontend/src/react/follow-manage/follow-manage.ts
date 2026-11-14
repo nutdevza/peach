@@ -656,12 +656,12 @@ export function checkReceipt(job: Pick<CheckJob, 'results'>): string {
   const updated = rows.reduce((total, row) => total + (row.updated || 0), 0);
   const failed = rows.filter((row) => !row.ok).length;
   const bits: string[] = [];
-  if (added) bits.push(`${added} new items`);
+  if (added) bits.push(`${added} new ${added === 1 ? 'item' : 'items'}`);
   if (updated) bits.push(`Updated ${updated} entries`);
   if (!bits.length && failed < rows.length) bits.push('No updates');
   if (failed) bits.push(`${failed} failed`);
   if (!bits.length) bits.push('No updates');
-  return `Checked ${rows.length} sources: ${bits.join(' · ')}`;
+  return `Checked ${rows.length} ${rows.length === 1 ? 'source' : 'sources'}: ${bits.join(' · ')}`;
 }
 
 /** Full statistics for one check run. */
@@ -678,7 +678,7 @@ export function checkSummary(job: CheckJob): string {
   const quiet = rows.filter((row) => row.ok && !row.added && !row.updated).length;
   const failed = rows.filter((row) => !row.ok).length;
   const bits: string[] = [];
-  if (added) bits.push(`${added} new items`);
+  if (added) bits.push(`${added} new ${added === 1 ? 'item' : 'items'}`);
   if (updated) bits.push(`Updated ${updated} entries`);
   if (skipped) bits.push(`Skipped ${skipped} without resources`);
   if (compilations) bits.push(`Excluded ${compilations} oversized compilations`);
@@ -690,7 +690,7 @@ export function checkSummary(job: CheckJob): string {
   const exhausted = rows.filter((row) => row.exhausted).length;
   if (exhausted) bits.push(`${exhausted} with nothing more to fetch`);
   if (failed) bits.push(`${failed} failed`);
-  return `Checked ${rows.length} sources: ${bits.join(' · ')}`;
+  return `Checked ${rows.length} ${rows.length === 1 ? 'source' : 'sources'}: ${bits.join(' · ')}`;
 }
 
 /** The in-page persistent row holds only what needs handling: failures and missing evidence captures. With everything successful it does not exist. */

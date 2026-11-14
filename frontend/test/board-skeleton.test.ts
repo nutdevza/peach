@@ -9,12 +9,12 @@ vi.mock('@peach/legacy/core', async importOriginal => ({
 
 describe('Board 页面骨架', () => {
   it.each([
-    ['subscriptions', 'Sources and subscriptions'], ['downloads', 'Download channels'], ['network', '网络与访问'], ['maintenance', '应用与维护'],
+    ['subscriptions', 'Sources and subscriptions'], ['downloads', 'Download channels'], ['network', 'Network & access'], ['maintenance', 'App and maintenance'],
   ])('配置深链 %s 使用对应分区', (key, label) => {
     const root = document.createElement('div');
     root.innerHTML = boardPageSkeleton(`/settings/${key}`);
     expect(root.querySelector('.ui-board-local-nav [aria-selected="true"]')?.textContent).toBe(label);
-    expect(root.querySelector('[aria-label="媒体库与目录"]')).toBeNull();
+    expect(root.querySelector('[aria-label="Library and catalog"]')).toBeNull();
   });
   it.each(['/stats', '/taste', '/subscriptions', '/settings/library', '/settings/diagnostics', '/tasks', '/duplicates', '/quality-goals', '/playlists', '/settings/maintenance/repairs'])('为 %s 提供单一等待语义', path => {
     const root = document.createElement('div');
@@ -35,9 +35,9 @@ describe('Board 页面骨架', () => {
     localStorage.removeItem('peach.catalog-view.v1');
     history.replaceState(null, '', before);
     expect([...root.querySelectorAll('[data-catalog-table] th')].map(node => node.textContent).filter(Boolean))
-      .toEqual(['作品', '艺人', '厂牌', '标签', '发行时间', '时长', '来源评分', '操作']);
+      .toEqual(['Videos', 'Artists', 'Labels', 'Tags', 'Release date', 'Duration', 'Source rating', 'Actions']);
     expect(root.querySelector('[data-skeleton="jav-discover"]')).toBeNull();
-    expect(root.querySelector('[aria-label="馆藏显示方式"] [aria-checked="true"]')?.getAttribute('aria-label')).toBe('列表');
+    expect(root.querySelector('[aria-label="Library display"] [aria-checked="true"]')?.getAttribute('aria-label')).toBe('List');
     expect(root.querySelector('[data-folder-mode-toggle]')).toBeNull();
   });
   it('JAV 新作分区骨架按下新作，页头是名册页那种筛选框，下面是两排头像占位与新作自己的排序键', () => {
@@ -51,9 +51,9 @@ describe('Board 页面骨架', () => {
     expect(root.querySelector('form')).toBeNull();
     expect(root.querySelectorAll('[data-catalog-tier] [data-catalog-placeholder]').length).toBeGreaterThan(0);
     expect(root.querySelector('[data-entity-tag="external"]')).toBeNull();
-    expect([...root.querySelectorAll('[data-entity-sort]')].map(node => node.textContent)).toEqual(['发行时间', '来源评分', '时长', '番号', '口味']);
+    expect([...root.querySelectorAll('[data-entity-sort]')].map(node => node.textContent)).toEqual(['Release date', 'Source rating', 'Duration', 'Code', 'Taste']);
     expect(root.querySelector('[data-entity-sort][aria-pressed="true"]')?.getAttribute('data-entity-sort')).toBe('duration');
-    expect(root.querySelector('[data-entity-batch]')?.getAttribute('aria-label')).toBe('换一批');
+    expect(root.querySelector('[data-entity-batch]')?.getAttribute('aria-label')).toBe('Shuffle');
   });
   it('统计预留四张指标卡，未知页面交给自身骨架', () => {
     const root = document.createElement('div');
@@ -67,7 +67,7 @@ describe('Board 页面骨架', () => {
     ['/duplicates', '[data-duplicate-group] .duplicate-row', 4],
     ['/quality-goals', '.peach-react .card-grid-cover > li', 6],
     ['/subscriptions', '.peach-react .ui-follow-skeleton-surface .follow-skeleton-author', 3],
-    ['/settings/library', '.peach-react .ui-configpage section[aria-label="媒体库与目录"]', 1],
+    ['/settings/library', '.peach-react .ui-configpage section[aria-label="Library and catalog"]', 1],
     ['/playlists', '.ui-playlistcards > .playlistcard', 6],
   ] as const)('%s 复用最终内容容器', (path, selector, count) => {
     const root = document.createElement('div');
@@ -93,7 +93,7 @@ describe('Board 页面骨架', () => {
     expect(root.querySelector('.board-segment-thumb')).toBeNull();
     expect(root.querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
     const track = root.querySelector('[data-section-items]')!;
-    expect([...track.children].map((span) => span.textContent)).toEqual(['关注列表', '添加关注', '标签管理']);
+    expect([...track.children].map((span) => span.textContent)).toEqual(['Follows list', 'Add follow', 'Manage tags']);
   });
   it('关注骨架选中地址栏 `?tab=` 那一枚页签，列表以外的页签不画关注列表的工具行', () => {
     const tags = follow({ followTab: 'tags' });
@@ -101,8 +101,8 @@ describe('Board 页面骨架', () => {
     expect(tags.querySelector('.ui-follow-skeleton-toolbar')).toBeNull();
     expect(tags.querySelector('.ui-follow-skeleton-surface')).not.toBeNull();
     expect(follow({ followTab: 'feeds' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
-    expect(follow({ followTab: 'wants' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
-    expect(follow({ followTab: 'nope' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('关注列表');
+    expect(follow({ followTab: 'wants' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
+    expect(follow({ followTab: 'nope' }).querySelector('[data-section-items] [aria-selected=true]')?.textContent).toBe('Follows list');
   });
   it('关注骨架的工具行按 Board UI 最终变体画：检查全部是主按钮，视图切换是按版式选中的按钮组', () => {
     const toolbar = follow().querySelector('.ui-follow-skeleton-toolbar')!;
@@ -114,7 +114,7 @@ describe('Board 页面骨架', () => {
     expect(group.map((button) => button.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
     expect(group.every((button) => button.classList.contains('bg-button-ghost-background'))).toBe(true);
     expect(toolbar.querySelector('button[aria-haspopup="listbox"]')?.textContent).toBe('SortCheck time');
-    expect([...toolbar.querySelectorAll('button')].at(-1)?.textContent).toBe('全部收起');
+    expect([...toolbar.querySelectorAll('button')].at(-1)?.textContent).toBe('Collapse all');
     const tableGroup = follow({ followLayout: 'table' }).querySelectorAll('[data-button-group] > button');
     expect([...tableGroup].map((button) => button.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
   });
@@ -138,8 +138,8 @@ describe('Board 页面骨架', () => {
       for (const button of actions) expect(button.className).toContain('size-8 rounded-lg p-0');
     }
     const head = root.querySelector('.follow-skeleton-author [data-follow-author-header]')!;
-    expect([...head.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['', '全选', '收起']);
-    expect(root.querySelector('.ui-follow-skeleton-surface > .group')?.textContent).toBe('全选本页');
+    expect([...head.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['', 'Select all', 'Collapse']);
+    expect(root.querySelector('.ui-follow-skeleton-surface > .group')?.textContent).toBe('Select this page');
     expect(root.querySelector('[data-selection-dock]')).toBeNull();
   });
   it('口味骨架画在 React 岛里，按浏览器记录那一页排', () => {
@@ -148,20 +148,20 @@ describe('Board 页面骨架', () => {
     expect(root.querySelector('.peach-react')).not.toBeNull();
     expect(root.querySelector('[data-taste-segments] [data-selected]')?.textContent).toBe('Browser history');
     expect([...root.querySelectorAll('[data-taste-metrics] > div > span')].map((span) => span.textContent))
-      .toEqual(['浏览记录', '口味维度', '浏览线索', '私有导出']);
-    expect(root.querySelector('[data-taste-portrait]')?.textContent).toContain('浏览器画像');
+      .toEqual(['Browsing data', 'Taste dimensions', 'Browsing leads', 'Private export']);
+    expect(root.querySelector('[data-taste-portrait]')?.textContent).toContain('Browser profile');
     expect([...root.querySelectorAll('h3')].map((h3) => h3.textContent))
-      .toEqual(['浏览活跃时间', '每日活跃', '创作者线索来源']);
+      .toEqual(['Browsing activity by hour', 'Daily activity', 'Creator lead sources']);
   });
   it('关注表格视图是 Board UI 表格外框，当前排序那一列带方向', () => {
     const root = follow({ followLayout: 'table' });
     const table = root.querySelector('.follow-skeleton-table[data-board-data-table] table.bui-table')!;
-    expect([...table.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual(['', '创作者', '来源', '站点', '状态', '上次检查', '']);
+    expect([...table.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual(['', 'Creators', 'Source', 'Site', 'State', 'Last check', '']);
     expect(table.querySelectorAll('tbody tr')).toHaveLength(20);
     expect([...table.querySelectorAll('[data-sort-indicator][data-direction]')].map((mark) => [mark.parentElement!.textContent, mark.getAttribute('data-direction')]))
-      .toEqual([['上次检查', 'descending']]);
+      .toEqual([['Last check', 'descending']]);
     expect(root.querySelector('.follow-skeleton-author')).toBeNull();
-    expect(root.querySelector('.ui-follow-skeleton-toolbar')?.textContent).not.toContain('全部收起');
+    expect(root.querySelector('.ui-follow-skeleton-toolbar')?.textContent).not.toContain('Collapse all');
   });
   it('表格骨架的行数跟着每页条数走', () => {
     localStorage.setItem('peach.settings.v1', JSON.stringify({ followPageSize: 40 }));

@@ -203,7 +203,7 @@ function AuthorCard(
   const ids = group.map((source) => source.id);
   const enabled = group.filter((source) => source.enabled).map((source) => source.id);
   const bad = group.filter(isBroken).length;
-  const providers = [...new Set(group.map((source) => source.provider_label || source.provider))].join('、');
+  const providers = [...new Set(group.map((source) => source.provider_label || source.provider))].join(', ');
   const panel = `follow-author-${group[0]!.id}`;
   const state = selectionState(selected, ids);
   return (
@@ -598,7 +598,7 @@ export function SourceList(props: SourceListProps) {
         {evidence ? <Note tone="warning">{`Entry saved, but the raw source response was not saved this time: ${evidence}`}</Note> : null}
       </div>
 
-        <SelectionDock label="Follow source bulk actions" visible={chosen.length > 0} count={`Selected ${chosen.length} sources`}>
+        <SelectionDock label="Follow source bulk actions" visible={chosen.length > 0} count={`Selected ${chosen.length} ${chosen.length === 1 ? 'source' : 'sources'}`}>
           <Button variant="secondary" size="small" disabled={readOnly}
             {...busyProps(rowHandlers.busy)} onClick={() => startChecking(chosen)}>Check selected</Button>
           <Button variant="secondary" size="small" disabled={readOnly} {...busyProps(bulk.isPending)}

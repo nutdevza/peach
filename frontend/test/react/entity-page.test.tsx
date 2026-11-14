@@ -362,7 +362,7 @@ describe('Switch filters and views', () => {
     }, { kind: 'studio', name: 'S1' });
     expect(readout(page.props)).toBe('Labels · 1');
     expect(page.props.hosts.filter.querySelector('[data-media-view="photos"]')).toBeNull();
-    expect(page.host.querySelector('[data-related-performer="Kawakita Saika"]')).not.toBeNull();
+    expect(page.host.querySelector('[data-related-performer="河北彩花"]')).not.toBeNull();
   });
 
   it('No view toggle with a single content kind', async () => {
@@ -384,7 +384,7 @@ describe('Switch filters and views', () => {
     expect(page.calls('/api/items')).toHaveLength(2);
     expect(page.calls('/api/photos')).toHaveLength(2);
     expect(page.props.actions.avatarChanged).toHaveBeenCalledTimes(1);
-    expect(page.host.querySelector('[data-pending-work]')?.textContent).toBe('Waiting to complete: performer profile completion');
+    expect(page.host.querySelector('[data-pending-work]')?.textContent).toBe('Waiting to complete: Performer detail fill-in');
     left = [];
     await act(async () => { await queryClient.refetchQueries({ queryKey: ['entity', 'performer', NAME] }) });
     await settle();
@@ -523,7 +523,7 @@ describe('Write operation', () => {
     expect(portrait()).toBe('/entity-image?v=old');
     expect(cards(page.props)).toEqual(['1', '2', '3']);
     const feedBefore = page.calls('/api/feeds/discoveries').length;
-    await click(document.querySelector(`button[aria-label="Change ${NAME}'s avatar"]`));
+    await click(document.querySelector(`button[aria-label="Change the avatar of ${NAME}"]`));
     await settle();
     await click(document.querySelector('[data-avatar-choice]'));
     await settle();
@@ -551,7 +551,7 @@ describe('Write operation', () => {
     // Changing the umbrella name rewrites the entity's whole flat projection: before writing, show what it becomes and where the old wording goes; button and receipt share one verb.
     expect(legacyUi.confirmModal).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Change the canonical name', confirmLabel: 'Change the canonical name',
-      body: `"Shinoda Yuu" becomes the name shown for this profile, "${NAME}" stays as an alias. Credits on videos, search and tags will all be rewritten to match.`,
+      body: `"しのだゆう" becomes the display name for this profile and "${NAME}" stays as an alias. Bylines on videos, search, and tags will all be updated.`,
     }));
     expect(page.writes[0]).toEqual({ url: '/api/entity-name', body: { kind: 'performer', name: NAME, canonical: 'しのだゆう' } });
     expect(page.props.actions.openEntity).toHaveBeenLastCalledWith('performer', 'しのだゆう');

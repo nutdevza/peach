@@ -85,7 +85,7 @@ export const wantName = (want: Want) => want.code || want.title || `Follow entry
 /** The "to find" section's explainer: misses on new releases do not count; an old title is shelved after three full attempts. */
 export function searchNote(want: Want): string {
   if (want.phase === 'acquired') return want.acquired_at ? `Added to library ${want.acquired_at.slice(0, 10)}` : 'In library';
-  if (want.phase === 'unreleased') return want.release_date ? `Releases ${want.release_date}` : 'Not released yet';
+  if (want.phase === 'unreleased') return want.release_date ? `Released ${want.release_date}` : 'Not released yet';
   if (want.phase === 'given_up') return `Not found after ${want.search_count} searches`;
   if (want.fresh) return 'New titles stay in the pending list even when lookup fails';
   return want.search_count ? `Searched ${want.search_count} times` : 'Never checked';

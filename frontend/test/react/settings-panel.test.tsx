@@ -252,7 +252,7 @@ describe('Seam between the settings panel and the shell', () => {
       .toEqual(['settings-group-1', 'settings-group-1', 'settings-group-2']);
     const headings = (index: number) => [...panel.querySelectorAll(`#settings-group-${index} [data-settings-subheading]`)]
       .map((node) => node.textContent);
-    expect([headings(1), headings(2)]).toEqual([['Video list', 'Play'], ['Video display', 'New releases']]);
+    expect([headings(1), headings(2)]).toEqual([['Video list', 'Playback'], ['Video display', 'New releases']]);
     /* The transcode method is service configuration on the machine running Peach and lives in the Peach config; this dialog has no row for it (ADR-0103). */
     expect(panel.querySelector('#playbackAccelerationSetting')).toBeNull();
     const entry = panel.querySelector<HTMLButtonElement>('[data-settings-service] button')!;
@@ -341,16 +341,16 @@ describe('Seam between the settings panel and the shell', () => {
     };
     const change = [...row.querySelectorAll('button')].find((button) => button.textContent === 'Change')!;
     await click(change);
-    expect(caps()).toEqual(['Modifier key:slot', 'key:slot']);
+    expect(caps()).toEqual(['Modifier key:slot', '键:slot']);
     // While a modifier is held, the keycap sinks in real time; release reverts it; leave a placeholder if the main key hasn't been pressed yet.
     await press({ code: 'ControlLeft', key: 'Control', ctrlKey: true });
     await press({ code: 'ShiftLeft', key: 'Shift', ctrlKey: true, shiftKey: true });
-    expect(caps()).toEqual(['Ctrl:down', 'Shift:down', 'key:slot']);
+    expect(caps()).toEqual(['Ctrl:down', 'Shift:down', '键:slot']);
     expect(row.querySelector('small')?.textContent).toBe('Press a new key combo, Esc to cancel');
     await press({ code: 'ControlLeft', key: 'Control', shiftKey: true }, 'keyup');
-    expect(caps()).toEqual(['Shift:down', 'key:slot']);
+    expect(caps()).toEqual(['Shift:down', '键:slot']);
     await press({ code: 'ShiftLeft', key: 'Shift' }, 'keyup');
-    expect(caps()).toEqual(['Modifier key:slot', 'key:slot']);
+    expect(caps()).toEqual(['Modifier key:slot', '键:slot']);
     await press({ code: 'KeyS', key: 's' });
     expect(caps()).toEqual(['S:invalid']);
     expect(row.querySelector('small')?.textContent).toContain('Include at least one modifier key');

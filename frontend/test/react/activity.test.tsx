@@ -60,7 +60,7 @@ const followup = (parent: number, overrides: Partial<TaskRunPayload> = {}): Task
     progress_total: null, progress_current: null, progress_label: 'Fill in detail images: 涼森れむ',
     finished_at: '2026-09-11T10:04:00Z', parent_run_id: parent, root_run_id: parent,
     followup_key: 'entity-avatar:performer:12', followup_depth: 1,
-    result_summary: { outcome: 'Installed' }, ...overrides,
+    result_summary: { outcome: '已装上' }, ...overrides,
   });
 
 const payload = (overrides: Partial<ActivityData> = {}): ActivityData => ({
@@ -266,7 +266,7 @@ it('Resource sampling-in-progress and not-obtained display separately, the reaso
   expect(metrics.querySelector('[data-task-resource="network"]')?.textContent).toBe('Network Not fetched');
   expect(metrics.textContent).not.toContain('0%');
   expect(metrics.textContent).not.toContain('0 B/s');
-  expect(metrics.querySelector('[data-task-resource="network"]')?.getAttribute('title')).toMatch(/^挂载盘传输无法准确归属/);
+  expect(metrics.querySelector('[data-task-resource="network"]')?.getAttribute('title')).toMatch(/^Mounted-drive transfers cannot be attributed precisely/);
 });
 
 it('When reading from a cloud-drive mount, the network shows “cloud drive read” and still reports no zero value', async () => {
@@ -277,7 +277,7 @@ it('When reading from a cloud-drive mount, the network shows “cloud drive read
   const network = host.querySelector('[data-task-resources="1"] [data-task-resource="network"]')!;
   expect(network.textContent).toBe('Network Cloud drive read');
   expect(network.hasAttribute('data-resource-idle')).toBe(false);
-  expect(network.getAttribute('title')).toMatch(/^网盘挂载的缓存与预读/);
+  expect(network.getAttribute('title')).toMatch(/^A mounted cloud drive's cache and prefetch cannot measure actual speed per task/);
 });
 
 it('A true zero reading is shown as not used; high usage is emphasized by that metric\'s real high state', async () => {
@@ -379,7 +379,7 @@ it('Task cancellation reuses the confirm dialog, focus starts on cancel, and nei
   expect(dialog.open).toBe(true);
   expect(dialog.querySelector('h3')?.textContent).toBe('Cancel task "Update check"');
   expect(dialog.textContent).toContain('Saved details and results are kept');
-  expect(dialog.textContent).toContain('Cannot continue after cancellation');
+  expect(dialog.textContent).toContain('Once this round is cancelled it cannot continue; start it again when needed.');
   expect(document.activeElement).toBe(dialog.querySelector('[data-modal-cancel]'));
   expect(posts).toEqual([]);
   await click(dialog.querySelector('[data-modal-cancel]'));
@@ -429,8 +429,8 @@ it('The ended parent\'s cancel confirmation explicitly covers every running and 
     followup_counts: { '1': { pending: 1200 } } }));
   await click(controlButton('Cancel follow-up tasks', host));
   const dialog = document.querySelector<HTMLDialogElement>('dialog')!;
-  expect(dialog.querySelector('h3')?.textContent).toBe('Cancel every follow-up of "Follow update check"');
-  expect(dialog.textContent).toContain('Every follow-up task, including running and queued items');
+  expect(dialog.querySelector('h3')?.textContent).toBe('Cancel every follow-up of "Update check"');
+  expect(dialog.textContent).toContain('including running and queued items');
   expect(dialog.querySelector('[data-modal-confirm]')?.textContent).toBe('Cancel follow-up tasks');
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0);
   await click(dialog.querySelector('[data-modal-cancel]'));
@@ -487,8 +487,8 @@ it('When a cancel request is not accepted, the reason survives the task finishin
   await act(async () => { await queryClient.invalidateQueries({ queryKey: ['tasks'] }) });
   expect(host.querySelector('[data-task-controls]')).toBeNull();
   await response.release({ ok: false, status: 409, json: async () => ({ message: 'This round has already ended' }) });
-  await vi.waitFor(() => expect(host.querySelector('[data-task-control-feedback]')?.textContent).toContain('Update check: Cancel not finishedThe current state does not allow this action; refresh and try again.'));
-  expect(host.querySelector('[data-task-control-feedback]')?.textContent).toContain('Update check: Cancel not finishedThe current state does not allow this action; refresh and try again.');
+  await vi.waitFor(() => expect(host.querySelector('[data-task-control-feedback]')?.textContent).toContain('Update check: Cancel not finishedThis round has already ended'));
+  expect(host.querySelector('[data-task-control-feedback]')?.textContent).toContain('Update check: Cancel not finishedThis round has already ended');
   expect(host.querySelector('#run-1')?.textContent).toContain('Completed');
   expect(host.querySelector('#run-1')?.textContent).not.toContain('Canceled');
 });
@@ -499,7 +499,7 @@ it('After a parent\'s follow-ups are cancelled, the card shows the cancelled sta
   const { host } = await open(payload({ finished: [parent, child], followup_counts: { '1': { cancelled: 120 } } }));
   const card = host.querySelector('#run-1')!;
   expect(card.textContent).toContain('Follow-up tasks cancelled');
-  expect(card.textContent).toContain('120 follow-up tasks cancelled');
+  expect(card.textContent).toContain('Follow-up tasks cancelled 120 items');
   expect(card.querySelector('details')?.open).toBe(false);
   expect(card.querySelector('[data-task-controls]')).toBeNull();
   expect(card.getAttribute('data-status')).toBe('succeeded');
@@ -555,7 +555,7 @@ it('A failed task control keeps the original state and reason, retryable in plac
   await prefetchTasks(new AbortController().signal);
   const host = await mount(page());
   await click(controlButton('Paused', host));
-  await vi.waitFor(() => expect(host.querySelector('[data-task-control-feedback] [role="alert"]')?.textContent).toContain('Update check: Paused not finishedThe current state does not allow this action; refresh and try again.'));
+  await vi.waitFor(() => expect(host.querySelector('[data-task-control-feedback] [role="alert"]')?.textContent).toContain('Update check: Paused not finishedThe task changed; refresh and retry'));
   expect(controlButton('Continue', host)).toBeNull();
   await click(controlButton('Paused', host));
   expect(attempts).toBe(2);
@@ -598,7 +598,7 @@ it('The whole batch of follow-ups stays controllable after the parent ends, incl
   });
   await prefetchTasks(new AbortController().signal);
   const host = await mount(page());
-  expect(host.querySelector('#run-1')?.textContent).toContain('Lists 1 of them');
+  expect(host.querySelector('#run-1')?.textContent).toContain('Listing 1 item');
   await click(controlButton('Pause follow-up tasks', host));
   await vi.waitFor(() => expect(controlButton('Resume follow-up tasks', host)).not.toBeNull());
   expect(host.querySelector('#run-1')?.textContent).toContain('Paused');
@@ -669,13 +669,13 @@ it('Activity tasks reuse the three-tier control and submit the tier to the curre
   });
   await prefetchTasks(new AbortController().signal);
   const host = await mount(page());
-  await click(controlButton('Processing speed: standard', host));
+  await click(controlButton('Processing speed: Standard', host));
   const slider = document.querySelector('input[type="range"]')!;
   await act(async () => {
     slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     slider.dispatchEvent(new KeyboardEvent('keyup', { key: 'Home', bubbles: true }));
   });
-  await vi.waitFor(() => expect(controlButton('Processing speed: low footprint', host)).not.toBeNull());
+  await vi.waitFor(() => expect(controlButton('Processing speed: Low usage', host)).not.toBeNull());
   expect(posts).toEqual([{ action: 'set_speed', speed_mode: 'low' }]);
 });
 
@@ -686,10 +686,10 @@ it('A blocked round forms its own segment and never appears again inside recentl
     result_summary: { blocked_by: 3 }, error: 'Conflicts with round 3 (manually triggered); skipping this one',
   });
   const { host } = await open(payload({ skipped: [blocked], finished: [blocked] }));
-  expect(sections(host)).toEqual(['Running', 'Did not run this time']);
+  expect(sections(host)).toEqual(['Running', 'Not executed this time']);
   expect(host.querySelectorAll('li')).toHaveLength(1);
   // The reason goes in the note area at the bottom of the card; the badge conveys the status.
-  expect(host.querySelector('[data-status=cancelled]')?.textContent).toContain('With round 3');
+  expect(host.querySelector('[data-status=cancelled]')?.textContent).toContain('Conflicts with round 3 (manually triggered); skipping this one');
   expect(host.querySelector('[data-status=cancelled] span')?.textContent).toBe('Canceled');
 });
 
@@ -712,10 +712,10 @@ it('A finished round shows its summary and a failed round its reason', async () 
 it('Completed batches of dispatches merge into one card; the summary states how many items were processed and how many failed, with failure details listed first', async () => {
   const batch = (id: number, minute: number) => run({
     id, task_key: 'upgrade-repairs', task_label: 'Auto repair', trigger: 'scheduled', status: 'succeeded',
-    progress_total: null, finished_at: `2026-10-28T08:${minute}:00Z`, result_summary: { outcome: 'Scheduled 64 for processing' } });
+    progress_total: null, finished_at: `2026-10-28T08:${minute}:00Z`, result_summary: { outcome: '已安排 64 项处理' } });
   const child = (id: number, parent: number, status: string) => followup(parent, {
     id, task_key: 'upgrade-library', task_label: 'Auto-repair details', status,
-    result_summary: { outcome: 'Video upgrade completion finished', name: `ABC-${id}` }, followup_key: `upgrade-library:x:${id}` });
+    result_summary: { outcome: '影片升级补全完成', name: `ABC-${id}` }, followup_key: `upgrade-library:x:${id}` });
   const { host } = await open(payload({
     finished: [batch(3, 43), batch(2, 42), batch(1, 41), child(31, 3, 'succeeded'), child(21, 2, 'failed'), child(11, 1, 'succeeded')],
     followup_counts: { 1: { succeeded: 64 }, 2: { succeeded: 62, failed: 2 }, 3: { succeeded: 63, failed: 1 } },
@@ -734,7 +734,7 @@ it('Completed batches of dispatches merge into one card; the summary states how 
 it('Several batches that dispatched dozens of successors merge into one in-progress card; progress is by count, the running one comes first, and queued ones show no empty technical details', async () => {
   const parent = (id: number, finished_at: string) => run({
     id, task_key: 'upgrade-repairs', task_label: 'Auto repair', trigger: 'scheduled', status: 'succeeded',
-    progress_total: null, started_at: finished_at, finished_at, result_summary: { outcome: 'Scheduled 64 for processing' } });
+    progress_total: null, started_at: finished_at, finished_at, result_summary: { outcome: '已安排 64 项处理' } });
   const child = (id: number, parentId: number, status: string) => followup(parentId, {
     id, task_key: 'upgrade-library', task_label: 'Auto-repair details', status, finished_at: null,
     progress_label: status === 'running' ? 'ABC-001 · scrape missing details' : 'ABC-00' + id, result_summary: {},
@@ -752,9 +752,9 @@ it('Several batches that dispatched dozens of successors merge into one in-progr
   const card = cards[0]!;
   expect(card.querySelector('span')?.textContent).toBe('Running');
   expect(card.textContent).toContain('2 batches');
-  expect(card.textContent).toContain('Processed 62 / 128 items · 2 failed');
+  expect(card.textContent).toContain('Processed 62 / 128 items · 2 of them failed');
   expect(card.querySelector('summary')?.textContent).toBe('Task details · 128 items');
-  expect(card.textContent).toContain('Lists 2 of them');
+  expect(card.textContent).toContain('Listing 2 items');
   const rows = [...card.querySelectorAll('[data-followup-key]')];
   expect(rows.map((row) => row.getAttribute('data-status'))).toEqual(['running', 'pending']);
   expect(rows[0]!.textContent).toContain('ABC-001 · scrape missing details');
@@ -770,7 +770,7 @@ it('Link checking shows dead and failed-access counts, with technical details in
   const card = host.querySelector('[data-task-key=link-check]')!;
   expect(card.querySelector('span')?.textContent).toBe('Issues found');
   expect([...card.querySelectorAll('ul > li')].map(node => node.textContent))
-    .toEqual(['Checked 1,218', 'Total 1,218', 'Dead links: 5', 'Link access failed 54']);
+    .toEqual(['Checked 1,218', 'Total 1,218', 'Link expired 5', 'Failed to access link 54']);
   await click(card.querySelector('summary')!);
   expect(card.querySelector('[data-code-block] code')?.textContent).toBe(JSON.stringify(summary, null, 2));
   await click(buttonNamed('Copy code', host)!);
@@ -790,10 +790,10 @@ it('Scheduled results with issues display separately, while ordinary successful 
 it('Processing tasks read success, failure, and cleanup results', () => {
   expect(summaryItems({ repaired: 3, failed: 2, missing_tool: 1, moved: 8, restored: 4,
     purged: 9, cache_blocked_count: 2, bytes_reclaimed: 1024 }))
-    .toEqual(['Fixed 3', 'Failed 2', 'Missing repair tools: 1', 'Organized files 8', 'Restored 4',
-      'Deleted records 9', 'Cache cleanup failures: 2', 'Freed 1 KB']);
+    .toEqual(['Fixed 3', 'Failed 2', 'Repair tool missing 1', 'Files organized 8', 'Restored 4',
+      'Record deleted 9', 'Cache cleanup failed 2', 'Space freed 1 KB']);
   expect(summaryItems({ result: 'HD cover saved' })).toEqual(['HD cover saved']);
-  expect(summaryItems({ incomplete: 1 })).toEqual(['Details or covers unfetched: 1']);
+  expect(summaryItems({ incomplete: 1 })).toEqual(['Details or cover unfetched 1']);
   for (const result_summary of [{ incomplete: 1 }, { source_failed: 2 }, { failed: 3 },
     { missing: 1 }, { cache_blocked_count: 1 }, { warning_count: 1 }]) {
     const task = run({ status: 'succeeded', trigger: 'scheduled', result_summary });
@@ -821,7 +821,7 @@ it('Completed task details start collapsed, and expanding and collapsing never l
   const { host } = await open(payload({ finished: [parent, followup(parent.id)] }));
   const details = host.querySelector('details')!;
   const trigger = details.querySelector('summary')!;
-  expect(trigger.textContent).toBe('Task details · 1 items');
+  expect(trigger.textContent).toBe('Task details · 1 item');
   expect(trigger.getAttribute('aria-expanded')).toBe('false');
   await click(trigger);
   expect(trigger.getAttribute('aria-expanded')).toBe('true');
@@ -870,10 +870,10 @@ it('Consecutive scheduled runs where nothing happened merge into one card per ki
   ] }));
   expect(shownIds(host)).toEqual([9, 8, 4, 3]);
   const first = host.querySelector('[data-run-id="9"]')!;
-  expect(first.textContent).toContain('Scheduled · last 3 runs · ');
+  expect(first.textContent).toContain('Scheduled · Last 3 rounds · ');
   expect([...first.querySelectorAll('ul > li')].map((node) => node.textContent)).toEqual(['Checked 83', 'Total 83']);
   expect(host.querySelector('[data-run-id="8"]')!.textContent).toContain('Last 2 rounds');
-  expect(host.querySelector('[data-run-id="4"]')!.textContent).toContain('3 added');
+  expect(host.querySelector('[data-run-id="4"]')!.textContent).toContain('New 3');
   expect(host.querySelector('[data-run-id="3"]')!.textContent).toContain('Last 2 rounds');
 });
 
@@ -900,7 +900,7 @@ it('When the table does not exist in the database yet, say what to do instead of
 it('If the first-screen fetch fails, only one error remains; no empty three sections are drawn', async () => {
   const { host } = await open(null);
   // Copy goes through the legacy layer's `requestErrorMessage`: when the server supplies a reason message, use it; the page does not say it a second time.
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('The Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('Database is currently browse-only');
   expect(host.querySelector('section')).toBeNull();
 });
 
@@ -929,7 +929,7 @@ it('A failed round never wipes the previous data, adding only one more reason on
 
   await tick(10_000);
   expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('The Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('Database is currently browse-only');
   expect(host.textContent, 'One failure wipes the previous result, leaving the page knowing less than before').toContain('Scan and scrape');
 });
 
@@ -1016,7 +1016,7 @@ it('Pagination failure keeps the previous page; after a successful retry the cho
   await prefetchTasks(new AbortController().signal);
   const host = await mount(page());
   await click(buttonNamed('Next page', host));
-  await vi.waitFor(() => expect(host.textContent).toContain('The Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.RunningNo tasks running.Recently completedUpdate checkCompletedManual · 11/09 17:09 · Took 1 min 15 sec1–20 / 21 rounds20 round per page 10 round per page20 round per page50 round per page100 round per pagePrevious page12Next page'));
+  await vi.waitFor(() => expect(host.textContent).toContain('Database is currently browse-onlyRunningNo tasks running.Recently completedUpdate checkCompletedManual · 11/09 17:09 · Took 1 min 15 sec1–20 / 21 rounds20 rounds per page 10 rounds per page20 rounds per page50 rounds per page100 rounds per pagePrevious page12Next page'));
   expect(shownIds(host)).toEqual([9]);
   failed = false;
   await click(buttonNamed('Next page', host));
@@ -1039,21 +1039,21 @@ it('Duration and summary conversions each hold on their own', () => {
   expect(progressText(null, null)).toBe('0 / 0');
   // Details and 'who blocked it' stay out of this line: the former is too long, and the latter is already in the error sentence.
   expect(summaryText({ checked: 7, operation: 'like', rows: [1], blocked_by: 3 }))
-    .toBe('Checked 7 · action: mark favorite');
+    .toBe('Checked 7 · Action: Mark favorite');
   // The update check settles with the entire status dictionary; bookkeeping fields must not leak onto the card.
   expect(summaryText({
     status: 'complete', run_id: 351, started_at: 1790138114.86, checked: 83, total: 83,
     request_id: '417dab8d', completed_at: 1790138495.48,
-  })).toBe('Checked 83 · total 83');
+  })).toBe('Checked 83 · Total 83');
 });
 
-it('Task main summaries use Chinese results with internal fields reserved for technical details', () => {
+it('Task main summaries use localized results with internal fields reserved for technical details', () => {
   expect(summaryItems({ followups: 9, stage: 'finished', requested_stage: 'all',
     eta_seconds_min: 0, entity_watermark: 9936, performer_aliases: 7, auto_rejected: 0 }))
-    .toEqual(['Scheduled 9 backfill tasks', 'Performer aliases: 7']);
+    .toEqual(['Scheduled 9 backfill tasks', 'Performer aliases 7']);
   expect(followupDetail(followup(4, { task_key: 'performer-profile', task_label: 'Performer detail fill-in',
-    progress_label: 'Completing performer details: Demo person', result_summary: { name: 'Demo person', outcome: 'avwikidb binding; javdb binding' } })))
-    .toBe('Demo person · AVWikiDB profile linked; JavDB profile linked');
+    progress_label: 'Completing performer details: Demo person', result_summary: { name: 'Demo person', outcome: 'avwikidb 绑定；javdb 绑定' } })))
+    .toBe('Demo person · Linked to the AVWikiDB profile page；Linked to the JavDB profile page');
 });
 
 it('An error shows one line in the list: tracebacks use the last line, everything else the first non-empty line', () => {
@@ -1073,7 +1073,7 @@ it('The error summary shows one line by default; "View details" expands the full
   expect(host.querySelector('[data-error-details] [role="region"]')?.getAttribute('aria-label')).toBe('Full error details');
   expect(buttonNamed('Collapse details', host)?.getAttribute('aria-expanded')).toBe('true');
   await click(buttonNamed('Collapse details', host));
-  expect(host.textContent).toBe('The operation did not finish; please …');
+  expect(host.textContent).toBe('The operation did not finish; please retry. If it keeps failing, check the tray log.View details');
 
   const single = await mount(<ErrorExcerpt text="One line only" />);
   expect(single.textContent).toBe('One line only');

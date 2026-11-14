@@ -23,7 +23,7 @@ describe('Source copy parsing', () => {
     expect(scanSource('sample.ts', 'const = ;').some(item => item.severity === 'error')).toBe(true);
   });
   it('Condition action notes only prompt verification', () => {
-    const found = scanSource('sample.ts', '// If a proxy was configured before, double-check the address.');
+    const found = scanSource('sample.ts', '// If a proxy was configured previously, double-check the address.');
     expect(found.length).toBeGreaterThan(0);
     expect(found.every(item => item.severity === 'warning')).toBe(true);
   });

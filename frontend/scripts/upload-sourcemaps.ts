@@ -4,26 +4,26 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const artifacts = fileURLToPath(new URL('../../build/sentry/browser', import.meta.url));
 const publicDist = fileURLToPath(new URL('../../web/dist', import.meta.url));
-/* 正式 JavaScript：两个固定名入口加主包按页拆出的 chunk（ADR-0118）。 */
+/* The release JavaScript: the two fixed-name entries plus the main bundle's per-page chunks (ADR-0118). */
 const shippedScript = /^(?:peach-pages\.js|peach-app(?:\.[A-Za-z0-9_-]+)?\.js)$/;
 
-/** 校验待上传文件与分发文件逐字节一致、一一对应；配置缺失时不会启动 CLI。 */
+/** Verifies the upload candidates match the distributed files byte for byte, one to one; a missing configuration never starts the CLI. */
 export function prepareBrowserUpload(env: Record<string, string | undefined>, directory = artifacts, shipped = publicDist): string[] {
   for (const name of ['SENTRY_AUTH_TOKEN', 'SENTRY_ORG', 'SENTRY_PROJECT']) {
-    if (!env[name]?.trim()) throw new Error(`上传 source map 需要 ${name}`);
+    if (!env[name]?.trim()) throw new Error(`Uploading source maps requires ${name}`);
   }
   const scripts = (folder: string) => readdirSync(folder).filter(name => shippedScript.test(name)).sort();
   const names = scripts(shipped);
-  if (!names.includes('peach-app.js') || !names.includes('peach-pages.js')) throw new Error('分发产物缺少固定名入口');
+  if (!names.includes('peach-app.js') || !names.includes('peach-pages.js')) throw new Error('The distributed artifacts are missing the fixed-name entries');
   const built = scripts(directory);
-  if (built.join('\n') !== names.join('\n')) throw new Error(`私有构建与分发产物的文件不一致：${built.join('、')} ≠ ${names.join('、')}`);
+  if (built.join('\n') !== names.join('\n')) throw new Error(`The private build and the distributed artifacts list different files: ${built.join(', ')} ≠ ${names.join(', ')}`);
   for (const name of names) {
     const javascript = readFileSync(resolve(directory, name));
-    if (!javascript.equals(readFileSync(resolve(shipped, name)))) throw new Error(`${name} 与分发产物不一致`);
+    if (!javascript.equals(readFileSync(resolve(shipped, name)))) throw new Error(`Distribution artifacts inconsistent: ${name}`);
     const debugId = javascript.toString('utf8').match(/\/\/# debugId=([a-f0-9-]+)\s*$/i)?.[1];
     const map = JSON.parse(readFileSync(resolve(directory, `${name}.map`), 'utf8'));
     if (!debugId || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(debugId) || map.debug_id !== debugId || !map.sourcesContent?.length) {
-      throw new Error(`${name} 缺少匹配的 source map 和 Debug ID`);
+      throw new Error(`Matching source map and Debug ID missing for ${name}`);
     }
   }
   return ['sourcemaps', 'upload', '--validate', '--strict', '--wait', '--url-prefix', 'app:///', directory];

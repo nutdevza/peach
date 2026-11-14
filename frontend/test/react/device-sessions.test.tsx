@@ -58,18 +58,18 @@ it('List devices: this one first and labeled “This device”; the rest show la
   expect(card.textContent).toContain('Last active Just now · The computer running Peach');
   expect(card.textContent).toContain('Last active 5 minutes ago · 198.51.100.0/24');
   expect(card.textContent).toContain('Signed-in devicesChrome · WindowsLast active Just now · The computer running PeachThis deviceSafari · iPhoneLast active 5 minutes ago · 198.51.100.0/24UndoUnrecognized browserLast active 3 days ago · Public entry · 203.0.113.0/24UndoChanging the access password signs out every device.Sign out other devices');
-  expect(card.querySelector('button[aria-label="Revoke the Chrome · Windows login"]')).toBeNull();
-  expect(card.querySelector('button[aria-label="Revoke the Safari · iPhone login"]')).not.toBeNull();
+  expect(card.querySelector('button[aria-label="Sign out Chrome · Windows"]')).toBeNull();
+  expect(card.querySelector('button[aria-label="Sign out Safari · iPhone"]')).not.toBeNull();
   expect(buttonNamed('Sign out other devices', card)).not.toBeNull();
 });
 
 it('Every row has a terminal icon; recognized browsers and systems each get a badge before the name', async () => {
-  const tablet = row({ id: 'eeeeeeeeeeeeeeee', device: 'Chrome · Android tablet' });
+  const tablet = row({ id: 'eeeeeeeeeeeeeeee', device: 'Chrome · Android 平板' });
   const linux = row({ id: 'ffffffffffffffff', device: 'Firefox · Linux' });
   serve(listing([desk, phone, tablet, laptop, linux]));
   const host = await render();
   const lines = [...section(host, 'Signed-in devices')!.querySelectorAll('p.text-body-regular')];
-  expect(lines.map(line => line.textContent)).toEqual(['Chrome · Windows', 'Safari · iPhone', 'Chrome · Android tablet', 'Unrecognized browser', 'Firefox · Linux']);
+  expect(lines.map(line => line.textContent)).toEqual(['Chrome · Windows', 'Safari · iPhone', 'Chrome · Android 平板', 'Unrecognized browser', 'Firefox · Linux']);
   /* The leading icon and the label sit in the same flex container; the browser mark is an asset image, the platform mark is a glyph, both inside the label's p. */
   const terminals = lines.map(line => line.parentElement!.previousElementSibling?.tagName.toLowerCase());
   expect(terminals).toEqual(['svg', 'svg', 'svg', 'svg', 'svg']);
@@ -96,10 +96,10 @@ it('To revoke one, confirm first; after confirming, send a request by this row\'
   const fetcher = serve(listing([desk, phone, laptop]), { ...listing([desk, laptop]), removed: 1 });
   const seen = confirmWith(true);
   const host = await render(receipt);
-  await click(host.querySelector('button[aria-label="Revoke the Safari · iPhone login"]'));
+  await click(host.querySelector('button[aria-label="Sign out Safari · iPhone"]'));
   await settle();
   expect(seen[0]).toMatchObject({ title: 'Sign out this device', confirmLabel: 'Sign out' });
-  expect(seen[0]!.body).toContain('Safari · iPhone (last active 5 minutes ago · 198.51.100.0/24)');
+  expect(seen[0]!.body).toContain('Safari · iPhone (Last active 5 minutes ago · 198.51.100.0/24)');
   const [url, options] = fetcher.mock.calls.at(-1)!;
   expect(url).toBe('/api/configuration/access/sessions/revoke');
   expect(JSON.parse(String(options?.body))).toEqual({ revision: 'one', id: 'bbbbbbbbbbbbbbbb' });

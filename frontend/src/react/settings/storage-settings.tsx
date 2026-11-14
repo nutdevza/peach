@@ -173,7 +173,7 @@ export function StorageSettings({ initial, receipt }: { initial: StorageState; r
   const status = accepted
     || (storage.job.state === 'cleaning' ? `Cleaning${cleaningLabel || ''}…`
       : storage.job.state === 'measuring' ? 'Calculating disk usage…'
-        : chosen.length ? `${chosen.length} categories selected, ${fmtSize(chosen.reduce((sum, item) => sum + item.reclaimable, 0))} reclaimable`
+        : chosen.length ? `${chosen.length} ${chosen.length === 1 ? 'category' : 'categories'} selected, ${fmtSize(chosen.reduce((sum, item) => sum + item.reclaimable, 0))} reclaimable`
           : usage ? `Measured at ${new Date(usage.measured_at * 1000).toLocaleString()}` : '');
   const locked = running || Boolean(accepted);
   const toggle = (key: string) => (next: boolean) => setPicked((current) => {

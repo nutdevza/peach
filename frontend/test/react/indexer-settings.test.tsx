@@ -63,7 +63,7 @@ it('The skeleton draws the footer\'s two disabled keys per the terminal state, w
   expect(keys.map((key) => [key.textContent, key.disabled])).toEqual([['Remove', true], ['Add indexer', true], ['Save configuration', true]]);
   // Two indexers, two rows; only the one still missing an address expands into the three-column input.
   expect(skeleton.querySelectorAll('.border-t.pt-2')).toHaveLength(2);
-  expect([...skeleton.querySelectorAll('span.text-body-medium')].map((node) => node.textContent)).toEqual(['Name', 'Torznab address', 'API key']);
+  expect([...skeleton.querySelectorAll('span.text-body-medium')].map((node) => node.textContent)).toEqual(['Name', 'Torznab URL', 'API key']);
   await hold.release({ ok: true, status: 200, json: async () => state });
   await settle();
   expect(host.querySelector('[data-skeleton]')).toBeNull();

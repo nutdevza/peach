@@ -101,7 +101,7 @@ export function HeatCard(
               const { x, y } = at(index);
               return (
                 <rect key={item.key} data-cell={index} tabIndex={index === focusable ? 0 : -1} role="img"
-                  aria-label={`${item.label}, ${item.count} ${words.cellUnit}`}
+                  aria-label={`${item.label}, ${item.count} ${item.count === 1 ? words.cellUnit.replace(/s$/, '') : words.cellUnit}`}
                   x={x} y={y} width={SIZE} height={SIZE} rx={3} fillOpacity={item.share || 1}
                   opacity={shown >= 0 && shown !== index ? 0.4 : 1}
                   className={item.share

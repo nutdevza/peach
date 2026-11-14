@@ -107,7 +107,7 @@ describe('First screen', () => {
     expect(host.querySelector('h2')?.textContent).toBe('Playlists');
     expect(host.querySelector('[data-playlist-create]')).not.toBeNull();
     const note = host.querySelector('[data-media-error]')!;
-    expect(note.textContent).toContain('The database is locked');
+    expect(note.textContent).toContain('The operation did not finish; please retry. If it keeps failing, check the tray log.');
     fail = false;
     await click(note.querySelector('[data-note-action]'));
     await settle();
@@ -171,7 +171,7 @@ describe('Cards', () => {
     expect(avatar.innerHTML).toBe('<span class="ini">A</span>');
     await click(avatar);
     expect(given.openEntity).toHaveBeenCalledWith('performer', 'Alpha');
-    expect(card(host, 2).querySelector('[data-mix-initial]')?.textContent).toBe('week');
+    expect(card(host, 2).querySelector('[data-mix-initial]')?.textContent).toBe('W');
   });
 });
 
@@ -211,7 +211,7 @@ describe('New', () => {
     await type(createInput(host), 'Duplicate name');
     await submit(host.querySelector('[data-playlist-create]'));
     await settle();
-    expect(host.querySelector('[data-playlist-create]')?.textContent).toContain('New playlistThe current state does not allow this action; refresh and try again.New');
+    expect(host.querySelector('[data-playlist-create]')?.textContent).toContain('New playlistA playlist with that name already existsNew');
     expect(createInput(host).value).toBe('Duplicate name');
     expect(given.toast).not.toHaveBeenCalled();
   });
@@ -246,7 +246,7 @@ describe('Rename', () => {
     await type(form.querySelector('input'), 'Duplicate name');
     await submit(form);
     await settle();
-    expect(document.querySelector('[data-playlist-rename]')?.textContent).toContain('Edit nameNameThe current state does not allow this action; refresh and try again.CancelSave name');
+    expect(document.querySelector('[data-playlist-rename]')?.textContent).toContain('Edit nameNameA playlist with that name already existsCancelSave name');
   });
 });
 

@@ -43,7 +43,7 @@ export function applyDensity(density: Density = currentDensity()): void {
   const button = densityButton();
   if (!button) return;
   setAttribute(button, 'aria-pressed', String(density === 'dense'));
-  setAttribute(button, 'title', 'Current:' + (density === 'big' ? 'Large images' : 'Dense'));
+  setAttribute(button, 'title', 'Current: ' + (density === 'big' ? 'large images' : 'dense'));
   paintSizeGlyph(button, density === 'big' ? 'big' : 'small');
 }
 
@@ -59,6 +59,6 @@ export function paintPhotoSizeButton(size: string): void {
   const button = densityButton();
   if (!button) return;
   setAttribute(button, 'aria-pressed', String(size === 'small'));
-  setAttribute(button, 'title', 'Current:' + (size === 'big' ? 'Large images' : 'Small images'));
+  setAttribute(button, 'title', 'Current: ' + (size === 'big' ? 'large images' : 'small images'));
   paintSizeGlyph(button, size);
 }

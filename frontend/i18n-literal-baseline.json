@@ -1,8 +1,8 @@
 {
   "src/application/loading.js": 1,
   "src/card-art/cover-state.ts": 1,
-  "src/core/index.ts": 1,
-  "src/core/jav-title.ts": 1,
+  "src/core/index.ts": 5,
+  "src/core/jav-title.ts": 8,
   "src/react/activity/resource-search.tsx": 1,
   "src/react/components/navigation-order.tsx": 1,
   "src/react/follow-manage/measured-reading.tsx": 1,

@@ -181,7 +181,7 @@ describe('Roster', () => {
     expect(buttonNamed('Amateur', host)?.getAttribute('aria-pressed')).toBe('true');
     await answer.release({ items: [person('Amateur')], categories: { japanese_av:1, amateur:2 }, has_more: false });
     await settle();
-    expect(row()).toBe('All performers: amateur');
+    expect(row()).toBe('AllPerformersAmateur');
   });
   it('After an old seller-animation author link is normalized into the artist category, the address is rewritten with replace', async () => {
     seed(indexKey('performers', '', 'animation'), [person('Animation authors')], false, { animation:1 });
@@ -250,7 +250,7 @@ describe('Roster', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ error: 'Cannot be read' }) })));
     const host = await open(props());
     await settle();
-    expect(host.textContent).toContain('ArtistsArtistsSellersOnlineAllCould not read ArtistsThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.Retry nowLoading the index                        ');
+    expect(host.textContent).toContain('ArtistsArtistsSellersOnlineAllCould not read ArtistsCannot be readRetry nowLoading the index                        ');
     expect(host.querySelector('[data-index-count]')?.textContent ?? '').toBe('');
     expect(host.textContent).not.toContain('0 items');
   });
@@ -395,14 +395,14 @@ describe('Filter box', () => {
 describe('Tags', () => {
   for (const scope of ['local', 'online'] as const) for (const view of ['alphabet', 'cloud'] as const) {
     it(`${scope} ${view} browsing uses current names and offers editing only in manage mode`, async () => {
-      const row = { ...tag('Glasses', 'appearance'), entity_id: 4472, id: 'glasses', aliases: ['Glasses'], hidden: false };
+      const row = { ...tag('Glasses', 'appearance'), entity_id: 4472, id: 'glasses', aliases: ['Lenses'], hidden: false };
       seed(indexKey('tags', '', 'all'), [row]);
       seed(onlineTagsKey('', 'all'), [row]);
       serve(() => ({ items: [row], total:1, categories:{ appearance:1 }, duplicate_groups: [], favorites: [], filters: [], has_more: false }));
       const host = await open(props({ kind: 'tags', scope, view }));
       await settle();
       expect(host.querySelector('[data-alpha-tag], [data-tag-chip]')?.textContent).toContain('Glasses');
-      expect(host.querySelector('[data-alpha-tag], [data-tag-chip]')?.textContent).not.toContain('Glasses2');
+      expect(host.querySelector('[data-alpha-tag], [data-tag-chip]')?.textContent).not.toContain('Lenses');
       expect(host.querySelector('[aria-label="Favorite Glasses"]')).not.toBeNull();
       expect(host.querySelector('[aria-label="Edit tag Glasses"]')).toBeNull();
       expect(host.querySelector('[data-tag-mode] use')?.getAttribute('href')).toBe('#i-pencil');

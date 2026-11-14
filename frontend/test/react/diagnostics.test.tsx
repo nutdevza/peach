@@ -22,7 +22,7 @@ it('Scrape export starts a task by code and keeps the server failure reason', as
   const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(request[0]).toBe('/api/diagnostics/exports');
   expect(JSON.parse(String(request[1]?.body))).toEqual({ kind: 'scraping', codes: 'ABC-123, DEF-456' });
-  expect(host.textContent).toContain('Scrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsThe submission was invalid; check the input and retry.');
+  expect(host.textContent).toContain('Scrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsEnter valid codes, up to 20 at a time');
   expect(buttonNamed('Export scrape records', host)?.getAttribute('aria-busy')).not.toBe('true');
 });
 
@@ -61,8 +61,8 @@ async function open(report = data()) {
 }
 it('Diagnostics jump to the exact config section; system permission items show actions only', async () => {
   const { host } = await open();
-  expect(linkNamed('Open Libraries and intake', host)?.getAttribute('href')).toBe(undefined);
-  expect(linkNamed('Open network and access', host)?.getAttribute('href')).toBe('/settings/network');
+  expect(linkNamed('Open Library and imports', host)?.getAttribute('href')).toBe('/settings/library');
+  expect(linkNamed('Open Network & access', host)?.getAttribute('href')).toBe('/settings/network');
   expect(buttonNamed('Open Libraries and intake', host)).toBeNull();
   const root = [...host.querySelectorAll('h3')].find(node => node.textContent === 'Data directory')!.parentElement!.parentElement!;
   expect(root.textContent).toContain('Adjust permissions');
@@ -78,8 +78,8 @@ it('Expands the video table and copies identifiable info; zero results have thei
   expect(props.openItem).toHaveBeenCalledWith(1);
   await click(buttonNamed('Copy the current list', host));
   await settle();
-  expect(clipboard.mock.calls[0][0]).toContain('Video A\tABC-123\tA.mp4\tLocal\tR:\\Media\\A.mp4');
-  expect(clipboard.mock.calls[0][0]).toContain('Video Beta\t\tBeta.mp4\tLocal\tR:\\Media\\Beta.mp4');
+  expect(clipboard.mock.calls[0][0]).toContain('Video A\tABC-123\ta.mp4\tLocal\tR:\\Media\\a.mp4');
+  expect(clipboard.mock.calls[0][0]).toContain('Video B\t\tb.mp4\tLocal\tR:\\Media\\b.mp4');
   expect(host.textContent).toContain('Unrecognized');
   expect(props.receipt).toHaveBeenCalledWith('List copied');
   expect(host.querySelector('[data-empty-state]')?.textContent).toContain('The list is empty');
@@ -90,7 +90,7 @@ it('Failed requests keep the reason and a retry entry', async () => {
   const host = await mount(<QueryClientProvider client={queryClient}><DiagnosticsPage {...props} /></QueryClientProvider>);
   await settle();
   expect(host.textContent).toContain('Reading diagnostics failed');
-  expect(host.textContent).toContain('Download diagnostics reportExport progress not fetchedRead againReading diagnostics failedThis device does not have permission for this action. Do it on the computer running Peach.Check againScrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsExport progress not fetchedRead again');
+  expect(host.textContent).toContain('Download diagnostics reportExport progress not fetchedRead againReading diagnostics failedPlease open system diagnostics on the computer running PeachCheck againScrape recordsExport video profiles, source values, and performer, label, and series attribution for debugging scraping errors.Problem codes (optional)Separate multiple codes with commas, up to 20; leave empty to export recent videos.Export scrape recordsExport progress not fetchedRead again');
   expect(buttonNamed('Check again', host)).not.toBeNull();
 });
 it('The exception check leads the first section, other checks expand, and nothing duplicates', async () => {
@@ -104,7 +104,7 @@ it('The exception check leads the first section, other checks expand, and nothin
     expect([...host.querySelectorAll('h3,h4')].filter(node => node.textContent === check.label)).toHaveLength(1);
   }
   const summary = [...host.querySelectorAll('summary')].find(node => node.textContent === 'Other checks · 1 item');
-  expect(summary?.getAttribute('aria-expanded')).toBe(undefined);
+  expect(summary?.getAttribute('aria-expanded')).toBe('false');
   await click(summary!);
   expect(summary?.getAttribute('aria-expanded')).toBe('true');
   expect(summary?.parentElement?.textContent).toContain('Database');
@@ -115,10 +115,10 @@ it('The restore action\'s name matches its actual target', async () => {
   report.checks.ffmpeg = { label: 'Media tools', status: 'warning', reason: 'FFmpeg missing', action: 'Install tools', target: '/settings/maintenance', details: {} };
   report.checks.tasks = { label: 'Background tasks', status: 'warning', reason: 'Some tasks failed', action: 'View the reason', target: '/tasks', details: {} };
   const { host } = await open(report);
-  expect(linkNamed('Open network and access', host)?.getAttribute('href')).toBe(undefined);
-  expect(linkNamed('Open app and maintenance', host)?.getAttribute('href')).toBe('/settings/maintenance');
+  expect(linkNamed('Open Network & access', host)?.getAttribute('href')).toBe('/settings/network');
+  expect(linkNamed('Open App and maintenance', host)?.getAttribute('href')).toBe('/settings/maintenance');
   expect(linkNamed('View task', host)?.getAttribute('href')).toBe('/tasks');
-  expect(linkNamed('Open sources and credentials', host)?.getAttribute('href')).toBe('/sources');
+  expect(linkNamed('Open source and credentials', host)?.getAttribute('href')).toBe('/sources');
 });
 
 it('The header\'s diagnostic-report progress keeps its own box, in the same row as re-check', async () => {

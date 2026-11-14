@@ -119,10 +119,10 @@ it('In the New Releases section, actresses, labels, and tags list only the subsc
   await settle();
   const asked = () => new URL(String(fetcher.mock.calls.at(-1)?.[0]), location.origin).searchParams;
   expect(asked().get('page')).toBe('2');
-  expect([...host.querySelectorAll('[data-tier-performer]')].map(node => node.textContent)).toEqual(['Performer A']);
-  expect([...host.querySelectorAll('[data-tier-studio]')].map(node => node.textContent)).toEqual(['Studio A 1']);
-  expect([...host.querySelectorAll('[data-catalog-tag]')].map(node => node.textContent)).toEqual(['Intercourse 1']);
-  expect(host.querySelector('nav[aria-label="New Releases pagination"] [aria-current="page"]')?.textContent).toBe('2');
+  expect([...host.querySelectorAll('[data-tier-performer]')].map(node => node.textContent)).toEqual(['PPerformer A']);
+  expect([...host.querySelectorAll('[data-tier-studio]')].map(node => node.textContent)).toEqual(['StStudio A1']);
+  expect([...host.querySelectorAll('[data-catalog-tag]')].map(node => node.textContent)).toEqual(['Intercourse1']);
+  expect(host.querySelector('nav[aria-label="New releases pagination"] [aria-current="page"]')?.textContent).toBe('2');
   await click(host.querySelector('[data-tier-performer]'));
   await settle();
   expect([asked().get('performer'), asked().get('page')]).toEqual(['Performer A', '1']);
@@ -148,15 +148,15 @@ it('New-releases pagination fetches by the per-page size in the address; switchi
   vi.stubGlobal('fetch', fetcher);
   try {
     const host = await mount(<QueryClientProvider client={queryClient}><JavPage tab="releases" readOnly navigate={vi.fn()} receipt={vi.fn()} /></QueryClientProvider>);
-    host.querySelector<HTMLElement>('section[aria-label="Follow new releases"]')!.scrollIntoView = vi.fn();
+    host.querySelector<HTMLElement>('section[aria-label="Subscribe to new releases"]')!.scrollIntoView = vi.fn();
     await settle();
     expect(host.querySelectorAll('[data-jav-card]')).toHaveLength(10);
-    expect(host.querySelector('[data-table-pagination]')?.textContent).toContain('11–20 / 55 works');
-    await choose(host.querySelector('button[aria-label="Rows per page"]'), '50 per page');
+    expect(host.querySelector('[data-table-pagination]')?.textContent).toContain('11–20 / 55 videos');
+    await choose(host.querySelector('button[aria-label="Rows per page"]'), '50 videos per page');
     await settle();
     expect(host.querySelectorAll('[data-jav-card]')).toHaveLength(50);
     const asked = new URL(String(fetcher.mock.calls.at(-1)?.[0]), location.origin).searchParams;
-    expect([asked.get('page'), asked.get('size'), asked.get('tag')]).toEqual(['1', '50', 'Drama']);
+    expect([asked.get('page'), asked.get('size'), asked.get('tag')]).toEqual(['1', '50', '剧情']);
     expect(new URLSearchParams(location.search).get('size')).toBe('50');
     expect(new URLSearchParams(location.search).has('page')).toBe(false);
   } finally { history.replaceState(null, '', before) }
@@ -171,12 +171,12 @@ it('An empty new-releases list keeps the per-page size control; an out-of-range 
   vi.stubGlobal('fetch', fetcher);
   try {
     const host = await mount(<QueryClientProvider client={queryClient}><JavPage tab="releases" readOnly navigate={vi.fn()} receipt={vi.fn()} /></QueryClientProvider>);
-    host.querySelector<HTMLElement>('section[aria-label="Follow new releases"]')!.scrollIntoView = vi.fn();
+    host.querySelector<HTMLElement>('section[aria-label="Subscribe to new releases"]')!.scrollIntoView = vi.fn();
     await settle();
     expect(host.textContent).toContain('No new works not yet indexed');
-    expect(host.querySelector('[data-table-pagination]')?.textContent).toContain('0–0 / 0 works');
+    expect(host.querySelector('[data-table-pagination]')?.textContent).toContain('0–0 / 0 videos');
     expect(new URLSearchParams(location.search).has('page')).toBe(false);
-    await choose(host.querySelector('button[aria-label="Rows per page"]'), '20 per page');
+    await choose(host.querySelector('button[aria-label="Rows per page"]'), '20 videos per page');
     await settle();
     const asked = new URL(String(fetcher.mock.calls.at(-1)?.[0]), location.origin).searchParams;
     expect([asked.get('page'), asked.get('size')]).toEqual(['1', '20']);
@@ -242,12 +242,15 @@ it('The New Releases section defaults to descending by release time; clicking a 
 });
 
 it('Without recommendations the empty state\'s view-taste sits left and the main entry right', async () => {
+  const before = location.pathname + location.search;
+  history.replaceState(null, '', '/jav?tab=discover');
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [] }) })));
   const host = await mount(<QueryClientProvider client={queryClient}><JavPage tab="discover" readOnly navigate={vi.fn()} receipt={vi.fn()} /></QueryClientProvider>);
   await settle();
-  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['View taste', 'Browse library']);
-  const main = [...host.querySelectorAll('[data-empty-state] a')].find((link) => link.textContent === 'Browse library');
+  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['View taste', 'Find videos']);
+  const main = [...host.querySelectorAll('[data-empty-state] a, [data-empty-state] button')].find((node) => node.textContent === 'Find videos');
   expect(main?.className).toContain('bg-button-primary');
+  history.replaceState(null, '', before);
 });
 
 it('The new-releases list is read-only: entries never profiled are read once via POST, progress polls separately, and the list refetches only after reading finishes', async () => {
@@ -271,7 +274,7 @@ it('The new-releases list is read-only: entries never profiled are read once via
   const calls = (path: string) => fetcher.mock.calls.filter(([url]) => new URL(url, location.origin).pathname === path);
   const started = calls('/api/jav/releases/metadata');
   expect(started).toHaveLength(1);
-  expect(JSON.parse(String(started[0]?.[1]?.body))).toMatchObject({ action: 'start', performer: 'Performer A', sort: 'release_date' });
+  expect(JSON.parse(String(started[0]?.[1]?.body))).toMatchObject({ action: 'start', performer: '女优甲', sort: 'release_date' });
   expect(host.querySelector('[data-jav-metadata] [role="progressbar"]')).not.toBeNull();
   await act(() => new Promise(resolve => { setTimeout(resolve, 2300) }));
   await settle();

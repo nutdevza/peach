@@ -198,7 +198,7 @@ describe('Photo wall', () => {
     expect(index).toBe(3);
     expect(slides).toHaveLength(7);
     expect(slides[3]).toEqual({
-      src: '/sample-image?code=SSIS-001&n=1', thumb: '/sample-thumb?code=SSIS-001&n=1', name: 'SSIS-001 sample image 1',
+      src: '/sample-image?code=SSIS-001&n=1', thumb: '/sample-thumb?code=SSIS-001&n=1', name: 'SSIS-001 sample 1',
       asset: null, source: 'DMM',
     });
     expect(slides[5]).toEqual({

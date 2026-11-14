@@ -50,7 +50,7 @@ export function javTitleParts(it:Item,value=it?.name):{code:string;title:string;
     ?String(it.display_title||'').trim():filenameTitle;
   const title=officialTitle||cleanFallback;
   const badges=Array.isArray(it?.edition_badges)?it.edition_badges.filter(
-    label=>['Chinese subs','Uncensored','无码流出','Uncensored'].includes(label)):[];
+    label=>['中字','无码','无码流出','无码破解','Chinese subs','Uncensored','leaked','decensored'].includes(label)):[];
   const dimensions=[Number(it?.width)||0,Number(it?.height)||0];
   if(Math.min(...dimensions)>=2160&&Math.max(...dimensions)>=3840)badges.push('4K');
   return {code:displayCode,title,badges};
@@ -66,6 +66,6 @@ export const javDisplayName=(it:Item,value=it?.name)=>{
 export function javTitleHtml(it:Item,value=it?.name){
   const {code,title,badges=[]}=javTitleParts(it,value);
   if(!code)return esc(title);
-  const edition=badges.map(label=>`<small class="javedition ${label==='Chinese subs'?'subtitle':label==='Uncensored'?'uncensored':label==='leaked'?'leaked':label==='decensored'?'cracked':'quality'}">${esc(label)}</small>`).join('');
+  const edition=badges.map(label=>`<small class="javedition ${label==='中字'||label==='Chinese subs'?'subtitle':label==='无码'||label==='Uncensored'?'uncensored':label==='无码流出'||label==='leaked'?'leaked':label==='无码破解'||label==='decensored'?'cracked':'quality'}">${esc(label)}</small>`).join('');
   return `<span class="ui-javidentity"><strong class="ui-javcode">${esc(code)}</strong>${edition}</span>${title?` <span class="ui-javtitle"${langAttr(title)}>${esc(title)}</span>`:''}`;
 }

@@ -22,7 +22,7 @@ describe('The range control',()=>{
     const config=document.createElement('div');config.className='ui-board-local-nav';config.dataset.sectionNav='';
     document.body.append(config);
     wireBoardTabs(document);wireBoardTabs(document);
-    expect([...document.querySelectorAll('[data-board-tabs]')].map(group=>group.getAttribute('aria-label'))).toEqual(['Configuration section']);
+    expect([...document.querySelectorAll('[data-board-tabs]')].map(group=>group.getAttribute('aria-label'))).toEqual(['Configuration sections']);
   });
   it('The range input converts the current value into a track percentage written into the style variable',()=>{
     document.body.innerHTML='<input type="range" min="0" max="180" value="45">';

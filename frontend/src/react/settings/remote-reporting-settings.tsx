@@ -49,7 +49,7 @@ export function RemoteReportingSettings({ initial, receipt }: {
         <Help>{value.fields.errors}</Help>
         <Help>{value.notice}</Help>
       </Disclosure>
-      {lastSent !== null ? <Help>'Last sent:'{new Date(lastSent).toLocaleDateString()}</Help> : null}
+      {lastSent !== null ? <Help>Last sent: {new Date(lastSent).toLocaleDateString()}</Help> : null}
     </Stack>
     {action.error ? <Stack divided><ErrorText>{action.error}</ErrorText></Stack> : null}
   </>;

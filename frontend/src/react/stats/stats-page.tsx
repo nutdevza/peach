@@ -161,7 +161,7 @@ function InventoryDetail({ data }: { data: StatsData } & StatsProps) {
 function ViewingCharts({ data }: { data: StatsData }) {
   return (
     <>
-      <ActivityHeat activity={data.play_activity} title="Play time" dailyTitle="'Daily plays'"
+      <ActivityHeat activity={data.play_activity} title="Play time" dailyTitle="Daily plays"
         words={{ unit: 'videos', series: 'Videos', cellUnit: 'videos' }} tone={5} empty={NO_PLAY_TIME_HINT} />
       <BarCard title="Play counts" unit="videos" series="Videos" color={VIEWING_COLOR}
         rows={replayRows(data.replays)} empty={NO_REPLAY_HINT} />
@@ -352,7 +352,7 @@ export function StatsPage(props: StatsProps) {
           <MetricTab id="coverage" label="Content tags" icon={RiPriceTag3Line} accent={2}
             figure={coverage} detail={covered} />
           <MetricTab id="storage" label="Space usage" icon={RiHardDrive2Line} accent={3}
-            figure={`${storage.online.toLocaleString()} volumes`}
+            figure={`${storage.online.toLocaleString()} ${storage.online === 1 ? 'volume' : 'volumes'}`}
             detail={storage.measured ? `${fmtSize(storage.used)} used` : 'Capacity not fetched'} />
         </TabList>
         <TabPanel id="inventory"><InventoryDetail data={data} {...props} /></TabPanel>
@@ -360,7 +360,7 @@ export function StatsPage(props: StatsProps) {
           <Detail headline={<Headline term="Plays" figure={fmtCount(consumption.played)} unit="videos have play records" />}>
             <div className="inline-grid w-full gap-3 sm:grid-cols-2">
               <Fact term="Library watches" value={consumption.library_played} />
-              <Fact term="'Watch online directly'" value={consumption.online_played} />
+              <Fact term="Watch online directly" value={consumption.online_played} />
               <Fact term="Climax counts" value={consumption.o_total} />
               <Fact term="Seek-skipped" value={consumption.skimmed} />
               <Fact term="Favorites" value={consumption.liked} />
@@ -372,12 +372,13 @@ export function StatsPage(props: StatsProps) {
           <ViewingCharts data={data} />
         </TabPanel>
         <TabPanel id="coverage">
-          <Detail headline={<Headline term="'Content tag coverage'" figure={coverage} unit={covered} />}>
+          <Detail headline={<Headline term="Content tag coverage" figure={coverage} unit={covered} />}>
             <CoverageDetail attribution={data.attribution} />
           </Detail>
         </TabPanel>
         <TabPanel id="storage">
-          <Detail headline={<Headline term="Space usage" figure={storage.measured.toLocaleString()} unit=" volumes have capacity fetched" />}>
+          <Detail headline={<Headline term="Space usage" figure={storage.measured.toLocaleString()}
+            unit={` ${storage.measured === 1 ? 'volume has' : 'volumes have'} capacity fetched`} />}>
             <StorageDetail volumes={data.storage_volumes} {...props} />
           </Detail>
         </TabPanel>

@@ -33,7 +33,7 @@ const payload = (overrides: Partial<StatsData> = {}): StatsData => ({
     { k: '115', n: 1, bytes: 1073741824, videos: 1 }],
   by_medium: [{ k: 'video', n: 4, bytes: 4294967296 }, { k: 'image', n: 6, bytes: 1048576 }],
   by_library: [{ k: 'main', name: 'Main library', icon: 'film', videos: 4, bytes: 4294967296 }],
-  by_length: [{ k: 'Quick picks', n: 1 }, { k: 'short', n: 3 }, { k: 'medium', n: 0 }, { k: 'long', n: 0 }],
+  by_length: [{ k: '速食', n: 1 }, { k: '短', n: 3 }, { k: '中', n: 0 }, { k: '长', n: 0 }],
   by_quality: [{ k: '4K', n: 0 }, { k: '2K', n: 0 }, { k: '1080P', n: 4 }, { k: '720P', n: 0 }, { k: 'Low quality', n: 0 }],
   play_activity: {
     timezone: 'UTC+08:00',
@@ -121,7 +121,7 @@ const radialCharts = (root: ParentNode) =>
 it('The inventory layer draws one ring per source, with the legend using the source\'s UI name', async () => {
   const { host } = await open();
   const charts = radialCharts(host);
-  expect(charts.map((chart) => chart.getAttribute('aria-label'))).toEqual(['Cloud drives and local', 'Media library']);
+  expect(charts.map((chart) => chart.getAttribute('aria-label'))).toEqual(['Cloud drive and local', 'Media library']);
   const tiles = [...charts[0]!.closest('section')!.querySelectorAll('button')];
   expect(tiles.map((tile) => tile.querySelector('span')?.textContent)).toEqual(['Local', '115']);
   expect(tiles.map((tile) => tile.querySelector('b')?.textContent)).toEqual(['3', '1']);
@@ -190,8 +190,8 @@ it('The stock layer renders one distribution chart each for duration, quality, a
 });
 
 it('Distribution buckets: duration becomes minute ranges, file types sort most-first, and the play-count long tail is merged into buckets', () => {
-  expect(lengthRows([{ k: 'Quick picks', n: 1 }, { k: 'long', n: 2 }, { k: 'Extra long', n: 3 }]))
-    .toEqual([{ name: '<5 min', value: 1 }, { name: '40 min and up', value: 2 }, { name: 'Extra long', value: 3 }]);
+  expect(lengthRows([{ k: '速食', n: 1 }, { k: '长', n: 2 }, { k: '超长', n: 3 }]))
+    .toEqual([{ name: '<5 min', value: 1 }, { name: '40 min and up', value: 2 }, { name: '超长', value: 3 }]);
   expect(mediumRows([{ k: 'video', n: 4, bytes: 0 }, { k: 'account', n: 9, bytes: 0 }, { k: 'x', n: 1, bytes: 0 }]))
     .toEqual([{ name: 'Account', value: 9 }, { name: 'Videos', value: 4 }, { name: 'x', value: 1 }]);
   expect(replayRows([{ k: 1, n: 52 }, { k: 2, n: 13 }, { k: 4, n: 6 }, { k: 7, n: 1 }, { k: 9, n: 1 }, { k: 12, n: 2 }]))
@@ -217,8 +217,8 @@ it('The watched layer has two play-time heatmaps, and pointing at a cell swaps t
   expect(card.querySelector('header b')?.textContent).toBe('1');
   await act(async () => { cell.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
   expect(card.querySelector('header b')?.textContent).toBe('2');
-  expect(panel.querySelector('section[aria-label="Play count"] header b')?.textContent).toBe('2');
-  const liked = [...panel.querySelectorAll('span')].find((term) => term.textContent === 'Like');
+  expect(panel.querySelector('section[aria-label="Play counts"] header b')?.textContent).toBe('2');
+  const liked = [...panel.querySelectorAll('span')].find((term) => term.textContent === 'Favorites');
   expect(liked?.nextElementSibling?.textContent).toBe('1');
 });
 
@@ -248,7 +248,7 @@ it('Without play-time records the watched layer draws no heatmap, leaving one no
   const { host } = await open(payload({ play_activity: { timezone: 'UTC+08:00', days: [], hours: [] } }));
   await click(tabNamed(host, 'Watched'));
   expect(host.querySelector('[role=tabpanel] svg[role=img]')).toBeNull();
-  expect(host.querySelector('[role=tabpanel] section[aria-label="Playback time"] p')?.textContent)
+  expect(host.querySelector('[role=tabpanel] section[aria-label="Play time"] p')?.textContent)
     .toBe('Once playback starts, this shows which weekday hours your plays land in.');
 });
 
@@ -258,7 +258,7 @@ it('All-zero distributions and segment-less radial charts both swap to note card
     by_quality: [{ k: '4K', n: 0 }, { k: '1080P', n: 0 }],
   }));
   const panel = host.querySelector('[role=tabpanel]')!;
-  expect(panel.querySelector('section[aria-label="Library"] p')?.textContent)
+  expect(panel.querySelector('section[aria-label="Media library"] p')?.textContent)
     .toBe('Once media folders join libraries, this shows video counts per library.');
   expect(panel.querySelector('section[aria-label="Quality"] p')?.textContent).toBe('After quality is probed, the quality distribution shows here.');
 });
@@ -286,14 +286,14 @@ it('Counts get thousands separators, percentages clamp to 0 through 100, and any
 
 it('Playback duration: under one hour reads minutes, under 48 hours reads hours, and beyond that reads days', () => {
   expect([playedFor(1800), playedFor(7200), playedFor(48 * 3600), playedFor(-5), playedFor(null)])
-    .toEqual(['30 min', '2.0 hours', '2 days', '0 min', 'Not fetched']);
+    .toEqual(['30 min', '2.0 hr', '2 days', '0 min', 'Not fetched']);
 });
 
 it('The radial chart merges the tail past six segments with volume following the sum; negatives and non-finite values never paint', () => {
   const rows = Array.from({ length: 8 }, (_, at) => ({ name: `lib${at}`, value: 80 - at * 10, bytes: 1 }));
   const slices = radialSlices([...rows, { name: 'broken', value: -1 }, { name: 'empty', value: Number.NaN }]);
-  expect(slices.map((row) => row.name)).toEqual(['lib0', 'lib1', 'lib2', 'lib3', 'lib4', '3 more items']);
-  expect(slices.at(-1)).toEqual({ name: '3 more items', value: 30 + 20 + 10, bytes: 3 });
+  expect(slices.map((row) => row.name)).toEqual(['lib0', 'lib1', 'lib2', 'lib3', 'lib4', '3 other items']);
+  expect(slices.at(-1)).toEqual({ name: '3 other items', value: 30 + 20 + 10, bytes: 3 });
 });
 
 it('Non-zero segments render at least 2% of the full circle; zero stays 0', () => {
@@ -311,7 +311,7 @@ it('Category names truncate with an ellipsis when tight, and the axis width foll
   expect(fitLabel('Short n…', 60)).toBe('Short n…');
   const long = 'A particularly long category name';
   const cut = fitLabel(long, 60);
-  expect(cut).toMatch(/^一个.*…$/);
+  expect(cut).toMatch(/^A parti.*…$/);
   expect(long.startsWith(cut.slice(0, -1))).toBe(true);
   expect(labelWidth(cut)).toBeLessThanOrEqual(60);
   expect(categoryAxisWidth(['ab'])).toBe(36);
@@ -323,7 +323,7 @@ it('Every progress bar in the coverage layer shares the same numerator/denominat
   await click(tabNamed(host, 'Content tags'));
   const bars = [...host.querySelectorAll('[role=meter]')];
   expect(bars.map((bar) => bar.getAttribute('aria-label'))).toEqual([
-    'With creator: 3 / 4', 'With code: 2 / 4', 'With label: 1 / 4', 'Frames extracted: 4 / 4', 'Durations probed: 4 / 4',
+    'With creators: 3 / 4', 'Has code: 2 / 4', 'Has label: 1 / 4', 'Frames extracted: 4 / 4', 'Duration probed: 4 / 4',
   ]);
 });
 
@@ -400,9 +400,9 @@ it('An empty library offers an add-media entry linked to library settings', asyn
 it('Media configuration and add follows are two separate destinations, with secondary add-follows on the left', async () => {
   const props = legacyProps();
   const { host } = await open(payload({ by_loc: [], by_library: [] }), props);
-  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['Add follow', 'Add media']);
-  expect(linkNamed(host, 'Add follow')?.getAttribute('href')).toBe('/subscriptions?tab=add');
-  expect(looksLikeButton(linkNamed(host, 'Add follow'))).toBe(true);
+  expect(actionOrder(host.querySelector('[data-empty-state]'))).toEqual(['Add follows', 'Add media']);
+  expect(linkNamed(host, 'Add follows')?.getAttribute('href')).toBe('/subscriptions?tab=add');
+  expect(looksLikeButton(linkNamed(host, 'Add follows'))).toBe(true);
 });
 
 /** Empty-state destinations render as secondary solid buttons (white fill, hairline border), not a row of underlined text links. */
@@ -422,8 +422,8 @@ it('When the first-screen fetch fails only one error shows and no empty board pa
   const { host } = await open(null);
   const alert = host.querySelector('[role=alert]');
   // Copy goes through the legacy layer's `requestErrorMessage`: when the server supplies a reason message, use it; the page does not say it a second time.
-  expect(alert?.textContent).toContain('Reading library stats failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
-  expect(alert?.textContent).toContain('Reading library stats failedThe Peach service failed to handle the request. Try again; if it keeps failing, check the tray logs.');
+  expect(alert?.textContent).toContain('Reading library stats failedDatabase is currently browse-only');
+  expect(alert?.textContent).toContain('Reading library stats failedDatabase is currently browse-only');
   expect(host.querySelector('[role=tablist]')).toBeNull();
 });
 

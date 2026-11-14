@@ -256,8 +256,8 @@ const media = () => {
 
 const subscriptions = () => `<div>${button('Collect sources and login status', 'secondary')}</div>`
   + credentialsSkeleton()
-  + section('Follows scrape', controlRow('Automatically check for updates', '', `<span class="flex items-center gap-2"><span class="skeleton ui-configuration-skeleton-toggle"></span><span class="skeleton ui-configuration-skeleton-input" style="width:96px"></span></span>`)
-    + valueRow('Follow source fetching') + row('First scrape scope', 'How far back a newly followed source looks on its first pass.', 'ui-configuration-skeleton-select')
+  + section('Follows harvesting', controlRow('Auto-check for updates', '', `<span class="flex items-center gap-2"><span class="skeleton ui-configuration-skeleton-toggle"></span><span class="skeleton ui-configuration-skeleton-input" style="width:96px"></span></span>`)
+    + valueRow('Feed fetch') + row('Initial scrape range', 'How far back a newly followed source looks on its first pass.', 'ui-configuration-skeleton-select')
     + valueRow('Avatar refresh', 'Re-fetch the followed creators\' avatars.') + valueRow('Favicon refresh', 'Re-fetch the source site\'s icon.'))
   + indexersSkeleton()
   + section('Video profile sites', stack(`<p class="text-body-2-regular text-text-secondary">${ENTRY_LINKS_HELP}</p>${inputField(marked('JavDB URL'), ENTRY_LINKS_HINT)}${inputField(marked('MISSAV URL'), ENTRY_LINKS_HINT)}`), button('Save configuration'));

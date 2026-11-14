@@ -196,7 +196,7 @@ describe('Bottom bar and sorting', () => {
   it('The combination bar removes conditions per dimension, and the same string counts separately in two dimensions', () => {
     const current = view({ author: 'loop', tags: ['loop', 'solo'] });
     const rows = followConditions(current, { authors: new Map([['loop', 'Loop themself']]), providers: new Map(), works: new Map() });
-    expect(rows.map((row) => `${row.kind}:${row.label}`)).toEqual(['Creator: Loop themself', 'Tag:loop', 'Tag:solo']);
+    expect(rows.map((row) => `${row.kind}:${row.label}`)).toEqual(['Creators:Loop themself', 'Tags:loop', 'Tags:solo']);
     expect(dropCondition(current, rows[1]!)).toEqual({ ...current, tags: ['solo'] });
     expect(dropCondition(current, rows[0]!)).toEqual({ ...current, author: '' });
   });
@@ -437,7 +437,7 @@ describe('Page', () => {
     const host = await open(given);
     await click(host.querySelector('[data-follow-save="1"]'));
     await settle();
-    expect(host.querySelector('[data-follow-item="1"] [data-follow-state]')?.textContent).toBe('The current state does not allow this action; refresh and try again.');
+    expect(host.querySelector('[data-follow-item="1"] [data-follow-state]')?.textContent).toBe('Read-only replicas never write');
     expect(given.actions.failure).toHaveBeenCalledWith('Save to the database', expect.anything());
 
     serve(feed([group(item(1))]));
@@ -486,7 +486,7 @@ describe('Page', () => {
     await settle();
     expect(given.actions.checkReport).toHaveBeenCalledWith({ status: 'done', results: [{ ok: true, added: 2 }] });
     expect(host.textContent).toContain('Check results');
-    expect(host.textContent).toContain('Check resultsChecked 1 sources: 2 new itemsFollowsManage followsCheck for updates??????ThThe Legend of ZeldaAllUnwatchedSavedIgnoredloop53d9solo21 updates · showing 1UpdatedPopularityDuration?Update 1Creator unfetched09-11skeleton');
+    expect(host.textContent).toContain('Check resultsChecked 1 source: 2 new itemsFollowsManage followsCheck for updates??????ThThe Legend of ZeldaAllUnwatchedSavedIgnoredloop53d9solo21 updates · showing 1UpdatedPopularityDuration?Update 1Creator unfetched09-11skeleton');
     expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith('/api/follow?')).length).toBeGreaterThan(reads);
   });
 
@@ -505,7 +505,7 @@ describe('Page', () => {
     expect(host.querySelector('[data-follow-recheck]')?.getAttribute('aria-busy')).toBe('true');
     await act(async () => options.busy(true));
     expect(host.querySelector('[data-follow-older]')?.textContent).toContain('Scraping');
-    expect(host.querySelector('[data-follow-backfill]')?.textContent).toBe('Every source fetched through page 2');
+    expect(host.querySelector('[data-follow-backfill]')?.textContent).toBe('Every source was fetched through page 2');
     // While busy, both keys only get aria-busy and none of BoardUI's disabled tier; clicking either again starts no new run.
     for (const selector of ['[data-follow-older]', '[data-follow-recheck]']) {
       const button = host.querySelector(selector)!;

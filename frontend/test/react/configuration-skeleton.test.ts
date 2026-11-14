@@ -48,7 +48,7 @@ describe('Configuration-dependent sections paint by the last recorded structure'
     rememberShape('indexers', { open: [true, false, false] });
     const recorded = card(draw('Sources and subscriptions'), 'Resource search');
     expect(recorded.querySelectorAll('.border-t.pt-2')).toHaveLength(3);
-    expect([...recorded.querySelectorAll('span.text-body-medium')].map(node => node.textContent)).toEqual(['Name', 'Torznab address', 'API key']);
+    expect([...recorded.querySelectorAll('span.text-body-medium')].map(node => node.textContent)).toEqual(['Name', 'Torznab URL', 'API key']);
   });
 
   it('Libraries: one folder per library when there are no records, otherwise the count follows each library\'s folder count', () => {
@@ -75,7 +75,7 @@ describe('Configuration-dependent sections paint by the last recorded structure'
     rememberShape('cloudProxy', { configured: true, unlinked: 0, accounts: [[true, false], [false, false]] });
     const proxy = card(draw('Library and imports'), 'CloudDrive proxy');
     expect(proxy.querySelectorAll('.border-t.pt-4')).toHaveLength(2);
-    expect([...proxy.querySelectorAll('span.text-body-medium')].map(node => node.textContent)).toEqual(['Data proxy address', 'Data proxy port']);
+    expect([...proxy.querySelectorAll('span.text-body-medium')].map(node => node.textContent)).toEqual(['Data proxy URL', 'Data proxy port']);
   });
 
   it('Bad records treated as no records', () => {

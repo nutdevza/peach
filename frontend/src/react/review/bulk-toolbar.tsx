@@ -130,7 +130,7 @@ export function BulkToolbar(props: BulkToolbarProps) {
         </Button>}
         </> : null} />
 
-        <SelectionDock label="Review the selected items" visible={!locked && selected.size > 0} count={`${selected.size} items selected`}>
+        <SelectionDock label="Review the selected items" visible={!locked && selected.size > 0} count={`Selected ${selected.size} ${selected.size === 1 ? 'item' : 'items'}`}>
           {needsSource && queueView !== 'ignored' ? (
             <Select aria-label="Pick sources once for all" size="sm" selectedKey=""
               isDisabled={busy || !sources.length}

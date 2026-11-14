@@ -186,12 +186,12 @@ function RunCard(
         </Disclosure>
       </div> : null}
       {total ? <div className="border-t border-separator-border">
-        <Disclosure row summary={`Task details · ${total.toLocaleString()} items`}
+        <Disclosure row summary={`Task details · ${total.toLocaleString()} ${total === 1 ? 'item' : 'items'}`}
           contentClassName="pb-5"
           isOpen={detailOpen} onOpenChange={setDetailOpen}>
           {detail.error ? <Note tone="error">{errorMessage(detail.error)}</Note> : null}
           {shown < total
-            ? <p className="text-caption-1-regular text-text-secondary">Listing {shown.toLocaleString()} items</p>
+            ? <p className="text-caption-1-regular text-text-secondary">Listing {shown.toLocaleString()} {shown === 1 ? 'item' : 'items'}</p>
             : null}
           <FollowupList rows={listed} />
         </Disclosure>
@@ -263,7 +263,7 @@ function SettledRun(
        elapsed && `Took ${elapsed}`]).filter(Boolean).join(' · ');
   return (
     <RunCard run={run} meta={meta} error={run.error} followups={followups} followupTotal={followupTotal} controlled={runs}
-      issues={issues.length ? <Disclosure row summary={`Issue details · ${issues.length} items`} contentClassName="pb-5">
+      issues={issues.length ? <Disclosure row summary={`Issue details · ${issues.length} ${issues.length === 1 ? 'item' : 'items'}`} contentClassName="pb-5">
         <ErrorDetails label="Task issue details">
         {/* The same hierarchy as the data management issue list: the name is one tier, source and issue category follow the name in a secondary color, and the reason is one tier lower. */}
         <ul className="flex min-w-0 flex-col whitespace-normal" data-task-issues="">
@@ -454,7 +454,7 @@ export function ActivityPage() {
                           followupCancelled={tally.cancelled} />;
                       })}</RunList>
                     : null}
-                  <DataTableFooter label="Recently completed" total={data.finished_total ?? settled.length} unit="rounds" pageUnit="round"
+                  <DataTableFooter label="Recently completed" total={data.finished_total ?? settled.length} unit="rounds" pageUnit="rounds"
                     pagination={{ pageIndex: (data.finished_page || page) - 1, pageSize }}
                     onChange={(next) => {
                       if (next.pageIndex + 1 === page && next.pageSize === pageSize) void tasks.refetch();

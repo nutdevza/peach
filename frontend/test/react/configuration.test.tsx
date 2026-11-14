@@ -114,7 +114,7 @@ it('Config load failure shows the server side reason', async () => {
     <ConfigurationPage receipt={vi.fn()} reopenTutorial={vi.fn()} />
   </QueryClientProvider>);
   await settle();
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Reading the configuration failedThe Peach service is temporarily unavailable; please retry later.');
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Reading the configuration failedDatabase is migrating');
   expect(host.querySelector('[role="tablist"]')).toBeNull();
 });
 it('Mount state follows saved paths only, and editing folders withdraws the reading', async () => {
@@ -158,7 +158,7 @@ it('Without download settings the sections and health form stay, with retry to r
   expect(host.querySelector('.ui-board-group-active')?.textContent).toContain('Download settings not fetched');
   expect(host.querySelector('[data-folder-row]')).not.toBeNull();
   serve(full());
-  await click(buttonNamed('Reload', host.querySelector('.ui-board-group-active')!));
+  await click(buttonNamed('Read again', host.querySelector('.ui-board-group-active')!));
   await settle();
   expect(host.textContent).not.toContain('Download settings not fetched');
   expect(section(host, 'Cloud download')).not.toBeNull();

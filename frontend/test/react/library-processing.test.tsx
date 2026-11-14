@@ -48,7 +48,7 @@ const LOG = 'C:\\peach-data\\state\\library-processing-one.issues.jsonl';
 it('The pending-completion count stays visible while running, and the sync menu waits for the current task to end',async()=>{
   const {posts}=await open({status:'running',job_id:'one',new_asset_count:12});
   const host=await mount(card({toast:vi.fn()}));
-  expect(host.textContent).toContain('Scan and collect12 videos to completeNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.媒体库All libraries All librariesLibrary oneProcessingEstimating remaining time…StandardSources and credentialsDiagnostics and logsSync new files');
+  expect(host.textContent).toContain('Scan and collect12 videos to completeNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.Media libraryAll libraries All librariesLibrary oneProcessingEstimating remaining time…StandardSources and credentialsDiagnostics and logsSync new files');
   const menu=host.querySelector<HTMLButtonElement>('[data-split-button] [aria-haspopup="dialog"]')!;
   expect(menu.getAttribute('aria-disabled')).toBe('true');
   await click(menu);
@@ -143,8 +143,8 @@ it('After hiding a task\'s note the card offers a restore entry that submits no 
   const { posts } = await open({ status: 'paused', job_id: 'restore-from-card', checked: 2, total: 10 });
   setProcessingNoticeVisible('restore-from-card', false);
   const host = await mount(card({ toast: vi.fn() }));
-  await click(buttonNamed('Show the progress overlay', host));
-  expect(buttonNamed('Show the progress overlay', host)).toBeNull();
+  await click(buttonNamed('Show progress window', host));
+  expect(buttonNamed('Show progress window', host)).toBeNull();
   expect(posts()).toEqual([]);
 });
 
@@ -199,7 +199,7 @@ it('A source-reported none reports one number, counts as no problem, and offers 
     issues_log: LOG,
   });
   const host = await mount(card({ toast: vi.fn() }));
-  expect(host.textContent).toContain('"Scan and collectNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.媒体库All libraries All librariesLibrary oneSources and credentialsDiagnostics and logsSync new filesExternal sources No details 30 videos, No cover 162 videos will not be asked again for 7 days.Full log:C:\\peach-data\\state\\library-processing-one.issues.jsonl"');
+  expect(host.textContent).toContain('External sources No details 30 videos, No cover 162 videos will not be asked again for 7 days.');
   expect(host.textContent).toContain(LOG);
   /* The full-record row recedes into gray text, and the line above it takes the same color; the neutral separator is a different gray. */
   const record = [...host.querySelectorAll('p')].find((line) => line.textContent?.includes(LOG))!;
@@ -270,7 +270,7 @@ it('Startup submits once, reads progress back with GET, and on completion gives 
   const receipt = host.querySelector('[role="status"]');
   expect(receipt?.textContent).toContain('Processing finished');
   expect(receipt?.textContent).toContain(
-    'Scanned 9 files, identified 4 codes, fetched profiles for 2 videos, auto-saved 0.');
+    'Scanned 9 files, identified 4 codes, Fetched 2 sets of video details, auto-saved 0.');
   // This run fetched no performer profiles, so that sentence does not appear in the receipt.
   expect(receipt?.textContent).not.toContain('Complete performer details');
 });
@@ -291,7 +291,7 @@ it('Performer detail completion counts enter the receipt, naming conflicts and f
 
   expect(served.posts()).toEqual([{incremental:true}]);
   expect(host.querySelector('[role="status"]')?.textContent).toContain(
-    'Performer details completed: 5 aliases, 3 avatars, 1 same-name person profile needs confirmation, and 2 avatars could not be fetched.');
+    'Fill in performer profiles: 5 aliases, 3 avatars, 1 profile shares a name and needs confirmation they are the same person, 2 avatars could not be fetched.');
 });
 
 it('A prior run\'s terminal state read on the first screen never poses as this run\'s receipt', async () => {
@@ -312,7 +312,7 @@ it('The running state states the current project, action, and wait duration; slo
   });
   const host = await mount(card({ toast: vi.fn() }));
 
-  expect(host.textContent).toContain('Scan and collectNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.媒体库All libraries All librariesLibrary oneCurrent: ABW-001.mp4 · Query external details · waited 5 min 0 sec · 2 / 10 itemsWaiting on the current file\'s response; time remaining pending updateStandardSources and credentialsDiagnostics and logsSync new files\'Processing slowly\'This one takes a while and has no fresh progress yet. After the task ends you can retry the unfinished parts.');
+  expect(host.textContent).toContain('Scan and collectNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.Media libraryAll libraries All librariesLibrary oneCurrent: ABW-001.mp4 · Query external details · waited 5 min 0 sec · 2 / 10 itemsWaiting on the current file\'s response; time remaining pending updateStandardSources and credentialsDiagnostics and logsSync new files\'Processing slowly\'This one takes a while and has no fresh progress yet. After the task ends you can retry the unfinished parts.');
   expect(host.textContent).toContain('Processing slowly');
   // When there is a denominator, draw the progress bar and drop the separate waiting dots: one fact, two renderings.
   expect(host.querySelectorAll('[role="progressbar"]')).toHaveLength(1);
@@ -348,10 +348,10 @@ it('On failure the issue list folds into the error note, and retry submits only 
   expect(details.parentElement?.className).toContain('border-t');
   /* The full record is what you dig through yourself after something goes wrong, so it recedes to gray text and stays visible even with the list collapsed; beside it are the two buttons to open it and
      to export it, the export lined up next to the record. */
-  const reveal = alert!.querySelector('button[aria-label="Show in Explorer"]')!;
+  const reveal = alert!.querySelector('button[aria-label="Show in File Explorer"]')!;
   expect(details.contains(reveal)).toBe(false);
   const logRow = reveal.closest('.text-text-secondary')!;
-  expect(logRow.querySelector('p')?.textContent).toBe(`Full record: ${LOG}`);
+  expect(logRow.querySelector('p')?.textContent).toBe(`Full log: ${LOG}`);
   expect(logRow.contains(buttonNamed('Export the full issue list', host))).toBe(true);
   // Newly discovered files and the original task's targeted retry keep separate entries.
   expect(buttonNamed('Sync new files', host)?.textContent).toBe('Sync new files');
@@ -454,7 +454,7 @@ it('A just-finished task banner reports on first read and only once per job id',
   }
   expect(toast).toHaveBeenCalledTimes(1);
   expect(toast).toHaveBeenNthCalledWith(
-    1, 'Scan and profile fetch complete: identified 3 codes, fetched profiles for 2 videos, auto-saved 0');
+    1, 'Scan and profile collection finished: identified 3 codes, Fetched 2 sets of video details, auto-saved 0');
 });
 
 it('Both containers read the same task run: one query per cycle, and removing one leaves the other working as usual', async () => {
@@ -483,25 +483,25 @@ it('Both containers\' wait counters advance each second without extra polling, a
   const banner = await mountRoot(notice({ toast: vi.fn(), mode: 'notice' }));
   const panel = await mountRoot(card({ toast: vi.fn(), monitor: true }));
   expect(banner.host.textContent).toContain('Scan and scrapeEstimating remaining time…Read companion images · waited 33 sec · 2 / 10 itemsTask detailsStandard');
-  expect(panel.host.textContent).toContain('Scan and collectNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.媒体库All libraries All librariesLibrary oneRead companion images · waited 33 sec · 2 / 10 itemsEstimating remaining time…StandardSources and credentialsDiagnostics and logsSync new files');
+  expect(panel.host.textContent).toContain('Scan and collectNew files found; fetch profiles and previews for new and unfinished videos. First choose a library, then the sync scope.Media libraryAll libraries All librariesLibrary oneRead companion images · waited 33 sec · 2 / 10 itemsEstimating remaining time…StandardSources and credentialsDiagnostics and logsSync new files');
   await tick(1000);
   expect(banner.host.textContent).toContain('Scan and scrapeEstimating remaining time…Read companion images · waited 34 sec · 2 / 10 itemsTask detailsStandard');
-  expect(panel.host.textContent).toContain('Waited 34 sec');
+  expect(panel.host.textContent).toContain('waited 34 sec');
   expect(served.calls).toHaveLength(0);
   await tick(1000);
-  expect(banner.host.textContent).toContain('Waited 35 sec');
-  expect(panel.host.textContent).toContain('Waited 35 sec');
+  expect(banner.host.textContent).toContain('waited 35 sec');
+  expect(panel.host.textContent).toContain('waited 35 sec');
   expect(served.calls).toHaveLength(1);
   await act(async () => {
     queryClient.setQueryData(LIBRARY_PROCESSING_KEY, { ...state, current_asset_id: 2, waited_seconds: 0 });
   });
-  expect(banner.host.textContent).not.toContain('Waited 35 sec');
+  expect(banner.host.textContent).not.toContain('waited 35 sec');
   await tick(1000);
-  expect(banner.host.textContent).toContain('Waited 1 sec');
-  expect(panel.host.textContent).toContain('Waited 1 sec');
+  expect(banner.host.textContent).toContain('waited 1 sec');
+  expect(panel.host.textContent).toContain('waited 1 sec');
   await act(async () => { queryClient.setQueryData(LIBRARY_PROCESSING_KEY, { ...state, status: 'paused' }) });
-  expect(banner.host.textContent).not.toContain('Waited');
-  expect(panel.host.textContent).not.toContain('Waited');
+  expect(banner.host.textContent).not.toContain('waited');
+  expect(panel.host.textContent).not.toContain('waited');
   await banner.unmount();
   await panel.unmount();
   const requests = served.calls.length;
@@ -525,7 +525,7 @@ it('Source-reported none counts use thousands separators, and wait times roll up
   expect(notesLine({ querying_metadata: 1234567, fetching_cover: 0 }))
     .toBe('External sources No details 1,234,567 videos will not be asked again for 7 days.');
   expect(currentLine({ status: 'running', current_action: 'fetching_cover', waited_seconds: 259200 } as LibraryProcessingData))
-    .toBe('Collect missing covers · waited 3 days 0 hours');
+    .toBe('Scrape missing covers · waited 3 days 0 hours');
 });
 
 it('Routine sync shows a traffic estimate first, starts only in confirm mode, and canceling never starts it', async () => {
@@ -533,7 +533,7 @@ it('Routine sync shows a traffic estimate first, starts only in confirm mode, an
   const host = await mount(card({ toast: vi.fn() }));
   await click(buttonNamed('Sync new files', host));
   expect(served.posts()).toEqual([]);
-  expect(document.querySelector('dialog')?.textContent).toContain('May slow down the computer');
+  expect(document.querySelector('dialog')?.textContent).toContain('which can slow the computer down');
   await click(buttonNamed('Cancel', document.querySelector('dialog')!));
   expect(served.posts()).toEqual([]);
   await click(buttonNamed('Sync new files', host));
@@ -598,22 +598,22 @@ it('A failed task with no per-item issues can still archive its prompt; it\'s re
   const toast = vi.fn();
   const host = await mount(card({toast}));
   expect(buttonNamed('Export the full issue list',host)).toBeNull();
-  const archive = buttonNamed('Archive note',host)!;
-  expect(host.querySelector('[role="alert"]')!.contains(archive)).toBe(false);
+  const archive = buttonNamed('Archive',host)!;
+  expect(host.querySelector('[role="alert"]')!.contains(archive)).toBe(true);
   await click(archive);
   expect(served.posts()).toEqual([{action:'archive',job_id:'one'}]);
-  expect(host.textContent).toContain('Full record still kept');
+  expect(host.textContent).toContain('the full record is still kept');
   expect(host.textContent).not.toContain('The task could not recover automatically');
   expect(toast).not.toHaveBeenCalled();
   await click(buttonNamed('Undo',host));
   expect(served.posts()).toEqual([{action:'archive',job_id:'one'},{action:'unarchive',job_id:'one'}]);
   expect(host.textContent).toContain('The task could not recover automatically');
-  expect(host.textContent).not.toContain('Full record still kept');
+  expect(host.textContent).not.toContain('the full record is still kept');
 
   await open({...state,archived:true});
   const again = await mount(card({toast}));
   expect(again.textContent).not.toContain('The task could not recover automatically');
-  expect(again.textContent).not.toContain('Full record still kept');
+  expect(again.textContent).not.toContain('the full record is still kept');
   expect(buttonNamed('Undo',again)).toBeNull();
 });
 
@@ -629,7 +629,7 @@ it('A failed mode switch keeps the server\'s selected value and the in-place err
     slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     slider.dispatchEvent(new KeyboardEvent('keyup', { key: 'Home', bubbles: true }));
   });
-  expect(host.textContent).toContain('Scan and scrapeEstimating remaining time…ProcessingTask detailsStandardThe current state does not allow this action; refresh and try again.');
+  expect(host.textContent).toContain('Scan and scrapeEstimating remaining time…ProcessingTask detailsStandardThe task changed; refresh and retry');
   expect(buttonNamed('Standard', host)).not.toBeNull();
   expect(slider.value).toBe('1');
   expect(slider.disabled).toBe(false);
@@ -639,7 +639,7 @@ it('Estimates show a range from rough and measured rates, waiting for estimation
   const state: LibraryProcessingData = { status: 'running', eta_seconds_min: 1200, eta_seconds_max: 2400, eta_kind: 'historical' };
   expect(remainingTime(state)).toBe('About 20–40 min remaining (rough)');
   expect(remainingTime({ ...state, eta_seconds_min: 600, eta_seconds_max: 900, eta_kind: 'measured', eta_scope: 'Detail scraping' }))
-    .toBe('About 10–15 min remaining · Profile scraping');
+    .toBe('About 10–15 min remaining · Detail scraping');
   expect(remainingTime({ ...state, eta_seconds_max: NaN })).toBe('Estimating remaining time…');
   expect(remainingTime({ ...state, eta_seconds_min: 2500 })).toBe('Estimating remaining time…');
   expect(remainingTime({ ...state, eta_seconds_min: 0, eta_seconds_max: 10 })).toBe('Less than a minute remaining');
@@ -674,7 +674,7 @@ it('On launch failure the note popover keeps the mode selection and a retry entr
   await click(buttonNamed('Sync new files', host));
   await chooseLow();
   await submit(document.querySelector('dialog form'));
-  expect(document.querySelector('dialog')?.textContent).toContain('Media directory unavailable');
+  expect(document.querySelector('dialog')?.textContent).toContain('The operation did not finish; please retry. If it keeps failing, check the tray log.');
   expect(document.querySelector<HTMLInputElement>('dialog input[type="range"]')?.value).toBe('0');
   expect(document.querySelector('[data-modal-confirm]')?.getAttribute('aria-busy')).toBeNull();
 });

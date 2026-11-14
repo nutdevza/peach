@@ -1,7 +1,7 @@
 (function() {
 	try {
 		var e = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, t = new e.Error().stack;
-		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "aed5c35d-6ca3-4239-9c0f-bf4477ced236", e._sentryDebugIdIdentifier = "sentry-dbid-aed5c35d-6ca3-4239-9c0f-bf4477ced236");
+		t && (e._sentryDebugIds = e._sentryDebugIds || {}, e._sentryDebugIds[t] = "5febd80e-9fb8-42f5-8ea3-e46ad00ef8f1", e._sentryDebugIdIdentifier = "sentry-dbid-5febd80e-9fb8-42f5-8ea3-e46ad00ef8f1");
 	} catch {}
 })();
 import { ApiError as e, Button as t, ButtonLink as n, Chip as r, DIAGNOSTICS_KEY as i, Disclosure as a, EmptyState as o, Fact as s, FactList as c, Fieldset as l, FieldsetTitle as u, Input as d, LOC as f, LinkButton as p, Note as m, Section as h, SettingsCard as g, SettingsSectionLabel as _, Stack as v, TaskProgress as y, __toESM as b, apiGet as ee, apiSend as x, busyProps as S, configurationSection as C, cx as w, diagnosticHeaders as T, diagnosticsSkeleton as E, errorMessage as D, fetchDiagnostics as O, fmtDur as k, fmtSize as A, queryClient as j, require_jsx_runtime as M, require_react as N, settingsPath as P, tl as F, useAction as I, useQuery as L } from "./peach-app.js";
@@ -411,7 +411,7 @@ function ie(e) {
 			}) : null,
 			p.length ? /* @__PURE__ */ (0, H.jsx)(h, {
 				guide: "attention",
-				title: `Needs attention · ${p.length} items`,
+				title: `Needs attention · ${p.length} ${p.length === 1 ? "item" : "items"}`,
 				children: p.map(([e, t]) => /* @__PURE__ */ (0, H.jsx)($, {
 					name: e,
 					check: t
@@ -431,7 +431,7 @@ function ie(e) {
 			y.length ? /* @__PURE__ */ (0, H.jsx)("section", {
 				"aria-label": "System checks",
 				children: /* @__PURE__ */ (0, H.jsx)(a, {
-					summary: `Other checks · ${y.length} items`,
+					summary: `Other checks · ${y.length} ${y.length === 1 ? "item" : "items"}`,
 					contentClassName: "gap-5",
 					children: ne.map(([e, t]) => {
 						let n = y.filter(([e]) => t.some((t) => t === e));
@@ -504,4 +504,4 @@ function ie(e) {
 }
 export { ie as DiagnosticsPage };
 
-//# debugId=aed5c35d-6ca3-4239-9c0f-bf4477ced236
+//# debugId=5febd80e-9fb8-42f5-8ea3-e46ad00ef8f1

@@ -133,7 +133,7 @@ export function ReleaseUpdates({ initial, initialJob }: { initial: ReleaseState;
         {job.state === 'error' ? <ErrorText>{job.message}</ErrorText> : null}
         {job.state !== 'idle' && job.state !== 'error' ? (
           <div aria-live="polite" className="flex flex-col gap-2">
-            <Progress label="'Update preparation progress'" value={job.progress} stops={STOPS} />
+            <Progress label="Update preparation progress" value={job.progress} stops={STOPS} />
             <Help>Download → verify → extract → preparing install · {job.message}</Help>
             <Help>{reading}</Help>
           </div>
@@ -144,7 +144,7 @@ export function ReleaseUpdates({ initial, initialJob }: { initial: ReleaseState;
         <ExternalLink href="https://github.com/peach-mitao/peach">GitHub</ExternalLink>
         <ExternalLink href={data.release_url || RELEASES_URL}>View release page</ExternalLink>
       </div>}>
-        <Button variant="ghost" onClick={() => document.dispatchEvent(new Event(RELEASE_NOTICE_EVENT))}>'Release notes for this version'</Button>
+        <Button variant="ghost" onClick={() => document.dispatchEvent(new Event(RELEASE_NOTICE_EVENT))}>Release notes for this version</Button>
         <Button variant={job.state === 'ready' || oneClick || (data.state === 'available' && data.installation === 'Standalone test package') ? 'secondary' : 'primary'}
           disabled={running || rebuilding} onClick={check} {...busyProps(action.busy === 'check')}>Check updates</Button>
         {container.job.state === 'done'
