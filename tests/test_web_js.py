@@ -242,7 +242,7 @@ class WebJsBehaviourTests(unittest.TestCase):
             ("jav-title.js", "javDisplayName",
              [{"is_jav": True, "code": "ABC-123", "name": "ABC-123 Title",
                "edition_badges": ["中字"]}],
-             "ABC-123 中字 标题"),
+             "ABC-123 中字 Title"),
             # 没标题就只剩番号，不留下尾随空格。
             ("jav-title.js", "javDisplayName",
              [{"is_jav": True, "code": "ABC-123", "display_title": "",
@@ -265,7 +265,7 @@ class WebJsBehaviourTests(unittest.TestCase):
              [{"is_jav": True, "code": "ABC-123", "display_title": "",
                "name": "ABC-123", "edition_badges": ["Uncensored"]}],
              '<span class="ui-javidentity"><strong class="ui-javcode">ABC-123</strong>'
-             '<small class="javedition uncensored">无码</small></span>'),
+             '<small class="javedition uncensored">Uncensored</small></span>'),
         ])
 
     # ── 标签显示名 ──────────────────────────────────────────────────────────
@@ -352,29 +352,29 @@ class WebJsBehaviourTests(unittest.TestCase):
         self.assertJsResults([
             ("core.js", "officialLinkText",
              [{"url": "https://www.km-produce.com/", "label": "K M Produce"}, "studio",
-              ["K M Produce", "KMP"]], "官方网站"),
+              ["K M Produce", "KMP"]], "Official site"),
             ("core.js", "officialLinkText",
              [{"url": "https://cmore.jp/", "label": "C-more Entertainment"}, "studio",
-              ["C-more Entertainment"]], "官方网站"),
+              ["C-more Entertainment"]], "Official site"),
             # 别名也算自家：合并进来的旧名下装的链接。
             ("core.js", "officialLinkText",
              [{"url": "https://example.jp/", "label": "Studio CLAP"}, "studio",
-              ["C-more Entertainment", "Studio CLAP"]], "官方网站"),
+              ["C-more Entertainment", "Studio CLAP"]], "Official site"),
             # 短名是缩写时认 label；label 只是主机名等于没起名。
-            ("core.js", "officialLinkText", [nax, "studio", ["New Actor eXperience"]], "官方网站"),
+            ("core.js", "officialLinkText", [nax, "studio", ["New Actor eXperience"]], "Official site"),
             ("core.js", "officialLinkText",
-             [{"url": "http://www.ran-maru.com", "label": "www.ran-maru.com"}, "studio", ["乱丸"]], "官方网站"),
+             [{"url": "http://www.ran-maru.com", "label": "www.ran-maru.com"}, "studio", ["乱丸"]], "Official site"),
             ("core.js", "officialLinkText",
              [{"url": "https://kirakira-av.com/", "label": "www.kirakira-av.com"}, "studio",
-              ["kira*kira"]], "官方网站"),
+              ["kira*kira"]], "Official site"),
             ("core.js", "officialLinkText",
              [{"url": "https://bangbros.com/websites/BangBus", "label": "BangBros"}, "studio",
               ["BangBus"]], "BangBros"),
             ("core.js", "officialLinkText",
              [{"url": "https://www.prestige-av.com/goods/", "label": "Prestige"}, "studio",
               ["Jackson"]], "Prestige"),
-            ("core.js", "officialLinkText", [light, "agency", ["LIGHT", "RIGHT"]], "官方网站"),
-            ("core.js", "officialLinkText", [nax, "agency", ["New Actor eXperience"]], "官方网站"),
+            ("core.js", "officialLinkText", [light, "agency", ["LIGHT", "RIGHT"]], "Official site"),
+            ("core.js", "officialLinkText", [nax, "agency", ["New Actor eXperience"]], "Official site"),
             ("core.js", "officialLinkText",
              [{"url": "https://old-crew.blog.jp/", "label": "官方博客"}, "agency",
               ["Office Old Crew"]], "官方博客"),
@@ -469,8 +469,8 @@ class WebJsBehaviourTests(unittest.TestCase):
             ("core.js", "fmtDur", [3661], "1:01:01"),
             # 48 小时起按天读：「1284:00:00」没人一眼读得出是五十多天。
             ("core.js", "fmtDur", [48 * 3600 - 1], "47:59:59"),
-            ("core.js", "fmtDur", [48 * 3600], "2 天"),
-            ("core.js", "fmtDur", [4622400], "53 天 12 小时"),
+            ("core.js", "fmtDur", [48 * 3600], "2 days"),
+            ("core.js", "fmtDur", [4622400], "53 days 12 hours"),
             # fmtClock 是播放器时间轴，0 秒是真的 0 秒。
             ("core.js", "fmtClock", [0], "0:00"),
             ("core.js", "fmtClock", [-5], "0:00"),
@@ -483,9 +483,9 @@ class WebJsBehaviourTests(unittest.TestCase):
             ("core.js", "fmtSize", [512 * 1024], "512 KB"),
             # 0 是真的 0（可回收空间、已下载量）；缺值与坏值是未知。
             ("core.js", "fmtSize", [0], "0 B"),
-            ("core.js", "fmtSize", [None], "大小未知"),
-            ("core.js", "fmtSize", ["不是数字"], "大小未知"),
-            ("core.js", "fmtSize", [-1], "大小未知"),
+            ("core.js", "fmtSize", [None], "Unknown size"),
+            ("core.js", "fmtSize", ["不是数字"], "Unknown size"),
+            ("core.js", "fmtSize", [-1], "Unknown size"),
             # 首字母按字素取：emoji、肤色与 ZWJ 组合整枚取，不劈成半个代理对。
             ("core.js", "firstGrapheme", ["🦊 Fox"], "🦊"),
             ("core.js", "firstGrapheme", ["👩🏽‍💻 Priya"], "👩🏽‍💻"),

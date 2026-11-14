@@ -167,6 +167,11 @@ def tag_is_not_a_performer_name(tag: str) -> str:
             f"AND performer.normalized_name={tag})")
 
 
+#: 画幅的账本枚举值仍是探针写下的中文；界面与 URL 用英文展示名，两头各映射一次。
+ORIENT_LABELS = {"竖屏": "Portrait", "横屏": "Landscape"}
+ORIENT_VALUES = {label: value for value, label in ORIENT_LABELS.items()}
+
+
 def tag_not_hidden(asset: str, tag: str) -> str:
     """「这个标签没有被用户隐藏」的 SQL 判据。
 
@@ -341,7 +346,7 @@ def catalog_filter(contract: WebContract, args):
     if not trash and args.get("dur_max"):
         where.append("a.duration <= ?"); par.append(max(0, float(args["dur_max"])))
     if not trash and args.get("orient"):
-        where.append("a.ctx_orient = ?"); par.append(args["orient"])
+        where.append("a.ctx_orient = ?"); par.append(ORIENT_VALUES.get(args["orient"], args["orient"]))
     elif not trash and args.get("exclude_vertical") == "1":
         where.append("(a.ctx_orient IS NULL OR a.ctx_orient <> '竖屏')")
     region_where, region_par = region_filter(args.get("region"), trash)
@@ -409,10 +414,10 @@ def orientation_member(args) -> Callable[[dict], bool] | None:
     if args.get("state") == "trash":
         return None
     if args.get("orient"):
-        orient = args["orient"]
+        orient = ORIENT_VALUES.get(args["orient"], args["orient"])
         return lambda member: member.get("ctx_orient") == orient
     if args.get("exclude_vertical") == "1":
-        return lambda member: member.get("ctx_orient") != "Portrait"
+        return lambda member: member.get("ctx_orient") != "竖屏"
     return None
 
 
@@ -1567,7 +1572,7 @@ def q_facets(
             conditions, parameters = catalog_filter(contract, {**filters, "state": state})
             scope += "AND " + " AND ".join(conditions) + " "
             scope_params.extend(parameters)
-        out["orientations"] = [dict(r) for r in c.execute(
+        out["orientations"] = [{"k": ORIENT_LABELS.get(r[0], r[0]), "n": r[1]} for r in c.execute(
             "SELECT a.ctx_orient AS k,count(*) AS n FROM asset a "
             "WHERE a.medium='video' AND a.ctx_orient IS NOT NULL AND a.ctx_orient<>'' " + scope +
             "GROUP BY a.ctx_orient ORDER BY n DESC", scope_params)]

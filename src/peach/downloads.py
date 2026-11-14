@@ -591,7 +591,7 @@ class DownloadStore:
         detail = f'{type(error).__name__}: {error}'
         if delay is None:
             if task.postprocess_retries >= len(RETRY_DELAYS):
-                detail = f'"Automatic retry "{task.postprocess_retries}" attempts without finishing; "{detail}'
+                detail = f'Automatic retry {task.postprocess_retries} attempts without finishing; {detail}'
             self.postprocess(task_id, POSTPROCESS_FAILED, detail=detail)
             return False
         with self.database.write_transaction(notify=False) as connection:

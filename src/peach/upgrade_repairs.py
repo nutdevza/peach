@@ -1557,7 +1557,7 @@ class UpgradeRepairs:
             with _mutex(state_for(self.contract.db_path)):
                 ids = [row['id'] for row in rows if task_control.requested(
                     self.contract.db_path, row['id'], (row['parent_run_id'], row['root_run_id'])) == 'resume']
-                receipt['media_paused'] = {'message': f'{error}"; automatic video completion is paused - check the cache and retry explicitly"',
+                receipt['media_paused'] = {'message': f'{error}; automatic video completion is paused - check the cache and retry explicitly',
                                            'run_ids': ids, 'commands': {}}
                 self._save_receipt(receipt)
                 for run_id in ids:
@@ -1787,7 +1787,7 @@ def _defer(contract, key: str, handle, asset_ids, error: RepairDeferred) -> dict
         upsert_items(connection, [{'rule': rule, 'asset_id': asset_id, 'generation': generation, 'state': 'deferred',
                                    'run_id': _run_id(handle), 'retry_at': until} for asset_id in asset_ids],
                      mode='finish')
-    return {'outcome': f'"Deferred: "{error}', 'deferred': len(asset_ids), 'retry_at': until}
+    return {'outcome': f'Deferred: {error}', 'deferred': len(asset_ids), 'retry_at': until}
 
 
 def _pause_for_capacity(service, handle, error):

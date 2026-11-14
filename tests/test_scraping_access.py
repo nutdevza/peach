@@ -264,8 +264,8 @@ class ScrapingAccessTests(unittest.TestCase):
         for transport in budgets:
             with self.assertRaises(SourcePaused) as spent:
                 transport(request, 1, 100)
-            self.assertIn("本趟", str(spent.exception))
-            self.assertIn("再跑一次接着采", str(spent.exception))
+            self.assertIn("run again to continue collecting", str(spent.exception))
+            self.assertIn("used up", str(spent.exception))
             self.assertNotIn("预算", str(spent.exception))
 
     def test_a_library_scan_asks_for_enough_to_carry_a_batch_of_covers(self):
@@ -361,7 +361,7 @@ class ScrapingAccessTests(unittest.TestCase):
                     with self.assertRaises(SourceRefused) as refused:
                         transport(HttpRequest("GET", url, {}), 1, 100000)
                     self.assertEqual(refused.exception.reason, "geo_restricted")
-                    self.assertIn("换一个它接受的地区的出口", str(refused.exception))
+                    self.assertIn("is not available in the region of the current exit", str(refused.exception))
                     record = json.loads(cooldown.read_text(encoding="utf-8"))
                     waits.append(round(record["until"] - time.time()))
                     cooldown.write_text(json.dumps({"until": 0, "blocks": record["blocks"]}), encoding="utf-8")
@@ -404,7 +404,7 @@ class ScrapingAccessTests(unittest.TestCase):
                                       {"source": "javdb"})["results"][0]
         self.assertFalse(result["ok"])
         self.assertEqual((result["kind"], result["reason"]), ("auth", "geo_restricted"))
-        self.assertIn("换一个它接受的地区的出口", result["message"])
+        self.assertIn("is not available in the region of the current exit", result["message"])
         self.assertEqual(source_checks(self.root, "javdb")["connection"]["reason"], "geo_restricted")
 
     def test_community_sources_carry_the_pasted_cookie_on_public_requests(self):

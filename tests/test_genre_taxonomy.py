@@ -37,7 +37,7 @@ class SimplifiedSourceGenreTests(unittest.TestCase):
     def test_simplified_sources_keep_user_overrides_and_unknown_words(self):
         self.assertEqual(map_genres(['Nurse', '業餘', '业余', '无码破解', '4小时以上作品', '未知类别']),
                          (['Nurse', 'Amateur'], ['未知类别']))
-        self.assertEqual(resolve_genre('Nurse', {'Nurse': '职业角色'}), '职业角色')
+        self.assertEqual(resolve_genre('Nurse', {'nurse': '职业角色'}), '职业角色')
 
 
 def _catalog_vocabulary() -> set[str]:
@@ -106,7 +106,7 @@ class GenreTaxonomyTests(unittest.TestCase):
             ("打屁股", "Spanking", "Training"),
             ("灌腸", "Enema", "Scat"),
             ("假陽具", "Dildo", "Sex Toys"),
-            ("Anal", "Anal Sex", "Anal"),
+            ("肛交", "Anal Sex", "Anal"),
             ("薄馬賽克", "ギリモザ", "Thin mosaic"),
             ("數位馬賽克", "Digital Mosaic", "Censored"),
         )
@@ -146,7 +146,7 @@ class GenreTaxonomyTests(unittest.TestCase):
 
     def test_javdb_source_version_labels_do_not_assert_local_file_attributes(self):
         self.assertEqual(map_genres(["無碼流出", "無碼破解", "HDTV", "共演", "店長推薦"]), ([], []))
-        self.assertEqual(map_genres(["無修正", "Anal", "女醫生"]), (["Uncensored", "Anal", "Female doctor"], []))
+        self.assertEqual(map_genres(["無修正", "Anal", "女醫生"]), (["Uncensored", "Butthole", "Female doctor"], []))
 
     def test_confirmed_tags_have_filter_groups(self):
         for group, names in (
@@ -160,7 +160,7 @@ class GenreTaxonomyTests(unittest.TestCase):
 
     def test_javdb_aliases_preserve_scene_behavior_and_anal_boundaries(self):
         tags, unknown = map_genres(["戶外", "Exhibitionism", "洗澡", "溫泉",
-                                    "手淫", "手指插入", "Anal", "Anal", "肛門・肛交"])
+                                    "手淫", "手指插入", "Anal", "肛交", "肛門・肛交"])
         self.assertEqual(tags, ["Outdoor", "Outdoor exhibitionism", "Bathroom", "Hot spring", "Masturbation", "Handjob", "Butthole", "Anal"])
         self.assertEqual(unknown, [])
 
@@ -184,8 +184,8 @@ class GenreTaxonomyTests(unittest.TestCase):
         self.assertEqual(CONTENT_GENRES["パイパン"], "Shaved")
         self.assertEqual(CONTENT_GENRES["女子校生"], "Student")
         self.assertEqual(CONTENT_GENRES["寝取り・寝取られ"], "NTR")
-        self.assertEqual(CONTENT_GENRES["Big Breasts"], "Big Breasts")
-        self.assertEqual(CONTENT_GENRES["Beautiful Breasts"], "Beautiful Breasts")
+        self.assertEqual(CONTENT_GENRES["巨乳"], "Big Breasts")
+        self.assertEqual(CONTENT_GENRES["美乳"], "Beautiful Breasts")
         for measurement in ("Dカップ", "Gカップ", "Jカップ"):
             self.assertNotIn(measurement, CONTENT_GENRES,
                              f"{measurement} 是身体尺寸，词表里没有对应分类")

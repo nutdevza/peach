@@ -350,7 +350,7 @@ class InteractiveInitTests(unittest.TestCase):
             ["", str(missing), str(self.media), "", "", "", "", "n"], windows=NATIVE_WINDOWS)
         self.assertEqual(code, 0)
         self.assertEqual(prompts.count("媒体目录（必须已经存在，可以在外置硬盘上）"), 2)
-        self.assertIn("目录不存在", output)
+        self.assertIn("does not exist, or is not a folder", output)
         self.assertFalse(missing.exists(), "问答不替人建媒体目录")
 
     def test_three_bad_answers_abort_before_anything_is_written(self):
@@ -602,11 +602,11 @@ class ProcessCommandTests(unittest.TestCase):
 
     def test_progress_lines_show_files_found_while_scanning_and_skip_repeats(self):
         def process(*_args, report, **_kwargs):
-            scanning = {"stage": "Scan files", "checked": 0, "total": 0, "current_action": "scanning_files"}
+            scanning = {"stage": "扫描文件", "checked": 0, "total": 0, "current_action": "scanning_files"}
             report({**scanning, "scanned": 0})
             report({**scanning, "scanned": 8096})
             report({**scanning, "scanned": 8096})
-            report({"stage": "Read duration and resolution", "checked": 12, "total": 40, "scanned": 8096})
+            report({"stage": "读取时长与分辨率", "checked": 12, "total": 40, "scanned": 8096})
             report({"stage": "整理结果", "checked": 0, "total": 0, "scanned": 8096})
             return {"status": "complete", "followups": []}
         with mock.patch("peach.library_processing.process_library", side_effect=process), \

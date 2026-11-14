@@ -378,11 +378,11 @@ class LedgerSync:
                 f"数据库处于冲突状态（{self.detail}），本机暂时只读。"
                 "请在托盘执行「同步数据库」；若提示仍冲突，需按日志人工处理。"
             )
-        owner = writer_device(self.local, self.shared) or "另一台机器"
+        owner = writer_device(self.local, self.shared) or "another machine"
         return (
-            f"数据库由 {owner} 负责写入，本机当前只能浏览。"
-            "请改在该机器上操作，或在托盘执行「由本机接管数据库写入」"
-            "（要求两侧数据一致）后再试。"
+            f"The database is written by {owner}; this machine can only browse. "
+            "Work on that machine instead, or use \"Take over database writes on "
+            'this machine\" in the tray (both sides must match) and try again.'
         )
 
     # ── 单次动作 ────────────────────────────────────────────────────────────

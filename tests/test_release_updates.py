@@ -185,13 +185,13 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertEqual(release_updates.tool_package("ffmpeg", transport=transport), {
             "url": release_updates.RELEASES_URL + "/download/v1.5.0/Peach-1.5.0-windows-x64-tools-ffmpeg.zip",
             "size": 42, "digest": "sha256:" + "b" * 64, "version": "1.5.0"})
-        with self.assertRaisesRegex(ValueError, "工具包"):
+        with self.assertRaisesRegex(ValueError, "tool-package info"):
             release_updates.tool_package("untrunc", transport=transport)
 
     def test_standalone_tray_checks_releases_without_git(self):
         execute = Mock(side_effect=AssertionError("Git must not run"))
         with patch("peach.distribution.standalone", return_value=True), patch.object(
-                release_updates, "check", return_value=dict(state="available", latest_version="1.0.0", message="有新版本可下载。")) as check:
+                release_updates, "check", return_value=dict(state="available", latest_version="1.0.0", message="A new version is available.")) as check:
             result = VersionManager(execute=execute).check()
         check.assert_called_once()
         self.assertEqual(result.state, "available")
@@ -265,7 +265,7 @@ class ReleaseUpdateTests(unittest.TestCase):
                 result, _ = self.docker_check(digests)
                 self.assertEqual(result["state"], "pending", "Release 已建、镜像还没推送时不能提示拉取")
                 self.assertEqual(result["latest_version"], "1.0.0")
-                self.assertIn("镜像尚未发布", result["message"])
+                self.assertIn("has not been published", result["message"])
                 self.assertNotIn("one_click", result, "镜像没推送时不给一键更新")
         result, _ = self.docker_check({"1.0.0": new, "edge": new}, auth_status=503)
         self.assertEqual(result["state"], "error", "读不到镜像仓库就是没查成，不当成有新版")
@@ -381,7 +381,7 @@ class ReleaseNoticeTests(unittest.TestCase):
         self.seen('0.56.0')
         result = self.snapshot()
         self.assertEqual((result['kind'], result['show'], result['missed']), ('upgrade', True, []))
-        self.assertIn('容量保护', [item['title'] for item in result['notice']['features']])
+        self.assertIn('Capacity protection', [item['title'] for item in result['notice']['features']])
 
     def test_skipping_releases_lists_what_was_missed_newest_first_and_skips_quiet_ones(self):
         self.seen('0.53.0')
@@ -403,12 +403,12 @@ class ReleaseNoticeTests(unittest.TestCase):
         docker = self.snapshot(tokens={'linux', 'docker'}, facts={'system_files': {'count': 12}})
         titles = lambda result, version: [row['title'] for row in result['missed']
                                           if row['version'] == version for row in row['features']]
-        self.assertNotIn('Docker 首次设置', titles(windows, '0.56.0'))
-        self.assertIn('Docker 首次设置', titles(docker, '0.56.0'))
-        self.assertNotIn('macOS 应用内更新', titles(windows, '0.54.0'))
+        self.assertNotIn('Docker first-time setup', titles(windows, '0.56.0'))
+        self.assertIn('Docker first-time setup', titles(docker, '0.56.0'))
+        self.assertNotIn('In-app macOS updates', titles(windows, '0.54.0'))
         self.assertEqual(windows['notice']['automatic'], [])
         self.assertEqual(docker['notice']['automatic'],
-                         [{'id': 'system-files', 'icon': 'server', 'title': '移出系统附属文件',
+                         [{'id': 'system-files', 'icon': 'server', 'title': 'System sidecar files move out',
                            'progress': {'count': 12}, 'body': docker['notice']['automatic'][0]['body']}])
 
     def test_acknowledging_only_moves_forward_and_hides_the_notice(self):

@@ -439,7 +439,7 @@ class JavArchiveTests(unittest.TestCase):
             "id": "FC2-PPV-4137487", "content_id": "4137487", "source_url": "https://javarchive.com" + ARCHIVE_LINK,
             "title": ARCHIVE_TITLE, "description": "", "actresses": [], "maker": "FC2-PPV", "label": "",
             "seller_url": "", "series": "", "director": "", "release_date": "2023-11-21", "runtime": 50.05,
-            "genres": ["ハメ撮り", "Amateur", "爆乳"],
+            "genres": ["ハメ撮り", "素人", "爆乳"],
             "cover_urls": [ARCHIVE_PICTURES + "4137487pl.jpg", ARCHIVE_PICTURES + "4137487ps.jpg"],
             "cover_url": ARCHIVE_PICTURES + "4137487pl.jpg"})
 
@@ -468,7 +468,7 @@ class JavArchiveTests(unittest.TestCase):
     def test_the_body_block_gives_up_the_tags_the_date_and_the_runtime(self):
         """转存者填了就取。2026-09-22 实测 4 部里只有 `4030617` 这块是齐的。"""
         found = archive(archive_page(), "FC2-PPV-4137487")
-        self.assertEqual(found["genres"], ["ハメ撮り", "Amateur", "爆乳"])
+        self.assertEqual(found["genres"], ["ハメ撮り", "素人", "爆乳"])
         self.assertEqual(found["release_date"], "2023-11-21")
         self.assertEqual(found["runtime"], 50.05)
 

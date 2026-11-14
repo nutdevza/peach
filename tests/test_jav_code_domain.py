@@ -417,7 +417,7 @@ class TokyoHotShapeTests(unittest.TestCase):
             name = f'MKBD{separator}S94-C 作品标题.mkv'
             self.assertEqual(jav_display_metadata(name, 'MKBD-S94'), {
                 'display_code': 'MKBD-S94', 'display_title': '作品标题',
-                'edition_badges': ['中字', 'Uncensored']})
+                'edition_badges': ['Chinese subs', 'Uncensored']})
         self.assertEqual(jav_fallback_title('MKD-S118.mp4', 'MKD-S118'), '')
 
     def test_uncensored_only_labels_get_the_uncensored_badge(self):
@@ -428,9 +428,9 @@ class TokyoHotShapeTests(unittest.TestCase):
 
     def test_ltx_after_the_code_marks_a_cracked_edition(self):
         self.assertEqual(jav_display_metadata('ABP-123-LTX.mp4', 'ABP-123'), {
-            'display_code': 'ABP-123', 'display_title': '', 'edition_badges': ['无码破解']})
+            'display_code': 'ABP-123', 'display_title': '', 'edition_badges': ['decensored']})
         self.assertEqual(jav_display_metadata('ABP-123-C-LTX.mp4', 'ABP-123')['edition_badges'],
-                         ['中字', '无码破解'])
+                         ['Chinese subs', 'decensored'])
         # 字母段本身是 LTX 的番号不是破解标记。
         self.assertEqual(jav_display_metadata('LTX-123.mp4', 'LTX-123')['edition_badges'], [])
 
@@ -1061,7 +1061,7 @@ class RevertMisreadCodeTests(unittest.TestCase):
         self.assertEqual(self._run("--source-mismatch", "348NTR-007:r18dev", "--apply",
                                    "--backup", str(self.root / "b.db")), 0)
         self.assertEqual(self._read("SELECT code,catalog_title,series FROM asset WHERE id=5"),
-                         [("348NTR-007", None, "Amateur")])
+                         [("348NTR-007", None, "素人")])
         self.assertEqual(self._read("SELECT source FROM asset_entity WHERE asset_id=5"),
                          [("javinizer:mgstage:performer",)])
         self.assertEqual(self._read("SELECT count(*) FROM asset_tag WHERE asset_id=5"), [(0,)])
@@ -1104,7 +1104,7 @@ class RevertMisreadCodeTests(unittest.TestCase):
         self.assertEqual(
             self._read("SELECT catalog_title,json_extract(field_owners,'$.catalog_title'),"
                        "series,json_extract(field_owners,'$.series') FROM asset WHERE id=5"),
-            [(None, "script:revert_misread_code", "Amateur", "user:manual")])
+            [(None, "script:revert_misread_code", "素人", "user:manual")])
 
     def test_a_source_that_still_identifies_the_code_is_refused(self):
         self._add_wrong_source(r18dev_id="348NTR-007", r18dev_content="h_1348ntr00007")

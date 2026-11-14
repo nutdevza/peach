@@ -78,7 +78,7 @@ class ReprojectTests(unittest.TestCase):
         """NHDTB-455：批准时的映射认不得 `Hard Sex`、`Big Asses`、`Anal Sex`，账本只剩潮吹。"""
         self.land(7, "NHDTB-455", ["Hard Sex", "Big Asses", "Squirting", "Anal Sex", "Hi-Def"], ["Squirting"])
         self.fill()
-        self.assertEqual(self.tags_of(7), ["Big ass", "Squirting", "Anal", "Training"])
+        self.assertEqual(self.tags_of(7), ["Anal", "Big ass", "Squirting", "Training"])
         self.assertTrue(self.sources_of(7)["Big ass"].startswith("auto:metadata-tags@"))
         self.assertEqual(self.sources_of(7)["Squirting"], "javinizer:javbus:tag")
 
@@ -88,8 +88,8 @@ class ReprojectTests(unittest.TestCase):
             "INSERT INTO asset_tag(asset_id,tag,confidence,source) VALUES(8,'中出内射',1.0,'web-user')")
         self.connection.commit()
         self.fill()
-        self.assertEqual(self.tags_of(8), ["Creampie", "Big ass", "Masturbation"])
-        self.assertEqual(self.sources_of(8)["Creampie"], "web-user")
+        self.assertEqual(self.tags_of(8), ["Big ass", "Creampie", "Masturbation", "中出内射"])
+        self.assertTrue(self.sources_of(8)["Creampie"].startswith("auto:metadata-tags@"))
 
     def test_a_hidden_tag_is_not_brought_back(self):
         """页面删标签只记隐藏、行还在，补齐按行看，不会把它补回来再显示。"""
@@ -99,7 +99,7 @@ class ReprojectTests(unittest.TestCase):
             "VALUES('local-default',9,'中出内射',1,'2026-09-02T00:00:00Z')")
         self.connection.commit()
         self.fill()
-        self.assertEqual(self.tags_of(9), ["Creampie", "Big ass"])
+        self.assertEqual(self.tags_of(9), ["Big ass", "Creampie"])
         self.assertEqual(self.connection.execute(
             "SELECT hidden FROM asset_tag_preference WHERE asset_id=9").fetchone()[0], 1)
 
@@ -111,7 +111,7 @@ class ReprojectTests(unittest.TestCase):
             "VALUES(10,'单体作品',0.9,'auto:metadata-tags@20260910T000000')")
         self.connection.commit()
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(10), ["Creampie", "单体作品", "Cute"])
+        self.assertEqual(self.tags_of(10), ["Creampie", "Cute", "单体作品"])
 
     def test_an_old_mapping_without_decisions_still_reads(self):
         legacy = types.SimpleNamespace(map_genres=lambda genres: (["Nice butt"], []))
@@ -126,7 +126,7 @@ class ReprojectTests(unittest.TestCase):
         """`巨尻` 与 `美尻` 都在时「美臀」有 `美尻` 撑着，只加上「巨臀」。"""
         self.land(2, "ABC-002", ["巨尻", "美尻", "美少女", "可愛い"], ["Nice butt", "Gorgeous"])
         self.run_script("--apply", "--backup", str(self.root / "before.db"))
-        self.assertEqual(self.tags_of(2), ["Cute", "Big ass", "Nice butt", "Gorgeous"])
+        self.assertEqual(self.tags_of(2), ["Big ass", "Cute", "Gorgeous", "Nice butt"])
 
     def test_drift_unrelated_to_the_mapping_change_is_left_alone(self):
         """账本和快照早就对不上的地方不是这次改动造成的，不借机改。"""

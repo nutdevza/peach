@@ -51,7 +51,7 @@ class LedgerFixture(unittest.TestCase):
              (12, "performer", "神雪", "神雪"),
              (13, "studio", "ラグジュTV", "ラグジュtv"),
              (14, "series", "ドキュメント", "ドキュメント"),
-             (15, "tag", "Footjob", "Footjob"),
+             (15, "tag", "足交", "足交"),
              # 与女优同名的标签是另一个身份的冒充，标签组不该收它。
              (16, "tag", "神雪", "神雪"),
              # 时长标签是筛选控件，不是可搜的词。
@@ -157,7 +157,7 @@ class SuggestTests(LedgerFixture):
         self.assertNotIn("Capsule Reserve", self.values("Capsule", "agency"))
 
     def test_a_tag_completes_like_any_other_identity(self):
-        self.assertIn("Footjob", self.values("Footjob", "tag"))
+        self.assertIn("足交", self.values("足交", "tag"))
 
     def test_a_tag_that_is_really_a_performer_name_stays_out(self):
         self.assertEqual(self.values("神雪", "tag"), [])
@@ -221,7 +221,7 @@ class SuggestTests(LedgerFixture):
 
     def test_a_prefix_hit_outranks_a_hit_in_the_middle(self):
         """「足交」是前缀命中，其余几个是同一个字打头的同辈。"""
-        self.assertEqual(self.values("Footjob", "tag")[0], "Footjob")
+        self.assertEqual(self.values("足交", "tag")[0], "足交")
 
     def test_every_suggestion_finds_something_when_actually_searched(self):
         """补全与搜索同源的唯一验收方式：拿补出来的词去真的搜一次。
@@ -418,14 +418,14 @@ class ShortQueryReachesEveryKindTests(LedgerFixture):
     """
 
     def test_a_two_character_tag_query_finds_its_works(self):
-        self.assertEqual(self.total("Footjob"), 2)
+        self.assertEqual(self.total("足交"), 2)
 
     def test_a_three_character_tag_query_finds_its_works(self):
         self.assertEqual(self.total("巨乳系"), 2)
 
     def test_both_branches_agree_on_the_same_tag(self):
         """`巨乳系` 三个字走 FTS，`巨乳` 两个字走 LIKE，命中的是同一批作品。"""
-        self.assertEqual(self.total("Big Breasts"), self.total("巨乳系"))
+        self.assertEqual(self.total("巨乳"), self.total("巨乳系"))
 
     def test_a_two_character_series_query_finds_its_works(self):
         self.assertEqual(self.total("ドキ"), 1)

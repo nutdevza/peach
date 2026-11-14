@@ -296,7 +296,7 @@ def revert(connection, planned: list[dict]) -> int:
             taken = connection.execute('SELECT id FROM entity WHERE id=? OR (kind=? AND normalized_name=?)',
                                        (row['id'], row['kind'], row['normalized_name'])).fetchone()
             if taken is not None:
-                raise ValueError(f'"Entity "{row["id"]}「{row["canonical_name"]}"\" is already taken by id or name; the whole restore batch is rejected"')
+                raise ValueError(f'Entity {row["id"]} "{row["canonical_name"]}" is already taken by id or name; the whole restore batch is rejected')
         elif 'asset_id' in row and connection.execute(
                 'SELECT 1 FROM asset WHERE id=?', (row['asset_id'],)).fetchone() is None:
             continue

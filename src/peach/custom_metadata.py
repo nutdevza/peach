@@ -140,7 +140,7 @@ def parse(config: dict, code: str, document: object) -> SiteRecord:
     returned_code = text('code')
     # 身份只核对响应字段，查询 URL 不能替来源证明自己答对了。
     if not returned_code or not identifies_code(code, {'id': returned_code}):
-        raise ValueError('来源返回的番号与查询番号不一致')
+        raise ValueError('Code mismatch: the code returned by the source differs from the queried code')
     return SiteRecord(source=config['id'], provenance='custom-json', code=returned_code,
                       source_url=endpoint(config, code),
                       title=text('title'), studio=text('studio'), series=text('series'),

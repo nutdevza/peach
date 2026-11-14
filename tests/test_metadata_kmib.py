@@ -175,7 +175,7 @@ class KmibHarvestTests(unittest.TestCase):
         self.assertEqual(by_field["studio"]["value"], "MIB")
         self.assertEqual(by_field["performers"]["provider_id"], "AIN-203")
         self.assertEqual(by_field["performers"]["value"][0]["external_id"], "3")
-        self.assertEqual(by_field["tags"]["value"], ["Oral", "Kissing"])
+        self.assertEqual(sorted(by_field["tags"]["value"]), ["Kissing", "Oral"])
 
     def test_missing_codes_come_from_filenames_listed_on_the_official_site(self):
         con = sqlite3.connect(self.db)
@@ -225,7 +225,7 @@ class KmibHarvestTests(unittest.TestCase):
         finally:
             con.close()
         self.assertEqual(asset, ("Do you wanna be my slave", "2024-11-20", "MIB"))
-        self.assertEqual(tags, ["Oral", "Kissing"])
+        self.assertEqual(sorted(tags), ["Kissing", "Oral"])
         self.assertEqual(ref, ("Ain",))
 
 

@@ -114,7 +114,7 @@ CREATE TABLE entity_membership(
 CREATE TABLE label_maker(
   label_id INTEGER PRIMARY KEY,maker_id INTEGER,source TEXT,
   confidence REAL DEFAULT 1.0,checked_at TEXT);
-CREATE TABLE performer_profile(entity_id INTEGER PRIMARY KEY,source TEXT,
+CREATE TABLE performer_profile(entity_id INTEGER PRIMARY KEY,source TEXT,kana TEXT,romaji TEXT,
   raw_json TEXT DEFAULT '{}',tags_json TEXT DEFAULT '[]',source_url TEXT DEFAULT '');
 CREATE TABLE watch_queue(profile_id TEXT,asset_id INTEGER,added_at TEXT,source TEXT,
   PRIMARY KEY(profile_id,asset_id));
@@ -1831,7 +1831,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         with closing(sqlite3.connect(self.db)) as connection:
             self.assertEqual(connection.execute(
                 "SELECT tag,confidence,source FROM asset_tag WHERE asset_id=1 "
-                "AND tag IN ('美乳','颜射') ORDER BY tag"
+                "AND tag IN ('Beautiful Breasts','Facial') ORDER BY tag"
             ).fetchall(), [
                 ("Beautiful Breasts", 0.9, "javinizer:r18dev:tag"),
                 ("Facial", 0.9, "javinizer:r18dev:tag"),
@@ -1885,7 +1885,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
 
         after = await self._review_tags_candidate()
         self.assertEqual(after["value"], ["Creampie", "Bathroom"])
-        self.assertEqual(after["display_value"], "中出内射、浴室")
+        self.assertEqual(after["display_value"], "Creampie、Bathroom")
         self.assertEqual(after["unmapped_genres"], [], "两个都有了结论，不该再回来问")
 
         approved = await self.client.post("/api/review/decision?t=secret", json={
@@ -1895,9 +1895,9 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(approved.status_code, 200, approved.text)
         with closing(sqlite3.connect(self.db)) as connection:
             self.assertEqual([row[0] for row in connection.execute(
-                "SELECT tag FROM asset_tag WHERE asset_id=1 AND tag IN ('中出内射','浴室') "
+                "SELECT tag FROM asset_tag WHERE asset_id=1 AND tag IN ('Creampie','Bathroom') "
                 "ORDER BY tag")],
-                ["Creampie", "Bathroom"], "页面上多出来的那个标签必须真的落库")
+                ["Bathroom", "Creampie"], "页面上多出来的那个标签必须真的落库")
 
     async def test_an_old_candidate_carries_its_unmapped_genres_in_the_warning_only(self):
         """2026-09-11 之前写下的候选文件没有结构化那一份，收录按钮同样要能出现。"""
@@ -1930,7 +1930,7 @@ class FastApiContractTests(unittest.IsolatedAsyncioTestCase):
         with closing(sqlite3.connect(self.db)) as connection:
             self.assertEqual(connection.execute(
                 "SELECT peach_tag FROM genre_decision WHERE source_genre='シャワー'").fetchone(),
-                ("Bathroom",))
+                ("浴室",))
 
     async def test_catalog_keeps_missing_performers_separate_from_release_code(self):
         with closing(sqlite3.connect(self.db)) as con:

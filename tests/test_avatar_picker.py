@@ -420,7 +420,7 @@ class HistorySourceTests(PickerFixture):
         avatar_picker.keep(self.providers, 7792, cut,
                            {"provider": "history", "external_id": digest[:12], **crop_origin})
         choice = next(choice for choice in self.history() if choice.ref == f"sha256:{inspect_avatar(cut).sha256}")
-        self.assertEqual(choice.label, "X @Example · 已裁剪")
+        self.assertEqual(choice.label, "X @Example · cropped")
         self.assertEqual(choice.detail, "https://pbs.twimg.com/profile_images/1/avatar.jpg")
 
     def test_ambiguous_original_hashes_leave_the_crop_source_unrecorded(self):
@@ -435,7 +435,7 @@ class HistorySourceTests(PickerFixture):
         avatar_picker.keep(self.providers, 7792, cut,
                            {"provider": "history", "external_id": digest[:12], **crop_origin})
         choice = next(choice for choice in self.history() if choice.ref == f"sha256:{inspect_avatar(cut).sha256}")
-        self.assertEqual(choice.label, "来源未记录 · 已裁剪")
+        self.assertEqual(choice.label, "Source not recorded · cropped")
         self.assertEqual(choice.detail, "")
 
     def test_another_entity_cannot_supply_a_history_source(self):
@@ -447,7 +447,7 @@ class HistorySourceTests(PickerFixture):
         other["entity_id"] = 7793
         evidence.write_text(json.dumps(other), encoding="utf-8")
         self.remember(body, provider="history", external_id=digest[:12])
-        self.assertEqual(self.history()[0].label, "来源未记录")
+        self.assertEqual(self.history()[0].label, "Source not recorded")
 
     def test_cropping_a_history_choice_retains_the_original_site_and_account(self):
         body = picture(60, 80, "blue")
@@ -461,7 +461,7 @@ class HistorySourceTests(PickerFixture):
         self.assertEqual(record["external_id"], "https://lit.link/example")
         self.assertEqual(record["upstream_url"], origin["upstream_url"])
         choice = next(choice for choice in self.history() if choice.ref == f"sha256:{kept.sha256}")
-        self.assertEqual(choice.label, "lit.link @example · 已裁剪")
+        self.assertEqual(choice.label, "lit.link @example · cropped")
 
 
 class ChoiceTests(PickerFixture):
@@ -549,7 +549,7 @@ class ChoiceTests(PickerFixture):
         digest = self.remember(body, provider="url", url=url)
         history = [one for one in self.listed()["choices"] if one["source"] == "history"]
         self.assertEqual([one["ref"] for one in history], [f"sha256:{digest}"])
-        self.assertEqual(history[0]["label"], "图片地址 · prd.storage.lit.link")
+        self.assertEqual(history[0]["label"], "Image URL · prd.storage.lit.link")
 
     def test_every_label_reads_as_where_the_picture_came_from(self):
         """社媒标签显示站点与账号，图库标签显示实际分类。"""
@@ -1532,7 +1532,7 @@ class AvatarPickerRouteTests(unittest.TestCase):
         current = [one for one in listed["choices"] if one["current"]]
         self.assertEqual([one["ref"] for one in current],
                          [f"sha256:{inspect_avatar(installed).sha256}"])
-        self.assertEqual(current[0]["label"], "图库 · S1 · 已裁剪")
+        self.assertEqual(current[0]["label"], "Gallery · S1 · cropped")
 
     def test_a_piece_cut_from_library_history_keeps_the_library_source(self):
         self.client.post("/api/avatar-pick?t=secret", json={
@@ -1544,7 +1544,7 @@ class AvatarPickerRouteTests(unittest.TestCase):
         self.assertEqual(picked.status_code, 200)
         listed = self.client.get("/api/avatar-choices?kind=performer&id=7792&t=secret").json()
         current = [one for one in listed["choices"] if one["current"]]
-        self.assertEqual([one["label"] for one in current], ["图库 · S1 · 已裁剪"])
+        self.assertEqual([one["label"] for one in current], ["Gallery · S1 · cropped"])
 
     def test_a_typed_code_brings_back_a_cover_that_then_frames_and_installs(self):
         from peach import routes_media

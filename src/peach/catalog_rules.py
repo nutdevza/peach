@@ -1360,11 +1360,21 @@ def jav_edition_badges(name: str | None, code: str | None,
         candidates = explicit or ([] if kind else fallback)
         if candidates:
             kind = min(candidates, key=UNCENSORED_EDITIONS.index)
-    return (["中字"] if subtitled else []) + ([kind] if kind else [])
+    badges = (["中字"] if subtitled else []) + ([kind] if kind else [])
+    return [EDITION_BADGE_ENGLISH.get(badge, badge) for badge in badges]
 
 
 #: 无码类版次，按「谁说得更具体」排：破解 > 流出 > 无码（同 mdcz `bc4e8828`）。
 UNCENSORED_EDITIONS = ("无码破解", "无码流出", "Uncensored")
+#: Badges display in English; the evidence matching above still reads the
+#: Chinese/romanized source words, and the mapping happens only at this
+#: delivery boundary.
+EDITION_BADGE_ENGLISH = {"中字": "Chinese subs", "无码破解": "decensored",
+                         "无码流出": "leaked", "无码": "Uncensored",
+                         "Uncensored": "Uncensored"}
+#: English uncensored tiers for consumers that compare badge values
+#: (search ranking uses these to judge "uncensored").
+UNCENSORED_EDITIONS_ENGLISH = tuple(EDITION_BADGE_ENGLISH[name] for name in UNCENSORED_EDITIONS)
 #: 有码片商的番号：字母段加 2–5 位序号，含 MGS 素人系的三位数字前缀。这类片商不出无码版，
 #: 文件名上的 `-U`／`uncensored` 说的只能是事后的去码版本。
 _CENSORED_RELEASE = re.compile(r"^(?:\d{3})?[A-Z]{2,8}-\d{2,5}$")
@@ -1408,16 +1418,17 @@ def _edition_evidence(name: str | None, code: str | None,
         or bool(re.search(r"(?:^|[-_.\s\[])(?:ltx|umr)(?:$|[-_.\s\]])", suffix, re.I))
         or bool(cracked_cu.search(suffix))
         or "ai去码" in tag_set or "无码破解" in tag_set
+        or "decensored" in tag_set or "ai decensoring" in tag_set
     )
     suffix = cracked_cu.sub("", suffix)
     leaked = (
         bool(re.search(r"(?:^|[-_.\s\[])(?:流出|无码流出|無碼流出|leak|leaked)(?:$|[-_.\s\]])",
                        suffix, re.I))
-        or "无码流出" in tag_set
+        or "无码流出" in tag_set or "leaked" in tag_set
     )
     # `un` 和 `u`／`uc` 是同一个意思。此前它没进这张表，`ABF-158-UN.mp4` 既拿不到徽章，
     # `UN` 又被当标题显示；现在标题判空了，不认它就等于把这条信息整个丢掉。
-    marked = "Uncensored" in tag_set or bool(re.search(
+    marked = "无码" in tag_set or "uncensored" in tag_set or bool(re.search(
         r"(?:^|[-_.\s\[])(?:uc|un|u|uncen(?:sored)?|uncensored|无码|無碼)(?:$|[-_.\s\]])",
         suffix, re.I))
     subtitled = (

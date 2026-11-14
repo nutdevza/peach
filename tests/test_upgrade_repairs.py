@@ -305,7 +305,7 @@ class UpgradeRepairTests(unittest.TestCase):
         from peach import artifact_rules
         from peach.jobs import DiskSpaceDenied
         sheet = self.display_sample()
-        with self.assertRaisesRegex(ValueError, '未取得'):
+        with self.assertRaisesRegex(ValueError, 'not obtained'):
             self.run_display_probe((-1, 0, 0, None, 0, 0, None, None, None, 1))
         with self.assertRaises(DiskSpaceDenied):
             self.run_display_probe((60, 1440, 1280, None, 0, 0, None, 'Landscape', '1080P', 1),
@@ -643,7 +643,7 @@ class UpgradeRepairTests(unittest.TestCase):
         self.display_sample()
         run = self.run_queued_display(unreachable=True)
         self.assertEqual(run.status, 'succeeded')
-        self.assertIn('已延后', run.result_summary['outcome'])
+        self.assertIn('Deferred', run.result_summary['outcome'])
         row = self.display_items()['1']
         self.assertEqual((row['state'], row['attempts']), ('deferred', 0))
         self.assertGreater(row['retry_at'], time.time() + 60)
@@ -685,7 +685,7 @@ class UpgradeRepairTests(unittest.TestCase):
                   'paused_asset_ids': [1], 'retryable_asset_ids': [1]}
         with patch('peach.library_processing.process_library', return_value=cooled):
             result = upgrade_repairs._media_run(self.contract, key, Mock(run_id=None))
-        self.assertIn('来源', result['outcome'])
+        self.assertIn('cooling down', result['outcome'])
         with self.database.read_connection() as connection:
             row = connection.execute("SELECT state,retry_at FROM ledger_upgrade_item WHERE rule='media:processing-v2'").fetchone()
         self.assertEqual(row['state'], 'deferred')
@@ -764,7 +764,7 @@ class UpgradeRepairTests(unittest.TestCase):
         process.assert_not_called()
         self.assertEqual(upgrade_repairs._read(restarted.receipt)['media_paused'], paused)
         self.assertEqual(restarted.snapshot()['state'], 'failed')
-        self.assertIn('Paused', restarted.snapshot()['message'])
+        self.assertIn('paused', restarted.snapshot()['message'])
         self.assertIsNone(self.store.claim_followup([upgrade_repairs.MEDIA_TASK]))
 
     def test_explicit_retry_rechecks_disk_and_only_resumes_policy_paused_items(self):
@@ -1218,7 +1218,7 @@ class UpgradeRepairTests(unittest.TestCase):
         with self.database.write_transaction() as connection:
             upsert_asset_entity(connection, kind='performer', name=GARBLED, asset_id=2,
                                 role='performer', source='user:manual', now='later')
-        with self.assertRaisesRegex(ValueError, '整批拒绝'):
+        with self.assertRaisesRegex(ValueError, 'the whole restore batch is rejected'):
             self.revert_garbled_people()
         self.assertNotIn((1, fixture['garbled'], 'javinizer:dmm:performer'), self.performer_links())
 

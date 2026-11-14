@@ -985,8 +985,8 @@ def issue_summary(problems, paused=0):
     if paused >= problems:
         return f'All {problems} item(s) are rate-limited by the source. Try again later.'
     if paused:
-        return (f'{problems}" item(s) need attention; "{paused} 项是来源限流，等一会儿再跑；'
-                '其余可重试未完成的部分。')
+        return (f'{problems} item(s) need attention: {paused} rate-limited by source, try later; '
+                'the rest can be retried now.')
     return f'{problems} item(s) need attention. You can retry the unfinished parts.'
 
 
@@ -2216,7 +2216,7 @@ def _scan_sources(config, db_path, *, locations, asset_ids, stage, guard, update
                                            resume_state=scan_checkpoints.get(key), save_checkpoint=remember,
                                            new_only=incremental,
                                            progress=lambda files, size: update(
-                                               stage='Scan files', scanned=result.scanned + files,
+                                               stage='扫描文件', scanned=result.scanned + files,
                                                scanned_bytes=result.scanned_bytes + size,
                                                checked=0, total=0, current_action='scanning_files'))
                 result.scanned += registered.files
@@ -2357,8 +2357,8 @@ def budget_summary(state):
     if not skipped:
         return ''
     from .scraping_access import BUDGET_SPENT
-    head = (state.get('budget_reason') or BUDGET_SPENT['seconds']).split('，')[0]
-    return f'{head}", plus "{skipped}" videos did not ask external sources; run again to continue collecting."'
+    head = re.split(r'; |；|，', state.get('budget_reason') or BUDGET_SPENT['seconds'])[0]
+    return f'{head}, plus {skipped} more videos did not ask external sources; run again to continue collecting.'
 
 
 def _collect_allowed(remote, traffic, row, code, missing, allowed, cover_root, covered, *,
@@ -2874,7 +2874,7 @@ def _settle_collection_state(state, summary, rows, update):
 def _processing_steps(stage, asset_ids, *, metadata_only_enabled):
     """按本趟真实处理范围构造有序阶段清单。"""
     scanning = asset_ids is None and stage in (ALL_STAGES, SCAN_STAGE)
-    steps = [('sources', 'Scan files' if scanning else 'Check media directory')]
+    steps = [('sources', '扫描文件' if scanning else '检查媒体目录')]
     steps.append(('inspect', 'Check junk files' if stage in (SCAN_STAGE, PREVIEWS_STAGE, METADATA_STAGE)
                   else 'Read media properties and check junk'))
     if stage not in (SCAN_STAGE, PREVIEWS_STAGE):
@@ -3094,7 +3094,7 @@ def process_library(config, db_path, candidate_root, cover_root, *, location='co
           bind_control(control, identity, publish=control_report, active=active, db_path=Path(db_path),
                        mode=speed_mode)):
         state = dict(job_id=identity, status='running',
-                     stage='Check companion files' if retrying else 'Scan files',
+                     stage='检查配套文件' if retrying else '扫描文件',
                      checked=0, total=0, scanned=0, scanned_bytes=0, probed=0, identified=0, candidates=0, covers=0, previews=0,
                      requested_stage=stage, asset_ids=scope_ids, incremental=incremental, allow_metered=allow_metered,
                      library_id=library_id, library_name=config.library_catalog.get(library_id, {}).get('name', ''),

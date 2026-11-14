@@ -103,7 +103,7 @@ class MainBundleTests(unittest.TestCase):
         的仍是旧的那一份，而 tsc 和 vitest 都只看源码，谁都不会红——只有扫产物这一条会。
         配置页在按页拆出的 chunk 里，入口与 chunk 一起扫。
         """
-        for label in ("开机后启动 Peach", "只启动托盘，不打开网页", "在桌面创建快捷方式"):
+        for label in ("Start Peach after sign-in", "Start the tray only, without opening the web app", "Create desktop shortcut"):
             self.assertIn(label, self.bundle,
                           f"产物里没有「{label}」，先跑 npm --prefix frontend run build")
         payload = self.bundle[self.bundle.index('"/api/configuration/startup"'):][:240]

@@ -332,10 +332,10 @@ class MigrationTests(unittest.TestCase):
             "SELECT entities FROM asset_search WHERE asset_id=1"
         ).fetchone()[0]
         con.close()
-        self.assertIn(('tag', 'Footjob', 'tag', 'vision_creator', 0.6), relations)
+        self.assertIn(('tag', '足交', 'tag', 'vision_creator', 0.6), relations)
         self.assertIn(('performer', 'Late Performer', 'performer',
                        'stash:performer', 1.0), relations)
-        self.assertIn('Footjob', search_entities)
+        self.assertIn('足交', search_entities)
         self.assertIn('Late Performer', search_entities)
 
     def test_structural_creator_cleanup_keeps_real_creator(self):
@@ -775,7 +775,7 @@ class ForeignKeyDeleteRuleTests(unittest.TestCase):
         connection.execute("DELETE FROM asset WHERE id=1")
         self.assertEqual(connection.execute(
             "SELECT asset_id,tag FROM asset_tag ORDER BY asset_id,tag").fetchall(),
-            [(2, "Big Breasts")])
+            [(2, "巨乳")])
         for table in ("media_binding", "watch_queue", "asset_preference",
                       "asset_quality_goal"):
             self.assertEqual(connection.execute(

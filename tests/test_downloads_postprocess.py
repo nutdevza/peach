@@ -87,7 +87,7 @@ class DownloadPostprocessTests(unittest.TestCase):
         task = self.store.get(self.task.id)
         self.assertEqual(task.postprocess_state, 'failed')
         self.assertIsNone(task.next_check_at)
-        self.assertIn('自动重试 3 次', task.postprocess_detail)
+        self.assertIn('Automatic retry 3 attempts', task.postprocess_detail)
 
     def test_offline_mount_retries_but_target_collision_stops_immediately(self):
         with patch.object(post.organize, 'build_plan', return_value={

@@ -1381,10 +1381,10 @@ class LibraryNfoTests(unittest.TestCase):
 
         self.assertEqual(len({call.args[0] for call in provider.query.call_args_list}), 1)
         self.assertEqual(result['budget_skipped'], 2)
-        summary = [issue for issue in result['issue_preview'] if issue['message'].startswith('本趟采集时间已用完')]
+        summary = [issue for issue in result['issue_preview'] if issue['message'].startswith("This round's collection time is used up")]
         self.assertEqual([issue['message'] for issue in summary],
-                         ['本趟采集时间已用完，还有 2 部没问外部来源，再跑一次接着采。'])
-        self.assertTrue(result['error'].startswith('本趟采集时间已用完，还有 2 部'))
+                         ["This round's collection time is used up, plus 2 more videos did not ask external sources; run again to continue collecting."])
+        self.assertTrue(result['error'].startswith("This round's collection time is used up"))
         asked = {call.args[0] for call in provider.query.call_args_list}
         with closing(sqlite3.connect(db)) as connection:
             unasked = {row_id for row_id, code in connection.execute('SELECT id,code FROM asset')
@@ -2379,17 +2379,17 @@ class LibraryNfoTests(unittest.TestCase):
                           '封面本趟没轮到：本趟采集次数已用完，再跑一次接着采'])
         self.assertEqual({row['severity'] for row in state['issue_preview']}, {'paused'})
         self.assertEqual((state['issue_count'], state['paused_count']), (2, 2))
-        self.assertEqual(state['error'], '2 项都卡在来源限流上，等一会儿再跑一次。')
+        self.assertEqual(state['error'], 'All 2 item(s) are rate-limited by the source. Try again later.')
         self.assertEqual(state['retryable_asset_ids'], [1], '等来源放开之后重试仍然有意义')
         self.assertEqual(state['paused_asset_ids'], [1], '升级补全据此把这部片延后而不是判失败')
 
     def test_the_two_kinds_are_counted_apart_in_the_line_that_sums_them_up(self):
         from peach.library_processing import issue_summary
         self.assertEqual(issue_summary(0), '')
-        self.assertEqual(issue_summary(3), '3 项需要处理，可重试未完成的部分。')
+        self.assertEqual(issue_summary(3), '3 item(s) need attention. You can retry the unfinished parts.')
         self.assertEqual(issue_summary(3, 1),
-                         '3 项需要处理，其中 1 项是来源限流，等一会儿再跑；其余可重试未完成的部分。')
-        self.assertEqual(issue_summary(3, 3), '3 项都卡在来源限流上，等一会儿再跑一次。')
+                         '3 item(s) need attention: 1 rate-limited by source, try later; the rest can be retried now.')
+        self.assertEqual(issue_summary(3, 3), 'All 3 item(s) are rate-limited by the source. Try again later.')
 
     @windows_ledger_roots
     def test_a_source_that_said_no_is_not_asked_again_for_a_week(self):
@@ -2433,7 +2433,7 @@ class LibraryNfoTests(unittest.TestCase):
         self.assertEqual((second['status'], second['issue_count']), ('complete', 0))
         self.assertEqual((first['status'], first['issue_count']), ('failed', 1))
         # 状态文件里没有 `notes` 的任务，读出来要按日志把告知项和问题分开重算。
-        stored = dict(second, status='failed', error='2 项需要处理，可重试未完成的部分。', issue_count=2,
+        stored = dict(second, status='failed', error='2 item(s) need attention. You can retry the unfinished parts.', issue_count=2,
                       issue_preview=[{'asset_id': 1, 'title': 'STP-26232.mp4', 'path': '',
                                       'message': message, 'severity': 'error'}
                                      for message in ('外部来源没有这部片的资料，7 天内不再问',
@@ -3307,7 +3307,7 @@ class LibraryWatchdogTests(unittest.TestCase):
         self.assertTrue(live['stalled'])
         dead = snapshot(config)
         self.assertEqual(dead['status'], 'failed')
-        self.assertIn('中断', dead['error'])
+        self.assertIn('interrupted', dead['error'])
         self.assertEqual(json.loads(path.read_text(encoding='utf-8'))['status'], 'failed')
         # 另一个读取者正好占着锁时读到的也是同一个结论，不会跳回「运行中」。
         with FileLock(str(path) + '.lock', timeout=0):
@@ -3963,7 +3963,7 @@ class LibraryPreviewCompletionTests(unittest.TestCase):
         self.assertIn('Invalid data', detail['stderr'])
         self.assertNotIn(str(self.media), detail['stderr'])
         self.assertNotIn('private-token', detail['stderr'])
-        self.assertIn('Export diagnostics report', issue['message'])
+        self.assertIn('导出诊断报告', issue['message'])
         with patch.object(support_bundle.error_reporting, 'log_directories', return_value=[]):
             payload = support_bundle.bundle_bytes(config=self.config)
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:

@@ -141,9 +141,9 @@ def _candidate(
         kinds.append("media_similarity")
     warnings = []
     if comment is not None:
-        warnings.append("匿名评论等价标记只作候选")
+        warnings.append("Anonymous comment equivalence marks stay review candidates")
     if left in collections or right in collections:
-        warnings.append("涉及合集，只能复核分片关系，不能整体合并")
+        warnings.append("Collection: only shard-level relations can be reviewed, not a whole-set merge")
     if not assets.get(left) or not assets.get(right):
         warnings.append("其中一个番号尚不在本地 ledger")
     if local_evidence.get("part_conflict"):

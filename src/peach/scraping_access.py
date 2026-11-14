@@ -113,9 +113,9 @@ class SourceBudgetExhausted(SourcePaused):
 
 #: 整趟预算三项到顶时的说明，键是 `SourceTransport` 的三个上限。
 BUDGET_SPENT = {
-    'requests': "本趟采集次数已用完，再跑一次接着采；已有图片保留",
-    'seconds': "本趟采集时间已用完，再跑一次接着采；已有图片保留",
-    'bytes': "本趟下载量已用完，再跑一次接着采；已有图片保留",
+    'requests': "This round's request budget is used up; run again to continue collecting; images already fetched are kept",
+    'seconds': "This round's collection time is used up; run again to continue collecting; images already fetched are kept",
+    'bytes': "This round's download budget is used up; run again to continue collecting; images already fetched are kept",
 }
 
 

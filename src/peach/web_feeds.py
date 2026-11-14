@@ -356,14 +356,14 @@ def _defer_round(contract, pending, until: datetime, results: list) -> tuple[lis
     if trigger is None:
         from .scraping_access import SOURCES, source_for
         first = pending[0]
-        label = SOURCES.get(source_for(first["url"]) or "", {}).get("label", "来源")
+        label = SOURCES.get(source_for(first["url"]) or "", {}).get("label", "source")
         trigger = {"source": int(first["id"]), "name": first["name"] or first["url"],
                    "ok": False, "seen": 0, "added": 0, "without_code": 0, "paused": True,
-                   "error": f"{label} 正在冷却，这一轮没有拉"}
+                   "error": f"{label} is cooling down; not pulled this round"}
         results.append(trigger)
         rest -= 1
     if rest:
-        trigger["error"] = f"{trigger['error']}；其余 {rest} 个源顺延到冷却结束后再拉"
+        trigger["error"] = f"{trigger['error']}; the other {rest} sources wait for the cooldown to end"
     return results, len(pending)
 
 
@@ -661,7 +661,8 @@ def _follow_by_name(contract, body) -> dict:
             if held is not None:
                 holders[int(held[0])] = str(held[1])
         if len(holders) > 1:
-            raise ValueError("这几张卡分属数据库里不同的人：" + "、".join(holders.values()))
+            raise ValueError("These cards belong to different people in the database: "
+                             + ", ".join(holders.values()))
         created = False
         if holders:
             [(entity_id, canonical)] = holders.items()

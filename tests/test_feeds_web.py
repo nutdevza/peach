@@ -539,7 +539,7 @@ class FeedWebTest(FeedWebFixture):
         self.assertEqual(result["deferred"], 2)
         [row] = result["results"]
         self.assertFalse(row["ok"])
-        self.assertIn("其余 2 个源顺延到冷却结束后再拉", row["error"])
+        self.assertIn("the other 2 sources wait for the cooldown to end", row["error"])
         until = scraping_access.paused_until(self.contract.follow_secrets_root, "javdb")
         expected = feeds.stamp(datetime.fromtimestamp(until, timezone.utc))
         rows = self._rows()
@@ -565,8 +565,8 @@ class FeedWebTest(FeedWebFixture):
         self.assertEqual(len(served.requests), 1)
         self.assertEqual(result["deferred"], 2)
         [row] = result["results"]
-        self.assertIn("JavDB 不对当前出口所在的地区开放", row["error"])
-        self.assertIn("其余 2 个源顺延到冷却结束后再拉", row["error"])
+        self.assertIn("JavDB is not available in the region of the current exit", row["error"])
+        self.assertIn("the other 2 sources wait for the cooldown to end", row["error"])
         self.assertNotIn("解不出", self._rows()[first]["last_error"])
 
     def test_a_round_that_starts_in_cooldown_asks_nothing(self):
@@ -577,7 +577,7 @@ class FeedWebTest(FeedWebFixture):
         result = self._check()
         self.assertEqual(self.transport.requests, [])
         [row] = result["results"]
-        self.assertEqual(row["error"], "JavDB 正在冷却，这一轮没有拉；其余 1 个源顺延到冷却结束后再拉")
+        self.assertEqual(row["error"], "JavDB is cooling down; not pulled this round; the other 1 sources wait for the cooldown to end")
         self.assertTrue(all(row["last_fetched_at"] is None and row["last_error"] is None
                             for row in self._rows().values()))
 
@@ -593,7 +593,7 @@ class FeedWebTest(FeedWebFixture):
         result = self._check()
         reports = {row["source"]: row for row in result["results"]}
         self.assertEqual(result["deferred"], 1)
-        self.assertEqual(reports[javdb]["error"], "JavDB 正在冷却，这一轮没有拉")
+        self.assertEqual(reports[javdb]["error"], "JavDB is cooling down; not pulled this round")
         self.assertEqual((reports[dmm]["ok"], reports[dmm]["codes"]), (True, ["MIKR-133"]))
         self.assertTrue(all(request.url == DMM_ENDPOINT for request in self.transport.requests))
 
@@ -1591,8 +1591,8 @@ class FeedFollowByNameTest(FeedFollowByNameFixture):
         self._settled()
 
     def test_cards_held_by_two_different_people_are_refused_by_name(self):
-        self._performer("甲", ["Kn01"])
-        self._performer("乙", ["Kn02"])
+        self._performer("A", ["Kn01"])
+        self._performer("B", ["Kn02"])
         with self.assertRaisesRegex(ValueError, "A, B"):
             self._follow(["Kn01", "Kn02"])
         self.assertEqual(self._sources(), [])
@@ -1830,7 +1830,7 @@ class JavDiscoveryTest(FeedWebFixture):
         self.assertEqual(one["facets"]["tags"], [])
         second = releases(page=2, size=1)
         self.assertEqual(([row["code"] for row in second["items"]], second["total"], second["page"]), (["HMN-071"], 2, 2))
-        self.assertEqual([row["code"] for row in releases(q="中出")["items"]], ["SSIS-950"])
+        self.assertEqual([row["code"] for row in releases(q="Creampie")["items"]], ["SSIS-950"])
 
         def order(**args):
             return [row["code"] for row in releases(**args)["items"]]
@@ -1902,13 +1902,13 @@ class JavDiscoveryTest(FeedWebFixture):
         rows = self._discover(rankings=rankings, metadata={"tags": [{"name": "Foot fetish"}], "series_name": "示例系列"})["items"]
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]["tags"], ["Foot fetish"])
-        self.assertEqual(rows[0]["reasons"], ["标签偏好：恋足（浏览记录）", "系列偏好：示例系列（观看与反馈）"])
+        self.assertEqual(rows[0]["reasons"], ["标签偏好：Foot fetish（浏览记录）", "系列偏好：示例系列（观看与反馈）"])
 
     def test_library_exploration_excludes_completed_disliked_and_frequently_watched(self):
         with self.contract.database.write_transaction() as connection:
             entity_id = connection.execute(
                 "INSERT INTO entity(kind,canonical_name,normalized_name,created_at,updated_at)"
-                " VALUES('tag','恋足','恋足','2026-10-01','2026-10-01')").lastrowid
+                " VALUES('tag','Foot fetish','foot fetish','2026-10-01','2026-10-01')").lastrowid
             for aid, plays, reached, feedback, disposal in (
                     (1, 0, 0, None, None), (2, 1, 10, None, None), (3, 1, 95, None, None),
                     (4, 2, 10, None, None), (5, 0, 0, 'dislike', None), (6, 0, 0, None, 'vanished')):
@@ -1919,7 +1919,7 @@ class JavDiscoveryTest(FeedWebFixture):
         result = self._discover("library", {"peach_tags": [{"name": "Foot fetish", "entity_id": entity_id, "score": 4}]})
         self.assertEqual({row["asset_id"] for row in result["items"]}, {1, 2})
         self.assertTrue(all(row["tags"] == ["Foot fetish"] for row in result["items"]))
-        self.assertTrue(all(row["reasons"] == ["标签偏好：恋足（观看与反馈）"] for row in result["items"]))
+        self.assertTrue(all(row["reasons"] == ["标签偏好：Foot fetish（观看与反馈）"] for row in result["items"]))
 
 
 if __name__ == "__main__":  # pragma: no cover

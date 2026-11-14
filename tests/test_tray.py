@@ -195,13 +195,13 @@ class ServiceStatusTests(unittest.TestCase):
     def test_all_healthy(self):
         self.assertEqual(
             self.manager({"http": (True, ""), "https": (True, "")}).status(),
-            "HTTP 正常 · HTTPS 正常",
+            "HTTP OK · HTTPS OK",
         )
 
     def test_none_healthy(self):
         self.assertEqual(
             self.manager({"http": (False, "无响应"), "https": (False, "无响应")}).status(),
-            "HTTP 异常（无响应） · HTTPS 异常（无响应）",
+            "HTTP Unhealthy (无响应) · HTTPS Unhealthy (无响应)",
         )
 
     def test_mount_failure_names_the_source_without_restarting_the_healthy_service(self):
@@ -212,7 +212,7 @@ class ServiceStatusTests(unittest.TestCase):
         popen = Mock()
         manager = ServiceManager((spec,), popen=popen, health_get=lambda *a, **k: response)
         manager.start_missing()
-        self.assertEqual(manager.status(), "HTTPS 正常（CloudDrive · 115：没有权限读取）")
+        self.assertEqual(manager.status(), "HTTPS OK (CloudDrive · 115：没有权限读取)")
         popen.assert_not_called()
 
     def test_short_summary_deduplicates_mount_warnings_and_recovers(self):
@@ -223,20 +223,20 @@ class ServiceStatusTests(unittest.TestCase):
         manager._health_get = lambda *a, **k: response
         for spec in manager.specs:
             self.assertTrue(manager.healthy(spec))
-        self.assertEqual(manager.status_summary(), "运行中 · 2 项提醒")
-        self.assertEqual(manager.status_details()[:3], ("HTTP 正常", "HTTPS 正常", warnings[0]))
+        self.assertEqual(manager.status_summary(), "Running · 2 warnings")
+        self.assertEqual(manager.status_details()[:3], ("HTTP OK", "HTTPS OK", warnings[0]))
         self.assertTrue(manager.status_details()[-1].endswith("…"))
         self.assertTrue(all(len(line) <= 48 for line in manager.status_details()))
         response.json.return_value = {"ok": True, "media_mounts": {"warnings": []}}
         for spec in manager.specs:
             manager.healthy(spec)
         self.assertEqual(manager.status_summary(), "Running")
-        self.assertEqual(manager.status_details(), ("HTTP 正常", "HTTPS 正常"))
+        self.assertEqual(manager.status_details(), ("HTTP OK", "HTTPS OK"))
 
     def test_short_summary_preserves_service_failures(self):
         manager = self.manager({"http": (True, ""), "https": (False, "状态码 503")})
         self.assertEqual(manager.status_summary(), "Some services unhealthy")
-        self.assertEqual(manager.status_details(), ("HTTP 正常", "HTTPS 异常（状态码 503）"))
+        self.assertEqual(manager.status_details(), ("HTTP OK", "HTTPS Unhealthy (状态码 503)"))
         self.assertEqual(self.manager({"http": (False, "无响应")}).status_summary(), "Services not running")
 
     def test_windows_style_menu_keeps_details_out_of_the_root_and_refreshes(self):
@@ -244,22 +244,22 @@ class ServiceStatusTests(unittest.TestCase):
         with patch("peach.tray.pystray.Icon") as icon:
             tray = PeachTray(manager)
         root = icon.call_args.args[3]
-        status = next(item for item in root.items if item.text.startswith("状态："))
-        self.assertEqual(status.text, "状态：运行中")
-        self.assertIn("HTTP 正常", [item.text for item in status.submenu.items])
+        status = next(item for item in root.items if item.text.startswith("Status: "))
+        self.assertEqual(status.text, "Status: Running")
+        self.assertIn("HTTP OK", [item.text for item in status.submenu.items])
         manager._last_health["http"] = (False, "无响应")
-        self.assertEqual(status.text, "状态：服务未运行")
-        self.assertIn("HTTP 异常（无响应）", [item.text for item in status.submenu.items])
+        self.assertEqual(status.text, "Status: Services not running")
+        self.assertIn("HTTP Unhealthy (无响应)", [item.text for item in status.submenu.items])
         self.assertIs(tray.manager, manager)
 
     def test_partial_names_the_broken_one_with_reason(self):
         self.assertEqual(
             self.manager({"http": (True, ""), "https": (False, "状态码 503")}).status(),
-            "HTTP 正常 · HTTPS 异常（状态码 503）",
+            "HTTP OK · HTTPS Unhealthy (状态码 503)",
         )
         self.assertEqual(
             self.manager({"http": (False, "状态码 503"), "https": (True, "")}).status(),
-            "HTTP 异常（状态码 503） · HTTPS 正常",
+            "HTTP Unhealthy (状态码 503) · HTTPS OK",
         )
 
     def test_health_check_never_goes_through_a_proxy(self):
@@ -810,7 +810,7 @@ class SourceSyncTests(unittest.TestCase):
 
     def test_windows_tray_lists_source_sync_next_to_ledger(self):
         source = inspect.getsource(PeachTray.__init__)
-        self.assertIn('MenuItem("同步开发进度", self.sync_source,', source)
+        self.assertIn('MenuItem("Sync development progress", self.sync_source,', source)
         self.assertIn('visible=lambda _: not standalone()', source)
         self.assertLess(source.index("Sync development progress"), source.index("ledger_menu_items"))
         self.assertLess(source.index("ledger_menu_items"), source.index("Restart service"))
@@ -928,7 +928,7 @@ class FakeVersions:
         return self.snapshot
 
     def update(self):
-        return UpdateResult(self.state, "当前已比更新通道领先 3 个提交。",
+        return UpdateResult(self.state, "Already 3 commits ahead of the update channel.",
                             self.snapshot, ahead=3)
 
     def head_commit(self):
@@ -1012,7 +1012,7 @@ class LocalRebuildTests(unittest.TestCase):
             tray.sync_source(icon)
             self.drain(tray)
         self.assertEqual(updates.prepared, [])
-        self.assertIn("托盘无需重建", self.messages(icon))
+        self.assertIn("no rebuild needed", self.messages(icon))
 
     def test_a_tray_built_from_the_current_head_reports_that_it_matches(self):
         versions = FakeVersions(self.snapshot(behind=0))
@@ -1024,7 +1024,7 @@ class LocalRebuildTests(unittest.TestCase):
             tray.sync_source(icon)
             self.drain(tray)
         self.assertEqual(updates.prepared, [])
-        self.assertIn("托盘构建与检出一致", self.messages(icon))
+        self.assertIn("The tray build matches the checkout", self.messages(icon))
 
     def test_a_source_checkout_has_nothing_to_rebuild(self):
         versions = FakeVersions(self.snapshot(behind=5))
@@ -1036,7 +1036,7 @@ class LocalRebuildTests(unittest.TestCase):
             tray.sync_source(icon)
             self.drain(tray)
         self.assertEqual(updates.prepared, [])
-        self.assertIn("当前不是打包托盘", self.messages(icon))
+        self.assertIn("This is not the packaged tray", self.messages(icon))
 
     def test_a_standalone_test_package_is_replaced_by_hand_not_rebuilt(self):
         versions = FakeVersions(self.snapshot(behind=5))
@@ -1235,7 +1235,7 @@ class MacMenuBarActionTests(unittest.TestCase):
             run_handler("Check for updates", submenu="Version and updates")
         self.assertEqual(opened.call_args.args[0][:2], ["open", "-R"])
         versions.check.assert_called_once()
-        self.assertIn(("Peach diagnostic report", "诊断报告已保存：peach-support.zip"), built["notices"])
+        self.assertIn(("Peach diagnostic report", "Diagnostics report saved: peach-support.zip"), built["notices"])
         self.assertIn(("Peach Version and updates", versions.check.return_value.message), built["notices"])
 
 
@@ -1527,7 +1527,7 @@ class ServiceRevivalTests(unittest.TestCase):
             manager._popen.assert_called_once()
             self.assertTrue(manager.waiting_for_startup())
             self.assertEqual(manager.status_summary(), "Starting up")
-            self.assertIn("HTTPS 启动中", manager.status_details())
+            self.assertIn("HTTPS Starting up", manager.status_details())
             get.side_effect = None
             get.return_value = ReadyResponse(200, {"ok": True})
             self.assertTrue(manager.healthy(self.SPEC))
@@ -1814,7 +1814,7 @@ class TrayPreparationTests(unittest.TestCase):
 
     def test_startup_reports_a_failed_migration_and_an_unready_schema(self):
         failed = runtime_prepare.Step("migrations", "failed", "migrate status 失败：database is locked")
-        manager = self.manager(problems=["HTTPS 未就绪：数据库结构与迁移不一致"])
+        manager = self.manager(problems=["HTTPS not ready: database schema does not match the migrations"])
         tray = self.tray(manager, self.preparation(migration=failed))
         self.run_tray(tray)
         self.assertIn("database is locked", tray._startup_warning)
@@ -1877,7 +1877,7 @@ class TrayPreparationTests(unittest.TestCase):
         manager.waiting_for_startup.return_value = True
         tray = self.tray(manager, self.preparation())
         icon = self.press_restart(tray)
-        self.assertIn("仍在启动", icon.notify.call_args.args[0])
+        self.assertIn("still starting", icon.notify.call_args.args[0])
         self.assertNotIn("未能", icon.notify.call_args.args[0])
         self.assertFalse(runtime_prepare.read_record(self.root / "state", pid=os.getpid())["ok"])
 
@@ -1895,13 +1895,13 @@ class TrayPreparationTests(unittest.TestCase):
                 tray.sync_source(icon)
                 LocalRebuildTests.drain(self, tray)
                 message = icon.notify.call_args.args[0]
-                self.assertIn("仍在启动", message)
+                self.assertIn("still starting", message)
                 self.assertNotIn("未能恢复", message)
                 self.assertIsNotNone(tray.windows_updates.pending())
                 manager.waiting_for_startup.return_value = False
                 manager.healthy.return_value = outcome != "exited"
                 if outcome == "schema":
-                    manager.readiness_problems.return_value = ["HTTPS 未就绪：数据库结构与迁移不一致"]
+                    manager.readiness_problems.return_value = ["HTTPS not ready: database schema does not match the migrations"]
                 if outcome == "newer":
                     tray.windows_updates.mark_pending("next-commit", ())
                 ServiceRevivalTests.one_health_round(self, tray)
@@ -1931,7 +1931,7 @@ class TrayPreparationTests(unittest.TestCase):
         icon = self.press_restart(tray)
         self.assertEqual(self.spawned, [True])
         manager.restart.assert_not_called()
-        self.assertIn("整体重启托盘", icon.notify.call_args_list[0].args[0])
+        self.assertIn("restarting the whole tray", icon.notify.call_args_list[0].args[0])
 
     def test_a_refused_whole_tray_restart_falls_back_to_the_services(self):
         log = self.root / "logs" / "tray-restart.out.log"
@@ -1986,7 +1986,7 @@ class TrayPreparationTests(unittest.TestCase):
         specs = (ServiceSpec("http", "http://127.0.0.1/healthz", ("peach",), True),
                  ServiceSpec("https", "https://192.0.2.10/healthz", ("peach",), "ca.crt"))
         manager = ServiceManager(specs, health_get=get, log_dir=self.root)
-        self.assertEqual(manager.readiness_problems(), ["HTTPS 未就绪：数据库结构与迁移不一致"])
+        self.assertEqual(manager.readiness_problems(), ["HTTPS not ready: database schema does not match the migrations"])
         self.assertEqual(asked, [("http://127.0.0.1/healthz?ready=1", True),
                                  ("https://192.0.2.10/healthz?ready=1", "ca.crt")])
 

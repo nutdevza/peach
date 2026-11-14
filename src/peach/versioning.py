@@ -62,7 +62,8 @@ class VersionSnapshot:
         if self.build_commit is None:
             return f"{base} · tray build identity not obtained"
         if self.build_behind is not None and self.build_behind > 0:
-            return f"{base} · tray build {self.build_commit[:8]}, {self.build_behind} commits behind"
+            noun = "commit" if self.build_behind == 1 else "commits"
+            return f"{base} · tray build {self.build_commit[:8]}, {self.build_behind} {noun} behind"
         return f"{base} · tray build {self.build_commit[:8]} is not in this checkout's history"
 
     @property
@@ -237,8 +238,8 @@ class VersionManager:
         if snapshot.dirty:
             return UpdateResult(
                 "blocked",
-                f"更新通道有 {checked.behind} 个新提交，但本地检出有未提交修改；"
-                "先处理掉再同步。",
+                f"The update channel has {checked.behind} new commits, but the checkout has "
+                "uncommitted changes; settle those first, then sync.",
                 snapshot, behind=checked.behind,
             )
         before = self._text("rev-parse", "HEAD")

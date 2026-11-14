@@ -245,7 +245,7 @@ class BackgroundJobTaskRunTests(unittest.TestCase):
         job.stop(timeout=0.1)
         run = self.store.get(run_id)
         self.assertEqual(run.status, "cancelled")
-        self.assertIn("关停", run.error)
+        self.assertIn("shut down", run.error)
 
     def test_a_job_without_a_store_still_runs(self):
         """裸 `BackgroundJob`（测试与老调用点）不带 store，一切照旧。"""

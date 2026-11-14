@@ -716,8 +716,10 @@ class ReviewQueueTests(unittest.TestCase):
         self._asset(104, "123118_001", "1pondo-123118.mp4", folder="/lib/123118_001")
         self.write_metadata_rows([
             self._release_date_row("SSIS-123"),
+            # r18dev 的拉丁字母标题要求快照原文复核（v0.57 新门槛），与本用例无关；
+            # 换 javdb 来源让用例只考目录兜底。
             {"item_key": "123118_001:title", "field": "title", "current": "",
-             "candidates": ["Title"], "code": "123118_001"}])
+             "candidates": ["Title"], "code": "123118_001", "source": "javdb"}])
         self.assertEqual(self._auto()["applied"], 2)
         self.assertEqual(self._release_dates(103), {103: "2018-05-02"})
 
@@ -757,7 +759,7 @@ class ReviewQueueTests(unittest.TestCase):
             self.assertEqual(
                 sorted(row[0] for row in con.execute(
                     "SELECT tag FROM asset_tag WHERE asset_id=95")),
-                ["Shaved", "Masturbation"], "`Featured Actress` 是演员编成，按非内容排除")
+                ["Masturbation", "Shaved"], "`Featured Actress` 是演员编成，按非内容排除")
         finally:
             con.close()
         self.assertEqual(self.queue_keys("metadata_fields"), [])
@@ -3076,7 +3078,7 @@ class ReviewQueueTests(unittest.TestCase):
             con.execute("UPDATE asset SET code='ABC-001' WHERE id=1")
             con.execute(
                 "INSERT INTO asset_tag(asset_id,tag,confidence,source) "
-                "VALUES(1,'美乳',0.4,'filename')"
+                "VALUES(1,'Beautiful Breasts',0.4,'filename')"
             )
             upsert_asset_entity(con, kind="tag", name="Beautiful Breasts", asset_id=1, role="tag",
                                 source="filename", confidence=0.4)
@@ -3140,11 +3142,11 @@ class ReviewQueueTests(unittest.TestCase):
         con = sqlite3.connect(self.db_path)
         self.assertEqual(con.execute(
             "SELECT tag FROM asset_tag WHERE asset_id=1 ORDER BY tag"
-        ).fetchall(), [("Virgin theme",), ("Facial",)])
+        ).fetchall(), [("Facial",), ("Virgin theme",)])
         self.assertEqual(con.execute(
             "SELECT e.canonical_name FROM asset_entity ae JOIN entity e ON e.id=ae.entity_id "
             "WHERE ae.asset_id=1 AND ae.role='tag' ORDER BY e.canonical_name"
-        ).fetchall(), [("Virgin theme",), ("Facial",)])
+        ).fetchall(), [("Facial",), ("Virgin theme",)])
         con.close()
 
     def test_metadata_title_approval_writes_catalog_title(self):

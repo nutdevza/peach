@@ -37,7 +37,7 @@ class TemplateRenderTests(unittest.TestCase):
         ("{number}[ CD{cd}]", {"cd": ""}, "ABC-123"),
         ("{number}[ CD{cd}]", {}, "ABC-123 CD2"),
         ("[{mosaic} ]{number}", {"mosaic": ""}, "ABC-123"),
-        ("[{studio} ][{series} ]{number}", {"series": ""}, "厂牌 ABC-123"),
+        ("[{studio} ][{series} ]{number}", {"series": ""}, "Studio ABC-123"),
         ("{number} [{definition}]", {}, "ABC-123 1080p"),
         # 方括号是分组记号，不进结果；一个占位符都没有的分组就是一段普通字面量。
         ("{number} [完整版]", {}, "ABC-123 完整版"),
@@ -45,7 +45,7 @@ class TemplateRenderTests(unittest.TestCase):
         ("{number} {{x}}", {}, "ABC-123 {x}"),
         ("{number} [[x]]", {}, "ABC-123 [x]"),
         # 出演者与年份是最常见的两组可选信息。
-        ("{number}[ ({year})][ {actors}]", {"year": ""}, "ABC-123 甲、乙"),
+        ("{number}[ ({year})][ {actors}]", {"year": ""}, "ABC-123 A, B"),
     ]
 
     def test_render_table(self):
@@ -66,7 +66,7 @@ class TemplateRenderTests(unittest.TestCase):
 
     def test_directory_template_keeps_layers(self):
         text, _missing = render("{studio}/{number}", VALUES, directory=True)
-        self.assertEqual(text, "厂牌/ABC-123")
+        self.assertEqual(text, "Studio/ABC-123")
 
     def test_presets_render_the_displayed_example_path(self):
         for preset in organize.PRESETS:
@@ -192,11 +192,11 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan["counts"]["change"], 1)
         self.assertEqual(plan["rows"][0]["action"], "rename")
         self.assertEqual(plan["rows"][0]["target_path"],
-                         "R:\\media\\旧\\ABC-123 标题.mp4")
+                         "R:\\media\\旧\\ABC-123 Title.mp4")
 
         plan = _plan(self.db_path, file_template="{number}", dir_template="{studio}")
         self.assertEqual(plan["rows"][0]["action"], "move")
-        self.assertEqual(plan["rows"][0]["target_path"], "R:\\media\\厂牌\\ABC-123.mp4")
+        self.assertEqual(plan["rows"][0]["target_path"], "R:\\media\\Studio\\ABC-123.mp4")
 
     def test_directory_scope_includes_descendants_and_excludes_prefix_siblings(self):
         _seed(self.db_path, [
@@ -217,18 +217,18 @@ class PlanTests(unittest.TestCase):
     def test_directory_template_uses_scope_as_base_and_checks_outside_scope_collisions(self):
         _seed(self.db_path, [
             {'id': 1, 'path': r'R:\media\合集\旧\a.mp4', 'name': 'a.mp4', 'code': 'ABC-001', 'studio': 'Studio'},
-            {'id': 2, 'path': r'R:\media\合集\厂牌\ABC-001.mp4', 'name': 'ABC-001.mp4', 'code': 'ABC-001'},
+            {'id': 2, 'path': r'R:\media\合集\Studio\ABC-001.mp4', 'name': 'ABC-001.mp4', 'code': 'ABC-001'},
         ])
         plan = _plan(self.db_path, file_template='{number}', dir_template='{studio}', path=r'R:\media\合集', asset_ids=[1])
         self.assertEqual(plan['counts']['skip'], 1)
         self.assertEqual(plan['rows'][0]['reason'], organize.SKIP_TARGET_EXISTS)
-        self.assertEqual(plan['rows'][0]['target_path'], r'R:\media\合集\厂牌\ABC-001.mp4')
+        self.assertEqual(plan['rows'][0]['target_path'], r'R:\media\合集\Studio\ABC-001.mp4')
 
     def test_local_mount_scope_is_translated_to_ledger_shape(self):
         mount = self.holder / 'mounted'
         mount.mkdir()
         with mock.patch.object(organize, 'location_mounts', return_value={'local': (mount,)}):
-            self.assertEqual(organize.scope_path('local', str(mount / 'Collection'), DECLARED), r'R:\media\合集')
+            self.assertEqual(organize.scope_path('local', str(mount / 'Collection'), DECLARED), r'R:\media\Collection')
 
     def test_filename_cleanup_needs_no_template_or_metadata(self):
         _seed(self.db_path, [{'id': 1, 'path': r'R:\media\★标题⧹⧹片段.mp4',
@@ -362,7 +362,7 @@ class ApplyTests(unittest.TestCase):
         self.assertFalse((self.media / "旧" / "abc123.mp4").exists())
         with closing(sqlite3.connect(self.db_path)) as connection:
             row = connection.execute("SELECT path,name FROM asset WHERE id=1").fetchone()
-        self.assertEqual(row, ("R:\\media\\厂牌\\ABC-123.mp4", "ABC-123.mp4"))
+        self.assertEqual(row, ("R:\\media\\Studio\\ABC-123.mp4", "ABC-123.mp4"))
 
     def test_a_disposed_asset_in_a_saved_plan_is_left_on_disk(self):
         original = self._file('old/title.mp4')
@@ -542,7 +542,7 @@ class EndpointTests(unittest.TestCase):
         result = w_organize_preview(self.contract, {
             "location": "local", "file_template": "{number}[ {title}]"})
         self.assertEqual(result["counts"]["change"], 1)
-        self.assertEqual(result["rows"][0]["target_path"], "R:\\media\\旧\\ABC-123 标题.mp4")
+        self.assertEqual(result["rows"][0]["target_path"], "R:\\media\\旧\\ABC-123 Title.mp4")
         self.assertTrue(Path(result["plan_csv"]).is_file())
 
     def test_write_reports_existing_foreign_keys_and_rejects_new_violations(self):
@@ -639,7 +639,7 @@ class EndpointTests(unittest.TestCase):
 
         output = dispatch_api_get(None, "/api/organize/example", {
             "file_template": "自定义_{code}[_{definition}]", "dir_template": "{year}/{studio}"})
-        self.assertEqual(output, {"ok": True, "example": "2024/厂牌/自定义_ABC-123_1080p.mp4"})
+        self.assertEqual(output, {"ok": True, "example": "2024/Studio/自定义_ABC-123_1080p.mp4"})
         invalid = dispatch_api_get(None, "/api/organize/example", {"file_template": "{code"})
         self.assertFalse(invalid["ok"])
         self.assertEqual(invalid["field"], "file")

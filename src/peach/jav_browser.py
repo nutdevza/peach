@@ -524,12 +524,12 @@ class JavBrowser:
         attempt = row.get('retry_attempt', 0)
         delay = retry_delay(error, attempt)
         if delay is None:
-            prefix = f'"Automatic retry "{attempt}" attempts without finishing; "' if attempt == len(RETRY_DELAYS) else ''
-            row.update(state='failed', message=prefix + '搜索或云下载提交失败，请在 Peach 检查来源和下载渠道后重试')
+            prefix = f'Automatic retry {attempt} attempts without finishing; ' if attempt == len(RETRY_DELAYS) else ''
+            row.update(state='failed', message=prefix + 'The search or cloud-download submission failed; check the source and the download channel in Peach, then retry')
             row['retry_exhausted'] = attempt == len(RETRY_DELAYS)
             return
         row.update(state='queued', retry_attempt=attempt + 1, retry_limit=len(RETRY_DELAYS),
-                   retry_at=iso(self.downloads.clock() + delay), message='暂时不可用，等待自动重试')
+                   retry_at=iso(self.downloads.clock() + delay), message='Temporarily unavailable; waiting for the automatic retry')
 
     def start(self):
         if not self.downloads.available or self._thread is not None:

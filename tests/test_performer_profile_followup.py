@@ -211,7 +211,7 @@ class ParsingTests(unittest.TestCase):
             "active_until": None, "debut_title": "新人 プレステージ専属デビュー",
             "debut_date": "2021-05-21", "blog_url": "https://twitter.com/minoshimameguri",
             "site_url": "http://pub.linx.live/contents/model/5081/"})
-        self.assertEqual(found["tags"], ["Beautiful Breasts", "美人"])
+        self.assertEqual(found["tags"], ["美乳", "美人"])
 
     def test_the_raw_cells_keep_every_label_and_aliases_as_a_list(self):
         """规整规则改了不必重新取页：每一格原文都在，事务所也在（它写在实体上，这里只留原文）。"""
@@ -404,7 +404,7 @@ class MinnanoLandingTests(Case):
                          ("2001-12-08", 156, "E", 2021))
         self.assertEqual((found["source"], found["source_url"]),
                          (f"{followup.SOURCE}@7", MINNANO_URL))
-        self.assertEqual(found["tags"], ["Beautiful Breasts", "美人"])
+        self.assertEqual(found["tags"], ["美乳", "美人"])
         self.assertEqual(self.minnano.calls, [MINNANO_URL], "有编号就不检索")
         self.assertTrue(summary["landed"])
         self.assertTrue(self.busted)

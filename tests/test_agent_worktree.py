@@ -577,7 +577,8 @@ class PruneTests(_WorktreeCase):
     def test_a_worktree_a_process_is_working_in_is_kept(self):
         """会话、终端或预览服务还开在里面的工作树不回收：分支合入了，人还在用。"""
         worker = self._integrated("in-use")
-        process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], cwd=worker)
+        interpreter = getattr(sys, "_base_executable", None) or sys.executable
+        process = subprocess.Popen([interpreter, "-c", "import time; time.sleep(60)"], cwd=worker)
         try:
             report = prune(self.repo, apply=True)
         finally:
@@ -738,7 +739,11 @@ class LeftoverProcessTests(_WorktreeCase):
 
     def sleeper(self, cwd: Path) -> subprocess.Popen:
         cwd.mkdir(parents=True, exist_ok=True)
-        child = subprocess.Popen([sys.executable, "-c", "import sys; sys.stdin.read()"],
+        # uv 管理的 venv 里 python.exe 是转发器，真解释器是它再起的另一个进程：
+        # 拿转发器的 pid 去对进程扫描永远对不上。直接起基解释器，子进程只用标准库，
+        # 保证留在进程表里的 pid 就是占着目录的这个。
+        interpreter = getattr(sys, "_base_executable", None) or sys.executable
+        child = subprocess.Popen([interpreter, "-c", "import sys; sys.stdin.read()"],
                                  cwd=cwd, stdin=subprocess.PIPE)
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:

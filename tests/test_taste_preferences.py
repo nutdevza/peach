@@ -318,7 +318,7 @@ class TastePreferenceTests(unittest.TestCase):
         self.assertEqual(account_key("https://pixiv.net/member.php?id=123"), account_key("https://pixiv.net/users/123"))
         self.assertEqual(account_key("https://patreon.com/c/demo_actor/about"), account_key("https://patreon.com/demo_actor"))
         for url in ("https://www.dmm.co.jp/search/=/searchstr=制服/", "https://mgstage.com/search?search_word=制服"):
-            self.assertIn("Uniform", _url_candidates(url)[1])
+            self.assertIn("制服", _url_candidates(url)[1])
         self.assertEqual(_url_candidates("https://x.com/unrelated?search=feet")[1:], (set(), set()))
         _, tags, creators = _url_candidates("https://rule34.xxx/?tags=feet+sort:score+rating:explicit+artist:demo_artist+-cosplay")
         self.assertEqual(tags, {"feet"})

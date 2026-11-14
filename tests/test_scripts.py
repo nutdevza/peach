@@ -4098,14 +4098,14 @@ class OperationalScriptTests(unittest.TestCase):
                             "catalog_title='Catalog title',studio='Studio A',release_date='2020-09-13'")
                 con.execute("INSERT INTO asset_tag(asset_id,tag,confidence,source) "
                             "VALUES(1,'肛交',0.9,'javinizer:r18dev:tag')")
-                upsert_asset_entity(con, kind="tag", name="Anal", asset_id=1, role="tag",
+                upsert_asset_entity(con, kind="tag", name="肛交", asset_id=1, role="tag",
                                     source="javinizer:r18dev:tag")
                 upsert_asset_entity(con, kind="performer", name="木村さん", asset_id=1,
                                     role="performer", source="javinizer:r18dev:performer")
                 con.execute("INSERT INTO review_decision(category,item_key,status,note,updated_at) "
                             "VALUES('metadata_fields','ABW-220:tags','approved',?,'2026-01-01')",
                             (json.dumps({"auto_applied": True, "source": "r18dev",
-                                         "candidate_key": "old-r18dev", "value": "Anal"}),))
+                                         "candidate_key": "old-r18dev", "value": "肛交"}),))
 
             class Recollection:
                 def __init__(self):
@@ -4227,7 +4227,7 @@ class OperationalScriptTests(unittest.TestCase):
             self.assertEqual((total, pending), (1, 1))
             with review.open(encoding="utf-8-sig", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            rows[0].update({"status": "approved", "tags": "Amateur", "reason": "reviewed"})
+            rows[0].update({"status": "approved", "tags": "素人", "reason": "reviewed"})
             with review.open("w", encoding="utf-8-sig", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=self.creator_tags.REVIEW_FIELDS)
                 writer.writeheader()
@@ -4239,11 +4239,11 @@ class OperationalScriptTests(unittest.TestCase):
             self.assertTrue(backup.is_file())
             connection = sqlite3.connect(db)
             self.assertEqual(connection.execute(
-                "SELECT source,confidence FROM asset_tag WHERE asset_id=1 AND tag='素人'"
+                "SELECT source,confidence FROM asset_tag WHERE asset_id=1 AND tag='Amateur'"
             ).fetchone(), ("vision_creator", 0.6))
             self.assertEqual(connection.execute(
                 "SELECT ae.source FROM asset_entity ae JOIN entity e ON e.id=ae.entity_id "
-                "WHERE ae.asset_id=1 AND e.kind='tag' AND e.canonical_name='素人'"
+                "WHERE ae.asset_id=1 AND e.kind='tag' AND e.canonical_name='Amateur'"
             ).fetchone()[0], "vision_creator")
             connection.close()
 

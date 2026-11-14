@@ -105,7 +105,7 @@ class ValidatorTests(_Case):
         with mock.patch.object(Path, "is_dir", return_value=True), \
                 mock.patch.object(Path, "resolve", return_value=Path(shared)), \
                 mock.patch("peach.onboarding.os.path.abspath", side_effect=windows_abspath):
-            with self.assertRaisesRegex(ValueError, "不是盘符路径"):
+            with self.assertRaisesRegex(ValueError, "drive-letter path"):
                 onboarding.media_dir_validator(windows=True)(shared)
 
     def test_posix_media_directory_uses_its_filesystem_target(self):
@@ -117,7 +117,7 @@ class ValidatorTests(_Case):
         missing = self.root / "nope"
         with self.assertRaises(ValueError) as caught:
             validate(str(missing))
-        self.assertIn("不存在", str(caught.exception))
+        self.assertIn("does not exist", str(caught.exception))
         self.assertFalse(missing.exists())
         with self.assertRaises(ValueError):
             validate("")
@@ -219,7 +219,7 @@ class ConfigureTests(_Case):
         other.mkdir()
         self.assertEqual(onboarding.check_media_dirs((self.media, other)), {})
         self.assertEqual(list(onboarding.check_media_dirs((self.media, self.media))), [1])
-        self.assertIn("重复", onboarding.check_media_dirs((self.media, self.media))[1])
+        self.assertIn("Same as", onboarding.check_media_dirs((self.media, self.media))[1])
         problems = onboarding.check_media_dirs((self.media, nested))
         self.assertEqual(list(problems), [1])
         self.assertIn(str(self.media), problems[1])
@@ -239,12 +239,12 @@ class ConfigureTests(_Case):
         _paths, problems = onboarding.read_media_dirs(
             [str(self.media), "", str(self.root / "nope")], validate=validate)
         self.assertEqual(problems[:2], ["", ""])
-        self.assertIn("目录不存在", problems[2])
+        self.assertIn("does not exist", problems[2])
         (self.media / "inner").mkdir()
         _paths, problems = onboarding.read_media_dirs(
             [str(self.media), str(self.media / "inner")], validate=validate)
         self.assertEqual(problems[0], "")
-        self.assertIn("已经在", problems[1])
+        self.assertIn("Already inside", problems[1])
 
     def test_only_the_asked_settings_change_and_replication_stays_off(self):
         prepared = onboarding.configure(
@@ -296,7 +296,7 @@ class InterviewTests(_Case):
         answers = onboarding.interview(self.config, ask, windows=NATIVE_WINDOWS, home=self.home,
                                        report=reports.append)
         self.assertEqual(answers.media_dirs, (self.media,))
-        self.assertTrue(any("已经在" in line for line in reports), reports)
+        self.assertTrue(any("Already inside" in line for line in reports), reports)
 
     def test_console_ask_shows_the_default_and_treats_eof_as_abort(self):
         with mock.patch("builtins.input", return_value="x") as prompt:
@@ -602,7 +602,7 @@ class SetupJsonContractTests(_SetupHttpCase):
         response = self._get("/")
         self.assertEqual(response.status_code, 200)
         body = response.text
-        self.assertIn("<title>Peach · 首次运行</title>", body)
+        self.assertIn("<title>Peach · First-time setup</title>", body)
         self.assertIn('<link rel="icon" href="/favicon.ico" type="image/x-icon">', body)
         self.assertLess(body.index('localStorage.getItem("peach.settings.v1")'), body.index("/dist/peach-pages.css"))
         for symbol in ("folder-search", "hard-drive", "database"):
@@ -627,7 +627,7 @@ class SetupJsonContractTests(_SetupHttpCase):
     def test_invalid_values_are_reported_without_creating_anything(self):
         missing = self.root / "nope"
         errors = self._errors(self._body(media_dir=self._rows(missing), port="0"))
-        self.assertIn("目录不存在", errors["media_dir"][0])
+        self.assertIn("does not exist", errors["media_dir"][0])
         self.assertIn("The port must be a whole number between 1 and 65535", errors["port"])
         self.assertFalse(missing.exists(), "校验不替人建目录")
         self.assertFalse(self.data_root.exists(), "校验失败不落任何文件")
@@ -741,13 +741,14 @@ class SetupJsonContractTests(_SetupHttpCase):
         self.assertEqual([item["key"] for item in questions], [question.key for question in asked])
         self.assertEqual([item["default"] for item in questions],
                          ["" if question.key == "media_dir" else question.default for question in asked])
-        self.assertEqual([item["label"] for item in questions], ["Data directory", "媒体目录", "谁可以访问", "端口", "局域网访问地址"])
+        self.assertEqual([item["label"] for item in questions],
+                         ["Data directory", "Media folders", "Who can access", "Port", "LAN address"])
         by_key = {item["key"]: item for item in questions}
         self.assertEqual([key for key, item in by_key.items() if not item["required"]], ["host"])
         self.assertEqual([key for key, item in by_key.items() if not item["advanced"]], ["data_root", "media_dir", "host"])
         self.assertEqual(by_key["data_root"]["input"], "folder")
-        self.assertEqual(by_key["host"]["options"], [{"value": "2", "label": "同一局域网的设备"},
-                                                     {"value": "1", "label": "只有这台电脑"}])
+        self.assertEqual(by_key["host"]["options"], [{"value": "2", "label": "Devices on the same LAN"},
+                                                     {"value": "1", "label": "This computer only"}])
         self.assertEqual((by_key["port"]["input"], by_key["port"]["prefix"]), ("number", "localhost:"))
         self.assertEqual((by_key["mdns_name"]["prefix"], by_key["mdns_name"]["suffix"]), ("https://", ".local"))
         self.assertEqual(by_key["mdns_name"]["visible_when"], {"host": "2"})
@@ -838,8 +839,8 @@ class SetupJsonContractTests(_SetupHttpCase):
         with mock.patch("peach.media_configuration.mount_dependencies", return_value=rows):
             data = self._send("GET", self.QUESTIONS).json()
         self.assertEqual(data["cloud"]["dependencies"], [{
-            "name": "WinFsp", "message": "未检测到 WinFsp。",
-            "download_url": "https://winfsp.dev/rel/", "download_label": "下载 WinFsp"}])
+            "name": "WinFsp", "message": "WinFsp was not detected.",
+            "download_url": "https://winfsp.dev/rel/", "download_label": "Download WinFsp"}])
 
     def test_the_standalone_package_gets_its_own_address_form_in_the_questions(self):
         with mock.patch.object(distribution, "standalone", return_value=True):
@@ -1185,16 +1186,16 @@ class StandaloneConfigurationTests(_Case):
             windows = mount_dependencies(system='win32')
             self.assertEqual([row['name'] for row in windows], ['CloudDrive', 'WinFsp'])
             self.assertTrue(all(not row['available'] for row in windows))
-            self.assertIn('下载 WinFsp', names(windows=True))
-            self.assertNotIn('下载 macFUSE', names(windows=True))
+            self.assertIn('Download WinFsp', names(windows=True))
+            self.assertNotIn('Download macFUSE', names(windows=True))
         with mock.patch("peach.media_configuration._windows_installed_names", return_value=['clouddrive', 'winfsp 2026']):
             self.assertTrue(all(row['available'] for row in mount_dependencies(system='win32')))
             self.assertEqual(names(windows=True), [])
         with mock.patch("peach.media_configuration.Path.is_dir", return_value=False), mock.patch(
                 "peach.media_configuration.shutil.which", return_value=None):
             self.assertEqual([row['name'] for row in mount_dependencies(system='darwin')], ['CloudDrive', 'macFUSE'])
-            self.assertIn('下载 macFUSE', names(windows=False))
-            self.assertNotIn('下载 WinFsp', names(windows=False))
+            self.assertIn('Download macFUSE', names(windows=False))
+            self.assertNotIn('Download WinFsp', names(windows=False))
 
     def setUp(self):
         super().setUp()

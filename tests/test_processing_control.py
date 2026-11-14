@@ -149,7 +149,7 @@ class ProcessingControlTests(unittest.TestCase):
         self.assertGreater(low['eta_seconds_max'], estimate['eta_seconds_max'])
         self.assertLess(high['eta_seconds_max'], estimate['eta_seconds_max'])
         self.assertTrue(estimate['eta_initial'])
-        self.assertIn('未含未知新增', estimate['eta_scope'])
+        self.assertIn('unknown new files not included', estimate['eta_scope'])
 
     def test_new_directory_reports_counting_without_invented_time(self):
         estimate = initial_estimate(self.config, self.db, 'scan')
